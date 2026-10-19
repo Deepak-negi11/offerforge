@@ -27,6 +27,7 @@ export interface Question {
   sources: Source[]
   reports: number
   secondaryOnly: boolean
+  verified?: boolean
 }
 
 export interface ProcessRound {
@@ -60,7 +61,7 @@ export interface Company {
 
 export interface Atlas {
   generatedAt: string
-  stats: { questions: number; notes: number; companies: number; sources: number; platforms: Record<string, number>; dropped: number }
+  stats: { questions: number; notes: number; verified?: number; companies: number; sources: number; platforms: Record<string, number>; dropped: number }
   rounds: string[]
   categories: string[]
   groups: string[]
@@ -170,3 +171,6 @@ export function isCoding(q: Pick<Question, 'category' | 'round'>) {
 }
 
 export const isQuestion = (q: Question) => q.kind === 'question'
+
+/** Newest reports first; ties broken by how many candidates reported the question. */
+export const byNewest = (a: Question, b: Question) => (b.year ?? 0) - (a.year ?? 0) || b.reports - a.reports

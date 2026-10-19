@@ -1,15 +1,35 @@
+import { createClient } from '@libsql/client'
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-import { DatabaseSync } from 'node:sqlite'
 
-const DB_PATH = resolve(process.env.DB_PATH ?? new URL('../data/atlas.db', import.meta.url).pathname)
-mkdirSync(dirname(DB_PATH), { recursive: true })
+// Hosted: set TURSO_DATABASE_URL (libsql://...) and TURSO_AUTH_TOKEN. Otherwise a local SQLite file at DB_PATH.
+const REMOTE = process.env.TURSO_DATABASE_URL
+let url = REMOTE
+if (!REMOTE) {
+  const path = resolve(process.env.DB_PATH ?? new URL('../data/atlas.db', import.meta.url).pathname)
+  mkdirSync(dirname(path), { recursive: true })
+  url = `file:${path}`
+}
+const client = createClient({ url, authToken: process.env.TURSO_AUTH_TOKEN })
 
-export const db = new DatabaseSync(DB_PATH)
-db.exec(`
-  PRAGMA journal_mode = WAL;
-  PRAGMA foreign_keys = ON;
+// Rows come back as plain objects keyed by column name.
+const plain = (rs) => rs.rows.map((row) => Object.fromEntries(rs.columns.map((c, i) => [c, row[i]])))
 
+export const db = {
+  async all(sql, ...args) {
+    return plain(await client.execute({ sql, args }))
+  },
+  async get(sql, ...args) {
+    return (await db.all(sql, ...args))[0] ?? null
+  },
+  async run(sql, ...args) {
+    const rs = await client.execute({ sql, args })
+    return { changes: rs.rowsAffected, lastInsertRowid: rs.lastInsertRowid === undefined ? undefined : Number(rs.lastInsertRowid) }
+  },
+}
+
+if (!REMOTE) await client.executeMultiple('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;')
+await client.executeMultiple(`
   CREATE TABLE IF NOT EXISTS users (
     id            INTEGER PRIMARY KEY,
     email         TEXT NOT NULL UNIQUE COLLATE NOCASE,
@@ -54,4 +74,4 @@ db.exec(`
 `)
 
 // Drop expired sessions on boot so the table doesn't grow forever.
-db.prepare(`DELETE FROM sessions WHERE expires_at < datetime('now')`).run()
+await db.run(`DELETE FROM sessions WHERE expires_at < datetime('now')`)

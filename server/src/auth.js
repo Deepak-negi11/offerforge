@@ -31,34 +31,30 @@ const sha256 = (s) => createHash('sha256').update(s).digest('hex')
 
 const MAX_SESSIONS_PER_USER = 10
 
-export function createSession(userId) {
+export async function createSession(userId) {
   const token = randomBytes(32).toString('base64url')
-  db.prepare(`INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, datetime('now', ?))`).run(
-    sha256(token),
-    userId,
-    `+${SESSION_DAYS} days`,
-  )
+  await db.run(`INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, datetime('now', ?))`, sha256(token), userId, `+${SESSION_DAYS} days`)
   // Keep only the newest sessions per user.
-  db.prepare(
+  await db.run(
     `DELETE FROM sessions WHERE user_id = ? AND token_hash NOT IN
        (SELECT token_hash FROM sessions WHERE user_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?)`,
-  ).run(userId, userId, MAX_SESSIONS_PER_USER)
+    userId,
+    userId,
+    MAX_SESSIONS_PER_USER,
+  )
   return token
 }
 
-export function destroySession(token) {
-  if (token) db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(sha256(token))
+export async function destroySession(token) {
+  if (token) await db.run('DELETE FROM sessions WHERE token_hash = ?', sha256(token))
 }
 
-export function userForToken(token) {
+export async function userForToken(token) {
   if (!token) return null
-  return (
-    db
-      .prepare(
-        `SELECT u.id, u.email, u.name FROM sessions s JOIN users u ON u.id = s.user_id
-         WHERE s.token_hash = ? AND s.expires_at > datetime('now')`,
-      )
-      .get(sha256(token)) ?? null
+  return db.get(
+    `SELECT u.id, u.email, u.name FROM sessions s JOIN users u ON u.id = s.user_id
+     WHERE s.token_hash = ? AND s.expires_at > datetime('now')`,
+    sha256(token),
   )
 }
 
@@ -103,5 +99,5 @@ export function rateLimit(rawKey, limit, windowMs) {
 setInterval(() => {
   const now = Date.now()
   for (const [k, v] of hits) if (v.reset < now) hits.delete(k)
-  db.prepare(`DELETE FROM sessions WHERE expires_at < datetime('now')`).run()
 }, 60_000).unref()
+setInterval(() => db.run(`DELETE FROM sessions WHERE expires_at < datetime('now')`).catch((e) => console.error(`session purge failed: ${e.message}`)), 60 * 60_000).unref()

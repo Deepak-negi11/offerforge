@@ -8,6 +8,8 @@ ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "data"
 RAW = DATA / "raw"  # curated + extracted company files (source of truth)
 EXTRACTED = RAW / "extracted"  # output of `atlas extract`, merged by `atlas build`
+UPDATES = RAW / "updates"  # 2025-26 refresh files (with evidence excerpts), merged by `atlas build`
+VERIFICATION = DATA / "verification.json"  # results of `atlas verify-evidence`
 CACHE = DATA / "cache"
 PAGES = CACHE / "pages"  # fetched page markdown, keyed by URL hash
 DISCOVERED = CACHE / "discovered"  # candidate URLs per company (jsonl)
@@ -97,6 +99,7 @@ ROUND_ORDER: dict[str, int] = {
     "Technical Interview 2": 32,
     "Technical Interview 3": 33,
     "Technical Interview": 35,
+    "AI-Assisted Coding": 38,
     "Machine Coding": 40,
     "Low Level Design": 45,
     "System Design": 50,
@@ -114,6 +117,7 @@ CATEGORIES = [
     "LLD",
     "CS Fundamentals",
     "SQL",
+    "AI/ML",
     "Aptitude",
     "Puzzles",
     "Project",
@@ -127,6 +131,7 @@ CATEGORY_ALIASES = {
     "lld": "LLD", "low level design": "LLD", "machine coding": "LLD", "ood": "LLD", "object oriented design": "LLD",
     "cs fundamentals": "CS Fundamentals", "core cs": "CS Fundamentals", "cs": "CS Fundamentals", "theory": "CS Fundamentals",
     "sql": "SQL", "database": "SQL",
+    "ai/ml": "AI/ML", "ai": "AI/ML", "ml": "AI/ML", "genai": "AI/ML", "machine learning": "AI/ML", "ai/llm": "AI/ML",
     "aptitude": "Aptitude", "quant": "Aptitude", "reasoning": "Aptitude",
     "puzzle": "Puzzles", "puzzles": "Puzzles", "probability": "Puzzles", "brain teaser": "Puzzles",
     "project": "Project", "projects": "Project", "resume": "Project",
@@ -164,6 +169,10 @@ TOPIC_ALIASES = {
     "leadership principles": "Leadership Principles", "behavioral": "Behavioral", "behavioural": "Behavioral",
     "quantitative aptitude": "Quantitative Aptitude", "logical reasoning": "Logical Reasoning", "verbal ability": "Verbal Ability",
     "pseudo code": "Pseudo Code", "pseudocode": "Pseudo Code", "probability": "Probability",
+    "genai": "Generative AI", "gen ai": "Generative AI", "generative ai": "Generative AI",
+    "llm": "LLMs", "llms": "LLMs", "large language models": "LLMs", "rag": "LLMs", "prompt engineering": "Generative AI",
+    "ml": "Machine Learning", "machine learning": "Machine Learning", "ai/ml": "Machine Learning",
+    "ai-assisted coding": "AI-Assisted Coding", "ai assisted coding": "AI-Assisted Coding",
     "design": "Design", "system design": "System Design", "lld": "Low Level Design", "low level design": "Low Level Design",
 }
 

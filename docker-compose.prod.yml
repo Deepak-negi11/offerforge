@@ -1,0 +1,49 @@
+# Production on your own server (VPS): HTTPS via Caddy + the app, plus an optional C++/Java runner.
+#
+#   Site only (works on ARM servers such as Oracle Ampere A1):
+#     DOMAIN=offerforge.example.com docker compose -f docker-compose.prod.yml up -d --build
+#
+#   With the C++/Java runner (x86/amd64 servers only; the Piston image has no ARM build):
+#     DOMAIN=offerforge.example.com COMPOSE_PROFILES=runner PISTON_URL=http://piston:2000 \
+#       docker compose -f docker-compose.prod.yml up -d --build
+#     ./scripts/setup-runner.sh          # once, installs gcc + java into Piston
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN to your domain name}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - app
+
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      TRUST_PROXY: "1" # exactly one proxy (Caddy) sits in front
+      PISTON_URL: ${PISTON_URL:-} # empty = C++/Java show a "runner not set up" message
+    volumes:
+      - app-data:/data # SQLite database: accounts, bookmarks, saved code
+
+  piston:
+    image: ghcr.io/engineer-man/piston:latest
+    profiles: ["runner"]
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "127.0.0.1:2000:2000" # only reachable from the server itself, for setup-runner.sh
+    volumes:
+      - piston-packages:/piston/packages
+    tmpfs:
+      - /piston/jobs:exec,uid=1000,gid=1000,mode=711
+
+volumes:
+  caddy-data:
+  app-data:
+  piston-packages:

@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 from . import config
+from . import evidence as ev
 
 _WORD = re.compile(r"[a-z0-9]+")
 _STOP = {"the", "a", "an", "of", "to", "in", "and", "or", "for", "given", "find", "return", "with", "on", "is", "you", "your"}
@@ -33,6 +34,8 @@ def normalize_round(raw: str | None) -> str:
         return "Online Assessment"
     if "phone" in s or "screen" in s or "telephonic" in s:
         return "Phone Screen"
+    if re.search(r"\bai[- ](assisted|enabled|powered)\b|copilot|with ai\b", s):
+        return "AI-Assisted Coding"
     if "machine coding" in s:
         return "Machine Coding"
     if "low level" in s or re.search(r"\blld\b", s) or "code design" in s or "object oriented design" in s:
@@ -166,6 +169,7 @@ def _clean_question(company: str, raw: dict) -> dict | None:
         "year": year,
         "location": raw.get("location") or None,
         "sources": sources,
+        "_evidence": [(sources[0]["url"], raw["evidence"].strip())] if isinstance(raw.get("evidence"), str) and raw["evidence"].strip() else [],
     }
 
 
@@ -173,6 +177,7 @@ def _merge(a: dict, b: dict) -> dict:
     urls = {s["url"] for s in a["sources"]}
     a["sources"] += [s for s in b["sources"] if s["url"] not in urls]
     a["topics"] = list(dict.fromkeys(a["topics"] + b["topics"]))[:6]
+    a["_evidence"] = a["_evidence"] + b["_evidence"]
     a["year"] = max(filter(None, [a["year"], b["year"]]), default=None)
     a["difficulty"] = a["difficulty"] or b["difficulty"]
     a["leetcodeSlug"] = a["leetcodeSlug"] or b["leetcodeSlug"]
@@ -184,7 +189,7 @@ def _merge(a: dict, b: dict) -> dict:
 
 
 def _load_company_files() -> dict[str, list[dict]]:
-    files = sorted(config.RAW.glob("*.json")) + sorted(config.EXTRACTED.glob("*.json"))
+    files = sorted(config.RAW.glob("*.json")) + sorted(config.EXTRACTED.glob("*.json")) + sorted(config.UPDATES.glob("*.json"))
     by_company: dict[str, list[dict]] = defaultdict(list)
     for f in files:
         try:
@@ -234,7 +239,15 @@ def build() -> dict:
                         "sources": srcs,
                     })
 
-        company_qs = list(merged.values())
+        company_qs = []
+        verification = ev.load()
+        for q in merged.values():
+            checks = [ev.status(u, e, verification) for u, e in q.pop("_evidence")]
+            if checks and all(c == "missing" for c in checks):
+                dropped += 1  # every excerpt was looked for on its page and not found: treat as unverified claim
+                continue
+            q["verified"] = "found" in checks
+            company_qs.append(q)
         for q in company_qs:
             q["id"] = hashlib.sha1(f"{slug}|{q['track']}|{_fingerprint(q)}".encode()).hexdigest()[:10]
             q["reports"] = len(q["sources"])
@@ -277,6 +290,7 @@ def build() -> dict:
             "sources": len(all_urls),
             "platforms": dict(Counter(normalize_platform(None, u) for u in all_urls).most_common()),
             "dropped": dropped,
+            "verified": sum(q.get("verified", False) for q in questions),
         },
         "rounds": list(config.ROUND_ORDER),
         "categories": config.CATEGORIES,

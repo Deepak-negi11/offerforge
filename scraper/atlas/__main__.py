@@ -6,6 +6,7 @@
   fetch      fetch one URL through the ladder and print what happened (debugging)
   refresh    discover + extract + build
   verify     spot-check that cited source URLs load and mention the company
+  verify-evidence  check each refreshed question's excerpt against its source page
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from . import config
 
 def main() -> int:
     ap = argparse.ArgumentParser(prog="atlas")
-    ap.add_argument("command", choices=["discover", "extract", "build", "fetch", "refresh", "verify"])
+    ap.add_argument("command", choices=["discover", "extract", "build", "fetch", "refresh", "verify", "verify-evidence"])
     ap.add_argument("--company", action="append", help="company slug (repeatable); default: all")
     ap.add_argument("--max-pages", type=int, default=25, help="pages per company for extract")
     ap.add_argument("--per-query", type=int, default=8, help="search results per query for discover")
@@ -40,6 +41,12 @@ def main() -> int:
             return 2
         page = fetch(args.url, use_cache=False)
         print(f"{page.status} via {page.rung}: {page.title!r}, {len(page.markdown)} chars")
+        return 0
+
+    if args.command == "verify-evidence":
+        from .evidence import verify as verify_evidence
+
+        verify_evidence()
         return 0
 
     if args.command == "verify":

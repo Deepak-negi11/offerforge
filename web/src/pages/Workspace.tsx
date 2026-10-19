@@ -179,7 +179,12 @@ function QuestionDetail({ q }: { q: Question }) {
       <section className="mt-6">
         <h2 className="text-sm font-semibold text-fg">The question</h2>
         <p className="mt-2 text-[15px] leading-relaxed text-fg/90">{q.question}</p>
-        <p className="mt-2 text-xs text-subtle">Paraphrased from the candidate's report. Open a source below for the full context and any examples.</p>
+        <p className="mt-2 text-xs text-subtle">
+          {q.verified
+            ? 'Verified: we re-checked the source page and found this question in the candidate\'s post. '
+            : ''}
+          Paraphrased from the candidate's report. Open a source below for the full context and any examples.
+        </p>
       </section>
 
       <div className="mt-5 flex flex-wrap gap-2">

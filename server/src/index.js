@@ -69,9 +69,9 @@ app.use('/api', (req, res, next) => {
   next()
 })
 
-app.use('/api', (req, _res, next) => {
+app.use('/api', async (req, _res, next) => {
   req.token = readCookie(req, COOKIE)
-  req.user = userForToken(req.token)
+  req.user = await userForToken(req.token)
   next()
 })
 
@@ -79,7 +79,7 @@ const requireUser = (req, res, next) => (req.user ? next() : res.status(401).jso
 const writeLimit = (req, res, next) =>
   rateLimit(`write:${req.user.id}`, 240, 60_000) ? next() : res.status(429).json({ error: 'Too many saves in a minute. Slow down a little.' })
 const QUOTA = { bookmarks: 5000, solved: 5000, drafts: 2000 }
-const overQuota = (table, userId) => db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE user_id = ?`).get(userId).n >= QUOTA[table]
+const overQuota = async (table, userId) => (await db.get(`SELECT COUNT(*) AS n FROM ${table} WHERE user_id = ?`, userId)).n >= QUOTA[table]
 const QID = /^[a-f0-9]{10}$/
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const LANGS = new Set(['javascript', 'python', 'cpp', 'java', 'notes'])
@@ -97,18 +97,18 @@ app.post('/api/auth/signup', async (req, res) => {
   if (!EMAIL.test(email) || email.length > 254) errors.email = 'Enter a valid email address.'
   if (password.length < 8 || password.length > 128) errors.password = 'Use 8 to 128 characters.'
   if (Object.keys(errors).length) return res.status(400).json({ error: 'Check the highlighted fields.', fields: errors })
-  if (db.prepare('SELECT 1 FROM users WHERE email = ?').get(email)) {
+  if (await db.get('SELECT 1 FROM users WHERE email = ?', email)) {
     return res.status(409).json({ error: 'An account with this email already exists. Sign in instead.', fields: { email: 'Already registered.' } })
   }
   let lastInsertRowid
   try {
-    ;({ lastInsertRowid } = db.prepare('INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)').run(email, name, await hashPassword(password)))
+    ;({ lastInsertRowid } = await db.run('INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)', email, name, await hashPassword(password)))
   } catch (e) {
     if (String(e.message).includes('UNIQUE')) return res.status(409).json({ error: 'An account with this email already exists. Sign in instead.', fields: { email: 'Already registered.' } })
     throw e
   }
-  res.setHeader('Set-Cookie', sessionCookie(createSession(Number(lastInsertRowid))))
-  res.status(201).json({ user: { id: Number(lastInsertRowid), email, name } })
+  res.setHeader('Set-Cookie', sessionCookie(await createSession(lastInsertRowid)))
+  res.status(201).json({ user: { id: lastInsertRowid, email, name } })
 })
 
 app.post('/api/auth/login', async (req, res) => {
@@ -119,16 +119,16 @@ app.post('/api/auth/login', async (req, res) => {
   if (!rateLimit(`login-ip:${req.ip}`, 30, 15 * 60_000) || !rateLimit(`login:${req.ip}:${email}`, 8, 15 * 60_000)) {
     return res.status(429).json({ error: 'Too many attempts. Wait 15 minutes and try again.' })
   }
-  const row = db.prepare('SELECT id, email, name, password_hash FROM users WHERE email = ?').get(email)
+  const row = await db.get('SELECT id, email, name, password_hash FROM users WHERE email = ?', email)
   const ok = row ? await verifyPassword(password, row.password_hash) : (await dummyVerify(password), false)
   if (!ok) return res.status(401).json({ error: 'Email or password is incorrect.' })
-  destroySession(req.token) // don't leave the previous session behind on this browser
-  res.setHeader('Set-Cookie', sessionCookie(createSession(row.id)))
+  await destroySession(req.token) // don't leave the previous session behind on this browser
+  res.setHeader('Set-Cookie', sessionCookie(await createSession(row.id)))
   res.json({ user: { id: row.id, email: row.email, name: row.name } })
 })
 
-app.post('/api/auth/logout', (req, res) => {
-  destroySession(req.token)
+app.post('/api/auth/logout', async (req, res) => {
+  await destroySession(req.token)
   res.setHeader('Set-Cookie', sessionCookie('', { clear: true }))
   res.json({ ok: true })
 })
@@ -136,42 +136,47 @@ app.post('/api/auth/logout', (req, res) => {
 app.get('/api/auth/me', (req, res) => res.json({ user: req.user }))
 
 // ---------- progress ----------
-app.get('/api/progress', requireUser, (req, res) => {
-  const ids = (table) => db.prepare(`SELECT question_id FROM ${table} WHERE user_id = ? ORDER BY created_at`).all(req.user.id).map((r) => r.question_id)
-  res.json({ bookmarks: ids('bookmarks'), solved: ids('solved') })
+app.get('/api/progress', requireUser, async (req, res) => {
+  const ids = async (table) => (await db.all(`SELECT question_id FROM ${table} WHERE user_id = ? ORDER BY created_at`, req.user.id)).map((r) => r.question_id)
+  res.json({ bookmarks: await ids('bookmarks'), solved: await ids('solved') })
 })
 
 for (const table of ['bookmarks', 'solved']) {
-  app.put(`/api/${table}/:qid`, requireUser, writeLimit, (req, res) => {
+  app.put(`/api/${table}/:qid`, requireUser, writeLimit, async (req, res) => {
     if (!QID.test(req.params.qid) || !knownQuestion(req.params.qid)) return res.status(400).json({ error: 'Unknown question id' })
     const on = req.body?.on === true
-    if (on && overQuota(table, req.user.id)) return res.status(409).json({ error: `You have reached the limit of ${QUOTA[table]} ${table}.` })
-    if (on) db.prepare(`INSERT OR IGNORE INTO ${table} (user_id, question_id) VALUES (?, ?)`).run(req.user.id, req.params.qid)
-    else db.prepare(`DELETE FROM ${table} WHERE user_id = ? AND question_id = ?`).run(req.user.id, req.params.qid)
+    if (on && (await overQuota(table, req.user.id))) return res.status(409).json({ error: `You have reached the limit of ${QUOTA[table]} ${table}.` })
+    if (on) await db.run(`INSERT OR IGNORE INTO ${table} (user_id, question_id) VALUES (?, ?)`, req.user.id, req.params.qid)
+    else await db.run(`DELETE FROM ${table} WHERE user_id = ? AND question_id = ?`, req.user.id, req.params.qid)
     res.json({ ok: true })
   })
 }
 
 // ---------- drafts ----------
-app.get('/api/drafts/:qid', requireUser, (req, res) => {
+app.get('/api/drafts/:qid', requireUser, async (req, res) => {
   if (!QID.test(req.params.qid)) return res.status(400).json({ error: 'Unknown question id' })
-  const rows = db.prepare('SELECT language, code, tests, updated_at FROM drafts WHERE user_id = ? AND question_id = ?').all(req.user.id, req.params.qid)
+  const rows = await db.all('SELECT language, code, tests, updated_at FROM drafts WHERE user_id = ? AND question_id = ?', req.user.id, req.params.qid)
   res.json({ drafts: rows.map((r) => ({ ...r, tests: JSON.parse(r.tests) })) })
 })
 
-app.put('/api/drafts/:qid/:language', requireUser, writeLimit, (req, res) => {
+app.put('/api/drafts/:qid/:language', requireUser, writeLimit, async (req, res) => {
   const { qid, language } = req.params
   if (!QID.test(qid) || !knownQuestion(qid) || !LANGS.has(language)) return res.status(400).json({ error: 'Unknown question or language' })
-  const exists = db.prepare('SELECT 1 FROM drafts WHERE user_id = ? AND question_id = ? AND language = ?').get(req.user.id, qid, language)
-  if (!exists && overQuota('drafts', req.user.id)) return res.status(409).json({ error: `You have reached the limit of ${QUOTA.drafts} saved drafts.` })
+  const exists = await db.get('SELECT 1 FROM drafts WHERE user_id = ? AND question_id = ? AND language = ?', req.user.id, qid, language)
+  if (!exists && (await overQuota('drafts', req.user.id))) return res.status(409).json({ error: `You have reached the limit of ${QUOTA.drafts} saved drafts.` })
   const code = String(req.body?.code ?? '')
   const tests = Array.isArray(req.body?.tests) ? req.body.tests.slice(0, 20) : []
   if (code.length > 100_000) return res.status(413).json({ error: 'Draft is larger than 100 KB' })
   const cleanTests = tests.map((t) => ({ input: String(t?.input ?? '').slice(0, 10_000), expected: String(t?.expected ?? '').slice(0, 10_000) }))
-  db.prepare(
+  await db.run(
     `INSERT INTO drafts (user_id, question_id, language, code, tests, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now'))
      ON CONFLICT (user_id, question_id, language) DO UPDATE SET code = excluded.code, tests = excluded.tests, updated_at = excluded.updated_at`,
-  ).run(req.user.id, qid, language, code, JSON.stringify(cleanTests))
+    req.user.id,
+    qid,
+    language,
+    code,
+    JSON.stringify(cleanTests),
+  )
   res.json({ ok: true })
 })
 

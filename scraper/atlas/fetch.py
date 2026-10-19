@@ -156,7 +156,7 @@ def _cache_path(url: str):
     return config.PAGES / (hashlib.sha1(url.encode()).hexdigest()[:16] + ".json")
 
 
-def fetch(url: str, use_cache: bool = True) -> Page:
+def fetch(url: str, use_cache: bool = True, allow_paid: bool = True) -> Page:
     path = _cache_path(url)
     if use_cache and path.exists():
         return Page(**json.loads(path.read_text()))
@@ -168,9 +168,9 @@ def fetch(url: str, use_cache: bool = True) -> Page:
         page = _rung1(url)
         if page.status == "thin":
             page = _rung2(url)
-            if page.status != "ok":
+            if page.status != "ok" and allow_paid:
                 page = _rung4(url)
-        elif page.status in ("ip_block", "error"):
+        elif page.status in ("ip_block", "error") and allow_paid:
             page = _rung4(url)  # skip the browser: a datacenter IP block won't change with JS
         # status == "challenge": stop here (no automated challenge solving)
 

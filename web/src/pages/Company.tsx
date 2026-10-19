@@ -5,7 +5,7 @@ import { AuthGate } from '../components/AuthGate'
 import { QuestionList, QuestionRow } from '../components/QuestionRow'
 import { Chip, CompanyLogo, EmptyState } from '../components/ui'
 import { useAccount } from '../lib/account'
-import { TRACK_LABEL, matchesText, useAtlas, useSortedTopics, type Company, type Question, type Track } from '../lib/data'
+import { TRACK_LABEL, byNewest, matchesText, useAtlas, useSortedTopics, type Company, type Question, type Track } from '../lib/data'
 import { NotFound } from './NotFound'
 
 type View = 'all' | 'bookmarked' | 'solved'
@@ -35,6 +35,7 @@ function CompanyView({ company }: { company: Company }) {
   const view = (params.get('view') as View) || 'all'
   const category = params.get('type') ?? ''
   const role = params.get('role') ?? ''
+  const sort = params.get('sort') === 'reports' ? 'reports' : 'newest'
   const [text, setText] = useState('')
 
   const set = (patch: Record<string, string>) => {
@@ -58,14 +59,14 @@ function CompanyView({ company }: { company: Company }) {
 
   const filtered = useMemo(
     () =>
-      trackQs.filter(
+      [...trackQs].sort(sort === 'newest' ? byNewest : (a, b) => b.reports - a.reports || (b.year ?? 0) - (a.year ?? 0)).filter(
         (q) =>
           (!category || q.category === category) &&
           (!role || q.role === role) &&
           (view === 'all' || (view === 'bookmarked' ? bookmarks.has(q.id) : solved.has(q.id))) &&
           matchesText(q, company.name, text),
       ),
-    [trackQs, category, role, view, bookmarks, solved, text, company],
+    [trackQs, sort, category, role, view, bookmarks, solved, text, company],
   )
   const byRound = useMemo(() => {
     const m = new Map<string, Question[]>()
@@ -234,6 +235,17 @@ function CompanyView({ company }: { company: Company }) {
                   spellCheck={false}
                   className="h-9 w-full rounded-lg border border-line bg-surface pl-9 pr-3 text-sm text-fg outline-none transition-colors placeholder:text-subtle hover:border-line-strong focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/25"
                 />
+              </label>
+              <label className="flex shrink-0 items-center gap-2">
+                <span className="text-sm text-muted">Sort</span>
+                <select
+                  value={sort}
+                  onChange={(e) => set({ sort: e.target.value === 'newest' ? '' : e.target.value })}
+                  className="h-9 rounded-lg border border-line bg-surface px-2 text-sm text-fg outline-none hover:border-line-strong focus-visible:border-accent"
+                >
+                  <option value="newest">Newest first</option>
+                  <option value="reports">Most reported</option>
+                </select>
               </label>
               {roles.length > 1 && (
                 <label className="flex shrink-0 items-center gap-2">

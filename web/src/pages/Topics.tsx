@@ -7,6 +7,7 @@ import { useAtlas, type Question, type Track } from '../lib/data'
 
 const AREAS = [
   { id: 'dsa', label: 'Data structures and algorithms', cats: ['DSA'] },
+  { id: 'ai', label: 'AI and machine learning', cats: ['AI/ML'] },
   { id: 'core', label: 'CS fundamentals', cats: ['CS Fundamentals', 'SQL'] },
   { id: 'design', label: 'Backend and system design', cats: ['Backend', 'System Design', 'LLD'] },
   { id: 'other', label: 'Behavioral, aptitude and projects', cats: ['Behavioral', 'Aptitude', 'Puzzles', 'Project'] },
@@ -203,7 +204,7 @@ function Compare() {
       <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted">Question type</span>
-          <Segmented label="Question type" value={area} onChange={setArea} options={AREAS.slice(0, 3).map((a) => ({ value: a.id, label: a.id === 'dsa' ? 'DSA' : a.id === 'core' ? 'CS fundamentals' : 'Backend and design' }))} />
+          <Segmented label="Question type" value={area} onChange={setArea} options={AREAS.filter((a) => a.id !== 'other').map((a) => ({ value: a.id, label: { dsa: 'DSA', ai: 'AI/ML', core: 'CS fundamentals', design: 'Backend and design' }[a.id as 'dsa'] }))} />
         </div>
         <TrackPicker value={track} onChange={setTrack} />
       </div>

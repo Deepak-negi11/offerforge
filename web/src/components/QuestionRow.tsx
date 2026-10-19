@@ -1,4 +1,4 @@
-import { ArrowRightIcon, BookmarkSimpleIcon, CheckCircleIcon, CircleIcon } from '@phosphor-icons/react'
+import { ArrowRightIcon, BookmarkSimpleIcon, CheckCircleIcon, CircleIcon, SealCheckIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAtlas, type Question } from '../lib/data'
@@ -53,6 +53,12 @@ export function QuestionRow({ q, showCompany = false, showRound = true }: RowPro
                 <Difficulty value={q.difficulty} />
               </span>
             </div>
+          )}
+          {q.year && <span className="tabular-nums text-subtle">{q.year}</span>}
+          {q.verified && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-easy/30 bg-easy/10 px-2 py-0.5 font-medium text-easy" title="We re-checked the source page and found this question in it">
+              <SealCheckIcon size={12} weight="fill" /> Verified
+            </span>
           )}
           {q.reports > 1 && <span className="rounded-full bg-accent-soft px-2 py-0.5 font-medium text-accent-ink">{q.reports} reports</span>}
           {q.secondaryOnly && <span className="rounded-full border border-line px-2 py-0.5 text-subtle" title="Only found on a prep site that compiles questions">Secondary source</span>}

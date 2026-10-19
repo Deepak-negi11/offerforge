@@ -4,7 +4,7 @@
 
 OfferForge collects real interview questions from 68 companies and organises them the way interviews actually happen: by company, by hiring track (internship or full-time) and by round, from the online assessment to HR. Every question links back to the candidate post it came from, and you can solve it right on the page in a built-in code editor.
 
-- 5,162 questions from 2,230 public candidate posts
+- 6,749 questions from 3,184 public candidate posts, 52% reported in 2025-26
 - 68 companies: Big Tech, product companies, finance, hardware, Indian startups and service companies
 - Internship and full-time tracks kept separate, round by round
 
@@ -24,7 +24,7 @@ OfferForge collects real interview questions from 68 companies and organises the
 | Part | Built with |
 |---|---|
 | Web app | React 19, TypeScript, Vite, Tailwind CSS v4, React Router, Monaco Editor, Pyodide |
-| API | Node.js 22+ (built-in `node:sqlite`), Express 5 |
+| API | Node.js 22+, Express 5, SQLite or Turso (libSQL) |
 | Code runner | In-browser workers for Python and JavaScript; optional self-hosted [Piston](https://github.com/engineer-man/piston) for C++ and Java |
 | Data pipeline | Python 3.11+, curl_cffi, Playwright, Firecrawl, Anthropic API |
 
@@ -93,14 +93,46 @@ Rules the pipeline enforces:
 
 To add a company, add it to `COMPANIES` in `scraper/atlas/config.py`, then run `discover`, `extract` and `build` for it.
 
-## Production
+## Deploy
+
+The API serves the built site. Accounts, bookmarks and saved code go to a local SQLite file, or to a hosted [Turso](https://turso.tech) database when `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` are set.
+
+**Free: Render + Turso (no card).**
+
+1. In Turso, create a database and copy its URL (`libsql://...`) and an auth token.
+2. In Render, choose New → Blueprint and pick this repo. `render.yaml` sets up a free web service.
+3. Paste the two Turso values when Render asks, then deploy. The site gets an `https://<name>.onrender.com` address.
+
+Free Render services sleep after 15 minutes without traffic, so the first visit after that takes about a minute. User data is safe because it lives in Turso.
+
+**Platform with a volume (Railway, Render, Fly.io).** Point the platform at this repo; it builds the `Dockerfile`. Then:
+
+1. Attach a persistent volume mounted at `/data`.
+2. Set `TRUST_PROXY=1` (the platform's proxy sits in front of the app).
+3. Leave `PORT` as the platform sets it, or use `8787`.
+
+C++ and Java need a privileged Piston container, which these platforms don't allow, so only Python and JavaScript run there.
+
+**Your own server (VPS), everything included.** Point your domain's DNS at the server, then:
 
 ```bash
-npm --prefix web run build
-NODE_ENV=production npm --prefix server start
+git clone https://github.com/Deepak-negi11/offerforge.git && cd offerforge
+DOMAIN=offerforge.example.com docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-The API serves the built site from `web/dist`, so one process runs everything. Serve it over HTTPS (the session cookie is `Secure`), set `TRUST_PROXY` to the number of proxies in front of it, and see `server/.env.example` for the other settings.
+To also run C++ and Java (x86/amd64 servers only, the runner image has no ARM build), add `COMPOSE_PROFILES=runner PISTON_URL=http://piston:2000` to that command, then run `./scripts/setup-runner.sh` once.
+
+Caddy gets the HTTPS certificate automatically. Back up the `app-data` volume to keep your users' data.
+
+**Without Docker.**
+
+```bash
+npm --prefix web ci && npm --prefix web run build
+npm --prefix server ci --omit=dev
+NODE_ENV=production DB_PATH=/var/lib/offerforge/atlas.db node server/src/index.js
+```
+
+Serve it over HTTPS (the session cookie is `Secure`). See `server/.env.example` for all settings.
 
 Security notes: passwords are hashed with scrypt, sessions are random tokens stored as SHA-256 hashes, writes are protected against CSRF, and the server sends a strict Content Security Policy and rate-limits sign-in.
 

@@ -3,10 +3,10 @@ import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { QuestionList } from '../components/QuestionRow'
 import { EmptyState, Select } from '../components/ui'
-import { PLATFORM_LABEL, TRACK_LABEL, matchesText, useAtlas, type Platform, type Question } from '../lib/data'
+import { PLATFORM_LABEL, TRACK_LABEL, byNewest, matchesText, useAtlas, type Platform, type Question } from '../lib/data'
 import { useAccount } from '../lib/account'
 
-const KEYS = ['company', 'track', 'round', 'category', 'topic', 'difficulty', 'platform', 'status'] as const
+const KEYS = ['company', 'track', 'round', 'category', 'topic', 'difficulty', 'platform', 'evidence', 'status'] as const
 type Key = (typeof KEYS)[number]
 
 export function QuestionsPage() {
@@ -16,7 +16,7 @@ export function QuestionsPage() {
   const [showFilters, setShowFilters] = useState(false)
   const f = Object.fromEntries(KEYS.map((k) => [k, params.get(k) ?? ''])) as Record<Key, string>
   const text = params.get('q') ?? ''
-  const sort = params.get('sort') ?? 'reports'
+  const sort = params.get('sort') ?? 'newest'
 
   const set = (k: string, v: string) => {
     const next = new URLSearchParams(params)
@@ -34,6 +34,7 @@ export function QuestionsPage() {
     (skip === 'topic' || !f.topic || q.topics.includes(f.topic)) &&
     (skip === 'difficulty' || !f.difficulty || q.difficulty === f.difficulty) &&
     (skip === 'platform' || !f.platform || q.sources.some((s) => s.platform === f.platform)) &&
+    (skip === 'evidence' || !f.evidence || (f.evidence === 'verified' ? q.verified : q.reports > 1)) &&
     (skip === 'status' ||
       !f.status ||
       (f.status === 'unsolved' ? !solved.has(q.id) : f.status === 'solved' ? solved.has(q.id) : bookmarks.has(q.id)))
@@ -55,9 +56,9 @@ export function QuestionsPage() {
 
   const results = useMemo(() => {
     const r = textMatched.filter((q) => passes(q))
-    if (sort === 'newest') r.sort((a, b) => (b.year ?? 0) - (a.year ?? 0) || b.reports - a.reports)
+    if (sort === 'newest') r.sort(byNewest)
     else if (sort === 'company') r.sort((a, b) => a.company.localeCompare(b.company) || (atlas.roundRank.get(a.round) ?? 99) - (atlas.roundRank.get(b.round) ?? 99))
-    else r.sort((a, b) => b.reports - a.reports || (b.year ?? 0) - (a.year ?? 0))
+    else if (sort === 'reports') r.sort((a, b) => b.reports - a.reports || (b.year ?? 0) - (a.year ?? 0))
     return r
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [textMatched, params, bookmarks, solved])
@@ -121,6 +122,16 @@ export function QuestionsPage() {
         options={[...platFacet.entries()].sort((a, b) => b[1] - a[1]).map(([p, n]) => ({ value: p, label: PLATFORM_LABEL[p as Platform] ?? p, count: n }))}
       />
       <Select
+        label="Evidence"
+        value={f.evidence}
+        onChange={(v) => set('evidence', v)}
+        options={[
+          { value: 'verified', label: 'Verified on source' },
+          { value: 'multi', label: 'Reported 2+ times' },
+        ]}
+        allLabel="Any"
+      />
+      <Select
         label="My progress"
         value={f.status}
         onChange={(v) => set('status', v)}
@@ -171,11 +182,11 @@ export function QuestionsPage() {
                 <span className="sr-only">Sort by</span>
                 <select
                   value={sort}
-                  onChange={(e) => set('sort', e.target.value === 'reports' ? '' : e.target.value)}
+                  onChange={(e) => set('sort', e.target.value === 'newest' ? '' : e.target.value)}
                   className="h-10 rounded-lg border border-line bg-surface px-2.5 text-sm text-fg outline-none hover:border-line-strong focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/25"
                 >
+                  <option value="newest">Newest first</option>
                   <option value="reports">Most reported</option>
-                  <option value="newest">Newest</option>
                   <option value="company">By company</option>
                 </select>
               </label>
@@ -195,7 +206,7 @@ export function QuestionsPage() {
                 className="inline-flex items-center gap-1 rounded-full border border-accent-line bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent-ink"
                 aria-label={`Remove filter ${k}`}
               >
-                {k === 'company' ? atlas.companyBySlug.get(f[k])?.name : k === 'track' ? TRACK_LABEL[f[k] as 'intern'] : k === 'platform' ? PLATFORM_LABEL[f[k] as Platform] : f[k]}
+                {k === 'company' ? atlas.companyBySlug.get(f[k])?.name : k === 'track' ? TRACK_LABEL[f[k] as 'intern'] : k === 'platform' ? PLATFORM_LABEL[f[k] as Platform] : k === 'evidence' ? (f[k] === 'verified' ? 'Verified' : 'Reported 2+ times') : f[k]}
                 <XIcon size={12} />
               </button>
             ))}
