@@ -1,0 +1,48 @@
+{
+ "pid": "count-the-number-of-infection-sequences",
+ "title": "Count the Number of Infection Sequences",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "There are `n` houses in a line, numbered `1` to `n` from left to right. On day 0, the houses listed in `infected` (given in increasing order) are infected; all other houses are healthy.\n\nInfection spreads to neighbouring houses: a healthy house can become infected only if at least one of its immediate neighbours (house `i - 1` or `i + 1`, when it exists) is already infected. Each day, **at most one** healthy house that currently has an infected neighbour becomes infected, and the spreading continues day by day until every house is infected.\n\nAn **infection sequence** is the ordered list of the houses that were healthy on day 0, in the order in which they become infected. Two sequences are different if they differ in at least one position.\n\nCount the number of different infection sequences, modulo `1000000007`. If every house is infected on day 0, the sequence is empty and the answer is `1`.",
+ "input_format": "The first line contains two integers `n` and `k`, the number of houses and the number of initially infected houses.\nThe second line contains `k` strictly increasing integers: the positions of the initially infected houses.",
+ "output_format": "Print a single integer: the number of infection sequences modulo `1000000007`.",
+ "constraints": [
+  "1 ≤ k ≤ n ≤ 10^5",
+  "1 ≤ infected[0] < infected[1] < ... < infected[k-1] ≤ n"
+ ],
+ "examples": [
+  {
+   "input": "5 2\n1 5",
+   "output": "4",
+   "explanation": "Houses 2, 3 and 4 are healthy and sit between two infected houses. House 3 can only be infected after 2 or 4. The valid orders are 2 3 4, 4 3 2, 2 4 3 and 4 2 3, which gives 4 sequences."
+  },
+  {
+   "input": "4 1\n2",
+   "output": "3",
+   "explanation": "House 1 is on the left of the infected house and houses 3 and 4 form a chain on its right (4 can only follow 3). Choosing which of the 3 steps is house 1 gives the orders 1 3 4, 3 1 4 and 3 4 1."
+  },
+  {
+   "input": "8 2\n2 7",
+   "output": "240",
+   "explanation": "The healthy houses form three groups: house 1 (size 1, one internal order), houses 3 to 6 (size 4, infected from both ends) and house 8 (size 1). The middle group has 2^3 = 8 internal orders, and the 6 infection days can be shared among the groups in 6! / (1! 4! 1!) = 30 ways, so the answer is 30 * 8 = 240."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "The healthy houses split into independent groups of consecutive houses (the gaps between infected houses, plus the two ends). Within a group the infection spreads without interacting with other groups, so first think about how a single group behaves.",
+  "A gap at the end of the line can only be infected from one side, so its internal order is forced. A gap of size g between two infected houses can be infected from either end at every step except the last one: it has 2^(g - 1) internal orders.",
+  "The groups are interleaved freely: if there are U healthy houses in total and the group sizes are g1, g2, ..., the number of interleavings is the multinomial coefficient U! / (g1! g2! ...). Precompute factorials and inverse factorials modulo the prime."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    pos = [int(x) for x in data[2:2 + k]]\n    MOD = 10**9 + 7\n    fact = [1] * (n + 1)\n    for i in range(1, n + 1):\n        fact[i] = fact[i - 1] * i % MOD\n    inv = [1] * (n + 1)\n    inv[n] = pow(fact[n], MOD - 2, MOD)\n    for i in range(n, 0, -1):\n        inv[i - 1] = inv[i] * i % MOD\n    res = fact[n - k]\n    res = res * inv[pos[0] - 1] % MOD * inv[n - pos[-1]] % MOD\n    for i in range(k - 1):\n        g = pos[i + 1] - pos[i] - 1\n        if g > 0:\n            res = res * inv[g] % MOD * pow(2, g - 1, MOD) % MOD\n    print(res)\n\nmain()\n",
+ "brute": "import sys, math\nfrom functools import lru_cache\n\ndata = sys.stdin.read().split()\nn, k = int(data[0]), int(data[1])\npos = [int(x) - 1 for x in data[2:2 + k]]\nMOD = 10**9 + 7\n\nif n > 16:\n    # too many houses to enumerate states: place the groups one by one with binomial coefficients\n    gaps = [(pos[0], False)] + [(pos[i + 1] - pos[i] - 1, True) for i in range(k - 1)] + [(n - 1 - pos[-1], False)]\n    placed, res = 0, 1\n    for g, inner in gaps:\n        if g == 0:\n            continue\n        placed += g\n        res *= math.comb(placed, g)\n        if inner:\n            res *= 2 ** (g - 1)\n    print(res % MOD)\n    sys.exit()\n\nfull = (1 << n) - 1\nstart = 0\nfor p in pos:\n    start |= 1 << p\n\n@lru_cache(maxsize=None)\ndef f(mask):\n    if mask == full:\n        return 1\n    r = 0\n    for i in range(n):\n        if (mask >> i) & 1:\n            continue\n        left = i > 0 and (mask >> (i - 1)) & 1\n        right = i < n - 1 and (mask >> (i + 1)) & 1\n        if left or right:\n            r += f(mask | (1 << i))\n    return r % MOD\n\nprint(f(start))\n",
+ "generator": "def gen(rng):\n    def fmt(n, pos):\n        return f'{n} {len(pos)}\\n' + ' '.join(map(str, pos))\n    tests = [\n        fmt(1, [1]), fmt(2, [1]), fmt(2, [2]), fmt(3, [2]), fmt(3, [1, 2, 3]), fmt(5, [1, 5]),\n        fmt(4, [2]), fmt(8, [2, 7]), fmt(6, [3]), fmt(7, [1, 4, 7]), fmt(10, [1]), fmt(10, [10]),\n        fmt(9, [2, 3, 8]),\n    ]\n    for _ in range(25):\n        n = rng.randint(1, 13)\n        k = rng.randint(1, n)\n        pos = sorted(rng.sample(range(1, n + 1), k))\n        tests.append(fmt(n, pos))\n    N = 10**5\n    tests.append(fmt(N, [N // 2]))\n    tests.append(fmt(N, [1, N]))\n    tests.append(fmt(N, [1]))\n    tests.append(fmt(N, [N]))\n    tests.append(fmt(N, sorted(rng.sample(range(1, N + 1), 10))))\n    tests.append(fmt(N, sorted(rng.sample(range(1, N + 1), 5000))))\n    tests.append(fmt(N, sorted(rng.sample(range(1, N + 1), 60000))))\n    tests.append(fmt(N, list(range(1, N + 1))))\n    tests.append(fmt(N, list(range(1, N + 1, 3))))\n    tests.append(fmt(N, [3, 50000, 99990]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_sequences(n: int, infected: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    infected = [int(x) for x in data[2:2 + k]]\n    print(count_sequences(n, infected))\n\n\nmain()\n",
+  "javascript": "function countSequences(n, infected) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst infected = t.slice(2, 2 + k)\nconsole.log(String(countSequences(n, infected)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countSequences(int n, vector<int>& infected) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<int> infected(k);\n    for (int i = 0; i < k; i++) cin >> infected[i];\n    cout << countSequences(n, infected) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countSequences(int n, int[] infected) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        int[] infected = new int[k];\n        for (int i = 0; i < k; i++) {\n            in.nextToken();\n            infected[i] = (int) in.nval;\n        }\n        System.out.println(countSequences(n, infected));\n    }\n}\n"
+ }
+}

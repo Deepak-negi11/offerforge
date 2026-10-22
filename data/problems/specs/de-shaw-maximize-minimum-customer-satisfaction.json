@@ -1,0 +1,44 @@
+{
+ "pid": "de-shaw-maximize-minimum-customer-satisfaction",
+ "title": "Maximize Minimum Customer Satisfaction",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "There are `n` customers and `m` products. Customer `i` gives product `j` the integer rating `ratings[i][j]`.\n\nYou must choose **exactly** `n - 2` distinct products. For a chosen set `S` of products, the **satisfaction** of customer `i` is the highest rating that customer gave among the products in `S`:\n\n`mx[i] = max(ratings[i][j] for j in S)`\n\nThe **score** of the set is the smallest satisfaction over all customers, `min(mx[0], ..., mx[n-1])`.\n\nReturn the maximum score over all possible choices of `n - 2` products.",
+ "input_format": "The first line contains two integers `n` and `m`.\nEach of the next `n` lines contains `m` integers: the ratings given by one customer.",
+ "output_format": "Print one integer: the maximum achievable score.",
+ "constraints": [
+  "3 ≤ n ≤ m",
+  "n · m ≤ 10^5",
+  "0 ≤ ratings[i][j] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "4 4\n3 4 2 2\n3 3 3 4\n2 4 2 3\n4 2 4 2",
+   "output": "3",
+   "explanation": "We pick n - 2 = 2 products. Choosing products 0 and 1 gives the maximums 4, 3, 4, 4 over the four customers, so the score is 3. Choosing {0, 3} and {1, 2} also give 3. The other three pairs ({0,2}, {1,3}, {2,3}) give only 2, so the best score is 3."
+  },
+  {
+   "input": "3 3\n5 1 9\n4 8 2\n6 7 3",
+   "output": "4",
+   "explanation": "Here n - 2 = 1, so we pick a single product. Product 0 gives customer ratings 5, 4, 6 with minimum 4; product 1 gives 1, 8, 7 with minimum 1; product 2 gives 9, 2, 3 with minimum 2. The best is 4."
+  }
+ ],
+ "complexity": {
+  "time": "O(n · m · log(n · m))",
+  "space": "O(n · m)"
+ },
+ "hints": [
+  "Binary search on the answer X. Is there a choice of n - 2 products in which every customer has some chosen product rated at least X?",
+  "For a fixed X, each customer has a set of 'good' products (rating ≥ X). You need a set of at most n - 2 products that hits every customer's set; extra products can be added freely, since choosing more never hurts.",
+  "A hitting set for n customers using only n - 2 products must 'save' two picks. That happens only if some product is good for at least 3 customers, or two different products each cover a distinct pair of customers, with the four customers all different. Count, for each product, how many customers like it."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    vals = list(map(int, data[2:2 + n * m]))\n    cols = [vals[j::m] for j in range(m)]\n    rowmax = [max(vals[i * m:(i + 1) * m]) for i in range(n)]\n    best_possible = min(rowmax)\n\n    def two_disjoint(edges):\n        if len(edges) < 2:\n            return False\n        common = None\n        verts = set()\n        for e in edges:\n            s = set(e)\n            verts |= s\n            common = s if common is None else (common & s)\n        if common:\n            return False\n        if len(edges) == 3 and len(verts) == 3:\n            return False\n        return True\n\n    def feasible(x):\n        if best_possible < x:\n            return False\n        edges = set()\n        for col in cols:\n            idx = [i for i, v in enumerate(col) if v >= x]\n            if len(idx) >= 3:\n                return True\n            if len(idx) == 2:\n                edges.add((idx[0], idx[1]))\n        return two_disjoint(edges)\n\n    cand = sorted(set(vals))\n    lo, hi = 0, len(cand) - 1\n    while lo < hi:\n        mid = (lo + hi + 1) // 2\n        if feasible(cand[mid]):\n            lo = mid\n        else:\n            hi = mid - 1\n    print(cand[lo])\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import combinations\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nr = [[int(data[2 + i * m + j]) for j in range(m)] for i in range(n)]\nbest = -1\nfor ch in combinations(range(m), n - 2):\n    v = min(max(r[i][j] for j in ch) for i in range(n))\n    best = max(best, v)\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(r):\n        return f\"{len(r)} {len(r[0])}\\n\" + '\\n'.join(' '.join(map(str, row)) for row in r)\n    tests = [\n        fmt([[3, 4, 2, 2], [3, 3, 3, 4], [2, 4, 2, 3], [4, 2, 4, 2]]),\n        fmt([[5, 1, 9], [4, 8, 2], [6, 7, 3]]),\n        fmt([[0, 0, 0], [0, 0, 0], [0, 0, 0]]),\n        fmt([[7, 7, 7, 7]] * 4),\n        fmt([[1, 9, 1, 1], [1, 1, 8, 1], [7, 1, 1, 1]]),\n        fmt([[9, 1, 1, 1, 1], [9, 1, 1, 1, 1], [1, 9, 1, 1, 1], [1, 9, 1, 1, 1]]),\n        fmt([[9, 1, 1, 1, 1, 1], [9, 1, 1, 1, 1, 1], [1, 1, 9, 1, 1, 1], [1, 1, 9, 1, 1, 1]]),\n        fmt([[9, 9, 1, 1, 1], [1, 9, 9, 1, 1], [9, 1, 9, 1, 1], [1, 1, 1, 1, 1]]),\n    ]\n    for _ in range(60):\n        n = rng.randint(3, 6)\n        m = rng.randint(n, 7)\n        hi = rng.choice([1, 2, 3, 5, 9])\n        tests.append(fmt([[rng.randint(0, hi) for _ in range(m)] for _ in range(n)]))\n    for n, m, hi in ((300, 333, 10**9), (3, 33333, 10**9), (100, 1000, 10**9), (50, 2000, 5), (316, 316, 10**9)):\n        tests.append(fmt([[rng.randint(0, hi) for _ in range(m)] for _ in range(n)]))\n    # sparse high ratings: each product is liked by at most two customers\n    n, m = 200, 500\n    r = [[rng.randint(0, 1000) for _ in range(m)] for _ in range(n)]\n    for j in range(m):\n        a, b = rng.sample(range(n), 2)\n        r[a][j] = rng.randint(10**8, 10**9)\n        r[b][j] = rng.randint(10**8, 10**9)\n    tests.append(fmt(r))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_min_satisfaction(ratings: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    ratings = [[int(data[2 + i * m + j]) for j in range(m)] for i in range(n)]\n    print(max_min_satisfaction(ratings))\n\n\nmain()\n",
+  "javascript": "function maxMinSatisfaction(ratings) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst ratings = []\nfor (let i = 0; i < n; i++) ratings.push(t.slice(2 + i * m, 2 + (i + 1) * m))\nconsole.log(String(maxMinSatisfaction(ratings)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxMinSatisfaction(vector<vector<long long>>& ratings) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<vector<long long>> ratings(n, vector<long long>(m));\n    for (int i = 0; i < n; i++)\n        for (int j = 0; j < m; j++) cin >> ratings[i][j];\n    cout << maxMinSatisfaction(ratings) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxMinSatisfaction(long[][] ratings) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        long[][] ratings = new long[n][m];\n        for (int i = 0; i < n; i++)\n            for (int j = 0; j < m; j++) { in.nextToken(); ratings[i][j] = (long) in.nval; }\n        System.out.println(maxMinSatisfaction(ratings));\n    }\n}\n"
+ }
+}

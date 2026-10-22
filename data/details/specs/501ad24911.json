@@ -1,0 +1,17 @@
+{
+ "qid": "501ad24911",
+ "question": "In a campus technical round for a Software Engineer (New Grad) role at NVIDIA, the interviewer posed a multithreading scenario: **ten threads share multiple pointers. How do you manage access to them safely?**\n\nThe candidate proposed locking together with a mapping from each pointer to a set of threads, and discussed **key-level (per-pointer) locking versus locking the whole map**.",
+ "lookingFor": [
+  "Can you identify what actually needs protection: the pointer values, the pointed-to objects, and the mapping structure?",
+  "Do you understand lock granularity trade-offs: contention versus complexity and deadlock risk?",
+  "Do you know deadlock avoidance (lock ordering) and alternatives such as reader-writer locks, atomics and smart pointers?",
+  "Do you think about object lifetime, not just mutual exclusion?"
+ ],
+ "answer": "**Clarify the problem.** What is shared: the pointers themselves (they can be reassigned), the objects they point to, or both? Are threads mostly reading or writing? Can an object be freed while a thread still uses it?\n\n**Option 1, one global lock.** Simple and obviously correct. Every access takes the same mutex. With ten threads it serialises everything, so contention can be high, but it is the right baseline.\n\n**Option 2, per-pointer (key-level) locks.** Each shared object has its own mutex, so threads touching different objects run in parallel. Costs:\n\n- More memory and more complex code.\n- If a thread needs several objects, lock them in a **fixed global order** (for example by address or id) or use `std::scoped_lock(m1, m2)` to avoid deadlock.\n- The map from pointer to lock or thread set is itself shared data. Adding or removing entries needs protection, either a lock on the map (held briefly to find the entry) or a concurrent map with striped locks.\n\n**Option 3, whole-map lock.** One lock guards the map and the entries. Simpler than per-key locking and fine if critical sections are short, but all threads contend on it. A common compromise is to hold the map lock only to look up the entry and then release it and take the per-entry lock. Beware that the entry must not be erased in between: use `shared_ptr` or reference counting.\n\n**Other tools.**\n\n- `std::shared_mutex` for read-mostly data (many readers, one writer).\n- `std::atomic<T*>` or `std::atomic<std::shared_ptr<T>>` for a lock-free pointer swap, plus a safe reclamation scheme (RCU, hazard pointers).\n- Keep critical sections short and never call unknown code while holding a lock.\n\n**Pick by measurement.** Start with the coarse lock, measure contention with a profiler, and refine to finer granularity only where it matters.\n\n**Lifetime.** A mutex does not stop another thread from deleting the object. Use shared ownership (`shared_ptr`) or a clear owner thread.",
+ "followUps": [
+  "How would you detect and prevent a deadlock in this design?",
+  "When would you choose a reader-writer lock, and what is the risk of writer starvation?",
+  "What is the ABA problem with lock-free pointers?",
+  "How would false sharing affect per-key locks stored in an array?"
+ ]
+}

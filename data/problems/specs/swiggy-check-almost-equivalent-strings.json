@@ -1,0 +1,50 @@
+{
+ "pid": "swiggy-check-almost-equivalent-strings",
+ "title": "Check Almost Equivalent Strings",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "You are given two arrays of strings, `first` and `second`, each with `k` strings. The strings at the same index always have the same length, and all strings are non-empty and consist of lowercase English letters.\n\nTwo strings are **almost equivalent** when, for every letter from `a` to `z`, the number of times the letter appears in one string and the number of times it appears in the other differ by **at most 3**.\n\nCheck the arrays index by index: print `true` if `first[i]` and `second[i]` are almost equivalent for **every** index `i`, and `false` if there is at least one index where they are not.",
+ "input_format": "The first line contains `k`.\nThe second line contains the `k` strings of `first`, separated by spaces.\nThe third line contains the `k` strings of `second`, separated by spaces.",
+ "output_format": "Print `true` or `false`.",
+ "constraints": [
+  "1 ≤ k ≤ 10^5",
+  "The total length of all strings in `first` is at most 10^6.",
+  "`first[i]` and `second[i]` have the same length, which is at least 1.",
+  "All strings consist of lowercase English letters."
+ ],
+ "examples": [
+  {
+   "input": "2\naabbcc xyz\nabbbbc xxy",
+   "output": "true",
+   "explanation": "For `aabbcc` and `abbbbc` the counts differ by 1 for `a`, 2 for `b` and 1 for `c`. For `xyz` and `xxy` they differ by 1 for `x` and `z`, and 0 for `y`. No difference exceeds 3, so the answer is true."
+  },
+  {
+   "input": "1\naaaa\nabbb",
+   "output": "true",
+   "explanation": "Letter `a` appears 4 times versus 1 time (difference 3) and `b` appears 0 versus 3 times (difference 3). A difference of exactly 3 is allowed."
+  },
+  {
+   "input": "2\naaaaa abc\nabcde abc",
+   "output": "false",
+   "explanation": "At index 0, letter `a` appears 5 times versus 1 time, a difference of 4. One failing index is enough, even though index 1 matches perfectly."
+  }
+ ],
+ "complexity": {
+  "time": "O(total length)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Only the letter counts matter, not their order, so compare each pair of strings through their frequencies.",
+  "For one pair, count the 26 letters of both strings and check every difference.",
+  "As soon as one index fails, the whole answer is false; you can stop early."
+ ],
+ "reference": "import sys\nfrom collections import Counter\n\ndef main():\n    data = sys.stdin.read().split()\n    k = int(data[0])\n    first = data[1:1 + k]\n    second = data[1 + k:1 + 2 * k]\n    for s, t in zip(first, second):\n        cs, ct = Counter(s), Counter(t)\n        for ch in set(cs) | set(ct):\n            if abs(cs[ch] - ct[ch]) > 3:\n                print('false')\n                return\n    print('true')\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nk = int(data[0])\nfirst = data[1:1 + k]\nsecond = data[1 + k:1 + 2 * k]\nok = True\nfor i in range(k):\n    for ch in 'abcdefghijklmnopqrstuvwxyz':\n        if abs(first[i].count(ch) - second[i].count(ch)) > 3:\n            ok = False\nprint('true' if ok else 'false')\n",
+ "generator": "def gen(rng):\n    letters = 'abcdefghijklmnopqrstuvwxyz'\n\n    def fmt(a, b):\n        return str(len(a)) + '\\n' + ' '.join(a) + '\\n' + ' '.join(b)\n\n    def perturb(s, changes, alphabet):\n        s = list(s)\n        for _ in range(changes):\n            s[rng.randrange(len(s))] = rng.choice(alphabet)\n        return ''.join(s)\n\n    tests = [\n        fmt(['a'], ['b']),\n        fmt(['aaaa'], ['abbb']),\n        fmt(['aaaaa'], ['abbbb']),\n        fmt(['aabbcc', 'xyz'], ['abbbbc', 'xxy']),\n        fmt(['aaaaa', 'abc'], ['abcde', 'abc']),\n        fmt(['abc', 'zzzzzzzz'], ['abc', 'zzzzzzzz']),\n        fmt(['aaaaaaa'], ['bbbbbbb']),\n    ]\n    for _ in range(18):\n        k = rng.randint(1, 4)\n        alpha = rng.choice(['ab', 'abc', 'abcdef', letters])\n        first, second = [], []\n        for _ in range(k):\n            L = rng.randint(1, 12)\n            s = ''.join(rng.choice(alpha) for _ in range(L))\n            mode = rng.random()\n            if mode < 0.5:\n                t = perturb(s, rng.randint(0, 2), alpha)       # usually fine\n            elif mode < 0.8:\n                t = perturb(s, rng.randint(2, 6), alpha)\n            else:\n                t = ''.join(rng.choice(alpha) for _ in range(L))\n            first.append(s)\n            second.append(t)\n        tests.append(fmt(first, second))\n\n    def big(k, total, spoil):\n        sizes = [total // k] * k\n        sizes[0] += total - sum(sizes)\n        first, second = [], []\n        for L in sizes:\n            s = ''.join(rng.choices(letters, k=L))\n            t = list(s)\n            # shuffle-free tweak: at most one replacement keeps every count difference <= 2\n            if L > 0:\n                t[rng.randrange(L)] = rng.choice(letters)\n            first.append(s)\n            second.append(''.join(t))\n        if spoil is not None:\n            i = spoil if spoil < k else k - 1\n            L = len(first[i])\n            second[i] = 'a' * L if first[i].count('a') < L - 4 else 'b' * L\n        return fmt(first, second)\n\n    tests.append(big(100000, 900000, None))   # many short strings, all true\n    tests.append(big(100000, 900000, 99999))  # false only at the last index\n    tests.append(big(1, 900000, None))        # one huge string\n    tests.append(big(30, 900000, None))       # long strings, true\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef all_almost_equivalent(first: List[str], second: List[str]) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    k = int(data[0])\n    first = data[1:1 + k]\n    second = data[1 + k:1 + 2 * k]\n    print('true' if all_almost_equivalent(first, second) else 'false')\n\n\nmain()\n",
+  "javascript": "function allAlmostEquivalent(first, second) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst k = Number(t[0])\nconst first = t.slice(1, 1 + k)\nconst second = t.slice(1 + k, 1 + 2 * k)\nconsole.log(allAlmostEquivalent(first, second) ? 'true' : 'false')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool allAlmostEquivalent(vector<string>& first, vector<string>& second) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int k;\n    cin >> k;\n    vector<string> first(k), second(k);\n    for (auto& s : first) cin >> s;\n    for (auto& s : second) cin >> s;\n    cout << (allAlmostEquivalent(first, second) ? \"true\" : \"false\") << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean allAlmostEquivalent(String[] first, String[] second) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StringTokenizer st = new StringTokenizer(new String(System.in.readAllBytes()));\n        int k = Integer.parseInt(st.nextToken());\n        String[] first = new String[k], second = new String[k];\n        for (int i = 0; i < k; i++) first[i] = st.nextToken();\n        for (int i = 0; i < k; i++) second[i] = st.nextToken();\n        System.out.println(allAlmostEquivalent(first, second) ? \"true\" : \"false\");\n    }\n}\n"
+ }
+}

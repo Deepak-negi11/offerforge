@@ -1,0 +1,18 @@
+{
+ "qid": "e66aa2c638",
+ "question": "Microsoft SDE 2 hiring manager round: **design an OTP service**. It could have multiple places that generate OTPs. Each service that requests an OTP should get one, and **each OTP should be unique for the user and the service**.\n\nThe candidate spent most of the time on the HLD discussion and the interviewer's main questions were about **scalability, how to generate a unique OTP, the DB design, and which microservices would be created**.",
+ "lookingFor": [
+  "Clarifying what unique means and the OTP lifecycle.",
+  "Secure OTP generation and storage.",
+  "Data model, expiry and scaling choices.",
+  "Abuse protection: rate limiting, retries, brute force.",
+  "Service boundaries and reliability."
+ ],
+ "answer": "**Clarify.** An OTP is a short-lived, single-use code (usually 4-8 digits) tied to a `(user, service/purpose)` pair, delivered over SMS, email or an app, and then verified. Interpret \"unique\" as: for a given user and service there is at most one *active* OTP at a time, and OTPs are never reusable. Globally unique 6-digit codes are impossible at scale (only 10^6 values), so uniqueness is scoped to `(user, service)` and the validity window. Assume millions of requests per day with peaks.\n\n**APIs.** `POST /otp/generate {userId, serviceId, channel}` returns a request id (never the OTP itself); `POST /otp/verify {userId, serviceId, otp}` returns success or failure.\n\n**Generation.** Use a cryptographically secure random generator (`SecureRandom`) to produce the code, or HOTP/TOTP (HMAC-based, derived from a secret plus counter or time) which needs no storage of the code itself. Do not use predictable sequences. A new request for the same pair invalidates the previous OTP.\n\n**Storage.** Store a **hash** of the OTP (plus salt) rather than plaintext, with `userId`, `serviceId`, `expiresAt`, `attempts`, `status`. A fast key-value store (Redis) with TTL is a natural fit: key `otp:{userId}:{serviceId}`, value `{hash, attempts}`, TTL 5 minutes, so expiry is automatic and the primary key enforces one active OTP per pair. Keep an audit log in a durable DB or log stream.\n\n**Verification.** Compare in constant time, allow a limited number of attempts (e.g. 3-5), then lock; delete on success to ensure single use (use an atomic operation to prevent two concurrent verifications).\n\n**Services.** OTP service (generate/verify), Notification service (SMS/email gateways, behind a queue with retries and provider failover), Rate-limit/fraud component, and an API gateway for authentication of calling services.\n\n**Scale.** The OTP service is stateless; shard Redis by `userId`; queue delivery to absorb bursts; use multiple SMS providers.\n\n**Abuse protection.** Rate limit per user, per IP and per service (to prevent SMS pumping and cost attacks), CAPTCHA, resend cool-downs.\n\n**Trade-offs.** Stored OTP versus HOTP/TOTP; Redis speed versus durability; SMS cost and security.",
+ "followUps": [
+  "How do you prevent brute-force guessing of a 6-digit OTP?",
+  "Why store a hash instead of the OTP itself?",
+  "What happens if the SMS provider is down?",
+  "How would you make verification atomic under concurrent requests?"
+ ]
+}

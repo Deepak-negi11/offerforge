@@ -1,0 +1,17 @@
+{
+ "qid": "52ed0ebe3f",
+ "question": "In the managerial round of a TCS Prime interview (NQT 2025), the interviewer asked about databases:\n\n- **What is a trigger? What is a cursor?**\n- Given a `student` table (`id` as primary key, `name`, `address`) and a `stream` table (`id` as a foreign key referencing the student, and `stream`), **update the address of students whose stream is CSE without using SELECT**.",
+ "lookingFor": [
+  "Do you know what triggers and cursors are and when each is appropriate?",
+  "Can you update rows based on a condition in another table using a join, not a loop?",
+  "Do you know that syntax differs between database engines?",
+  "Do you prefer set-based operations over row-by-row processing?"
+ ],
+ "answer": "**Trigger.** A trigger is a stored block of code that the database runs automatically in response to an event (`INSERT`, `UPDATE` or `DELETE`) on a table, either before or after it. Uses: auditing changes, enforcing rules, keeping derived data in sync. Drawbacks: hidden logic, harder debugging, and performance cost.\n\n**Cursor.** A cursor lets stored procedure code process a result set **one row at a time** (declare, open, fetch in a loop, close). It is needed when logic must be applied per row, but it is slower than a set-based statement, so avoid it when a single `UPDATE` or `INSERT ... SELECT` can do the job.\n\n**The query.** The aim is to update `student.address` for students whose related `stream` row has the value CSE, without writing a `SELECT`. A multi-table `UPDATE` with a join does this (`stream.id` matches `student.id`).\n\nMySQL:\n\n    UPDATE student s\n    JOIN stream t ON s.id = t.id\n    SET s.address = 'New Address'\n    WHERE t.stream = 'CSE';\n\nPostgreSQL:\n\n    UPDATE student s\n    SET address = 'New Address'\n    FROM stream t\n    WHERE s.id = t.id AND t.stream = 'CSE';\n\nSQL Server:\n\n    UPDATE s\n    SET s.address = 'New Address'\n    FROM student s\n    INNER JOIN stream t ON s.id = t.id\n    WHERE t.stream = 'CSE';\n\nThe join links each student to their stream row, the `WHERE` keeps only CSE rows, and the `SET` changes the address. Other engines such as Oracle do not support this join form and use `UPDATE ... WHERE id IN (SELECT ...)` or `MERGE`, but that contains a `SELECT`, so say which syntax you assume.\n\n**Tips:** run it first as a transaction, check the number of rows affected, and index `stream.id` so the join is fast.",
+ "followUps": [
+  "How would you do this in Oracle, and does it use a SELECT?",
+  "What is the difference between a trigger and a stored procedure?",
+  "Why are cursors slow compared to set-based statements?",
+  "What is a foreign key and what happens if a referenced student is deleted?"
+ ]
+}

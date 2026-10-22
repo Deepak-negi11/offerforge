@@ -1,0 +1,49 @@
+{
+ "pid": "count-the-number-of-complete-components",
+ "title": "Count Complete Components",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given an undirected graph with `n` vertices numbered `0` to `n - 1` and a list of `m` edges. The graph has no self-loops and no repeated edges.\n\nA **connected component** is a maximal set of vertices in which every two vertices are joined by some path. A connected component is **complete** if every pair of distinct vertices inside it is joined directly by an edge.\n\nCount the number of connected components that are complete. A vertex with no edges forms a component by itself, and it is complete (it has no pairs to check).",
+ "input_format": "The first line contains two integers `n` and `m`.\nEach of the next `m` lines contains two integers `u` and `v`, describing an edge between vertices `u` and `v`.",
+ "output_format": "Print a single integer: the number of complete connected components.",
+ "constraints": [
+  "1 ≤ n ≤ 2 · 10^5",
+  "0 ≤ m ≤ min(2 · 10^5, n(n - 1) / 2)",
+  "0 ≤ u, v < n, u ≠ v, and no edge appears twice"
+ ],
+ "examples": [
+  {
+   "input": "6 5\n0 1\n0 2\n1 2\n3 4\n4 5",
+   "output": "1",
+   "explanation": "The components are {0, 1, 2}, {3, 4, 5}. The first is a triangle, hence complete. In the second, vertices 3 and 5 are not directly connected, so it is not complete."
+  },
+  {
+   "input": "5 3\n0 1\n1 2\n0 2",
+   "output": "3",
+   "explanation": "Component {0, 1, 2} is a triangle. Vertices 3 and 4 are isolated, and each counts as its own complete component. Total 3."
+  },
+  {
+   "input": "4 5\n0 1\n0 2\n0 3\n1 2\n1 3",
+   "output": "0",
+   "explanation": "All four vertices are in one component, but the pair (2, 3) has no direct edge, so it is not complete."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "First split the graph into connected components with DFS, BFS or a disjoint-set union.",
+  "A component with v vertices is complete exactly when it has v(v - 1) / 2 edges (the graph has no duplicate edges).",
+  "Count the vertices and the edges in each component and compare the edge count with v(v - 1) / 2."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    parent = list(range(n))\n\n    def find(x):\n        root = x\n        while parent[root] != root:\n            root = parent[root]\n        while parent[x] != root:\n            parent[x], x = root, parent[x]\n        return root\n\n    us = data[2:2 + 2 * m:2]\n    vs = data[3:3 + 2 * m:2]\n    for a, b in zip(us, vs):\n        ra, rb = find(int(a)), find(int(b))\n        if ra != rb:\n            parent[ra] = rb\n    size = [0] * n\n    edges = [0] * n\n    for v in range(n):\n        size[find(v)] += 1\n    for a in us:\n        edges[find(int(a))] += 1\n    ans = 0\n    for v in range(n):\n        if parent[v] == v and edges[v] == size[v] * (size[v] - 1) // 2:\n            ans += 1\n    print(ans)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nadj = [[False] * n for _ in range(n)]\nfor i in range(m):\n    u, v = int(data[2 + 2 * i]), int(data[3 + 2 * i])\n    adj[u][v] = adj[v][u] = True\nseen = [False] * n\nans = 0\nfor s in range(n):\n    if seen[s]:\n        continue\n    comp = [s]\n    seen[s] = True\n    i = 0\n    while i < len(comp):\n        u = comp[i]\n        i += 1\n        for v in range(n):\n            if adj[u][v] and not seen[v]:\n                seen[v] = True\n                comp.append(v)\n    if all(adj[a][b] for a in comp for b in comp if a != b):\n        ans += 1\nprint(ans)\n",
+ "generator": "def gen(rng):\n    def fmt(n, edges):\n        perm = list(range(n))\n        rng.shuffle(perm)\n        es = [(perm[u], perm[v]) if rng.random() < 0.5 else (perm[v], perm[u]) for u, v in edges]\n        rng.shuffle(es)\n        return f'{n} {len(es)}' + ''.join(f'\\n{u} {v}' for u, v in es)\n\n    def clique(vs):\n        return [(vs[i], vs[j]) for i in range(len(vs)) for j in range(i + 1, len(vs))]\n\n    def cliques(n, sizes, break_p):\n        edges = []\n        nxt = 0\n        for s in sizes:\n            if nxt + s > n:\n                break\n            vs = list(range(nxt, nxt + s))\n            nxt += s\n            ce = clique(vs)\n            if len(ce) > 0 and rng.random() < break_p:\n                ce.pop(rng.randrange(len(ce)))\n            edges += ce\n        return edges\n\n    tests = [fmt(1, []), fmt(2, []), fmt(2, [(0, 1)]), fmt(3, [(0, 1), (1, 2)]), fmt(3, [(0, 1), (1, 2), (0, 2)]),\n             fmt(6, [(0, 1), (0, 2), (1, 2), (3, 4), (4, 5)]), fmt(5, [(0, 1), (1, 2), (0, 2)]),\n             fmt(4, [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3)]), fmt(5, clique(list(range(5)))),\n             fmt(7, clique([0, 1, 2]) + clique([3, 4]) + [(5, 6)])]\n    for n in (4, 5, 6, 8, 10, 12, 15):\n        for _ in range(2):\n            all_pairs = [(i, j) for i in range(n) for j in range(i + 1, n)]\n            m = rng.randint(0, min(len(all_pairs), n + 3))\n            tests.append(fmt(n, rng.sample(all_pairs, m)))\n        sizes = [rng.randint(1, 5) for _ in range(6)]\n        tests.append(fmt(n, cliques(n, sizes, 0.3)))\n    # max-size cases\n    N = 200000\n    tests.append(fmt(N, []))\n    # many small cliques, some broken\n    sizes = []\n    tot = 0\n    while True:\n        s = rng.randint(1, 40)\n        if tot + s * (s - 1) // 2 > 199000:\n            break\n        tot += s * (s - 1) // 2\n        sizes.append(s)\n    tests.append(fmt(N, cliques(N, sizes, 0.2)))\n    # all triangles: 66666 triangles = 199998 edges\n    tri = []\n    for t in range(66666):\n        a = 3 * t\n        tri += [(a, a + 1), (a + 1, a + 2), (a, a + 2)]\n    tests.append(fmt(N, tri))\n    # one large clique plus a broken one\n    big = clique(list(range(632)))\n    tests.append(fmt(N, big))\n    # sparse random graph\n    seen = set()\n    while len(seen) < 150000:\n        u, v = rng.randrange(N), rng.randrange(N)\n        if u != v and (min(u, v), max(u, v)) not in seen:\n            seen.add((min(u, v), max(u, v)))\n    tests.append(fmt(N, list(seen)))\n    # long path: one huge incomplete component\n    tests.append(fmt(N, [(i, i + 1) for i in range(N - 1)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_complete(n: int, edges: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    edges = [[int(data[2 + 2 * i]), int(data[3 + 2 * i])] for i in range(m)]\n    print(count_complete(n, edges))\n\n\nmain()\n",
+  "javascript": "function countComplete(n, edges) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst edges = []\nfor (let i = 0; i < m; i++) edges.push([t[2 + 2 * i], t[3 + 2 * i]])\nconsole.log(countComplete(n, edges))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint countComplete(int n, vector<pair<int, int>>& edges) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<pair<int, int>> edges(m);\n    for (int i = 0; i < m; i++) cin >> edges[i].first >> edges[i].second;\n    cout << countComplete(n, edges) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int countComplete(int n, int[][] edges) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] edges = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); edges[i][0] = (int) in.nval;\n            in.nextToken(); edges[i][1] = (int) in.nval;\n        }\n        System.out.println(countComplete(n, edges));\n    }\n}\n"
+ }
+}

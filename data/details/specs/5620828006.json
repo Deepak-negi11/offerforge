@@ -1,0 +1,18 @@
+{
+ "qid": "5620828006",
+ "question": "In the first technical interview of Myntra's on-campus SDE-1 process (September 2024), the interviewer asked **in-depth questions about database indexing and clustering**, followed by DSA problems (right side view of a binary tree and a modified House Robber). This write-up covers the database part: how indexes work internally, what a clustered index is, and the trade-offs.",
+ "lookingFor": [
+  "Understanding of how indexes work internally (B+ trees), not just that they speed up queries",
+  "Clustered vs non-clustered indexes and their physical consequences",
+  "Reading and using query plans",
+  "Knowledge of composite and covering indexes",
+  "Awareness of the costs: writes, storage, fragmentation"
+ ],
+ "answer": "**What an index is.** A separate sorted structure, usually a **B+ tree**, mapping key values to row locations. A B+ tree is shallow (a few levels even for millions of rows), each node is a disk page holding many keys, internal nodes only route, and leaf nodes are linked so range scans are sequential. Lookups cost O(log n) page reads instead of a full table scan O(n).\n\n**Clustered index.** The leaf level *is* the table: rows are stored in key order. There is only one per table, and range queries on the clustering key are very fast because adjacent keys sit on adjacent pages. In MySQL InnoDB the primary key is the clustered index, and if you do not define one InnoDB picks a unique non-null index or creates a hidden row id. Using a random key like a UUID v4 causes page splits and fragmentation; a monotonically increasing key inserts at the end.\n\n**Non-clustered (secondary) index.** Leaves hold the indexed columns plus a pointer: the clustering key in InnoDB, so a lookup goes secondary index -> primary key -> row (two traversals). A long primary key therefore inflates every secondary index. Some databases use a physical row id instead.\n\n**Composite and covering indexes.**\n- A composite index `(a, b, c)` follows the leftmost-prefix rule: it serves filters on `a`, `a,b`, and `a,b,c`, plus ordering on that prefix, but not `b` alone. Put equality columns first, then the range column.\n- A covering index contains every column the query needs, so it is an index-only scan with no row lookup.\n\n**Costs.** Every insert, update or delete must maintain all indexes, more indexes slow writes, take memory and disk space, and can become fragmented. Low-selectivity columns (like a boolean) rarely benefit. Functions or implicit type conversions on an indexed column (`WHERE DATE(created) = ...`, `LIKE '%x'`) prevent index use.\n\n**Verifying.** Use `EXPLAIN` to see the chosen index, the scan type (ref, range, ALL) and the estimated rows. Check cardinality statistics.\n\n**Clustering in the DB-scaling sense.** The interviewer may also mean database clustering (replication, sharding); be ready to define it and ask which was meant.",
+ "followUps": [
+  "Why does a UUID primary key hurt insert performance in InnoDB?",
+  "What is the leftmost-prefix rule and how would you design an index for WHERE a = ? AND b > ? ORDER BY c?",
+  "What is the difference between a covering index and a clustered index?",
+  "When would the optimizer choose a full table scan even if an index exists?"
+ ]
+}

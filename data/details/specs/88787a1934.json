@@ -1,0 +1,18 @@
+{
+ "qid": "88787a1934",
+ "question": "Microsoft SDE-1 final round (about 1 hour, with a very senior interviewer): **design an ordering service for Microsoft so that companies can buy licenses for its services**.\n\nThe candidate reported not being prepared for system design and not delivering the standard design the interviewer expected, though they discussed everything they could. The question gives little else, so state your assumptions explicitly.",
+ "lookingFor": [
+  "Structured requirements gathering for a B2B purchasing flow.",
+  "Core entities: catalog, SKU, quote, order, subscription, license.",
+  "Correctness for orders and payments (idempotency, transactions).",
+  "Integration with billing, provisioning and notifications.",
+  "Reasoning about scale, auditing and failure handling."
+ ],
+ "answer": "**Clarify (assumptions).** Customers are companies with admins who buy N seats of a product (e.g. a cloud service or productivity suite) on monthly or annual terms. Features: browse catalog, pick plan and quantity, apply pricing/discounts, pay (card or invoice), receive licenses, later renew, upgrade or cancel. Scale: modest write volume (orders), high correctness needs, many reads on the catalog.\n\n**Core APIs.**\n- `GET /catalog`, `GET /products/{id}/plans`\n- `POST /quotes` (price calculation), `POST /orders` (with an idempotency key), `GET /orders/{id}`\n- `POST /subscriptions/{id}/change-seats`, `/cancel`\n\n**Entities.** Customer (organization), User/Admin, Product, Plan/SKU, Price, Order, OrderLine, Payment, Subscription, License (assigned seats), Invoice.\n\n**Architecture.** API gateway with authentication, then:\n- **Catalog service:** read-heavy, cached, with an optional search index.\n- **Pricing service:** region, currency, volume and contract discounts.\n- **Order service:** owns the order state machine (PENDING, PAID, PROVISIONING, FULFILLED, FAILED).\n- **Payment/Billing service:** integrates with payment providers and invoicing.\n- **Provisioning/Licensing service:** creates the subscription and license entitlements in the target service.\n- **Notification service**, plus an event bus for decoupling.\n\n**Order flow as a saga.** Create the order with an idempotency key, authorize payment, publish an `OrderPaid` event, provisioning creates the licenses, and on failure compensate (refund or retry). Use the outbox pattern for reliable events, and retries with a dead-letter queue.\n\n**Data.** Relational DB (orders, payments need ACID) partitioned by customer id; catalog in a cache; an append-only audit log of changes for compliance. Store prices on the order line so later price changes don't alter past orders.\n\n**Scale and reliability.** Stateless services scaled horizontally, replicas for reads, multi-region for availability, rate limiting, and monitoring of stuck orders.\n\n**Trade-offs.** Synchronous checkout (simple) versus async fulfillment (resilient); choose async for provisioning.\n\n**Mistakes to avoid:** silence while designing, skipping assumptions, and ignoring idempotency and money correctness.",
+ "followUps": [
+  "How do you make order creation idempotent?",
+  "What happens if payment succeeds but provisioning fails?",
+  "How would you support seat changes and prorated billing?",
+  "How would you handle regional pricing and taxes?"
+ ]
+}

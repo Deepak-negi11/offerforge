@@ -1,0 +1,17 @@
+{
+ "qid": "de905eb540",
+ "question": "Groww Android SDE-1 second round: discussion of **past projects and scenarios**, **API calls**, **concurrent operations**, the **Activity lifecycle** and **handling screen rotation**. Answer how you would explain the lifecycle, run concurrent work safely, and keep state across rotation.",
+ "lookingFor": [
+  "Knowledge of Android lifecycle callbacks and how configuration changes affect them.",
+  "Modern concurrency on Android (coroutines, dispatchers, structured concurrency).",
+  "Awareness of state preservation (ViewModel, saved state).",
+  "Ability to tie concepts to real project experience."
+ ],
+ "answer": "**Activity lifecycle.** Main callbacks: `onCreate` (set up UI, initialise), `onStart` (becomes visible), `onResume` (in foreground, interactive), `onPause` (partially obscured or leaving; keep it light), `onStop` (no longer visible; release heavier resources), `onDestroy` (finishing or being destroyed by the system). Put work in the matching pair: register in `onStart`/unregister in `onStop`, or use lifecycle-aware components so you do not have to do it by hand.\n\n**Screen rotation.** A configuration change like rotation destroys and recreates the Activity by default (`onPause`, `onStop`, `onDestroy`, then `onCreate` again). Anything in plain fields is lost, and any running callbacks may leak the old Activity. Solutions:\n- Keep UI state in a **ViewModel**, which survives configuration changes (it is scoped to the ViewModelStore and is cleared only when the Activity finishes).\n- Use `onSaveInstanceState` or `SavedStateHandle` for small state that must survive process death (ids, scroll position, text input).\n- Expose state as `StateFlow`/`LiveData` and collect it in a lifecycle-aware way (`repeatOnLifecycle`).\n- Avoid `android:configChanges` as a shortcut except for special cases, because it bypasses resource reloading.\n\n**API calls and concurrency.** Never do network or disk I/O on the main thread (it causes ANRs and `NetworkOnMainThreadException`). Use **Kotlin coroutines**: launch in `viewModelScope`, call suspend functions (Retrofit supports suspend), and switch with `Dispatchers.IO` for blocking work. Structured concurrency cancels child jobs when the scope is cancelled, so work stops when the ViewModel is cleared.\n\nFor concurrent operations, run independent calls in parallel with `async`/`await` (or `coroutineScope { ... }`), combine results, and handle failure with `try/catch` or `supervisorScope` if one failure should not cancel the others. Protect shared mutable state with `Mutex`, atomic types or confining it to one thread. Use WorkManager for deferrable work that must survive app exit.\n\n**Good practices.** Show loading, success, error states; cache with Room; add retry with backoff; handle cancellation; and never hold an Activity or View reference in a ViewModel.",
+ "followUps": [
+  "What is the difference between onPause and onStop?",
+  "How does a ViewModel survive rotation but not process death?",
+  "How would you fetch three APIs in parallel and combine the results?",
+  "What causes an ANR and how do you avoid it?"
+ ]
+}

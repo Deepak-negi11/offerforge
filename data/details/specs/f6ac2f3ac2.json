@@ -1,0 +1,18 @@
+{
+ "qid": "f6ac2f3ac2",
+ "question": "C++ inheritance question from a D. E. Shaw new-grad round. Classes `A`, `B`, `C` and `D`: `B` inherits from `A`, `C` inherits from `A`, and `D` inherits from both `B` and `C`. `A`, `B` and `C` each have their own `print()` method; `D` does **not** define `print()`. What happens when you call `d->print()`? Which `print()` runs? The interviewer then asked the candidate to discuss the **diamond problem** and **virtual inheritance**.",
+ "lookingFor": [
+  "Understanding of multiple inheritance and name lookup in C++.",
+  "Knowing the call is ambiguous and is a compile-time error, not a runtime choice.",
+  "How virtual inheritance gives a single shared base subobject.",
+  "Awareness that virtual inheritance does not by itself resolve conflicting overrides.",
+  "Trade-offs and alternatives."
+ ],
+ "answer": "**What happens.** The call `d->print()` does not compile: the name `print` is **ambiguous**, because `D` finds `B::print` and `C::print` through two different base classes and neither hides the other. (`A::print` is hidden in each branch by the `print` declared in `B` and `C`.) The compiler reports an ambiguous member.\n\n**The diamond problem.** With ordinary inheritance, `D` contains **two separate `A` subobjects**, one inside `B` and one inside `C`. This causes:\n- Ambiguity when naming inherited members, such as `d.A::x` (which `A`?).\n- Duplicated data: two copies of `A`'s members, which can drift apart.\n- Ambiguous conversion from `D*` to `A*`.\n\n**Ways to resolve the call**\n- Qualify it: `d->B::print();` or `d->C::print();`.\n- Define `D::print()`, which hides both and can call `B::print()` and `C::print()` explicitly.\n\n**Virtual inheritance**\n```cpp\nclass A { public: int x; virtual void print(); };\nclass B : virtual public A { public: void print() override; };\nclass C : virtual public A { public: void print() override; };\nclass D : public B, public C { public: void print() override; };\n```\n- `B` and `C` inherit **virtually**, so `D` contains exactly **one** `A` subobject, shared. Members of `A` are no longer duplicated or ambiguous.\n- The **most derived class (`D`) constructs the virtual base** `A`, not `B` or `C`.\n- Cost: extra indirection (virtual base pointer or offset), slightly larger objects, and trickier construction.\n- It does not remove a conflict of overrides: if both `B` and `C` override `A::print`, `D` must provide its own final overrider or the program is ill-formed. If only one of them overrides it, that override dominates.\n\n**Alternatives.** Prefer composition, or keep multiple inheritance to pure interfaces (no data), which is how Java avoids the problem for classes.",
+ "followUps": [
+  "Is the ambiguity detected at compile time or run time?",
+  "How are virtual base classes laid out in memory (vptr or vbptr)?",
+  "In what order are constructors called for D with virtual inheritance?",
+  "How does Java deal with the diamond problem?"
+ ]
+}

@@ -1,0 +1,48 @@
+{
+ "pid": "infosys-stock-trading-with-variable-cooldown",
+ "title": "Stock Trading With Variable Cooldown",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given the price of a stock on each of `n` days, numbered `0` to `n - 1`. You may complete any number of transactions, but you can hold **at most one share** at a time: you must sell the share before buying again. A transaction buys on some day `b` and sells on a later day `s` with `b < s`, earning `price[s] - price[b]`.\n\nAfter each sale there is a **cooldown** whose length depends on how long you held the share. If you bought on day `b` and sold on day `s`, the holding duration is `d = s - b + 1` days, and you may **not buy** on any of the `d` days following the sale, that is on days `s + 1, s + 2, ..., s + d`. The earliest day of the next purchase is therefore `s + d + 1 = 2s - b + 2`.\n\nPrint the **maximum total profit** you can make. Doing nothing is allowed, so the answer is never negative.\n\nThe longer you hold, the longer you must wait afterwards, so one big trade is not always better than several short ones.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` space-separated integers `price[0], ..., price[n-1]`.",
+ "output_format": "Print a single integer: the maximum total profit.",
+ "constraints": [
+  "1 ≤ n ≤ 2000",
+  "1 ≤ price[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "4\n3 1 6 2",
+   "output": "5",
+   "explanation": "Buy on day 1 at price 1 and sell on day 2 at price 6 for a profit of 5. No other transaction is profitable."
+  },
+  {
+   "input": "6\n1 5 1 5 1 5",
+   "output": "8",
+   "explanation": "Buy on day 0 and sell on day 1 for a profit of 4. The holding duration is 2, so you cannot buy on days 2 and 3. Buy again on day 4 and sell on day 5 for another 4, total 8. Without the cooldown rule you could also trade on days 2 and 3, but that is not allowed here."
+  },
+  {
+   "input": "3\n5 4 3",
+   "output": "0",
+   "explanation": "Prices only fall, so it is best not to trade."
+  }
+ ],
+ "complexity": {
+  "time": "O(n^2)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Define the best profit obtainable from day i onwards, assuming you are free to buy on day i. How does the answer for day i relate to the answer for day i + 1?",
+  "If you buy on day i you must choose a selling day s > i. The next day you are allowed to buy is 2s - i + 2, so the rest of the profit is a lookup in the same table (or 0 if that day is past the end).",
+  "Trying every pair (buy day, sell day) gives an O(n^2) solution, which is fine for n up to 2000."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    p = [int(x) for x in data[1:1 + n]]\n    # dp[i]: best profit using days i..n-1 when we are free to buy on day i\n    dp = [0] * (n + 1)\n    for i in range(n - 1, -1, -1):\n        best = dp[i + 1]\n        pi = p[i]\n        for s in range(i + 1, n):\n            gain = p[s] - pi\n            if gain <= 0:\n                continue\n            nx = 2 * s - i + 2\n            v = gain + (dp[nx] if nx < n else 0)\n            if v > best:\n                best = v\n        dp[i] = best\n    print(dp[0])\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\np = [int(x) for x in data[1:1 + n]]\n# F[x]: best profit from trades whose cooldown has fully ended by day x (so a buy on day x is allowed)\nF = [0] * (n + 1)\nfor x in range(n + 1):\n    best = 0\n    for b in range(n):\n        for s in range(b + 1, n):\n            if 2 * s - b + 2 <= x and b < x:\n                best = max(best, F[b] + p[s] - p[b])\n    F[x] = best\nans = 0\nfor b in range(n):\n    for s in range(b + 1, n):\n        ans = max(ans, F[b] + p[s] - p[b])\nprint(ans)\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + \"\\n\" + \" \".join(map(str, a))\n    tests = [\n        fmt([5]), fmt([1, 2]), fmt([2, 1]), fmt([5, 4, 3, 2, 1]), fmt([1, 2, 3, 4, 5]),\n        fmt([1, 5, 1, 5, 1, 5]), fmt([3, 3, 3, 3]), fmt([1, 10, 1, 1, 1, 10]),\n        fmt([1, 5, 1, 1, 5, 1, 1, 1, 5]), fmt([10 ** 9, 1, 10 ** 9, 1, 10 ** 9]),\n    ]\n    for n in (3, 4, 5, 6, 7, 8, 10, 12, 15, 20, 30):\n        for _ in range(3):\n            hi = rng.choice([3, 9, 30])\n            tests.append(fmt([rng.randint(1, hi) for _ in range(n)]))\n    N = 2000\n    tests.append(fmt([rng.randint(1, 10 ** 9) for _ in range(N)]))\n    tests.append(fmt([rng.randint(1, 100) for _ in range(N)]))\n    tests.append(fmt([1 + (i % 7) * 3 + rng.randint(0, 2) for i in range(N)]))\n    tests.append(fmt([(i // 2) % 2 * 10 ** 8 + rng.randint(1, 1000) for i in range(N)]))\n    tests.append(fmt([i + 1 for i in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_profit(prices: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    prices = [int(x) for x in data[1:1 + n]]\n    print(max_profit(prices))\n\n\nmain()\n",
+  "javascript": "function maxProfit(prices) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst prices = t.slice(1, 1 + n)\nconsole.log(String(maxProfit(prices)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxProfit(vector<long long>& prices) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> prices(n);\n    for (int i = 0; i < n; i++) cin >> prices[i];\n    cout << maxProfit(prices) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxProfit(long[] prices) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] prices = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            prices[i] = (long) in.nval;\n        }\n        System.out.println(maxProfit(prices));\n    }\n}\n"
+ }
+}

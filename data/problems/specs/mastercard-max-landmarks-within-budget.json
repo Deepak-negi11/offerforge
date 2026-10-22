@@ -1,0 +1,50 @@
+{
+ "pid": "mastercard-max-landmarks-within-budget",
+ "title": "Max Landmarks Within Budget",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A tourist, James, wants to sightsee in a city whose landmarks are labelled `1` to `N`. The landmarks are connected by `K` bus routes. Route `i` joins landmarks `u_i` and `v_i`, can be ridden in both directions, and costs `c_i` dollars. The routes contain **no cycle** (no route joins a landmark to itself, no two routes join the same pair, and following routes can never lead back to where you started without reusing a route).\n\nJames starts at landmark `1` with `M` dollars. He is new to the city, so he can only get home by **retracing his steps**: every route he rides on the way out must be ridden again on the way back. A route he uses therefore costs `2 * c_i` dollars in total, and the total cost of his trip is twice the sum of the prices of the distinct routes he uses. The trip must be affordable: that total must be at most `M`.\n\nJames visits landmark `1` and every landmark he can reach by riding the routes he uses. Find the **maximum number of distinct landmarks** (counting landmark `1`) he can visit.",
+ "input_format": "The first line contains three integers `N`, `K` and `M`.\nEach of the next `K` lines contains three integers `u`, `v` and `c`: a route between landmarks `u` and `v` that costs `c`.",
+ "output_format": "Print a single integer: the maximum number of distinct landmarks James can visit.",
+ "constraints": [
+  "1 ≤ N ≤ 100",
+  "0 ≤ K ≤ N - 1, and the routes form a forest (no cycles)",
+  "1 ≤ M ≤ 10^9",
+  "1 ≤ c ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "5 4 120\n1 2 10\n2 3 20\n3 4 30\n4 5 40",
+   "output": "4",
+   "explanation": "Going 1 -> 2 -> 3 -> 4 and back costs 2 * (10 + 20 + 30) = 120, exactly his budget, so he visits 4 landmarks. Adding landmark 5 would cost 2 * 100 = 200."
+  },
+  {
+   "input": "6 5 24\n1 2 5\n1 3 10\n3 4 1\n4 5 1\n2 6 7",
+   "output": "4",
+   "explanation": "The budget allows routes of total price at most 12. Taking routes 1-2 and 2-6 costs 12 and reaches only 3 landmarks. Taking routes 1-3, 3-4 and 4-5 also costs 12 and reaches landmarks 1, 3, 4, 5, which is 4. Riding the cheapest route first is not optimal."
+  },
+  {
+   "input": "3 1 100\n2 3 1",
+   "output": "1",
+   "explanation": "No route touches landmark 1, so James can only stay where he is."
+  }
+ ],
+ "complexity": {
+  "time": "O(N^2)",
+  "space": "O(N^2)"
+ },
+ "hints": [
+  "Because the routes form a forest, the routes James uses form a connected tree around landmark 1, and its cost is 2 times the sum of its edge prices. You want the largest tree containing landmark 1 whose edge sum is at most M / 2.",
+  "Greedily riding the cheapest next route fails: a slightly dearer route can open up several very cheap ones behind it.",
+  "Root the tree at landmark 1. Let best[v][k] be the cheapest connected set of k landmarks inside the subtree of v that contains v. Merge the children one at a time like a knapsack, adding the edge price when a child's set is included."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k, m = int(data[0]), int(data[1]), int(data[2])\n    adj = [[] for _ in range(n + 1)]\n    for i in range(k):\n        u, v, c = int(data[3 + 3 * i]), int(data[4 + 3 * i]), int(data[5 + 3 * i])\n        adj[u].append((v, c))\n        adj[v].append((u, c))\n    INF = float('inf')\n    parent = [0] * (n + 1)\n    pw = [0] * (n + 1)\n    order = [1]\n    seen = [False] * (n + 1)\n    seen[1] = True\n    for u in order:\n        for v, c in adj[u]:\n            if not seen[v]:\n                seen[v] = True\n                parent[v] = u\n                pw[v] = c\n                order.append(v)\n    dp = [None] * (n + 1)\n    for v in reversed(order):\n        cur = [INF, 0]\n        for w, c in adj[v]:\n            if w == parent[v]:\n                continue\n            ch = dp[w]\n            new = cur + [INF] * (len(ch) - 1)\n            for a in range(1, len(cur)):\n                if cur[a] == INF:\n                    continue\n                for b in range(1, len(ch)):\n                    if ch[b] == INF:\n                        continue\n                    val = cur[a] + ch[b] + c\n                    if val < new[a + b]:\n                        new[a + b] = val\n            cur = new\n        dp[v] = cur\n    best = 1\n    for s in range(1, len(dp[1])):\n        if dp[1][s] != INF and 2 * dp[1][s] <= m:\n            best = s\n    print(best)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, k, m = int(data[0]), int(data[1]), int(data[2])\nedges = []\nfor i in range(k):\n    edges.append((int(data[3 + 3 * i]), int(data[4 + 3 * i]), int(data[5 + 3 * i])))\nbest = 1\nfor mask in range(1 << k):\n    chosen = [edges[i] for i in range(k) if mask >> i & 1]\n    cost = 2 * sum(c for _, _, c in chosen)\n    if cost > m:\n        continue\n    reach = {1}\n    changed = True\n    while changed:\n        changed = False\n        for u, v, c in chosen:\n            if (u in reach) != (v in reach):\n                reach.add(u)\n                reach.add(v)\n                changed = True\n    if all(u in reach and v in reach for u, v, c in chosen):\n        best = max(best, len(reach))\nprint(best)\n",
+ "generator": "def gen(rng):\n    def forest(n, p_attach):\n        perm = list(range(1, n + 1))\n        rng.shuffle(perm)\n        edges = []\n        for i in range(1, n):\n            if rng.random() < p_attach:\n                j = rng.randint(0, i - 1)\n                a, b = perm[i], perm[j]\n                if rng.random() < 0.5:\n                    a, b = b, a\n                edges.append((a, b))\n        rng.shuffle(edges)\n        return edges\n\n    def fmt(n, edges, m, w):\n        lines = [f'{n} {len(edges)} {m}']\n        for a, b in edges:\n            lines.append(f'{a} {b} {w()}')\n        return '\\n'.join(lines)\n\n    tests = [\n        '1 0 5',\n        '2 1 2\\n1 2 1',\n        '2 1 1\\n2 1 1',\n        '3 2 1000000000\\n1 2 1000000000\\n2 3 1',\n        '3 2 8\\n1 2 3\\n1 3 1',\n        '4 3 12\\n1 2 6\\n2 3 1\\n3 4 1',\n    ]\n    for n in (2, 3, 4, 5, 6, 8, 10, 12):\n        for _ in range(3):\n            ed = forest(n, rng.choice([0.7, 0.9, 1.0]))\n            hi = rng.choice([3, 6, 10])\n            tot = hi * max(1, len(ed))\n            tests.append(fmt(n, ed, rng.randint(1, 2 * tot), lambda: rng.randint(1, hi)))\n    # greedy-trap: cheap-first fails\n    tests.append('7 6 24\\n1 2 5\\n1 3 10\\n3 4 1\\n4 5 1\\n2 6 7\\n2 7 7')\n    # max-size cases\n    def path_edges(n):\n        perm = list(range(1, n + 1))\n        rng.shuffle(perm)\n        i1 = perm.index(1)\n        perm[0], perm[i1] = perm[i1], perm[0]\n        return [(perm[i], perm[i + 1]) for i in range(n - 1)]\n    tests.append(fmt(100, forest(100, 1.0), 10**9, lambda: rng.randint(1, 2 * 10**7)))\n    tests.append(fmt(100, path_edges(100), 10**9, lambda: rng.randint(1, 2 * 10**7)))\n    tests.append(fmt(100, [(1, i) for i in range(2, 101)], 10**9, lambda: rng.randint(1, 2 * 10**7)))\n    tests.append(fmt(100, forest(100, 1.0), 10**9, lambda: rng.randint(1, 10**9)))\n    tests.append(fmt(100, forest(100, 1.0), 10**9, lambda: rng.randint(1, 10**7)))\n    tests.append(fmt(100, forest(100, 0.8), 10**9, lambda: rng.randint(1, 2 * 10**7)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef max_landmarks(n: int, m: int, edges: List[Tuple[int, int, int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k, m = int(data[0]), int(data[1]), int(data[2])\n    edges = []\n    for i in range(k):\n        edges.append((int(data[3 + 3 * i]), int(data[4 + 3 * i]), int(data[5 + 3 * i])))\n    print(max_landmarks(n, m, edges))\n\n\nmain()\n",
+  "javascript": "function maxLandmarks(n, m, edges) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1], m = t[2]\nconst edges = []\nfor (let i = 0; i < k; i++) {\n  edges.push([t[3 + 3 * i], t[4 + 3 * i], t[5 + 3 * i]])\n}\nconsole.log(maxLandmarks(n, m, edges))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint maxLandmarks(int n, long long m, vector<array<long long, 3>>& edges) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    long long m;\n    cin >> n >> k >> m;\n    vector<array<long long, 3>> edges(k);\n    for (int i = 0; i < k; i++) cin >> edges[i][0] >> edges[i][1] >> edges[i][2];\n    cout << maxLandmarks(n, m, edges) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int maxLandmarks(int n, long m, long[][] edges) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        in.nextToken();\n        long m = (long) in.nval;\n        long[][] edges = new long[k][3];\n        for (int i = 0; i < k; i++) {\n            for (int j = 0; j < 3; j++) {\n                in.nextToken();\n                edges[i][j] = (long) in.nval;\n            }\n        }\n        System.out.println(maxLandmarks(n, m, edges));\n    }\n}\n"
+ }
+}

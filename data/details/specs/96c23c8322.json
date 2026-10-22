@@ -1,0 +1,18 @@
+{
+ "qid": "96c23c8322",
+ "question": "Round 1 for an SDE-2 C++ Developer role at Tower Research (45 minutes, taken by a senior team member): a **detailed discussion of the TCP and UDP protocols**, then a small C++ snippet with errors to identify, and a trie-based problem (not from LeetCode) where the trick was to process the strings backward. The exact snippet and trie problem were not reported.",
+ "lookingFor": [
+  "Do you understand the transport layer beyond the one-line comparison?",
+  "Can you map protocol properties to real use cases (trading feeds, DNS, streaming, file transfer)?",
+  "Do you know connection setup and teardown, reliability, flow and congestion control?",
+  "Can you reason about latency, head-of-line blocking and multicast?"
+ ],
+ "answer": "**Core comparison.**\n- **Connection:** TCP is connection-oriented (3-way handshake); UDP is connectionless.\n- **Reliability:** TCP uses sequence numbers, ACKs and retransmission; UDP has none, so loss, duplication and reordering are possible.\n- **Ordering:** TCP delivers an in-order byte stream with no message boundaries; UDP delivers independent datagrams, one per `recvfrom`.\n- **Control:** TCP has flow control (receiver window) and congestion control; UDP has neither.\n- **Header:** 20 or more bytes for TCP, 8 bytes for UDP.\n\n**TCP in more detail.**\n- **Handshake:** SYN, SYN-ACK, ACK; teardown with FIN/ACK in each direction, and `TIME_WAIT` on the side that closes first.\n- **Reliability:** cumulative ACKs, retransmission on timeout or on three duplicate ACKs (fast retransmit), checksums.\n- **Flow control:** the receiver advertises a window so it is not overrun.\n- **Congestion control:** slow start, congestion avoidance (AIMD), fast recovery. It reduces throughput when loss suggests congestion.\n- **Costs:** connection setup latency, retransmission delay and **head-of-line blocking** (one lost segment delays everything behind it), and per-connection state in the kernel. Nagle's algorithm and delayed ACKs can add latency (disable with `TCP_NODELAY` for small, latency-critical messages).\n\n**UDP in more detail.** Adds only ports and an optional checksum on top of IP. It is low overhead, has no head-of-line blocking, and supports **broadcast and multicast**, which TCP cannot. Applications that need reliability must build it themselves.\n\n**When to use which.** TCP: web, email, file transfer, databases, anything needing correctness. UDP: DNS, VoIP, video, games, and market-data feeds, where a fresh value matters more than a retransmitted old one. Low-latency finance commonly sends market data over UDP multicast with sequence numbers, and uses TCP (or an application protocol over it) for order entry. QUIC builds reliable multiplexed streams on top of UDP.\n\n**For the trie problem** the hint was to process strings in reverse. That fits when matching depends on suffixes: insert reversed strings so shared suffixes share a path.",
+ "followUps": [
+  "How does TCP detect packet loss, and what do fast retransmit and fast recovery do?",
+  "What is the purpose of TIME_WAIT?",
+  "What is a SYN flood and how is it mitigated?",
+  "How would you add reliability on top of UDP?",
+  "Why does TCP_NODELAY matter in low-latency systems?"
+ ]
+}

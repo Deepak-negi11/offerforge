@@ -1,0 +1,18 @@
+{
+ "qid": "2bdd247277",
+ "question": "In an AMD technical interview for an experienced Software Engineer, EDA Tools role, the candidate was asked C/C++ fundamentals:\n\n**What happens if you delete a derived-class object through a base-class pointer when the base destructor is not virtual?**\n\nThe same round also asked about **const versus static variables**, and **stack versus heap**.",
+ "lookingFor": [
+  "Knowing that this is undefined behaviour in C++ and why, not just 'a leak'",
+  "Understanding of virtual dispatch and destruction order",
+  "Clear difference between const and static (and how they combine)",
+  "Memory layout knowledge: stack, heap, static storage, lifetimes",
+  "Ability to give practical rules (virtual destructors, RAII, smart pointers)"
+ ],
+ "answer": "**Deleting through a base pointer with a non-virtual destructor**\n\n```cpp\nstruct Base { ~Base() {} };\nstruct Derived : Base { int* p = new int[100]; ~Derived() { delete[] p; } };\nBase* b = new Derived;\ndelete b;   // undefined behaviour\n```\n\n- Per the C++ standard, deleting a derived object through a pointer to a base class whose destructor is not virtual is **undefined behaviour**.\n- In practice, the destructor call is resolved statically from the pointer type, so only `Base::~Base` runs. `Derived::~Derived` does not run, its members are not destroyed (resources such as `p` leak), and the deallocation may use the wrong size or address, which can corrupt the heap.\n- **Fix:** declare the base destructor `virtual` whenever a class is meant to be used polymorphically (`virtual ~Base() = default;`). Then `delete b` calls the most-derived destructor first, then base destructors in reverse order of construction. Alternatively, use `std::unique_ptr<Derived>` or `std::shared_ptr` created with `make_shared`, or make the base destructor protected and non-virtual if the class is not meant to be deleted polymorphically.\n- A virtual destructor adds a vtable pointer per object, which is a small cost.\n\n**const vs static**\n- `const`: the value cannot be modified after initialisation (a type qualifier). It says nothing about lifetime; a const local lives on the stack.\n- `static`: controls **storage duration and linkage**. A static local persists for the whole program and is initialised once; a static global or function has internal linkage (file scope); a static class member is shared by all objects.\n- They combine: `static const int N = 10;` is a shared, unchangeable constant.\n\n**Stack vs heap**\n- **Stack:** automatic storage for locals and call frames; allocation is just a pointer move, freed automatically on scope exit, limited in size (stack overflow with deep recursion or big arrays).\n- **Heap:** dynamic storage via `new`/`malloc`; lifetime managed manually or by RAII/smart pointers; slower, can fragment, leaks if not freed; size limited by memory.",
+ "followUps": [
+  "What does a pure virtual destructor look like, and does it need a definition?",
+  "What is the order of constructor and destructor calls in an inheritance chain?",
+  "What is object slicing?",
+  "How do smart pointers help avoid this class of bugs?"
+ ]
+}

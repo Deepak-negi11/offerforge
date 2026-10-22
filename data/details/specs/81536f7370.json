@@ -1,0 +1,19 @@
+{
+ "qid": "81536f7370",
+ "question": "In the final technical round of a PhonePe on-campus interview, the candidate was asked to **write a SQL query to find the 10th highest score among students**.\n\nAssume a table `students(id, name, score)`. Clarify with the interviewer whether duplicate scores should count as one value (the 10th highest *distinct* score) or as separate rows.",
+ "lookingFor": [
+  "Can you use window functions or `LIMIT/OFFSET` correctly for an Nth highest query?",
+  "Do you handle ties and clarify the requirement (distinct score or row position)?",
+  "Do you handle the case where fewer than 10 scores exist (return NULL or no row)?",
+  "Do you know alternatives that work in databases without window functions?",
+  "Can you explain performance and indexing?"
+ ],
+ "answer": "**Clarify first.** \"10th highest\" usually means the 10th highest *distinct* score, so two students with the top score count as one rank. If instead the interviewer wants the 10th row, use `ROW_NUMBER`.\n\n**1. Window function (best, most portable).**\n```sql\nSELECT score\nFROM (\n  SELECT score, DENSE_RANK() OVER (ORDER BY score DESC) AS rnk\n  FROM students\n) t\nWHERE rnk = 10\nGROUP BY score;\n```\n`DENSE_RANK` gives ties the same rank with no gaps, so rank 10 is the 10th distinct value. `GROUP BY score` (or `SELECT DISTINCT`) returns it once even if several students share it. If you want the *students* with that score, select `name` and `score` and drop the `GROUP BY`.\n\n**2. `DISTINCT` with `LIMIT/OFFSET` (MySQL, PostgreSQL).**\n```sql\nSELECT DISTINCT score\nFROM students\nORDER BY score DESC\nLIMIT 1 OFFSET 9;\n```\nSkips the 9 highest distinct scores and returns the next. If fewer than 10 distinct scores exist, it returns no row. To return NULL instead, wrap it as a subquery: `SELECT (SELECT DISTINCT score FROM students ORDER BY score DESC LIMIT 1 OFFSET 9) AS tenth_highest;`\n\n**3. Correlated subquery (works anywhere, no window functions).**\n```sql\nSELECT DISTINCT s1.score\nFROM students s1\nWHERE 9 = (SELECT COUNT(DISTINCT s2.score)\n           FROM students s2\n           WHERE s2.score > s1.score);\n```\nA score is the 10th highest if exactly 9 distinct scores are higher than it. This is O(n^2) unless the database optimizes it, so it is mainly useful as a fallback.\n\n**Details.** `RANK()` would skip numbers after ties, so rank 10 might not exist even though 10 distinct values do. `ROW_NUMBER()` would treat duplicates as separate positions. An index on `score` lets the engine read scores in order and stop early, especially for the `LIMIT/OFFSET` form. In SQL Server use `OFFSET 9 ROWS FETCH NEXT 1 ROWS ONLY` or `TOP`, and in Oracle use `DENSE_RANK`.",
+ "followUps": [
+  "What is the difference between `RANK`, `DENSE_RANK` and `ROW_NUMBER` for this question?",
+  "How do you return NULL when there is no 10th highest score?",
+  "How would you find the 10th highest score per class?",
+  "How would you do this without window functions or `LIMIT`?",
+  "How does the query perform on a table with 100 million rows, and what index helps?"
+ ]
+}

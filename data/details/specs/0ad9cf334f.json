@@ -1,0 +1,18 @@
+{
+ "qid": "0ad9cf334f",
+ "question": "Apple Kernel Engineer (Core OS), CoderPad round in C. **Debug a provided kernel module that deadlocks, and suggest further optimisations.** The module source is not reported, so describe how you would approach any such code.",
+ "lookingFor": [
+  "A systematic debugging method rather than guessing.",
+  "Knowing deadlock conditions and the usual kernel causes.",
+  "Familiarity with lock types, lock ordering and interrupt or sleep-context rules.",
+  "Proposing fixes that preserve correctness before optimising.",
+  "Thinking aloud, which the previous candidate said they underdid."
+ ],
+ "answer": "**Method.** Read the code for shared state and locks first, then reason, then fix, then optimise. Say what you are looking for as you read.\n\n**Four conditions for deadlock** (all must hold): mutual exclusion, hold-and-wait, no preemption, and circular wait. Fixing a deadlock means breaking one of them, usually circular wait.\n\n**Typical causes to look for in a kernel module.**\n1. **Lock-ordering inversion (ABBA):** one path takes lock A then B; another takes B then A. Fix: define a global lock order and document it.\n2. **Re-acquiring a non-recursive lock** already held (self-deadlock), often via a callback or a helper that locks again. Fix: restructure, or add a `_locked` variant of the helper that assumes the lock is held.\n3. **A missing unlock on an error or early-return path.** Fix: single exit with a `goto cleanup`.\n4. **Sleeping while holding a spinlock** or taking a sleeping lock in interrupt context. Fix: use the right primitive (spinlock for short, non-sleeping sections; mutex when sleeping is allowed), and disable interrupts only when a handler shares the lock.\n5. **Waiting for an event that needs the lock being held** (a condition variable without releasing the mutex, or a lost wakeup).\n\n**Tools and techniques.** Reproduce it; capture thread or CPU stacks to see which locks each is blocked on; in Linux, lockdep detects ordering problems; in other kernels use their debug facilities and lock witness-style checks. Build a wait-for graph on paper: a cycle is the deadlock.\n\n**Fix and then optimise.** After the fix, reduce contention: shorten critical sections (do work outside the lock), use finer-grained or per-CPU locks, read-write locks or RCU for read-mostly data, and atomics for simple counters. Avoid premature complexity; every optimisation must keep the lock order intact. Also validate: stress test, run with debug lock checking, and add assertions that a lock is held where assumed.\n\n**Communicate:** state each hypothesis, the evidence for it, and the fix.",
+ "followUps": [
+  "What is lockdep or a similar tool and how does it find deadlocks?",
+  "When do you use a spinlock versus a mutex in kernel code?",
+  "How does a read-copy-update (RCU) approach avoid read-side locking?",
+  "How would you prevent this class of bug from being reintroduced?"
+ ]
+}

@@ -1,8 +1,9 @@
 import Editor from '@monaco-editor/react'
-import { ArrowCounterClockwiseIcon, CheckCircleIcon, CircleNotchIcon, PlayIcon, PlusIcon, TrashIcon, XCircleIcon } from '@phosphor-icons/react'
+import { ArrowCounterClockwiseIcon, CheckCircleIcon, CircleNotchIcon, PaperPlaneTiltIcon, PlayIcon, PlusIcon, TrashIcon, XCircleIcon } from '@phosphor-icons/react'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { api } from '../lib/api'
-import { LANGS, runCode, sameOutput, STARTER, warmPython, type Lang, type RunResult } from '../lib/runner'
+import { generateInputs, LANGS, normOutput, runCode, sameOutput, sha256, STARTER, warmPython, type Lang, type RunResult } from '../lib/runner'
+import type { Problem } from '../lib/data'
 import { useResolvedTheme } from '../lib/theme'
 
 interface Test {
@@ -13,7 +14,13 @@ interface TestResult extends RunResult {
   pass: boolean
 }
 type Draft = { language: string; code: string; tests: Test[]; updated_at: string }
-type Tab = 'tests' | 'input' | 'output'
+type Tab = 'tests' | 'input' | 'output' | 'submit'
+type Submission =
+  | { state: 'preparing' }
+  | { state: 'running'; done: number; total: number }
+  | { state: 'accepted'; total: number; maxMs: number }
+  | { state: 'failed'; index: number; total: number; input: string; expected: string | null; result: RunResult }
+  | { state: 'broken'; message: string }
 
 const LANG_KEY = 'atlas:lang'
 const readLang = (): Lang => {
@@ -25,21 +32,31 @@ const readLang = (): Lang => {
   }
 }
 
-export function CodePanel({ questionId }: { questionId: string }) {
+export function CodePanel({ questionId, problem, onAccepted }: { questionId: string; problem?: Problem | null; onAccepted?: () => void }) {
   const theme = useResolvedTheme()
   const [lang, setLang] = useState<Lang>(readLang)
   const [codes, setCodes] = useState<Partial<Record<Lang, string>>>({})
-  const [tests, setTests] = useState<Test[]>([{ input: '1 2 3', expected: '6' }])
-  const [stdin, setStdin] = useState('1 2 3')
+  const [tests, setTests] = useState<Test[]>([])
+  const [savedTests, setSavedTests] = useState(false)
+  const [stdin, setStdin] = useState('')
+  const [submission, setSubmission] = useState<Submission | null>(null)
   const [tab, setTab] = useState<Tab>('tests')
-  const [running, setRunning] = useState<'run' | 'tests' | null>(null)
+  const [running, setRunning] = useState<'run' | 'tests' | 'submit' | null>(null)
   const [output, setOutput] = useState<RunResult | null>(null)
   const [results, setResults] = useState<(TestResult | null)[]>([])
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [loaded, setLoaded] = useState(false)
   const saveTimer = useRef<number | undefined>(undefined)
 
-  const code = codes[lang] ?? STARTER[lang]
+  const starter = (l: Lang) => problem?.starters[l] ?? STARTER[l]
+  const code = codes[lang] ?? starter(lang)
+
+  // Until you save your own tests, the problem's examples are the test cases.
+  useEffect(() => {
+    if (!problem || savedTests) return
+    setTests(problem.examples.map((e) => ({ input: e.input, expected: e.output })))
+    setStdin(problem.examples[0]?.input ?? '')
+  }, [problem, savedTests])
 
   useEffect(() => {
     let alive = true
@@ -51,7 +68,10 @@ export function CodePanel({ questionId }: { questionId: string }) {
         for (const d of drafts) if (d.language !== 'notes') next[d.language as Lang] = d.code
         setCodes(next)
         const latest = drafts.filter((d) => d.language !== 'notes').sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0]
-        if (latest?.tests?.length) setTests(latest.tests)
+        if (latest?.tests?.length) {
+          setTests(latest.tests)
+          setSavedTests(true)
+        }
         if (latest && !next[readLang()]) setLang(latest.language as Lang)
       })
       .catch(() => {})
@@ -90,6 +110,7 @@ export function CodePanel({ questionId }: { questionId: string }) {
   }
   const updateTests = (next: Test[]) => {
     setTests(next)
+    setSavedTests(true)
     setResults([])
     scheduleSave(lang, code, next)
   }
@@ -115,11 +136,69 @@ export function CodePanel({ questionId }: { questionId: string }) {
     setRunning(null)
   }
 
-  const reset = () => {
-    if (!window.confirm(`Replace your ${LANGS.find((l) => l.id === lang)!.label} code with the starter template?`)) return
-    setCodes((c) => ({ ...c, [lang]: STARTER[lang] }))
-    scheduleSave(lang, STARTER[lang], tests)
+  // One Run button: from the Custom input/Output tabs it runs your own input, otherwise it runs every test case.
+  const runCustom = tab === 'input' || tab === 'output' || tests.length === 0
+  const runNow = () => (runCustom ? run() : runTests())
+
+  // Submit runs the examples and every hidden test, stopping at the first failure. Large tests are rebuilt from the
+  // problem's generator and checked by hash, so their expected outputs never ship to the browser.
+  const submit = async () => {
+    if (!problem) return
+    setRunning('submit')
+    setTab('submit')
+    let generated = new Map<number, string>()
+    const hashed = problem.tests.filter((t) => 'g' in t)
+    if (hashed.length && problem.generator) {
+      setSubmission({ state: 'preparing' })
+      try {
+        const idx = hashed.map((t) => t.g)
+        const inputs = await generateInputs(problem.generator, problem.seed ?? 0, idx)
+        generated = new Map(idx.map((g, i) => [g, inputs[i]]))
+        for (const t of hashed) if ((await sha256(generated.get(t.g) ?? '')) !== t.ih) throw new Error('A generated test did not match the published one.')
+      } catch (e) {
+        setSubmission({ state: 'broken', message: (e as Error).message })
+        setRunning(null)
+        return
+      }
+    }
+    const all = [...problem.examples, ...problem.tests]
+    let maxMs = 0
+    for (let i = 0; i < all.length; i++) {
+      setSubmission({ state: 'running', done: i, total: all.length })
+      const t = all[i]
+      const input = 'g' in t ? generated.get(t.g)! : t.input
+      const r = await runCode(lang, code, input + '\n')
+      maxMs = Math.max(maxMs, r.timeMs)
+      const pass = r.status === 'ok' && ('g' in t ? (await sha256(normOutput(r.stdout))) === t.oh : sameOutput(r.stdout, t.output))
+      if (!pass) {
+        setSubmission({ state: 'failed', index: i, total: all.length, input, expected: 'g' in t ? null : t.output, result: r })
+        setRunning(null)
+        return
+      }
+    }
+    setSubmission({ state: 'accepted', total: all.length, maxMs })
+    setRunning(null)
+    onAccepted?.()
   }
+
+  // Reset swaps in the starter right away and offers an undo, instead of a blocking browser dialog.
+  const [undo, setUndo] = useState<{ lang: Lang; code: string } | null>(null)
+  const undoTimer = useRef<number | undefined>(undefined)
+  const reset = () => {
+    if (code === starter(lang)) return
+    setUndo({ lang, code })
+    setCodes((c) => ({ ...c, [lang]: starter(lang) }))
+    scheduleSave(lang, starter(lang), tests)
+    window.clearTimeout(undoTimer.current)
+    undoTimer.current = window.setTimeout(() => setUndo(null), 8000)
+  }
+  const undoReset = () => {
+    if (!undo) return
+    setCodes((c) => ({ ...c, [undo.lang]: undo.code }))
+    scheduleSave(undo.lang, undo.code, tests)
+    setUndo(null)
+  }
+
 
   const passed = results.filter((r) => r?.pass).length
   const done = results.filter(Boolean).length
@@ -146,25 +225,43 @@ export function CodePanel({ questionId }: { questionId: string }) {
         <span className="ml-auto text-xs text-subtle" aria-live="polite">
           {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : saveState === 'error' ? 'Not saved' : ''}
         </span>
-        <button onClick={reset} title="Reset to starter code" aria-label="Reset to starter code" className="grid size-8 place-items-center rounded-lg text-subtle hover:bg-surface-2 hover:text-fg">
+        <button onClick={reset} title="Reset to starter code (you can undo)" aria-label="Reset to starter code" className="grid size-8 place-items-center rounded-lg text-subtle hover:bg-surface-2 hover:text-fg">
           <ArrowCounterClockwiseIcon size={16} />
         </button>
         <button
-          onClick={run}
+          onClick={runNow}
           disabled={!!running}
-          className="flex h-8 items-center gap-1.5 rounded-lg border border-line bg-surface px-3 text-sm font-medium text-fg transition-[background-color,transform] hover:bg-surface-2 active:scale-[0.98] disabled:opacity-60"
+          title={runCustom ? 'Run with your custom input' : tests.length === 1 ? 'Run the test case' : `Run all ${tests.length} test cases`}
+          className={
+            'flex h-8 items-center gap-1.5 rounded-lg px-4 text-sm font-medium transition-[background-color,transform] active:scale-[0.98] disabled:opacity-60 ' +
+            (problem ? 'border border-line bg-surface text-fg hover:bg-surface-2' : 'bg-accent text-accent-fg hover:bg-accent-hover')
+          }
         >
-          {running === 'run' ? <CircleNotchIcon size={14} className="animate-spin" /> : <PlayIcon size={14} weight="fill" />} Run
+          {running === 'run' || running === 'tests' ? <CircleNotchIcon size={14} className="animate-spin" /> : <PlayIcon size={14} weight="fill" />} Run
         </button>
-        <button
-          onClick={runTests}
-          disabled={!!running || tests.length === 0}
-          className="flex h-8 items-center gap-1.5 rounded-lg bg-accent px-3 text-sm font-medium text-accent-fg transition-[background-color,transform] hover:bg-accent-hover active:scale-[0.98] disabled:opacity-60"
-        >
-          {running === 'tests' ? <CircleNotchIcon size={14} className="animate-spin" /> : <CheckCircleIcon size={14} weight="fill" />} Run tests
-        </button>
+        {problem && (
+          <button
+            onClick={submit}
+            disabled={!!running}
+            title={`Check your code against all ${problem.examples.length + problem.tests.length} tests`}
+            className="flex h-8 items-center gap-1.5 rounded-lg bg-accent px-4 text-sm font-medium text-accent-fg transition-[background-color,transform] hover:bg-accent-hover active:scale-[0.98] disabled:opacity-60"
+          >
+            {running === 'submit' ? <CircleNotchIcon size={14} className="animate-spin" /> : <PaperPlaneTiltIcon size={14} weight="fill" />} Submit
+          </button>
+        )}
       </div>
 
+      {undo && undo.lang === lang && (
+        <div role="status" className="flex items-center gap-3 border-b border-line bg-accent-soft px-3 py-1.5 text-sm text-accent-ink">
+          Starter code restored.
+          <button onClick={undoReset} className="font-semibold underline underline-offset-2 hover:no-underline">
+            Undo
+          </button>
+          <button onClick={() => setUndo(null)} aria-label="Dismiss" className="ml-auto text-xs text-muted hover:text-fg">
+            Dismiss
+          </button>
+        </div>
+      )}
       <div className="min-h-0 flex-1">
         {loaded ? (
           <Editor
@@ -200,6 +297,7 @@ export function CodePanel({ questionId }: { questionId: string }) {
               ['tests', `Test cases${done ? ` (${passed}/${tests.length} passed)` : ''}`],
               ['input', 'Custom input'],
               ['output', 'Output'],
+              ...(problem ? [['submit', 'Submission'] as [Tab, string]] : []),
             ] as [Tab, string][]
           ).map(([t, label]) => (
             <button
@@ -266,10 +364,11 @@ export function CodePanel({ questionId }: { questionId: string }) {
           {tab === 'input' && (
             <TestField label="Standard input for Run" value={stdin} onChange={setStdin} rows={8} />
           )}
+          {tab === 'submit' && <SubmissionView submission={submission} lang={lang} />}
           {tab === 'output' && (
             <div>
               {running === 'run' && <p className="text-sm text-subtle">Running…{lang === 'python' && ' The first Python run loads the runtime, which takes a few seconds.'}</p>}
-              {!running && !output && <p className="text-sm text-subtle">Press Run to execute your code with the custom input.</p>}
+              {!running && !output && <p className="text-sm text-subtle">Write your input in Custom input, then press Run. On the Test cases tab, Run checks every test.</p>}
               {!running && output && (
                 <div className="space-y-2">
                   <p className={'text-sm font-medium ' + (output.status === 'ok' ? 'text-easy' : 'text-hard')}>
@@ -304,6 +403,62 @@ function TestField({ label, value, onChange, rows = 3 }: { label: string; value:
         spellCheck={false}
         className="resize-y rounded-md border border-line bg-surface p-2 font-mono text-[13px] text-fg outline-none hover:border-line-strong focus-visible:border-accent"
       />
+    </div>
+  )
+}
+
+function SubmissionView({ submission, lang }: { submission: Submission | null; lang: Lang }) {
+  if (!submission) return <p className="text-sm text-subtle">Press Submit to check your code against the examples and every hidden test.</p>
+  if (submission.state === 'preparing')
+    return (
+      <p className="flex items-center gap-2 text-sm text-muted">
+        <CircleNotchIcon size={14} className="animate-spin" /> Preparing the large tests…
+      </p>
+    )
+  if (submission.state === 'broken') return <p className="text-sm text-hard">Could not prepare the tests: {submission.message} Reload the page and try again.</p>
+  if (submission.state === 'running')
+    return (
+      <p className="flex items-center gap-2 text-sm text-muted">
+        <CircleNotchIcon size={14} className="animate-spin" /> Running test {submission.done + 1} of {submission.total}…
+        {lang === 'python' && submission.done === 0 && ' The first Python run loads the runtime.'}
+      </p>
+    )
+  if (submission.state === 'accepted')
+    return (
+      <div className="rounded-lg border border-easy/30 bg-easy/10 p-4">
+        <p className="flex items-center gap-2 text-base font-semibold text-easy">
+          <CheckCircleIcon size={18} weight="fill" /> Accepted
+        </p>
+        <p className="mt-1 text-sm text-muted">
+          All {submission.total} tests passed. Slowest test took <span className="font-mono text-fg">{Math.round(submission.maxMs)} ms</span>. Marked as solved.
+        </p>
+      </div>
+    )
+  const r = submission.result
+  const verdict = r.status === 'ok' ? 'Wrong answer' : r.status === 'timeout' ? 'Time limit exceeded' : r.status === 'compile-error' ? 'Compile error' : r.status === 'unavailable' ? 'Runner unavailable' : 'Runtime error'
+  const clip = (t: string) => (t.length > 600 ? t.slice(0, 600) + '\n… (truncated)' : t)
+  return (
+    <div className="space-y-3">
+      <p className="flex items-center gap-2 text-base font-semibold text-hard">
+        <XCircleIcon size={18} weight="fill" /> {verdict}
+        <span className="text-sm font-normal text-muted">
+          on test {submission.index + 1} of {submission.total}
+        </span>
+      </p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <OutputBox label="Input" value={clip(submission.input)} />
+        <OutputBox label="Expected output" value={submission.expected === null ? 'Hidden for large tests. Check your code against the constraints.' : clip(submission.expected)} />
+      </div>
+      <OutputBox label={r.status === 'ok' ? 'Your output' : 'Error'} value={clip(r.status === 'ok' ? r.stdout || '(nothing printed)' : r.stderr || r.stdout)} />
+    </div>
+  )
+}
+
+function OutputBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-lg border border-line bg-surface-2/50">
+      <p className="border-b border-line px-3 py-1.5 text-xs font-medium text-subtle">{label}</p>
+      <pre className="max-h-40 overflow-auto px-3 py-2 font-mono text-xs text-fg">{value}</pre>
     </div>
   )
 }

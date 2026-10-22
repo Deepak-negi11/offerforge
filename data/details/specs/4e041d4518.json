@@ -1,0 +1,18 @@
+{
+ "qid": "4e041d4518",
+ "question": "Bloomberg SDE intern, technical interview. **Explain what unit testing is and how you would implement tests for your code.** In one reported round the candidate had just designed a lottery storage system with O(1) `addParticipant(id)`, `removeParticipant(id)` and `randomPick()` operations, and was briefly questioned on JUnit and on what approaches to take to ensure such a system works as intended. Use that as a concrete example.",
+ "lookingFor": [
+  "Clear definition of a unit test and how it differs from integration and end-to-end tests.",
+  "Practical test design: arrange-act-assert, edge cases, one behaviour per test.",
+  "Knows how to isolate units (mocks, stubs, dependency injection) and handle randomness.",
+  "Understands good test properties (fast, deterministic, independent) and coverage limits.",
+  "Can write a simple JUnit test."
+ ],
+ "answer": "**Definition.** A unit test checks the smallest testable piece of code (a method or class) in isolation, automatically, and reports pass or fail. It gives fast feedback, protects against regressions when you refactor, and documents intended behaviour. Unit tests sit at the base of the test pyramid; integration tests check components together, and end-to-end tests check the whole system.\n\n**Good unit tests (FIRST):** Fast, Independent (no shared state or order dependence), Repeatable (deterministic), Self-validating (assertions, not manual inspection), Timely (written with or before the code).\n\n**How to write one.** Use Arrange, Act, Assert; test one behaviour per test and give it a descriptive name. Cover the normal case, boundaries (empty, one element, maximum), invalid input and error paths.\n\n```java\nclass LotterySystemTest {\n    @Test\n    void addReturnsFalseForDuplicate() {\n        LotterySystem lot = new LotterySystem();          // arrange\n        assertTrue(lot.addParticipant(1));                 // act + assert\n        assertFalse(lot.addParticipant(1));\n    }\n    @Test\n    void randomPickOnEmptyReturnsMinusOne() {\n        assertEquals(-1, new LotterySystem().randomPick());\n    }\n    @Test\n    void removedParticipantIsNeverPicked() {\n        LotterySystem lot = new LotterySystem();\n        lot.addParticipant(1); lot.addParticipant(2); lot.removeParticipant(1);\n        for (int i = 0; i < 100; i++) assertEquals(2, lot.randomPick());\n    }\n}\n```\n\n**Testing randomness.** Inject the random source (a seeded `Random` or a fake) so tests are deterministic; for fairness, run many picks and check each id appears with roughly equal frequency, with a loose tolerance, or just assert that every pick is a current member.\n\n**Isolation.** If a class calls a database or network, depend on an interface and use a mock or stub (Mockito) so the test checks only your logic.\n\n**Also:** run tests in CI on every commit, aim for meaningful coverage (high coverage does not prove correctness), add a regression test for each bug you fix, and consider property-based tests for operations like add and remove.",
+ "followUps": [
+  "Unit test vs integration test: where is the line, and what do mocks cost you?",
+  "How do you test code that uses random numbers or the current time?",
+  "What is test coverage, and why is 100% not a guarantee?",
+  "What is test-driven development, and what are its trade-offs?"
+ ]
+}

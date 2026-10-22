@@ -1,0 +1,19 @@
+{
+ "qid": "434cc8f393",
+ "question": "Flipkart Data Scientist 2, Depth in Data Science round (1 hour with a senior data scientist): **ML system design** from an abstract problem. Flipkart launches a **new EMI feature** and you must design an end-to-end **credit-risk model** to decide EMI approvals (a **binary classification** task) in a **cold-start** scenario: **no existing user data and no access to users' bank information**. For every approach you take, expect follow-ups such as **why this and why not that**.",
+ "lookingFor": [
+  "Framing the problem, label definition and business trade-offs.",
+  "Creativity with data when nothing exists (cold start).",
+  "Sound model, metric, validation and leakage thinking.",
+  "Fairness, compliance and risk awareness in lending.",
+  "Justifying every choice against alternatives."
+ ],
+ "answer": "**Frame it.** Decide: approve or reject, and with what EMI limit? The goal is to maximise approved good customers while limiting defaults. The costs are asymmetric: a default loses principal, a false reject loses revenue. Define the label (for example default or 30/60/90+ days past due within N months) and the maturity window; clarify that labels take months to arrive.\n\n**Cold start, step by step.**\n1. **Phase 0 (no labels):** use rules and external signals: business policy (low initial limits, short tenure, conservative caps), credit bureau score if available through consented access (otherwise not available here), KYC/verification, device and identity signals, and fraud checks. Start with a small, controlled rollout with low exposure to *collect labelled data*.\n2. **Data you do have:** Flipkart's own behaviour for existing customers (order history, returns, cancellations, payment mode, account age, delivery pincode, basket value), device/location signals, and the requested loan details. For a brand-new user, only application-time features exist; consider proxy datasets and transfer from similar products (for example pay-later) as a warm start, and be explicit about the distribution shift.\n3. **Model:** begin with **logistic regression with WoE/binned features** (interpretable, calibrated, regulator-friendly) as a baseline; move to **gradient-boosted trees** with monotonic constraints once data grows. Why not deep nets: tabular data, small samples, and explainability needs.\n4. **Imbalance:** defaults are rare; use class weights or threshold tuning, not blind oversampling; optimise **calibrated probabilities** because decisions use expected loss.\n5. **Evaluation:** time-based split (never random), AUC/KS, PR-AUC, calibration, and expected profit at a threshold; check approval rate by segment.\n6. **Reject inference/selection bias:** you only see outcomes of approved users; use exploration (randomly approve a small safe slice) or reject-inference methods.\n7. **Deployment and monitoring:** PSI drift, champion/challenger, fairness checks, explainable reasons for rejection, and a fallback to rules.\n\n**Leakage check:** do not use features available only after approval.",
+ "followUps": [
+  "How would you collect labelled data safely in the first months?",
+  "Why logistic regression first rather than XGBoost, and when would you switch?",
+  "How do you handle selection bias since you observe outcomes only for approved users?",
+  "Which metric would you optimise: AUC, precision, or expected profit, and why?",
+  "How would you monitor and retrain the model after launch?"
+ ]
+}

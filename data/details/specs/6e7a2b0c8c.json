@@ -1,0 +1,19 @@
+{
+ "qid": "6e7a2b0c8c",
+ "question": "In a Tower Research Technical Interview 2 round for a Senior Software Engineer role, the candidate was asked to **design a restaurant management system with a focus on table booking**. An earlier round of the same process had balanced-parentheses and string manipulation questions.\n\nDesign the classes and flow for a restaurant system that lets customers book tables, and handle conflicts such as two people requesting the same table at the same time.",
+ "lookingFor": [
+  "Can you gather requirements and scope a low-level design?",
+  "Do you model entities and relationships cleanly (SOLID, clear responsibilities)?",
+  "Can you design the booking algorithm and availability checks?",
+  "Do you handle concurrency and double-booking?",
+  "Do you consider extensibility: cancellations, waitlists, pricing, different table types?"
+ ],
+ "answer": "**Requirements to confirm.** Customers search availability for a date, time and party size, book, modify and cancel. Staff manage tables and see the floor plan. Assumptions: fixed slot length (say 90 minutes), one restaurant first, multi-restaurant as an extension.\n\n**Entities.**\n\n- `Restaurant` (name, opening hours, `List<Table>`).\n- `Table` (id, capacity, location/type).\n- `Customer` (id, name, contact).\n- `Reservation` (id, customer, table, party size, start, end, status: CONFIRMED / CANCELLED / COMPLETED / NO_SHOW).\n- `BookingService` (the public operations) and a `TableAllocationStrategy` interface.\n- `NotificationService` (observer) for confirmations and reminders.\n\n**Booking flow.** `findAvailableTables(partySize, start, end)` returns tables with capacity >= party size and no overlapping reservation. Two intervals overlap if `startA < endB && startB < endA`. `book(...)` picks a table using the strategy, creates the reservation, and notifies.\n\n**Allocation strategy (Strategy pattern).** Best fit: choose the smallest table that fits, to keep large tables free. Alternatives: first available, or combine adjacent tables for large groups.\n\n**Concurrency.** Two requests can see the same table free. In memory, lock per table (or per restaurant) around check-and-insert. With a database, use a transaction with a unique/exclusion constraint on (table, time range), or optimistic locking, and retry on conflict.\n\n**Data structures.** Per table, a sorted list or interval tree of reservations gives O(log n) overlap checks.\n\n**Extensions.** Waitlist when no table is free, cancellation freeing slots, no-show policy, peak-hour deposits, online and walk-in bookings, and persistence behind a repository interface.\n\n**Mistakes to avoid.** Jumping to code without requirements, a single god class, forgetting time overlap edge cases, and ignoring concurrency.",
+ "followUps": [
+  "How would you prevent double booking under concurrent requests?",
+  "How would you support a group larger than any single table?",
+  "How would you add a waitlist that automatically promotes customers on cancellation?",
+  "How would you extend the design to multiple restaurants?",
+  "Which design patterns did you use and why?"
+ ]
+}

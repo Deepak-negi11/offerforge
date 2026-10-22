@@ -1,0 +1,17 @@
+{
+ "qid": "8b2d865b73",
+ "question": "In the Eternal (Zomato) SDE Intern + FTE backend round, the interviewer asked how the candidate would let users **upload images**. The candidate suggested base64 encoding. The interviewer then asked how that would work for **big images**, and was looking for the concept of **pre-signed URLs** (for example with S3).",
+ "lookingFor": [
+  "Do you know why base64 through the API server is a poor fit for large files?",
+  "Do you understand the pre-signed URL pattern and its security model?",
+  "Can you describe the full flow, including validation and post-processing?",
+  "Do you think about limits, failures and cost?"
+ ],
+ "answer": "**Why not base64 through the backend.**\n- Base64 inflates the payload by about 33%.\n- The whole file passes through your API server, holding memory and a connection for the whole upload, which hurts scalability and hits request-size limits.\n- It is hard to resume or parallelise, and every upload costs your own bandwidth.\n\n**Pre-signed URL flow (direct-to-storage upload)**\n1. The client calls `POST /uploads` with the file name, content type and size.\n2. The backend authenticates the user, validates the type and size against an allow-list, and generates an object key (for example `uploads/<userId>/<uuid>.jpg`). It never trusts the client's file name.\n3. Using its credentials, the backend creates a **pre-signed URL** for `PUT` to that exact key, valid for a short time (for example 5 minutes), and returns it.\n4. The client uploads the bytes straight to S3 with that URL. The URL carries a signature computed with the server's secret, so S3 accepts the request only for that key, method and expiry without the client ever holding AWS credentials.\n5. The client tells the backend it finished (or S3 sends an event notification to the backend, a queue or a Lambda). The backend then saves the key in the database.\n\n**Larger files.** Use **multipart upload**: the client gets a pre-signed URL per part, uploads parts in parallel, retries only failed parts, and the backend (or client) completes the upload. A pre-signed POST policy can also enforce a maximum size and content type on the storage side.\n\n**After the upload.** An event-driven worker can scan the file, check that it is really an image, strip metadata, generate thumbnails and resized variants, and then serve them through a CDN. Keep the bucket private and serve through the CDN or pre-signed GET URLs.\n\n**Pitfalls:** long expiry times, guessable keys, trusting the client's `Content-Type`, no size limit, public write buckets, and orphaned uploads that need a lifecycle rule to clean them up.",
+ "followUps": [
+  "How does S3 verify a pre-signed URL without storing it?",
+  "How would you resume an interrupted 500 MB upload?",
+  "How would you stop users from uploading malicious files disguised as images?",
+  "How do you serve the images fast globally?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "396845999d",
+ "question": "In the TCS Prime (NQT 2026) technical interview, the candidate had used threads in their project, so the interviewer spent about 20 minutes on **thread safety and race conditions**: what they are, where they appeared in the project, and how the candidate dealt with them.",
+ "lookingFor": [
+  "Do you actually understand what a race condition is, not just the term?",
+  "Can you connect the concept to a real place in your own project (shared state, counters, caches, DB writes)?",
+  "Do you know the standard tools: locks, synchronized, atomics, concurrent collections, immutability?",
+  "Do you know the trade-offs and failure modes (deadlock, contention, lost updates)?",
+  "Can you explain it clearly with a small example?"
+ ],
+ "answer": "**Definitions first.** A *race condition* is a bug where the result depends on the timing or interleaving of threads that access shared mutable data. *Thread safety* means a piece of code behaves correctly when called from multiple threads at once, without the caller adding extra synchronization.\n\n**Minimal example.** `count++` is not atomic: it is read, add, write. Two threads can both read 5 and both write 6, so one update is lost. Run it 1,000 times from two threads and you will often get less than 2,000.\n\n**Ways to make code thread safe** (from simplest to heaviest):\n1. **Avoid sharing**: keep data local to a thread (thread confinement, `ThreadLocal`, passing copies).\n2. **Immutability**: objects that never change cannot race.\n3. **Atomics**: `AtomicInteger`, `LongAdder` for single counters.\n4. **Mutual exclusion**: `synchronized` or `ReentrantLock` around the critical section; keep it as small as possible.\n5. **Concurrent collections**: `ConcurrentHashMap` instead of a synchronized `HashMap`; `BlockingQueue` for producer-consumer.\n6. **Database level**: transactions, optimistic locking with a version column, or `SELECT ... FOR UPDATE` when the \"shared state\" lives in a DB.\n\n**Trade-offs and failure modes.** Locks cost throughput through contention; two locks taken in different orders cause **deadlock**; forgetting to lock one path leaves a race; `volatile` gives visibility but not atomicity for compound actions.\n\n**How to tie it to your project.** Prepare a 60-second story: what was shared (a cache, a counter, a booking slot, a shared list), what could go wrong, what you used to protect it, and how you tested it (many threads in a loop, a stress test). If you never faced a real race, say so honestly and explain where one *could* occur in your design and how you would prevent it. Do not invent a story you cannot defend for 20 minutes.",
+ "followUps": [
+  "What is the difference between `synchronized` and `ReentrantLock`?",
+  "What is a deadlock and what are its four necessary conditions?",
+  "Why is `volatile` not enough for `count++`?",
+  "How would you prevent two users booking the same seat in your project?"
+ ]
+}

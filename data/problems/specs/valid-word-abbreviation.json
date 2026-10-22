@@ -1,0 +1,50 @@
+{
+ "pid": "valid-word-abbreviation",
+ "title": "Valid Word Abbreviation",
+ "difficulty": "Easy",
+ "source_note": "standard",
+ "statement": "A word can be abbreviated by replacing any number of **non-adjacent**, **non-empty** substrings with their lengths written in decimal. The lengths must not have leading zeros. For example, `planet` can be abbreviated as `p4t` (the substring `lane` is replaced by `4`), `pl2et` or `6`, but not as `p04t` (leading zero), `p0lanet` (an empty substring replaced by `0`) or `p13t` (reads as the single number 13, not 1 followed by 3, and two replaced substrings may not touch).\n\nYou are given a string `word` of lowercase letters and a string `abbr` of lowercase letters and digits. Decide whether `abbr` is a valid abbreviation of `word`.\n\nTo be valid, `abbr` must describe exactly `word`: every letter of `abbr` must match the letter of `word` at the corresponding position, every maximal run of digits is read as one number that skips that many characters of `word`, such a number must not start with `0` (so `0` itself is invalid), and in the end exactly all characters of `word` must be consumed.",
+ "input_format": "The first line contains `word`.\nThe second line contains `abbr`.",
+ "output_format": "Print `true` if `abbr` is a valid abbreviation of `word`, otherwise `false`.",
+ "constraints": [
+  "1 ≤ |word| ≤ 10^5",
+  "1 ≤ |abbr| ≤ 10^5",
+  "word consists of lowercase letters; abbr consists of lowercase letters and digits",
+  "Every maximal run of digits in abbr has at most 8 digits"
+ ],
+ "examples": [
+  {
+   "input": "mountaineering\nm3ta7g",
+   "output": "true",
+   "explanation": "`m` matches, `3` skips `oun`, `t` and `a` match, `7` skips `ineerin`, and `g` matches the last letter. Every character is accounted for."
+  },
+  {
+   "input": "mountaineering\nm3ta7n",
+   "output": "false",
+   "explanation": "After skipping seven characters the next character of the word is `g`, but the abbreviation expects `n`."
+  },
+  {
+   "input": "mountaineering\nm03ta7g",
+   "output": "false",
+   "explanation": "The number `03` has a leading zero, which is not allowed."
+  }
+ ],
+ "complexity": {
+  "time": "O(|word| + |abbr|)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Walk through both strings at once with one pointer in `word` and one in `abbr`.",
+  "When `abbr` has a letter it must equal the current letter of `word`. When it has a digit, read the whole run of digits as a number and advance the pointer in `word` by that amount.",
+  "Check the edge cases: a number starting with `0`, a number that overshoots the end of `word`, and leftover characters in either string at the end."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    w, a = data[0], data[1]\n    n, m = len(w), len(a)\n    i = j = 0\n    ok = True\n    while i < n and j < m:\n        if a[j].isdigit():\n            if a[j] == '0':\n                ok = False\n                break\n            num = 0\n            while j < m and a[j].isdigit():\n                num = num * 10 + int(a[j])\n                j += 1\n            i += num\n        else:\n            if w[i] != a[j]:\n                ok = False\n                break\n            i += 1\n            j += 1\n    print('true' if ok and i == n and j == m else 'false')\n\nmain()\n",
+ "brute": "import sys, re\n\ndata = sys.stdin.read().split()\nw, a = data[0], data[1]\ntokens = re.findall(r'\\d+|[a-z]', a)\npat = []\nbad = False\ntotal = 0\nfor t in tokens:\n    if t[0].isdigit():\n        if t[0] == '0':\n            bad = True\n            break\n        total += int(t)\n        if total > len(w):\n            bad = True\n            break\n        pat.extend(['?'] * int(t))\n    else:\n        total += 1\n        pat.append(t)\nif not bad and len(pat) == len(w) and all(p == '?' or p == c for p, c in zip(pat, w)):\n    print('true')\nelse:\n    print('false')\n",
+ "generator": "def gen(rng):\n    ALPHA = 'abcdefghijklmnopqrstuvwxyz'\n\n    def rw(n, alpha=ALPHA):\n        return ''.join(rng.choice(alpha) for _ in range(n))\n\n    def make_abbr(w, p, maxrun):\n        n = len(w)\n        toks, i, prev = [], 0, False\n        while i < n:\n            if not prev and rng.random() < p:\n                L = rng.randint(1, min(n - i, maxrun))\n                toks.append(str(L))\n                i += L\n                prev = True\n            else:\n                toks.append(w[i])\n                i += 1\n                prev = False\n        return toks\n\n    def mutate(toks):\n        toks = list(toks)\n        kind = rng.randint(0, 5)\n        nums = [i for i, t in enumerate(toks) if t.isdigit()]\n        lets = [i for i, t in enumerate(toks) if not t.isdigit()]\n        if kind == 0 and lets:\n            i = rng.choice(lets)\n            toks[i] = rng.choice([c for c in 'abcdefghijklmnopqrstuvwxyz' if c != toks[i]])\n        elif kind == 1 and nums:\n            i = rng.choice(nums)\n            toks[i] = str(int(toks[i]) + rng.choice([1, -1, 2]) if int(toks[i]) > 2 else int(toks[i]) + 1)\n        elif kind == 2 and nums:\n            i = rng.choice(nums)\n            toks[i] = '0' + toks[i]\n        elif kind == 3:\n            toks.append(rng.choice(ALPHA))\n        elif kind == 4 and toks:\n            toks.pop()\n        elif nums:\n            i = rng.choice(nums)\n            toks[i] = '0'\n        else:\n            toks.append('1')\n        return toks\n\n    def fmt(w, a):\n        return w + '\\n' + a\n\n    tests = [fmt('mountaineering', 'm3ta7g'), fmt('mountaineering', 'm3ta7n'), fmt('mountaineering', 'm03ta7g'),\n             fmt('a', '1'), fmt('a', '01'), fmt('a', '0'), fmt('a', 'a'), fmt('a', 'b'), fmt('a', '2'), fmt('a', 'a1'),\n             fmt('ab', '2'), fmt('ab', '11'), fmt('ab', '1b'), fmt('ab', 'a1'), fmt('ab', '10'), fmt('abc', '3'),\n             fmt('abc', 'a0bc'), fmt('abcdefghijkl', '12'), fmt('abcdefghijkl', '1o1'), fmt('abcdefghijkl', '99999999')]\n    for _ in range(20):\n        n = rng.randint(1, 25)\n        w = rw(n, rng.choice(['ab', 'abc', ALPHA]))\n        toks = make_abbr(w, rng.choice([0.2, 0.5, 0.8]), rng.choice([1, 3, 25]))\n        if rng.random() < 0.5:\n            toks = mutate(toks)\n        tests.append(fmt(w, ''.join(toks)))\n    N = 100000\n    w = rw(N)\n    tests.append(fmt(w, ''.join(make_abbr(w, 0.5, 5))))\n    tests.append(fmt(w, ''.join(mutate(make_abbr(w, 0.5, 5)))))\n    tests.append(fmt(w, ''.join(w[i] if i % 2 == 0 else '1' for i in range(N))[:N]))\n    tests.append(fmt(w, str(N)))\n    tests.append(fmt(w, ''.join(w[:-1]) + str(1)))\n    tests.append(fmt('a' * N, ''.join('a1' for _ in range(N // 2))))\n    tests.append(fmt('a' * N, ''.join('a1' for _ in range(N // 2 - 1)) + 'a2'))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef valid_abbreviation(word: str, abbr: str) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    print('true' if valid_abbreviation(data[0], data[1]) else 'false')\n\n\nmain()\n",
+  "javascript": "function validAbbreviation(word, abbr) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconsole.log(validAbbreviation(t[0], t[1]) ? 'true' : 'false')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool validAbbreviation(const string& word, const string& abbr) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string word, abbr;\n    cin >> word >> abbr;\n    cout << (validAbbreviation(word, abbr) ? \"true\" : \"false\") << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean validAbbreviation(String word, String abbr) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String word = br.readLine().trim();\n        String abbr = br.readLine().trim();\n        System.out.println(validAbbreviation(word, abbr) ? \"true\" : \"false\");\n    }\n}\n"
+ }
+}

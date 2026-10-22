@@ -1,0 +1,49 @@
+{
+ "pid": "databricks-fibonacci-tree-path",
+ "title": "Fibonacci Tree Path",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "Fibonacci trees are binary trees defined recursively:\n\n- `T_0` is the empty tree.\n- `T_1` is a single node.\n- `T_n` (for `n >= 2`) consists of a root whose **left** child is the root of `T_{n-2}` and whose **right** child is the root of `T_{n-1}`.\n\nFor example, `T_2` is a root with only a right child, and `T_3` is a root with a left child (a single node) and a right child (the root of `T_2`).\n\nThe nodes of `T_n` are numbered `0, 1, 2, ...` in **pre-order** (root, then the whole left subtree, then the whole right subtree), so the root of `T_n` is node `0`.\n\nGiven the order `n` and two different nodes `start` and `end` of `T_n`, find the **shortest path** from `start` to `end` along tree edges. Describe it as a string of moves, where `U` moves from a node to its parent, `L` moves to its left child and `R` moves to its right child. Print that string.\n\n**Follow-up:** How would your solution change if the nodes were numbered in **in-order** (left subtree, root, right subtree) instead of pre-order?",
+ "input_format": "A single line with three integers `n`, `start` and `end`.",
+ "output_format": "Print the move string made of the characters `U`, `L` and `R`.",
+ "constraints": [
+  "2 ≤ n ≤ 80",
+  "0 ≤ start, end < number of nodes of T_n (which is Fibonacci(n + 2) - 1, below 6.2 * 10^16 for n = 80)",
+  "start ≠ end"
+ ],
+ "examples": [
+  {
+   "input": "3 1 3",
+   "output": "URR",
+   "explanation": "`T_3` has nodes 0 (root), 1 (left child), 2 (right child) and 3 (right child of 2). From node 1 go up to the root (U), right to node 2 (R), right to node 3 (R)."
+  },
+  {
+   "input": "4 1 4",
+   "output": "URL",
+   "explanation": "`T_4` has a left subtree `T_2` holding nodes 1 and 2, and a right subtree `T_3` rooted at node 3 with left child 4. From node 1 go up to the root (U), right to node 3 (R), left to node 4 (L)."
+  },
+  {
+   "input": "5 3 7",
+   "output": "UURLR",
+   "explanation": "The left subtree of the root is `T_3` (nodes 1 to 4) and the right subtree is `T_4` rooted at node 5, whose left child is node 6 and node 6's right child is node 7. From node 3 go up twice (to node 1, then to the root), then right to node 5, left to node 6, right to node 7."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Precompute `size[k]`, the number of nodes in `T_k`. Then you can tell which subtree a pre-order number falls into without building the tree.",
+  "To find the path from the root to node `k` in `T_order`: if `k = 0` you are at the root; otherwise skip the root (`k -= 1`). If `k < size[order - 2]` go left into `T_{order-2}`, else subtract `size[order - 2]` and go right into `T_{order-1}`.",
+  "Compute the root paths for `start` and `end`, strip their common prefix, and the answer is one `U` for every remaining step of start's path followed by the remaining steps of end's path. The numbers reach about 6 * 10^16, so use 64-bit integers."
+ ],
+ "reference": "import sys\n\ndef main():\n    n, s, e = map(int, sys.stdin.read().split())\n    size = [0, 1]\n    for i in range(2, n + 1):\n        size.append(1 + size[i - 2] + size[i - 1])\n\n    def root_path(k):\n        order = n\n        path = []\n        while k > 0:\n            k -= 1\n            if k < size[order - 2]:\n                path.append('L')\n                order -= 2\n            else:\n                k -= size[order - 2]\n                path.append('R')\n                order -= 1\n        return path\n\n    ps, pe = root_path(s), root_path(e)\n    i = 0\n    while i < len(ps) and i < len(pe) and ps[i] == pe[i]:\n        i += 1\n    print('U' * (len(ps) - i) + ''.join(pe[i:]))\n\nmain()\n",
+ "brute": "import sys\nfrom collections import deque\n\nn, s, e = map(int, sys.stdin.read().split())\nadj = {}\ncnt = [0]\n\ndef build(order):\n    # returns the id of the root (pre-order numbering) or None\n    if order == 0:\n        return None\n    me = cnt[0]\n    cnt[0] += 1\n    adj[me] = {}\n    left = build(order - 2) if order >= 2 else None\n    right = build(order - 1)\n    if left is not None:\n        adj[me]['L'] = left\n        adj[left]['U'] = me\n    if right is not None:\n        adj[me]['R'] = right\n        adj[right]['U'] = me\n    return me\n\nif n > 14:\n    # too big to build: recurse on subtree sizes instead\n    size = [0, 1]\n    for i in range(2, n + 1):\n        size.append(1 + size[i - 2] + size[i - 1])\n\n    def down(order, k):\n        # moves from the root of T_order to node k\n        if k == 0:\n            return ''\n        k -= 1\n        if k < size[order - 2]:\n            return 'L' + down(order - 2, k)\n        return 'R' + down(order - 1, k - size[order - 2])\n\n    def up(order, k):\n        return 'U' * len(down(order, k))\n\n    def solve(order, a, b):\n        if a == b:\n            return ''\n        if a == 0:\n            return down(order, b)\n        if b == 0:\n            return up(order, a)\n        a -= 1\n        b -= 1\n        ls = size[order - 2]\n        if a < ls and b < ls:\n            return solve(order - 2, a, b)\n        if a >= ls and b >= ls:\n            return solve(order - 1, a - ls, b - ls)\n        if a < ls:\n            return up(order - 2, a) + 'U' + 'R' + down(order - 1, b - ls)\n        return up(order - 1, a - ls) + 'U' + 'L' + down(order - 2, b)\n\n    print(solve(n, s, e))\n    sys.exit(0)\n\nbuild(n)\nprev = {s: None}\ndq = deque([s])\nwhile dq:\n    u = dq.popleft()\n    for mv, v in adj[u].items():\n        if v not in prev:\n            prev[v] = (u, mv)\n            dq.append(v)\nmoves = []\ncur = e\nwhile prev[cur] is not None:\n    u, mv = prev[cur]\n    moves.append(mv)\n    cur = u\nprint(''.join(reversed(moves)))\n",
+ "generator": "def gen(rng):\n    size = [0, 1]\n    for i in range(2, 81):\n        size.append(1 + size[i - 2] + size[i - 1])\n    tests = ['3 1 3', '4 1 4', '5 3 7', '2 0 1', '2 1 0', '3 0 3', '3 3 0', '4 0 6', '4 6 0', '4 2 5']\n    for n in range(2, 9):\n        for _ in range(3):\n            s = rng.randrange(size[n])\n            e = rng.randrange(size[n])\n            while e == s:\n                e = rng.randrange(size[n])\n            tests.append(f'{n} {s} {e}')\n    for n in (9, 10, 11):\n        for _ in range(2):\n            s = rng.randrange(size[n])\n            e = rng.randrange(size[n])\n            while e == s:\n                e = rng.randrange(size[n])\n            tests.append(f'{n} {s} {e}')\n    # large orders: the numbers reach about 6 * 10^16\n    N = 80\n    tests.append(f'{N} 0 {size[N] - 1}')\n    tests.append(f'{N} {size[N] - 1} 0')\n    tests.append(f'{N} {size[N] - 1} {size[N] - 2}')\n    tests.append(f'{N} {size[N - 2]} {size[N - 2] + 1}')\n    for n in (60, 70, 79, 80):\n        s = rng.randrange(size[n])\n        e = rng.randrange(size[n])\n        while e == s:\n            e = rng.randrange(size[n])\n        tests.append(f'{n} {s} {e}')\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef fib_path(order: int, start: int, end: int) -> str:\n    # Write your solution here\n    return \"\"\n\n\ndef main():\n    n, s, e = map(int, sys.stdin.read().split())\n    print(fib_path(n, s, e))\n\n\nmain()\n",
+  "javascript": "// start and end can exceed 2^53, so they are passed as BigInt.\nfunction fibPath(order, start, end) {\n  // Write your solution here\n  return ''\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconsole.log(fibPath(parseInt(t[0]), BigInt(t[1]), BigInt(t[2])))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring fibPath(int order, long long start, long long end) {\n    // Write your solution here\n    return \"\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long s, e;\n    cin >> n >> s >> e;\n    cout << fibPath(n, s, e) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String fibPath(int order, long start, long end) {\n        // Write your solution here\n        return \"\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int n = Integer.parseInt(st.nextToken());\n        long s = Long.parseLong(st.nextToken());\n        long e = Long.parseLong(st.nextToken());\n        System.out.println(fibPath(n, s, e));\n    }\n}\n"
+ }
+}

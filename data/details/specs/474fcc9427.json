@@ -1,0 +1,17 @@
+{
+ "qid": "474fcc9427",
+ "question": "Zoho incubation for a Member Technical Staff offer (about three weeks, 22 Aug to 11 Sep in the report). The tech stack was **Tomcat, Cassandra and MySQL**. The task was to build an **end-to-end posting application**, connecting it to a server and databases. Each day a new extension to the application was handed over, and a **mentor reviewed the code daily** with feedback. Interview-style framing: how would you design and build such an application, and why use both Cassandra and MySQL?",
+ "lookingFor": [
+  "Can you structure a small web application into layers (servlet/controller, service, data access)?",
+  "Do you understand why two databases might be used and what each is good at?",
+  "Can you model Cassandra data around queries rather than entities?",
+  "Do you adapt to daily changing requirements and use review feedback?"
+ ],
+ "answer": "**Architecture.** A Java web app on Apache Tomcat, built with servlets (or a lightweight framework). Keep layers separate: *servlet* (parse request, validate, return JSON or HTML), *service* (business rules), *DAO/repository* (database access). A daily extension then touches one layer, not everything.\n\n**Features a posting app typically has.** Register and log in (sessions with an HttpOnly cookie, passwords hashed with a salt), create, edit and delete posts, list posts for a user and for a feed, and later likes or comments. Treat these as an assumed scope and adapt it to the daily requirements.\n\n**Why two databases (reasonable split).**\n\n- *MySQL* for relational data with integrity and transactions: users, credentials, relations, anything needing joins, unique constraints and foreign keys.\n- *Cassandra* for high-volume, append-heavy, read-by-key data such as posts or timelines. It is a wide-column store designed for horizontal scale and fast writes. You model tables by query. For example, a `posts_by_user` table with partition key `user_id` and clustering key `created_at DESC` makes \"latest posts of a user\" a single-partition read. The cost is denormalisation: the same post may be written to several tables, and there are no joins.\n\n**Practicalities.**\n\n- Use prepared statements in both drivers (prevents SQL/CQL injection) and a connection pool for MySQL.\n- Pagination with a cursor (last seen timestamp) rather than offset.\n- Consistent error handling and meaningful HTTP status codes.\n- Unit tests for services, with DAOs behind interfaces so they can be mocked.\n\n**Working with a mentor.** Keep commits small, write down design decisions, handle each review comment explicitly and avoid repeating the same mistake the next day. Show that you can refactor when the new requirement breaks an old assumption.\n\n**Trade-offs to mention.** Eventual consistency in Cassandra versus ACID in MySQL, keeping the two stores in sync (write order, retries, idempotent writes), and operational complexity of running two databases. For a small app, one database would be simpler; the incubation uses both mainly to learn the stack.",
+ "followUps": [
+  "Why would you not use a single MySQL database for everything here?",
+  "How would you design the Cassandra table for a user's home feed?",
+  "How do you keep data consistent when a request writes to both MySQL and Cassandra?",
+  "How do sessions work in a servlet container and how can they be made secure?"
+ ]
+}

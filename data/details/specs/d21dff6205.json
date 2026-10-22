@@ -1,0 +1,18 @@
+{
+ "qid": "d21dff6205",
+ "question": "Uber Software Engineer (campus), Design Round (40 minutes, two interviewers). **System design using object-oriented programming: design a grocery shop system with some variations.** The report does not list the variations, so be ready for follow-ups that change the requirements during the round.",
+ "lookingFor": [
+  "Can you identify entities, responsibilities and relationships from a loosely defined problem?",
+  "Do you apply OOP principles (encapsulation, SOLID) and sensible design patterns?",
+  "Is your design extensible when new requirements (discounts, new item types) arrive?",
+  "Do you handle edge cases such as stock shortage, concurrency and pricing correctness?",
+  "Do you communicate assumptions and trade-offs clearly?"
+ ],
+ "answer": "**Step 1: requirements.** Ask: single shop or chain? Roles (customer, cashier, manager)? Features: browse items, cart, checkout, billing, inventory updates, discounts, returns? Payment methods? Online or in-store?\n\n**Step 2: entities.**\n\n- `Item` (id, name, category, unit price, unit type: per piece or per weight), `Inventory` (item to quantity, with `reserve`, `add`, `remove`).\n- `Cart` / `CartLine` (item, quantity), `Order`, `Bill`.\n- `Customer`, `Cashier`, and a `Shop` facade that coordinates.\n- `PricingStrategy` / `Discount` (percentage, buy-X-get-Y, category offers), `PaymentMethod` (cash, card, UPI).\n\n**Step 3: key behaviours and patterns.**\n\n- *Strategy* for pricing and discounts, so a new offer is a new class, not a change to checkout. Compose multiple discounts in a defined order.\n- *Strategy* or *Factory* for payments.\n- *Observer* for low-stock alerts to the manager.\n- Keep money in integer minor units (paise) or `BigDecimal`, never floating point.\n\n**Step 4: flow.** `addToCart` validates stock; `checkout` computes line totals, applies discounts, reserves stock atomically, takes payment, creates the `Order` and decrements inventory. If payment fails, release the reservation.\n\n**Step 5: variations to expect and how the design absorbs them.** Items sold by weight (an `UnitType` field plus decimal quantities), expiry-dated batches (inventory by batch, FIFO), loyalty points, multiple stores (inventory per store), concurrent customers (lock or atomic decrement per item).\n\n**Step 6: wrap up.** Briefly walk through a purchase with a discount, state which principles you followed (single responsibility, open/closed), and list unit tests you would write.\n\n**Mistakes to avoid:** one giant `Shop` class, floating-point money, and ignoring the stock-race case.",
+ "followUps": [
+  "How would you add a buy-one-get-one-free offer without changing checkout code?",
+  "How would you handle two customers buying the last unit at the same time?",
+  "How would you model perishable items with expiry dates?",
+  "How would you extend the design to a chain of shops?"
+ ]
+}

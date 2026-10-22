@@ -1,0 +1,18 @@
+{
+ "qid": "241600985a",
+ "question": "Apple, Senior Software Engineer (ICT3), systems design round. Instead of a standard problem, the interviewer picked one of the candidate's past projects and asked them to **design a payment system that keeps working even when the internet is unavailable**. The focus was on **security, distributed authority, and avoiding a single source of truth**; the discussion ended up touching blockchain concepts.",
+ "lookingFor": [
+  "Understanding that offline payments trade immediate global consistency for availability.",
+  "Threat modelling: double spending, replay, tampering, device theft, fake devices.",
+  "Use of cryptography: device keys, signed tokens or balances, secure hardware.",
+  "Reconciliation design once connectivity returns, and how conflicts are resolved.",
+  "Awareness of when a ledger or blockchain-like structure helps and when it is overkill."
+ ],
+ "answer": "**Clarify first.** Who pays whom (two phones, phone and terminal)? Is there any local link (NFC, Bluetooth, QR)? What is the maximum offline amount and how long may devices stay offline? The core tension is the CAP trade-off: with no network you choose availability, so you must accept bounded risk and reconcile later.\n\n**Core idea: pre-authorised, cryptographically bound funds.**\n- While online, the user's wallet app obtains a **signed offline allowance** from the issuer/bank: a device-bound token with a limit, expiry and a per-device counter. Funds are reserved (held) on the server, so the issuer's exposure is capped by design.\n- Each device holds a private key in secure hardware (secure enclave/TPM). The public key is certified by the issuer, so any peer can verify it offline using a pre-distributed root certificate.\n- A payment is a **signed transaction**: payer id, payee id, amount, monotonically increasing counter, timestamp, nonce. The payee verifies the signature, certificate chain, expiry, allowance and counter, then returns a signed receipt. Both sides store the record.\n\n**Security.** Prevent double spending with the local counter plus the reserved cap; replay with nonces; tampering with signatures; stolen devices with biometric/PIN unlock and remote revocation lists synced when online. Offline double spend by a malicious device cannot exceed the reserved amount, which is the main risk control.\n\n**No single source of truth.** Each device keeps a signed, hash-chained local log of its transactions. On reconnection, devices upload logs; the backend validates chains and settles. A blockchain-style append-only structure gives tamper evidence, but a permissioned, issuer-validated ledger is usually enough; a public blockchain adds latency and cost that offline payments cannot use anyway.\n\n**Reconciliation.** Settle in batches, detect duplicate counters, flag conflicts, charge the reserved hold, and handle disputes via the signed receipts.\n\n**Trade-offs.** Lower offline limits mean less fraud but worse usability; longer expiry means more risk. Clock skew and revocation lag are residual weaknesses.",
+ "followUps": [
+  "How do you stop a user from copying their offline balance to two devices?",
+  "What happens if the payee's device is lost before it syncs?",
+  "Why might a blockchain be a poor fit here, and where would it help?",
+  "How would you revoke a compromised device that is offline?"
+ ]
+}

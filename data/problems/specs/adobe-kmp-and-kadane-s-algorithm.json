@@ -1,0 +1,50 @@
+{
+ "pid": "adobe-kmp-and-kadane-s-algorithm",
+ "title": "KMP and Kadane's Algorithm",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "This problem combines the two classic algorithms asked in the round: **KMP string matching** and **Kadane's maximum subarray**. Both parts are given in one input and both answers must be printed.\n\n**Part 1 (pattern search).** You are given a text `S` and a pattern `P`, both made of lowercase letters. Find **every** position `i` (0-indexed) at which `P` occurs in `S`, that is `S[i .. i+|P|-1] = P`. Occurrences may overlap. Print the starting positions in increasing order, or `-1` if `P` does not occur in `S`.\n\n**Part 2 (maximum subarray).** You are given an array `a` of `n` integers (which may be negative). Find the largest possible sum of a **non-empty contiguous** subarray.\n\nWrite the full implementation of both algorithms. A naive pattern search that compares the pattern at every position is too slow for the largest inputs; use the prefix function (failure table) of KMP.",
+ "input_format": "The first line contains the text `S`.\nThe second line contains the pattern `P`.\nThe third line contains an integer `n`.\nThe fourth line contains `n` integers `a[0] ... a[n-1]`.",
+ "output_format": "Print two lines.\nLine 1: the starting indices of all occurrences of `P` in `S`, space-separated and increasing, or `-1` if there are none.\nLine 2: the maximum non-empty subarray sum.",
+ "constraints": [
+  "1 ≤ |P| ≤ 10^5 and 1 ≤ |S| ≤ 10^5 (`P` may be longer than `S`, in which case it does not occur)",
+  "`S` and `P` consist of lowercase letters `a-z`",
+  "1 ≤ n ≤ 10^5",
+  "-10^9 ≤ a[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "abababa\naba\n8\n-2 1 -3 4 -1 2 1 -5",
+   "output": "0 2 4\n6",
+   "explanation": "\"aba\" starts at indices 0, 2 and 4 (the occurrences overlap). In the array the best subarray is [4, -1, 2, 1] with sum 6."
+  },
+  {
+   "input": "hello\nxyz\n3\n-4 -2 -7",
+   "output": "-1\n-2",
+   "explanation": "\"xyz\" does not occur in \"hello\". All array elements are negative, so the best non-empty subarray is the single element -2."
+  },
+  {
+   "input": "aaaa\naa\n4\n5 -1 -1 5",
+   "output": "0 1 2\n8",
+   "explanation": "\"aa\" occurs at indices 0, 1 and 2. The whole array sums to 8 and is the best subarray."
+  }
+ ],
+ "complexity": {
+  "time": "O(|S| + |P| + n)",
+  "space": "O(|P| + n)"
+ },
+ "hints": [
+  "For Part 2, track the best sum of a subarray ending at the current position: either extend the previous one or start fresh at the current element. Keep the maximum over all positions.",
+  "For Part 1, compute the prefix function of `P`: for each prefix, the length of its longest proper prefix that is also a suffix.",
+  "Scan `S` while keeping the length of the current match. On a mismatch, fall back using the prefix function instead of restarting. When the match length reaches `|P|`, record an occurrence and fall back as well."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    s, p = data[0], data[1]\n    n = int(data[2])\n    a = [int(x) for x in data[3:3 + n]]\n    m = len(p)\n    fail = [0] * m\n    k = 0\n    for i in range(1, m):\n        while k and p[i] != p[k]:\n            k = fail[k - 1]\n        if p[i] == p[k]:\n            k += 1\n        fail[i] = k\n    res = []\n    k = 0\n    for i, c in enumerate(s):\n        while k and (k == m or c != p[k]):\n            k = fail[k - 1]\n        if c == p[k]:\n            k += 1\n        if k == m:\n            res.append(i - m + 1)\n    print(' '.join(map(str, res)) if res else -1)\n    best = cur = a[0]\n    for x in a[1:]:\n        cur = max(x, cur + x)\n        best = max(best, cur)\n    print(best)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\ns, p = data[0], data[1]\nn = int(data[2])\na = [int(x) for x in data[3:3 + n]]\nres = [i for i in range(len(s) - len(p) + 1) if s[i:i + len(p)] == p]\nprint(' '.join(map(str, res)) if res else -1)\nbest = None\nfor i in range(n):\n    t = 0\n    for j in range(i, n):\n        t += a[j]\n        if best is None or t > best:\n            best = t\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(s, p, a):\n        return f'{s}\\n{p}\\n{len(a)}\\n' + ' '.join(map(str, a))\n    def arr(n, lo, hi):\n        return [rng.randint(lo, hi) for _ in range(n)]\n    tests = [fmt('a', 'a', [5]), fmt('a', 'b', [-5]), fmt('abc', 'abcd', [1, -1]), fmt('aaaa', 'aa', [5, -1, -1, 5]), fmt('abababa', 'aba', [-2, 1, -3, 4, -1, 2, 1, -5]), fmt('hello', 'xyz', [-4, -2, -7])]\n    for _ in range(60):\n        k = rng.choice([1, 2, 3])\n        al = 'abc'[:k]\n        s = ''.join(rng.choice(al) for _ in range(rng.randint(1, 25)))\n        if rng.random() < 0.6 and len(s) > 1:\n            i = rng.randint(0, len(s) - 1)\n            j = rng.randint(i + 1, min(len(s), i + 6))\n            p = s[i:j]\n        else:\n            p = ''.join(rng.choice(al) for _ in range(rng.randint(1, 5)))\n        n = rng.randint(1, 15)\n        tests.append(fmt(s, p, arr(n, -10, 10)))\n    n = 100000\n    tests.append(fmt('a' * n, 'a' * (n // 2) + 'b', arr(n, -10**9, 10**9)))\n    tests.append(fmt('a' * n, 'a' * 1000, arr(n, -10**9, 10**9)))\n    s = ''.join(rng.choice('ab') for _ in range(n))\n    tests.append(fmt(s, s[n // 3:n // 3 + 60000], arr(n, -5, 5)))\n    tests.append(fmt('ab' * (n // 2), 'ab' * 20 + 'a', [-10**9] * n))\n    tests.append(fmt('a' * n, 'a', [10**9] * n))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef find_occurrences(s: str, p: str) -> List[int]:\n    # Write your solution here (KMP)\n    return []\n\n\ndef max_subarray(a: List[int]) -> int:\n    # Write your solution here (Kadane)\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    s, p = data[0], data[1]\n    n = int(data[2])\n    a = [int(x) for x in data[3:3 + n]]\n    res = find_occurrences(s, p)\n    print(' '.join(map(str, res)) if res else -1)\n    print(max_subarray(a))\n\n\nmain()\n",
+  "javascript": "function findOccurrences(s, p) {\n  // Write your solution here (KMP)\n  return []\n}\n\nfunction maxSubarray(a) {\n  // Write your solution here (Kadane)\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst s = t[0], p = t[1]\nconst n = parseInt(t[2])\nconst a = []\nfor (let i = 0; i < n; i++) a.push(Number(t[3 + i]))\nconst res = findOccurrences(s, p)\nconsole.log(res.length ? res.join(' ') : '-1')\nconsole.log(maxSubarray(a))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> findOccurrences(const string& s, const string& p) {\n    // Write your solution here (KMP)\n    return {};\n}\n\nlong long maxSubarray(vector<long long>& a) {\n    // Write your solution here (Kadane)\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s, p;\n    int n;\n    cin >> s >> p >> n;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    vector<int> res = findOccurrences(s, p);\n    if (res.empty()) {\n        cout << -1 << \"\\n\";\n    } else {\n        for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    }\n    cout << maxSubarray(a) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] findOccurrences(String s, String p) {\n        // Write your solution here (KMP)\n        return new int[0];\n    }\n\n    static long maxSubarray(long[] a) {\n        // Write your solution here (Kadane)\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String s = br.readLine().trim();\n        String p = br.readLine().trim();\n        int n = Integer.parseInt(br.readLine().trim());\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) a[i] = Long.parseLong(st.nextToken());\n        int[] res = findOccurrences(s, p);\n        StringBuilder sb = new StringBuilder();\n        if (res.length == 0) {\n            sb.append(\"-1\\n\");\n        } else {\n            for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        }\n        sb.append(maxSubarray(a)).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

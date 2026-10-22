@@ -1,0 +1,48 @@
+{
+ "pid": "backspace-string-compare",
+ "title": "Backspace String Compare",
+ "difficulty": "Easy",
+ "source_note": "standard",
+ "statement": "Two strings `s` and `t` were typed into a text editor. Each character is either a lowercase letter, which is typed, or `#`, which presses the backspace key.\n\nPressing backspace deletes the character just before the cursor. If the text is empty, backspace does nothing.\n\nDecide whether the two strings produce exactly the same final text. Two empty results count as equal.\n\n**Follow-up:** discuss the brute force (simulating the editor) first, then other approaches, for example one that uses only `O(1)` extra space.",
+ "input_format": "The first line contains the string `s`.\nThe second line contains the string `t`.\nBoth strings are non-empty and contain no spaces.",
+ "output_format": "Print `true` if the final texts are equal, otherwise print `false`.",
+ "constraints": [
+  "1 ≤ |s|, |t| ≤ 2 × 10^5",
+  "s and t consist only of lowercase English letters and `#`"
+ ],
+ "examples": [
+  {
+   "input": "ab#c\nad#c",
+   "output": "true",
+   "explanation": "In `ab#c` the `#` removes `b`, leaving `ac`. In `ad#c` the `#` removes `d`, also leaving `ac`."
+  },
+  {
+   "input": "a#c\nb",
+   "output": "false",
+   "explanation": "The first string becomes `c` and the second stays `b`."
+  },
+  {
+   "input": "ab##\nc#d#",
+   "output": "true",
+   "explanation": "Both strings end up empty: the two backspaces erase `a` and `b`, and in the second string each backspace erases the letter before it."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Simulate the editor: what data structure lets you delete the most recently typed character?",
+  "Build the final text of each string with a stack and compare the two results. That is O(n) time and O(n) space.",
+  "To save space, scan both strings from the right. A backspace tells you how many letters to skip over, so you can find the next surviving letter of each string without storing anything."
+ ],
+ "reference": "import sys\n\ndef nxt(s, i):\n    skip = 0\n    while i >= 0:\n        if s[i] == '#':\n            skip += 1\n        elif skip > 0:\n            skip -= 1\n        else:\n            return i\n        i -= 1\n    return -1\n\ndef main():\n    s, t = sys.stdin.read().split()\n    i, j = len(s) - 1, len(t) - 1\n    while True:\n        i = nxt(s, i)\n        j = nxt(t, j)\n        if i < 0 and j < 0:\n            print(\"true\")\n            return\n        if i < 0 or j < 0 or s[i] != t[j]:\n            print(\"false\")\n            return\n        i -= 1\n        j -= 1\n\nmain()\n",
+ "brute": "import sys\n\ndef final(s):\n    st = []\n    for ch in s:\n        if ch == '#':\n            if st:\n                st.pop()\n        else:\n            st.append(ch)\n    return ''.join(st)\n\ns, t = sys.stdin.read().split()\nprint(\"true\" if final(s) == final(t) else \"false\")\n",
+ "generator": "def gen(rng):\n    def reduce(s):\n        st = []\n        for ch in s:\n            if ch == '#':\n                if st:\n                    st.pop()\n            else:\n                st.append(ch)\n        return ''.join(st)\n\n    def embed(r, kmax):\n        out = []\n        for _ in range(rng.randint(0, 2)):\n            out.append('#')\n        for c in r:\n            k = rng.randint(0, kmax)\n            out.append(''.join(rng.choice('abcxyz') for _ in range(k)) + '#' * k)\n            out.append(c)\n        k = rng.randint(0, kmax)\n        out.append(''.join(rng.choice('abcxyz') for _ in range(k)) + '#' * k)\n        return ''.join(out)\n\n    tests = [\"a\\na\", \"#\\na\", \"#\\n#\", \"a#\\n#\", \"a\\nb\", \"ab\\nba\", \"a#b\\nb\", \"aaa\\naaa#\", \"ab##\\nc#d#\", \"a##c\\n#a#c\", \"abc###\\nd#\", \"ab#\\nab\"]\n    for _ in range(40):\n        n = rng.randint(1, 10)\n        s = ''.join(rng.choice('ab#') for _ in range(n))\n        m = rng.randint(1, 10)\n        t = ''.join(rng.choice('ab#') for _ in range(m))\n        tests.append(s + \"\\n\" + t)\n    for _ in range(25):\n        r = ''.join(rng.choice('ab') for _ in range(rng.randint(0, 4)))\n        s = embed(r, 3)\n        r2 = list(r)\n        if r2 and rng.random() < 0.5:\n            p = rng.randrange(len(r2))\n            r2[p] = 'a' if r2[p] == 'b' else 'b'\n        t = embed(''.join(r2), 3)\n        if len(s) <= 150 and len(t) <= 150:\n            tests.append(s + \"\\n\" + t)\n    L = 200000\n    while True:\n        r = ''.join(rng.choice('abcdefghij') for _ in range(10000))\n        s, t = embed(r, 17), embed(r, 17)\n        if len(s) <= L and len(t) <= L:\n            break\n    tests.append(s + \"\\n\" + t)\n    r2 = list(r)\n    r2[len(r2) - 1] = 'z'\n    tests.append(s + \"\\n\" + embed(''.join(r2), 17))\n    tests.append('a' * 100000 + '#' * 100000 + \"\\n\" + '#' * 200000)\n    tests.append('a' * 100000 + '#' * 99999 + \"\\n\" + 'a' * 199999 + '#')\n    tests.append(''.join(rng.choice('ab#') for _ in range(L)) + \"\\n\" + ''.join(rng.choice('ab#') for _ in range(L)))\n    tests.append(''.join(rng.choice('a#') for _ in range(L)) + \"\\n\" + ''.join(rng.choice('a#') for _ in range(L)))\n    return [x for x in tests if all(x.split('\\n'))]\n",
+ "starters": {
+  "python": "import sys\n\n\ndef backspace_compare(s: str, t: str) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    s, t = sys.stdin.read().split()\n    print(\"true\" if backspace_compare(s, t) else \"false\")\n\n\nmain()\n",
+  "javascript": "function backspaceCompare(s, t) {\n  // Write your solution here\n  return false\n}\n\nconst [s, t] = input.split(/\\s+/).filter(Boolean)\nconsole.log(backspaceCompare(s, t) ? \"true\" : \"false\")\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool backspaceCompare(const string& s, const string& t) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s, t;\n    cin >> s >> t;\n    cout << (backspaceCompare(s, t) ? \"true\" : \"false\") << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean backspaceCompare(String s, String t) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String s = br.readLine().trim();\n        String t = br.readLine().trim();\n        System.out.println(backspaceCompare(s, t) ? \"true\" : \"false\");\n    }\n}\n"
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "9bc4266326",
+ "question": "Reported from a Meesho SDE-1 (Backend) technical plus hiring manager round: **propose an INNER JOIN algorithm for your own database engine that runs in O(log N) time using only existing index space**, and justify the data structures you choose.\n\nThis was one of several questions in the same round, which also covered the low-level architecture of the candidate's current project and concurrency control for 1,000 concurrent purchases of 50 units.",
+ "lookingFor": [
+  "Knowing how indexes (B+ trees, hash indexes) are organised and what they make cheap",
+  "Realism about complexity: separating the cost of one lookup from the cost of the whole join",
+  "Familiarity with join algorithms (nested loop, index nested loop, hash, sort-merge)",
+  "Ability to state assumptions and constraints before proposing an algorithm",
+  "Awareness of selectivity, covering indexes and the query optimizer"
+ ],
+ "answer": "**Start by challenging the premise.** A join cannot be O(log N) in total if the output can be large: the result alone may have up to N x M rows, and even reading the driving rows costs time proportional to their number. What can be O(log N) is **each probe** into the inner table. So state the claim precisely: O(log N) per outer row, or O(log N) overall only when the join is highly selective (for example a primary-key lookup on one row).\n\n**Algorithm: index nested loop join.** Given `A JOIN B ON A.x = B.y` where `B.y` has an index:\n1. Choose the smaller or more filtered table as the outer one (here A), using statistics.\n2. Iterate the qualifying outer rows (after applying any `WHERE` filters on A, ideally through an index on A too).\n3. For each row, probe the index on `B.y` with `A.x`. This is a B+ tree descent in O(log N) page reads, with a typical height of 3-4 levels for millions of rows.\n4. Follow the leaf entries (all duplicates are adjacent in a B+ tree) to fetch matching rows, either from the clustered index or through row ids.\n\n**Total cost.** O(K log N + R), where K is the number of outer rows and R the number of output rows. For a point lookup (K = 1, unique key) this is O(log N).\n\n**Why these data structures.**\n- A **B+ tree** keeps keys sorted with high fan-out, so lookups are O(log N) with very few disk reads, and range or duplicate scans are sequential along linked leaves. It also supports `ORDER BY` and range joins.\n- A **hash index** gives O(1) average equality probes but no range support, so it only helps equi-joins.\n- A **covering index** (one containing all selected columns) avoids the extra row fetch.\n\n**Alternatives and when they win.** If both sides are large and unindexed, a hash join builds a hash table on the smaller side in O(N) and probes in O(M). If both are already sorted by the key, a sort-merge join does one linear pass. For large K, the repeated probes of nested loop become slower than a hash join, which is why optimizers estimate cardinality and choose.\n\n**Edge cases.** NULL keys never match in an inner join, duplicate keys expand the output, and composite indexes need a leftmost-prefix match.",
+ "followUps": [
+  "Why is a B+ tree preferred over a binary search tree or a B tree for database indexes?",
+  "When would the optimizer choose a hash join over an index nested loop join?",
+  "What changes for a LEFT JOIN?",
+  "How would you implement a merge join when both inputs are indexed on the join key?"
+ ]
+}

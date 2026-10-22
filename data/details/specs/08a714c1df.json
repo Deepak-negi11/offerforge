@@ -1,0 +1,18 @@
+{
+ "qid": "08a714c1df",
+ "question": "In round 3 of a ServiceNow Software Engineer (IC2) onsite interview, after a coding question about expanding a bracketed repeated substring, the candidate was asked to **design a schema for cars with ratings and reviews**. Behavioural questions and JavaScript and Java experience were also discussed.",
+ "lookingFor": [
+  "Do you identify entities and relationships clearly (car, user, review, rating)?",
+  "Do you model one-to-many and many-to-many relationships with correct keys and constraints?",
+  "Can you write the queries the schema must support (average rating, top cars, recent reviews)?",
+  "Do you think about derived data (denormalised averages) and indexes?",
+  "Do you consider integrity rules, such as one review per user per car?"
+ ],
+ "answer": "**Clarify.** Is a car a model (Toyota Camry 2024) or an individual vehicle for sale? Assume **car models**. Users can write a text review with a 1 to 5 star rating; maybe also rate separate aspects (comfort, mileage). Do we need helpful votes or comments? Ask, then proceed.\n\n**Tables**\n- `makes(id, name)`, `car_models(id, make_id, name, year, body_type, fuel_type, base_price)`; (or `cars(id, make, model, year, ...)` for a simpler version).\n- `users(id, name, email UNIQUE, created_at)`.\n- `reviews(id, car_id, user_id, rating SMALLINT CHECK (rating BETWEEN 1 AND 5), title, body, created_at, updated_at, UNIQUE (car_id, user_id))`. The unique constraint enforces one review per user per car.\n- Optional: `review_aspects(review_id, aspect, rating)` for sub-ratings, `review_votes(review_id, user_id, is_helpful)` for helpfulness.\n- Derived: `car_rating_stats(car_id, review_count, rating_sum, avg_rating)`.\n\nRelationships: a car has many reviews; a user writes many reviews; a review belongs to exactly one car and one user (foreign keys with indexes).\n\n**Queries to support**\n- Average rating per car: `SELECT AVG(rating) FROM reviews WHERE car_id = ?`. At scale, read it from the denormalised `car_rating_stats` instead, updated in the same transaction (`rating_sum += rating, review_count += 1`) or by a background job.\n- Latest reviews of a car: index `(car_id, created_at DESC)`.\n- Top rated cars with at least 50 reviews: `ORDER BY avg_rating DESC WHERE review_count >= 50` (a minimum count avoids a car with one 5-star review ranking first).\n- Reviews by a user: index on `user_id`.\n\n**Trade-offs.** Computing averages on the fly is always correct but slow for popular cars; the derived table is fast but must stay consistent when reviews are edited or deleted. Soft delete or moderation status on reviews, and full-text search for review text (via a search engine) are common extensions.",
+ "followUps": [
+  "How do you keep `avg_rating` correct when a review is edited or deleted?",
+  "How would you rank cars fairly when some have very few reviews?",
+  "How would you model different trims or variants of the same car model?",
+  "Which indexes would you add and what do they cost on writes?"
+ ]
+}

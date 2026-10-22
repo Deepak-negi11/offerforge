@@ -1,0 +1,19 @@
+{
+ "qid": "f41783cbf3",
+ "question": "In the LLD round of an SDE-II interview at Swiggy, the candidate was asked to **design a logger**. The follow-up was to **support searching logs that contain a given word**.\n\nThe candidate reported being rejected because they messed up the follow-up.",
+ "lookingFor": [
+  "Can you design an extensible logger using appropriate patterns (levels, appenders, formatters)?",
+  "Do you consider thread safety and performance of writes?",
+  "Can you design a search structure for word lookup, such as an inverted index?",
+  "Do you discuss memory growth, tokenization and case sensitivity?",
+  "Do you state trade-offs between simple scanning and indexing?"
+ ],
+ "answer": "**Part 1: the logger.**\n- Requirements: log levels (DEBUG, INFO, WARN, ERROR), multiple destinations (console, file), configurable format, thread-safe, low overhead.\n- Classes: `Logger` (API: `log(level, message)`), `LogLevel` enum, `LogMessage(timestamp, level, thread, text)`, `Appender` interface (`ConsoleAppender`, `FileAppender`), `Formatter` interface.\n- Patterns: Singleton or a registry for logger instances (by name), Strategy for formatters, Observer-like list of appenders. A Chain of Responsibility (as in classic LLD answers) can route by level.\n- Concurrency: writing directly from many threads contends on I/O. Put messages on a bounded queue and let a single background thread drain to appenders (asynchronous logging). Trade-off: higher throughput, but logs can be lost on a crash unless flushed on shutdown.\n\n**Part 2: search logs containing a word.**\nSimple option: scan all messages and check `contains(word)`. That is O(total text) per query: fine for tiny data, poor for large logs. It also does substring matches (\"error\" inside \"errors\") unless you tokenize.\n\nBetter: an **inverted index**. On each log, tokenize the message (split on non-alphanumerics, lowercase), and for each token append the log id to `Map<String, List<Integer>>`. A query for a word is then a hash lookup returning the list of matching log ids, O(1) lookup plus output size. Log entries are stored in a list or file by id.\n\nConsiderations:\n- Append-only: ids increase, so posting lists stay sorted, which makes multi-word AND queries a cheap merge of sorted lists.\n- Memory: the index grows with vocabulary and log volume. Mitigate with log rotation, time-partitioned indexes (one per file or per hour), or keep postings on disk.\n- Case sensitivity, punctuation and stop words are decisions to state.\n- Concurrent reads and writes: use a concurrent map or a read-write lock; index updates can happen in the background thread after write.\n- For phrase or substring search, an inverted index is not enough; mention n-grams or a trie as an extension.\n\nReal systems do exactly this at larger scale (Elasticsearch or Lucene style indexes).",
+ "followUps": [
+  "How would you support searching for several words together (AND / OR)?",
+  "How would you bound memory if the logger runs for days?",
+  "How would you support searching by level or time range as well?",
+  "How would you ensure logs are not lost on a crash with asynchronous logging?",
+  "How would you support substring or prefix search?"
+ ]
+}

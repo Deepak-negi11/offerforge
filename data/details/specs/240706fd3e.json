@@ -1,0 +1,18 @@
+{
+ "qid": "240706fd3e",
+ "question": "From the Tower Research Senior Software Engineer online test (4 subjective questions): **What happens if you map multiple virtual memory pages to the same physical memory address? Does the CPU cache give stale data if you write via one virtual address and read from another?**",
+ "lookingFor": [
+  "Do you understand virtual memory, page tables and how aliasing (shared memory, mmap) works?",
+  "Do you know how caches are indexed and tagged (VIVT, VIPT, PIPT)?",
+  "Can you reason about cache coherence and the synonym (aliasing) problem?",
+  "Can you separate hardware effects from compiler and ordering effects?"
+ ],
+ "answer": "**Short answer.** Mapping several virtual pages to one physical page is normal (shared memory, `mmap` of the same file, copy-on-write, kernel direct maps). On a correctly designed system the CPU does **not** return stale data, because caches that matter for correctness behave as if they work on **physical** addresses. There are a few exceptions worth knowing.\n\n**Why it normally works.**\n- Both virtual addresses translate to the same physical address. The TLB and page tables only decide *where*; the data lives in one place.\n- **PIPT** caches are indexed and tagged by physical address, so both views hit the same line. No aliasing is possible.\n- **VIPT** caches (typical for L1) index with virtual bits but tag with the physical address. If the index bits come entirely from the page offset (cache size / associativity <= page size, e.g. 32 KB 8-way with 4 KB pages), both aliases map to the same set and the same line. Hardware is designed this way on purpose.\n- Across cores, **cache coherence** (MESI-like protocols) works on physical addresses, so other cores see the write too.\n\n**When aliasing is a real problem.**\n- **VIVT** caches, or VIPT caches where index bits exceed the page offset: the same physical line may sit in two sets under different virtual addresses (**synonyms**). A write through one alias is not visible through the other until written back. Operating systems handle this with **page coloring** (force aliases to share the low index bits) or cache flushes. Some hardware detects synonyms.\n- **Mismatched memory attributes**: one mapping cached and another uncached or write-combining is architecturally problematic and can give stale or inconsistent data.\n- **Non-coherent agents** such as some DMA devices need explicit cache maintenance.\n\n**Software view.** Even with coherent hardware, the compiler may keep a value in a register or reorder accesses, because it does not know two pointers alias the same memory. Use `volatile` for device access or, better, atomics and memory barriers for inter-thread sharing.\n\n**Summary.** On mainstream x86 and modern ARM data caches the answer is no stale data; synonyms are an issue only for specific cache designs or mismatched attributes.",
+ "followUps": [
+  "What is the difference between VIVT, VIPT and PIPT caches?",
+  "What is page coloring?",
+  "What does the MESI protocol do?",
+  "What is the role of the TLB, and what happens on a TLB shootdown?",
+  "How does copy-on-write rely on shared physical pages?"
+ ]
+}

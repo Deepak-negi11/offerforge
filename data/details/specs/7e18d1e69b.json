@@ -1,0 +1,18 @@
+{
+ "qid": "7e18d1e69b",
+ "question": "From the Tower Research Senior Software Engineer online test: **At the simplest level, a read from main memory is a `mov` from an address to a register. What does the CPU do when it sees this instruction? Illustrate the entire process and the CPU parts involved.** The same section also asked: **what is the difference between serialized and non-serialized RDTSC timestamps?**",
+ "lookingFor": [
+  "Do you understand the memory hierarchy and the path of a load end to end?",
+  "Do you know virtual to physical translation (TLB, page walk) and where page faults arise?",
+  "Can you describe out-of-order execution and why it matters for timing?",
+  "Do you understand why timing code needs serialization?"
+ ],
+ "answer": "**Life of `mov rax, [addr]` (x86-style).**\n1. **Fetch and decode.** The front end fetches the instruction and decodes it to micro-ops: a load micro-op.\n2. **Rename and schedule.** The destination register is renamed (register renaming removes false dependencies) and the load enters the out-of-order scheduler and the load queue. It executes once its address operands are ready, possibly before older instructions finish.\n3. **Address generation.** The AGU computes the virtual address (base + index * scale + displacement).\n4. **Store-buffer check.** The load checks older stores in the store buffer. If one matches the address, the data is **forwarded** from it.\n5. **Translation.** The virtual address goes to the **TLB**. A TLB miss triggers a **page-table walk** (cached in paging-structure caches). If the page is not present or protection fails, a **page fault** is raised and the OS handles it.\n6. **Cache lookup.** The physical address is checked in L1D (usually in parallel with the TLB for a VIPT cache). On a miss it goes to L2, then shared L3, with coherence (MESI-style) checks against other cores.\n7. **Memory controller.** An L3 miss goes to the memory controller, which issues DRAM commands (row activate, column read), taking on the order of tens of nanoseconds, versus about 1 ns for L1. A 64-byte cache line is returned and filled into the caches, often with the requested word first. Prefetchers may fetch neighboring lines.\n8. **Writeback to register.** The data is delivered to the physical register, dependent micro-ops wake up, and the instruction **retires** in program order.\n\n**RDTSC.** `RDTSC` reads the time-stamp counter, but it is **not serializing**: the out-of-order core may execute it before earlier instructions have finished or after later ones have started, so the timestamp does not bracket your code precisely. A serialized read forces ordering: `LFENCE; RDTSC` (or `CPUID` before it), or `RDTSCP`, which waits for prior instructions to complete but still lets later ones start, so people add `LFENCE` after it. Use serialized reads for benchmarking; the TSC must also be invariant across cores and frequency changes.",
+ "followUps": [
+  "What is the difference between a TLB miss and a page fault?",
+  "What are VIPT caches and why are they used for L1?",
+  "What is memory-level parallelism and how do out-of-order cores exploit it?",
+  "Why is CPUID used as a serializing instruction?",
+  "How would you measure the latency of a cache miss accurately?"
+ ]
+}

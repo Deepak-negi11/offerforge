@@ -1,0 +1,18 @@
+{
+ "qid": "19dd307477",
+ "question": "In the project discussion and LLD round for a Senior Software Engineer (IN4) role at Walmart, the candidate was asked to **implement an LRU cache**.\n\nAfter that, the interviewer discussed **which design patterns you have used in your own projects and how**: Strategy, Observer, Builder, Factory and similar. There was also some **high-level design trade-off discussion** that grew out of the candidate's own projects.",
+ "lookingFor": [
+  "Can you implement an LRU cache with O(1) get and put?",
+  "Can you connect design patterns to real problems you solved, not just recite definitions?",
+  "Do you know when a pattern is worth its cost and when it is over-engineering?",
+  "Can you justify architecture trade-offs in your own project (consistency, scale, cost)?",
+  "Do you write clean, testable code with sensible abstractions?"
+ ],
+ "answer": "**Part 1: LRU cache.** Use a `HashMap<K, Node>` plus a doubly linked list ordered by recency. Keep sentinel `head` and `tail` nodes to avoid null checks.\n\n```java\nclass LRUCache<K,V> {\n  class Node { K k; V v; Node prev, next; }\n  Map<K,Node> map = new HashMap<>();\n  Node head = new Node(), tail = new Node();\n  int cap;\n  V get(K k) {\n    Node n = map.get(k); if (n == null) return null;\n    unlink(n); addFront(n); return n.v;\n  }\n  void put(K k, V v) {\n    Node n = map.get(k);\n    if (n != null) { n.v = v; unlink(n); addFront(n); return; }\n    if (map.size() == cap) { Node lru = tail.prev; unlink(lru); map.remove(lru.k); }\n    n = new Node(); n.k = k; n.v = v; map.put(k, n); addFront(n);\n  }\n}\n```\n\n`get` and `put` are O(1). The node stores its key so eviction can remove the map entry. For thread safety, say you would use a lock (or `synchronized`) around both operations, since `get` mutates the list; a `ConcurrentHashMap` alone is not enough. In Java, `LinkedHashMap` with access order and `removeEldestEntry` is the shortcut, but implement it by hand if asked. Make the eviction policy an interface if LFU might follow.\n\n**Part 2: patterns in your projects.** Prepare 3 or 4 real examples in this shape: *problem, pattern chosen, why, trade-off*.\n- **Strategy**: swapping payment, pricing or notification algorithms at runtime instead of long `if/else` chains.\n- **Observer**: event listeners, such as order-placed events triggering email and inventory updates.\n- **Builder**: objects with many optional fields, such as request or config objects, kept immutable.\n- **Factory**: creating the right implementation from a type or config value.\n\nAlso state a downside (extra classes, indirection) and one case where you chose not to use a pattern.\n\n**Part 3: HLD trade-offs.** Pick decisions from your projects (cache vs database reads, sync vs async messaging, SQL vs NoSQL) and explain what you gave up, how you measured, and what you would change.",
+ "followUps": [
+  "How would you make this LRU cache thread-safe without a single global lock?",
+  "How would you implement LFU, and how does it differ?",
+  "Give an example where a design pattern made your code worse.",
+  "How would you evict across a distributed cache?"
+ ]
+}

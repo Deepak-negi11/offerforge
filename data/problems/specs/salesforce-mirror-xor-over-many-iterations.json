@@ -1,0 +1,49 @@
+{
+ "pid": "salesforce-mirror-xor-over-many-iterations",
+ "title": "Mirror XOR Over Many Iterations",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `log` of `n` non-negative integers and an integer `iterations`. Perform the following update for `i = 0, 1, ..., iterations - 1`, in this order:\n\n- Let `idx = i mod n`.\n- Replace `log[idx]` with `log[idx] XOR log[n - 1 - idx]`, using the **current** contents of the array (updates made in earlier iterations are visible, including to the element itself when `idx = n - 1 - idx`, in which case the element becomes `0`).\n\nPrint the array after all iterations have been applied.\n\n`iterations` can be as large as `10^18`, so simulating every iteration is not feasible. Look for the structure that repeats.",
+ "input_format": "The first line contains two integers `n` and `iterations`.\nThe second line contains `n` integers: the initial array `log`.",
+ "output_format": "Print the final array as `n` space-separated integers.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ iterations ≤ 10^18",
+  "0 ≤ log[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "4 4\n1 2 3 4",
+   "output": "5 1 2 1",
+   "explanation": "Iteration 0: log[0] = 1 XOR 4 = 5. Iteration 1: log[1] = 2 XOR 3 = 1. Iteration 2: log[2] = 3 XOR log[1] = 3 XOR 1 = 2. Iteration 3: log[3] = 4 XOR log[0] = 4 XOR 5 = 1. The array is 5 1 2 1."
+  },
+  {
+   "input": "3 2\n5 6 7",
+   "output": "2 0 7",
+   "explanation": "Iteration 0: log[0] = 5 XOR 7 = 2. Iteration 1: idx = 1 is the middle element, its mirror is itself, so log[1] = 6 XOR 6 = 0. The array is 2 0 7."
+  },
+  {
+   "input": "5 1000000000000000000\n3 5 6 9 12",
+   "output": "12 9 0 12 15",
+   "explanation": "One pass of n iterations turns each mirrored pair (x, y) into (x XOR y, x) and zeroes the middle element. Applying the pass three times returns a pair to its starting values, so after the first pass the state repeats every 3 passes. Here 10^18 = 2·10^17 passes of 5 iterations, and 2·10^17 leaves remainder 2 modulo 3, so the result equals the state after 2 passes: pairs (3,12) -> (12,15) and (5,9) -> (9,12), middle 0. The final array is 12 9 0 12 15."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(1) extra"
+ },
+ "hints": [
+  "Do a full pass of `n` iterations on a small example by hand and look at how a pair of positions `(j, n - 1 - j)` changes. Be careful that the second element of the pair sees the already-updated first element.",
+  "For a pair `(x, y)` one pass gives `(x XOR y, x)`; a second gives `(y, x XOR y)`; a third gives `(x, y)` again. The middle element of an odd-length array becomes 0 in the first pass and stays 0.",
+  "So after the first pass the whole array repeats every 3 passes. Reduce the number of full passes (keeping at least one if there was at least one), simulate those passes and the `iterations mod n` leftover iterations directly."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, K = int(data[0]), int(data[1])\n    a = list(map(int, data[2:2 + n]))\n    full, rem = divmod(K, n)\n    if full > 3:\n        full = (full - 1) % 3 + 1\n    for i in range(full * n + rem):\n        idx = i % n\n        a[idx] ^= a[n - 1 - idx]\n    print(' '.join(map(str, a)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, K = int(data[0]), int(data[1])\na = list(map(int, data[2:2 + n]))\nseen = {}\ni = 0\nwhile i < K:\n    if i % n == 0:\n        key = tuple(a)\n        if key in seen:\n            period = i - seen[key]\n            i += (K - i) // period * period\n            seen = {}\n            if i >= K:\n                break\n        else:\n            seen[key] = i\n    idx = i % n\n    a[idx] ^= a[n - 1 - idx]\n    i += 1\nprint(' '.join(map(str, a)))\n",
+ "generator": "def gen(rng):\n    def fmt(a, k):\n        return f\"{len(a)} {k}\\n\" + ' '.join(map(str, a))\n\n    tests = [fmt([7], 0), fmt([7], 1), fmt([7], 5), fmt([1, 2], 1), fmt([1, 2], 2), fmt([1, 2], 3),\n             fmt([1, 2], 10**18), fmt([5, 6, 7], 2), fmt([1, 2, 3, 4], 4), fmt([1, 2, 3, 4], 0),\n             fmt([3, 5, 6, 9, 12], 10**18)]\n    for _ in range(40):\n        n = rng.randint(1, 8)\n        a = [rng.randint(0, 15) for _ in range(n)]\n        tests.append(fmt(a, rng.randint(0, 45)))\n    for _ in range(15):\n        n = rng.randint(1, 10)\n        a = [rng.randint(0, 10**9) for _ in range(n)]\n        tests.append(fmt(a, rng.randint(0, 10**18)))\n    for _ in range(8):\n        n = rng.randint(2, 6)\n        a = [rng.randint(0, 100) for _ in range(n)]\n        tests.append(fmt(a, n * rng.randint(0, 12) + rng.randint(0, n - 1)))\n    N = 10**5\n    tests.append(fmt([rng.randint(0, 10**9) for _ in range(N)], 10**18))\n    tests.append(fmt([rng.randint(0, 10**9) for _ in range(N - 1)], 10**18 - 1))\n    tests.append(fmt([rng.randint(0, 10**9) for _ in range(N)], 3 * N + 12345))\n    tests.append(fmt([rng.randint(0, 10**9) for _ in range(N)], 2 * N))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef final_logs(log: List[int], iterations: int) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, iterations = int(data[0]), int(data[1])\n    log = [int(x) for x in data[2:2 + n]]\n    print(' '.join(map(str, final_logs(log, iterations))))\n\n\nmain()\n",
+  "javascript": "function finalLogs(log, iterations) {\n  // iterations is a BigInt (up to 10^18)\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = Number(t[0])\nconst iterations = BigInt(t[1])\nconst log = t.slice(2, 2 + n).map(Number)\nconsole.log(finalLogs(log, iterations).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> finalLogs(vector<long long>& log, long long iterations) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long iterations;\n    cin >> n >> iterations;\n    vector<long long> log(n);\n    for (int i = 0; i < n; i++) cin >> log[i];\n    vector<long long> res = finalLogs(log, iterations);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] finalLogs(long[] log, long iterations) {\n        // Write your solution here\n        return new long[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int n = Integer.parseInt(st.nextToken());\n        long iterations = Long.parseLong(st.nextToken());\n        long[] log = new long[n];\n        for (int i = 0; i < n; i++) log[i] = Long.parseLong(st.nextToken());\n        long[] res = finalLogs(log, iterations);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

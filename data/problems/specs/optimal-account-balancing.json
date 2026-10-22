@@ -1,0 +1,50 @@
+{
+ "pid": "optimal-account-balancing",
+ "title": "Minimum Debt Settlement Transactions",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "A group of `n` people, numbered `0` to `n - 1`, has shared expenses. You are given `m` records of the form `a b x`, meaning person `a` **paid `x` on behalf of person `b`**, so `b` now owes `a` the amount `x`.\n\nAdd up all records: the **net balance** of a person is the total they paid for others minus the total others paid for them. A positive balance means the person is owed money and a negative balance means the person owes money. The balances of all people always sum to `0`.\n\nTo settle up, people make **settlement transactions**: in one transaction one person gives any positive integer amount of money to another person. After all settlement transactions every person's net balance must be exactly `0`.\n\nPrint the **minimum number of settlement transactions** needed to settle everyone.\n\n**Follow-up:** the number of people with a non-zero balance is small here (at most 16). If hundreds of people were involved, would your algorithm still be efficient? What can you say about a greedy matching of the largest creditor and debtor, and how would you approach the general problem?",
+ "input_format": "The first line contains two integers `n` and `m`.\nEach of the next `m` lines contains three integers `a`, `b`, `x`: person `a` paid `x` on behalf of person `b`.",
+ "output_format": "Print one integer: the minimum number of settlement transactions that makes every net balance zero.",
+ "constraints": [
+  "2 ≤ n ≤ 16",
+  "1 ≤ m ≤ 200",
+  "0 ≤ a, b < n, a ≠ b",
+  "1 ≤ x ≤ 10^6"
+ ],
+ "examples": [
+  {
+   "input": "3 2\n0 1 10\n1 2 5",
+   "output": "2",
+   "explanation": "Person 0 is owed 10, person 1 paid 5 but owes 10 (net -5), and person 2 owes 5. Two transactions settle it: 1 pays 5 to 0 and 2 pays 5 to 0."
+  },
+  {
+   "input": "4 4\n0 1 10\n1 2 10\n2 3 10\n3 0 10",
+   "output": "0",
+   "explanation": "Everyone paid 10 and owes 10, so all net balances are already 0 and nothing needs to be done."
+  },
+  {
+   "input": "5 3\n0 1 3\n0 2 4\n3 4 5",
+   "output": "3",
+   "explanation": "The net balances are +7, -3, -4, +5, -5. Persons 0, 1, 2 form a zero-sum group that needs 2 transactions, and persons 3, 4 form another that needs 1, for 3 in total."
+  }
+ ],
+ "complexity": {
+  "time": "O(2^k · k)",
+  "space": "O(2^k)"
+ },
+ "hints": [
+  "Only the net balance of each person matters. Compute it and discard everyone whose balance is 0; call the remaining count k.",
+  "A group of g people whose balances sum to zero can always be settled with g - 1 transactions, and no fewer if the group cannot be split into smaller zero-sum groups. So to minimise transactions, maximise the number of zero-sum groups the k people can be split into.",
+  "Use a bitmask DP over subsets: dp[mask] = max over i in mask of dp[mask without i], plus 1 if the balances in mask sum to 0. The answer is k - dp[all]."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    bal = [0] * n\n    for i in range(m):\n        a, b, x = int(data[2 + 3 * i]), int(data[3 + 3 * i]), int(data[4 + 3 * i])\n        bal[a] += x\n        bal[b] -= x\n    v = [x for x in bal if x != 0]\n    k = len(v)\n    if k == 0:\n        print(0)\n        return\n    full = (1 << k) - 1\n    s = [0] * (1 << k)\n    dp = [0] * (1 << k)\n    for mask in range(1, 1 << k):\n        low = mask & -mask\n        s[mask] = s[mask ^ low] + v[low.bit_length() - 1]\n        best = 0\n        mm = mask\n        while mm:\n            lb = mm & -mm\n            d = dp[mask ^ lb]\n            if d > best:\n                best = d\n            mm ^= lb\n        dp[mask] = best + (1 if s[mask] == 0 else 0)\n    print(k - dp[full])\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nbal = [0] * n\nfor i in range(m):\n    a, b, x = int(data[2 + 3 * i]), int(data[3 + 3 * i]), int(data[4 + 3 * i])\n    bal[a] += x\n    bal[b] -= x\n\ndef dfs(i):\n    while i < n and bal[i] == 0:\n        i += 1\n    if i == n:\n        return 0\n    best = 10 ** 9\n    for j in range(i + 1, n):\n        if bal[j] * bal[i] < 0:\n            bal[j] += bal[i]\n            best = min(best, 1 + dfs(i + 1))\n            bal[j] -= bal[i]\n    return best\n\nprint(dfs(0))\n",
+ "generator": "def gen(rng):\n    def fmt(n, tr):\n        return f'{n} {len(tr)}\\n' + '\\n'.join(f'{a} {b} {x}' for a, b, x in tr)\n\n    def realize(bal):\n        pos = [[i, b] for i, b in enumerate(bal) if b > 0]\n        neg = [[i, -b] for i, b in enumerate(bal) if b < 0]\n        tr = []\n        while pos and neg:\n            rng.shuffle(pos)\n            rng.shuffle(neg)\n            p, q = pos[-1], neg[-1]\n            x = min(p[1], q[1])\n            tr.append((p[0], q[0], x))\n            p[1] -= x\n            q[1] -= x\n            if p[1] == 0:\n                pos.pop()\n            if q[1] == 0:\n                neg.pop()\n        return tr\n\n    def group_balances(ids, hi):\n        while True:\n            vals = [rng.randint(-hi, hi) for _ in range(len(ids) - 1)]\n            vals.append(-sum(vals))\n            if all(v != 0 for v in vals):\n                return dict(zip(ids, vals))\n\n    def build(n, sizes, hi, noise):\n        ids = list(range(n))\n        rng.shuffle(ids)\n        bal = [0] * n\n        pos = 0\n        for s in sizes:\n            for i, v in group_balances(ids[pos:pos + s], hi).items():\n                bal[i] = v\n            pos += s\n        tr = realize(bal)\n        for _ in range(noise):\n            if n < 3:\n                break\n            a, b, c = rng.sample(range(n), 3)\n            x = rng.randint(1, hi)\n            tr += [(a, b, x), (b, c, x), (c, a, x)]\n        rng.shuffle(tr)\n        return fmt(n, tr)\n\n    tests = [fmt(2, [(0, 1, 5)]), fmt(3, [(0, 1, 10), (1, 2, 5)]), fmt(4, [(0, 1, 10), (1, 2, 10), (2, 3, 10), (3, 0, 10)]),\n             fmt(5, [(0, 1, 3), (0, 2, 4), (3, 4, 5)]), fmt(3, [(0, 1, 2), (1, 2, 2)]), fmt(4, [(0, 1, 1), (2, 3, 1)]),\n             fmt(4, [(0, 1, 1), (0, 2, 1), (0, 3, 1)]), fmt(2, [(0, 1, 3), (1, 0, 3)])]\n    for _ in range(24):\n        n = rng.randint(2, 7)\n        m = rng.randint(1, 7)\n        tr = []\n        for _ in range(m):\n            a = rng.randrange(n)\n            b = rng.randrange(n - 1)\n            if b >= a:\n                b += 1\n            tr.append((a, b, rng.randint(1, 9)))\n        tests.append(fmt(n, tr))\n    for _ in range(6):\n        n = rng.randint(4, 8)\n        tests.append(build(n, [2, 2, 3] if n >= 7 else [2, n - 2], 6, 0))\n    tests.append(build(16, [16], 10 ** 4, 20))\n    tests.append(build(16, [2] * 8, 10 ** 6, 20))\n    tests.append(build(16, [3, 3, 3, 3, 4], 10 ** 5, 30))\n    tests.append(build(16, [5, 5, 6], 10 ** 3, 40))\n    tests.append(build(16, [7, 9], 10 ** 6, 50))\n    tests.append(build(16, [2, 3, 3, 4, 4], 10 ** 6, 60))\n    tests.append(build(15, [15], 10 ** 6, 60))\n    big = []\n    for _ in range(200):\n        a = rng.randrange(16)\n        b = rng.randrange(15)\n        if b >= a:\n            b += 1\n        big.append((a, b, rng.randint(1, 10 ** 6)))\n    tests.append(fmt(16, big))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef min_transactions(n: int, records: List[Tuple[int, int, int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    records = []\n    for i in range(m):\n        records.append((int(data[2 + 3 * i]), int(data[3 + 3 * i]), int(data[4 + 3 * i])))\n    print(min_transactions(n, records))\n\n\nmain()\n",
+  "javascript": "function minTransactions(n, records) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst records = []\nfor (let i = 0; i < m; i++) {\n  records.push([t[2 + 3 * i], t[3 + 3 * i], t[4 + 3 * i]])\n}\nconsole.log(String(minTransactions(n, records)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minTransactions(int n, vector<array<long long, 3>>& records) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<array<long long, 3>> records(m);\n    for (int i = 0; i < m; i++) cin >> records[i][0] >> records[i][1] >> records[i][2];\n    cout << minTransactions(n, records) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minTransactions(int n, long[][] records) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        long[][] records = new long[m][3];\n        for (int i = 0; i < m; i++) {\n            for (int j = 0; j < 3; j++) {\n                in.nextToken();\n                records[i][j] = (long) in.nval;\n            }\n        }\n        System.out.println(minTransactions(n, records));\n    }\n}\n"
+ }
+}

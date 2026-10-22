@@ -1,0 +1,17 @@
+{
+ "qid": "86f88f18e8",
+ "question": "Dream11 SDE-2 high-level-design round warm-up, asked before the actual design problem. Questions: **how are Redis lists implemented internally**, **how does CDC (change data capture) with Debezium work**, and **which isolation level does your database use** (and why).",
+ "lookingFor": [
+  "Knowing the tools in your resume at implementation depth, not just API level.",
+  "Understanding of CDC and its place in event-driven architectures.",
+  "Ability to explain isolation levels and anomalies with a concrete example.",
+  "Honesty about what you do not know, and reasoning from first principles."
+ ],
+ "answer": "**Redis lists internally.** A Redis list is an ordered sequence supporting push and pop at both ends in O(1) and index access in O(n). In recent versions it is implemented as a **quicklist**: a doubly linked list whose nodes each hold a compact **listpack** (older versions: ziplist), a contiguous memory block of several elements. This saves the per-node pointer overhead of a plain linked list and is cache friendly, while keeping O(1) ends. Small lists may be a single listpack. Check the version you use, because the encoding has changed across releases. Use cases: queues (`LPUSH`/`BRPOP`), recent-items feeds.\n\n**CDC with Debezium.** Change data capture turns database changes into an event stream without the application writing events itself. Debezium runs as Kafka Connect connectors that read the database's **transaction log** (MySQL binlog, PostgreSQL logical decoding via WAL, and so on), convert each insert, update and delete into a structured event (before and after values, table, position), and publish it to Kafka topics, one per table. The connector first takes a consistent **snapshot** and then streams changes, storing its log offset so it can resume after a restart. Delivery is at least once, so consumers must be idempotent. Benefits: no dual-write inconsistency, low impact on the database, and a base for the **outbox pattern**, cache invalidation, search indexing and data pipelines. Caveats: schema changes, ordering is per key/partition, and log retention.\n\n**Isolation levels.** State the one you actually use, for example MySQL InnoDB defaults to REPEATABLE READ and PostgreSQL to READ COMMITTED. Explain the ladder: READ UNCOMMITTED (dirty reads), READ COMMITTED (no dirty reads, but non-repeatable reads), REPEATABLE READ (stable reads of the same row; phantoms depend on the engine), SERIALIZABLE (as if serial; most aborts or locking). Say why your choice fits (for example read committed plus explicit locking or conditional updates for contended rows) and what anomaly you accept.",
+ "followUps": [
+  "How would you use CDC to keep Elasticsearch in sync with a SQL database?",
+  "What are the delivery guarantees of Debezium and how do consumers cope with duplicates?",
+  "What is a phantom read and which level prevents it in your database?",
+  "When would you prefer a Redis list over Kafka for a queue?"
+ ]
+}

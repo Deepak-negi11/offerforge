@@ -1,0 +1,19 @@
+{
+ "qid": "9dbab5c2d7",
+ "question": "Meta Product Architecture round (E4, Bangalore, product role). Design the Facebook post feed. The focus is on APIs and user experience rather than infra concepts such as CAP theorem: entities, APIs, pagination and localisation matter. When the interviewer asked how to support different types of post content (files, media), the candidate only mentioned a content id, metadata and type; the interviewer may have been looking for a block-based post structure (a post made of typed blocks).",
+ "lookingFor": [
+  "Product-minded API design: clear entities and resource-oriented endpoints.",
+  "Correct pagination strategy for an ever-changing feed.",
+  "Data modelling for heterogeneous content (text, photo, video, link).",
+  "Awareness of client concerns: localisation, loading states, caching, offline.",
+  "Prioritising the user-visible flow over distributed-systems jargon."
+ ],
+ "answer": "**Requirements.** View a feed of posts from friends and pages, create posts (text, photos, video, links), like/comment, and see the feed in the user's language. Out of scope initially: ranking internals, ads. Clients: web, iOS, Android.\n\n**Entities.**\n- `User`, `Post(id, authorId, createdAt, privacy, blocks[], locale)`, `Block`, `Reaction`, `Comment`, `FeedItem(postId, rankScore, reason)`.\n\n**Content blocks.** Model a post as an ordered list of typed blocks: `{type: TEXT | IMAGE | VIDEO | LINK | POLL, payload}`. `TEXT` carries text plus entity ranges (mentions, hashtags); `IMAGE` carries media id, dimensions, alt text and several renditions; `VIDEO` carries manifest URL and thumbnail. Clients render by switching on `type` and ignore unknown types gracefully (forward compatibility), which lets you add new post formats without changing the feed API. Media is uploaded separately to object storage/CDN and referenced by id.\n\n**APIs.**\n- `GET /feed?cursor=<opaque>&limit=20` returns `{items: [...], nextCursor}`.\n- `POST /posts` (idempotency key header), `GET /posts/{id}`, `DELETE /posts/{id}`.\n- `POST /posts/{id}/reactions`, `GET /posts/{id}/comments?cursor=`.\n- `POST /media/uploads` returns an upload URL.\n\n**Pagination.** Use cursor-based (keyset) pagination, not offset: the feed changes while the user scrolls, and offsets would repeat or skip items. The cursor encodes the last item's rank/time plus id. Dedupe on the client by post id, and support \"pull to refresh\" to fetch newer items from a separate `since` cursor.\n\n**Localisation.** Send an `Accept-Language` header; the server returns localised UI strings, formatted counts and relative times, and optionally an auto-translation affordance for posts whose `locale` differs from the viewer's. Do not store translated strings inside posts.\n\n**Other considerations.** Privacy checks per item, partial failures (one post fails to hydrate and is skipped), prefetching and caching for slow networks, optimistic UI for likes, and a short note that fan-out and ranking are handled by backend services behind the feed API.",
+ "followUps": [
+  "Why cursor pagination over offset pagination for a feed?",
+  "How would you add a new post type (e.g. polls) without breaking old clients?",
+  "How would you handle a post being deleted while the user is scrolling?",
+  "How would you show the feed instantly on a slow connection?",
+  "How do you make the like button feel instant?"
+ ]
+}

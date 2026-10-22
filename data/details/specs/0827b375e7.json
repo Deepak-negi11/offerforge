@@ -1,0 +1,18 @@
+{
+ "qid": "0827b375e7",
+ "question": "Intel Software Engineer (on-campus), technical interview. One reported question was **LRU cache**: explain or implement a Least Recently Used cache. (The same interview covered mutex vs semaphore, the critical section problem, heap and stack, memory leaks and static keyword.) Treat it as the classic problem: a fixed-capacity cache with `get(key)` and `put(key, value)` that evicts the least recently used entry when full.",
+ "lookingFor": [
+  "Choosing the right data structure combination to hit O(1).",
+  "Correct handling of update, eviction and ordering on every access.",
+  "Clean code with edge cases (capacity 0, existing key, missing key).",
+  "Understanding of caching trade-offs and concurrency issues.",
+  "Ability to explain it even without writing code."
+ ],
+ "answer": "**Requirements.** Fixed capacity; `get(k)` returns the value or -1 and marks the key most recently used; `put(k, v)` inserts or updates, marks it most recent, and evicts the least recently used key if over capacity. Both operations must be **O(1)**.\n\n**Design: hash map + doubly linked list.**\n- The *doubly linked list* keeps entries ordered by recency: head side is most recent, tail side is least recent. A doubly linked list allows removing any node in O(1) given the node.\n- The *hash map* maps key to its list node, so we can find a node in O(1).\n- `get`: look up the node, move it to the front, return the value.\n- `put`: if the key exists, update the value and move to front. Otherwise create a node at the front; if size exceeds capacity, remove the tail node and delete its key from the map.\nSentinel head and tail nodes avoid null checks.\n\n```python\nclass Node:\n    def __init__(s,k=0,v=0): s.k,s.v,s.prev,s.next = k,v,None,None\nclass LRUCache:\n    def __init__(s,cap):\n        s.cap, s.m = cap, {}\n        s.head, s.tail = Node(), Node()\n        s.head.next, s.tail.prev = s.tail, s.head\n    def _remove(s,n): n.prev.next, n.next.prev = n.next, n.prev\n    def _front(s,n):\n        n.next, n.prev = s.head.next, s.head\n        s.head.next.prev = n; s.head.next = n\n    def get(s,k):\n        if k not in s.m: return -1\n        n = s.m[k]; s._remove(n); s._front(n); return n.v\n    def put(s,k,v):\n        if k in s.m: s._remove(s.m[k])\n        n = s.m[k] = Node(k,v); s._front(n)\n        if len(s.m) > s.cap:\n            lru = s.tail.prev; s._remove(lru); del s.m[lru.k]\n```\n\n**Shortcut:** in Python, `collections.OrderedDict` with `move_to_end` and `popitem(last=False)`; in Java, `LinkedHashMap` with access order. Interviewers usually want the manual version.\n\n**Extras to mention.** Thread safety (a lock around each operation, or sharded caches); other policies (LFU, FIFO, TTL); memory per entry; and that real systems also track hit rate.",
+ "followUps": [
+  "Why a doubly linked list rather than a singly linked list?",
+  "How would you make the cache thread-safe?",
+  "How would you implement an LFU cache?",
+  "How would you add per-entry expiry (TTL)?"
+ ]
+}

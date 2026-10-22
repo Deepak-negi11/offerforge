@@ -1,0 +1,18 @@
+{
+ "qid": "1933a1d88d",
+ "question": "In a Qualcomm Associate Software Engineer technical round (round 3, about an hour with helpful interviewers, any language allowed), two of the questions were: **implement a hash table (using chaining)** and **implement your own immutable class**.",
+ "lookingFor": [
+  "Can you implement a hash table with chaining, including collision handling and resize?",
+  "Do you know what makes a class immutable and why it matters (thread safety, hashing, caching)?",
+  "Do you recognise pitfalls: mutable fields, defensive copies, subclassing, setters?",
+  "Can you connect the two: immutable keys are safe to use in hash tables?",
+  "Can you discuss trade-offs of immutability, such as extra object creation?"
+ ],
+ "answer": "**Hash table with chaining.** An array of buckets; each bucket is a linked list of entries. `put`: compute `i = hash(key) % m`, scan the list, update if present, otherwise add a node; `get` and `remove` scan the same list. Keep `size / m` below a load factor (about 0.75) and rehash into a table of double size when exceeded. Average O(1), worst case O(n) when all keys collide; space O(n + m).\n\n```python\nclass HashTable:\n    def __init__(self, m=8): self.t = [None] * m; self.n = 0\n    def put(self, k, v):\n        i = hash(k) % len(self.t); node = self.t[i]\n        while node:\n            if node[0] == k: node[1] = v; return\n            node = node[2]\n        self.t[i] = [k, v, self.t[i]]; self.n += 1      # insert at head\n        if self.n > 0.75 * len(self.t): self._grow()\n    def get(self, k):\n        node = self.t[hash(k) % len(self.t)]\n        while node:\n            if node[0] == k: return node[1]\n            node = node[2]\n        return None\n```\n(`_grow` creates a new array and re-inserts every entry.)\n\n**Immutable class.** The state of an object cannot change after construction. Rules (Java terms):\n\n1. Declare the class `final` (or make constructors private) so subclasses cannot add mutability.\n2. Make all fields `private final`.\n3. No setters, and no methods that mutate state; \"modifiers\" return a new object.\n4. **Defensive copies** of mutable inputs in the constructor and mutable outputs in getters (arrays, `Date`, lists).\n\n```java\npublic final class Point {\n    private final int x, y;\n    private final List<String> tags;\n    public Point(int x, int y, List<String> tags) {\n        this.x = x; this.y = y; this.tags = List.copyOf(tags);   // defensive copy\n    }\n    public Point withX(int nx) { return new Point(nx, y, tags); }\n    public List<String> tags() { return tags; }                  // unmodifiable\n}\n```\nIn Python use a frozen dataclass, a `namedtuple`, or `__slots__` plus read-only properties (note that Python's immutability is by convention and can be bypassed).\n\n**Why it matters:** thread safe without locks, safe as hash-table keys (hash never changes), simple to cache and reason about. The cost is allocating a new object per change.",
+ "followUps": [
+  "What goes wrong if you use a mutable object as a key and then mutate it?",
+  "Is a final field holding a mutable list enough to make a class immutable?",
+  "How would you iterate over the hash table in insertion order?",
+  "How do records or frozen dataclasses relate to the manual rules?"
+ ]
+}

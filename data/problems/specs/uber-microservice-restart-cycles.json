@@ -1,0 +1,49 @@
+{
+ "pid": "uber-microservice-restart-cycles",
+ "title": "Microservice Restart Cycles",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "There are `n` microservices numbered `0` to `n - 1`. Service `i` has a list of dependencies: other services that must already be running before service `i` is allowed to start.\n\nThe system starts services in **cycles**. In one cycle it scans the services in the order `0, 1, ..., n - 1`. When it reaches a service that is not running yet, it starts it if **every** dependency of that service is already running at that moment; otherwise it skips the service for this cycle. A service started earlier in the same cycle counts as running, so a service can start in the same cycle as its dependencies if its index is larger than theirs. The system repeats cycles until every service is running.\n\nReturn the **minimum number of cycles** needed to start all services, or report `impossible` if some service can never start (for example because of a circular dependency, or a service that depends on itself).\n\nA dependency list may contain the same service more than once.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines describes service `i` (in order `0` to `n - 1`): an integer `K` followed by `K` integers, the indices of the services that must be running before service `i` can start. If `K` is `0` the line contains only `0`.",
+ "output_format": "Print a single integer, the minimum number of cycles, or the word `impossible` if not every service can start.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ K, and the sum of all K is at most 2 · 10^5",
+  "every dependency index is between 0 and n - 1 (a service may list itself or repeat a dependency)"
+ ],
+ "examples": [
+  {
+   "input": "3\n1 1\n1 2\n0",
+   "output": "3",
+   "explanation": "Service 2 has no dependencies and starts in cycle 1. In cycle 1 the scan reaches 0 and 1 before 2 is running, so both are skipped. In cycle 2 service 1 starts (2 is running) but service 0 was checked before it in that same cycle and is skipped. In cycle 3 service 0 starts."
+  },
+  {
+   "input": "4\n0\n1 0\n1 1\n2 0 2",
+   "output": "1",
+   "explanation": "Every service depends only on lower-numbered services, so each one is started by the same left-to-right scan in cycle 1."
+  },
+  {
+   "input": "2\n1 1\n1 0",
+   "output": "impossible",
+   "explanation": "Services 0 and 1 wait for each other, so neither can ever start."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + total dependencies)",
+  "space": "O(n + total dependencies)"
+ },
+ "hints": [
+  "If no service can start, nothing will ever change, so the answer is impossible. Think about which graph structure makes that happen.",
+  "Compute for every service the cycle in which it starts. Compare it with the cycle of each dependency: does the scan reach the dependency before or after the service within a cycle?",
+  "Process services in topological order (Kahn's algorithm). For a dependency d of service v the start cycle of v is at least cycle[d] if d < v, and cycle[d] + 1 if d > v. The answer is the maximum."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    p = 1\n    indeg = [0] * n\n    rev = [[] for _ in range(n)]\n    for i in range(n):\n        k = int(data[p]); p += 1\n        for x in data[p:p + k]:\n            d = int(x)\n            rev[d].append(i)\n            indeg[i] += 1\n        p += k\n    cyc = [1] * n\n    stack = [i for i in range(n) if indeg[i] == 0]\n    seen = 0\n    while stack:\n        u = stack.pop()\n        seen += 1\n        cu = cyc[u]\n        for v in rev[u]:\n            c = cu + 1 if u > v else cu\n            if c > cyc[v]:\n                cyc[v] = c\n            indeg[v] -= 1\n            if indeg[v] == 0:\n                stack.append(v)\n    if seen < n:\n        print('impossible')\n    else:\n        print(max(cyc))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\np = 1\ndeps = []\nfor i in range(n):\n    k = int(data[p]); p += 1\n    deps.append([int(x) for x in data[p:p + k]])\n    p += k\nstarted = [False] * n\ncycles = 0\nleft = n\nok = True\nwhile left > 0:\n    cycles += 1\n    progress = False\n    for i in range(n):\n        if not started[i] and all(started[d] for d in deps[i]):\n            started[i] = True\n            left -= 1\n            progress = True\n    if not progress:\n        ok = False\n        break\nprint(cycles if ok else 'impossible')\n",
+ "generator": "def gen(rng):\n    def fmt(deps):\n        lines = [str(len(deps))]\n        for d in deps:\n            lines.append(' '.join([str(len(d))] + [str(x) for x in d]))\n        return '\\n'.join(lines)\n\n    def dag(n, maxk):\n        order = list(range(n))\n        rng.shuffle(order)\n        deps = [[] for _ in range(n)]\n        for pos in range(1, n):\n            k = rng.randint(0, min(pos, maxk))\n            deps[order[pos]] = [order[rng.randrange(pos)] for _ in range(k)]\n        return deps\n\n    def dag_two(n):\n        order = list(range(n))\n        rng.shuffle(order)\n        deps = [[] for _ in range(n)]\n        for pos in range(1, n):\n            deps[order[pos]] = [order[rng.randrange(pos)] for _ in range(2)]\n        return deps\n\n    tests = [fmt([[]]), fmt([[0]]), fmt([[1], [0]]), fmt([[1], [2], []]), fmt([[1, 1], []]),\n             fmt([[], [0], [1], [0, 2]]), fmt([[], [], []]), fmt([[2], [], [1]]), fmt([[1], [], [0, 1]])]\n    for _ in range(18):\n        tests.append(fmt(dag(rng.randint(2, 9), 3)))\n    for _ in range(14):\n        n = rng.randint(2, 8)\n        tests.append(fmt([[rng.randrange(n) for _ in range(rng.randint(0, 2))] for _ in range(n)]))\n    for _ in range(6):\n        n = rng.randint(3, 9)\n        d = dag(n, 2)\n        a = rng.randrange(n)\n        b = rng.randrange(n)\n        d[a].append(b)\n        d[b].append(a)\n        tests.append(fmt(d))\n    tests.append(fmt(dag(2000, 3)))\n    N = 100000\n    tests.append(fmt([[i + 1] if i + 1 < N else [] for i in range(N)]))\n    tests.append(fmt(dag_two(N)))\n    cyc = [[i + 1] if i + 1 < N else [] for i in range(N)]\n    cyc[N - 1] = [0]\n    tests.append(fmt(cyc))\n    tests.append(fmt([[i - 1] if i > 0 else [] for i in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_cycles(deps: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    p = 1\n    deps = []\n    for _ in range(n):\n        k = int(data[p])\n        p += 1\n        deps.append([int(x) for x in data[p:p + k]])\n        p += k\n    res = min_cycles(deps)\n    print('impossible' if res < 0 else res)\n\n\nmain()\n",
+  "javascript": "// Return the minimum number of cycles, or -1 if impossible.\nfunction minCycles(deps) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nlet p = 1\nconst deps = []\nfor (let i = 0; i < n; i++) {\n  const k = t[p++]\n  deps.push(t.slice(p, p + k))\n  p += k\n}\nconst res = minCycles(deps)\nconsole.log(res < 0 ? 'impossible' : String(res))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\n// Return the minimum number of cycles, or -1 if impossible.\nint minCycles(vector<vector<int>>& deps) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<vector<int>> deps(n);\n    for (int i = 0; i < n; i++) {\n        int k;\n        cin >> k;\n        deps[i].resize(k);\n        for (int j = 0; j < k; j++) cin >> deps[i][j];\n    }\n    int res = minCycles(deps);\n    if (res < 0) cout << \"impossible\\n\";\n    else cout << res << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    // Return the minimum number of cycles, or -1 if impossible.\n    static int minCycles(int[][] deps) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[][] deps = new int[n][];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            int k = (int) in.nval;\n            deps[i] = new int[k];\n            for (int j = 0; j < k; j++) {\n                in.nextToken();\n                deps[i][j] = (int) in.nval;\n            }\n        }\n        int res = minCycles(deps);\n        System.out.println(res < 0 ? \"impossible\" : String.valueOf(res));\n    }\n}\n"
+ }
+}

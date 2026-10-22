@@ -1,0 +1,17 @@
+{
+ "qid": "d4ac876f67",
+ "question": "Arcesium software developer intern, technical interview round 2. OS questions: **how do processes communicate (explain any one IPC mechanism)**, what are the types of **fragmentation** and how do they differ, and what are **system calls**.",
+ "lookingFor": [
+  "Knows the standard IPC mechanisms and can describe one in depth.",
+  "Distinguishes internal and external fragmentation with causes and remedies.",
+  "Understands user mode vs kernel mode and the system call path.",
+  "Gives concrete examples instead of definitions only."
+ ],
+ "answer": "**IPC (inter-process communication).** Processes have separate address spaces, so the OS provides channels:\n- **Pipes** (anonymous, and named pipes/FIFOs): a unidirectional byte stream, typically between parent and child.\n- **Message queues:** the kernel stores discrete messages.\n- **Shared memory:** the fastest, since processes map the same physical region. It needs explicit synchronization (semaphores or mutexes) to avoid races.\n- **Sockets:** work locally (Unix domain) and across machines.\n- **Signals:** short notifications such as `SIGINT`.\n\nExplaining one in depth: a pipe. `pipe(fd)` returns a read end and a write end; after `fork()`, the parent writes to `fd[1]` and the child reads from `fd[0]`. It is a kernel buffer, so a reader blocks when it is empty and a writer blocks when it is full. Shell pipelines such as `ls | grep txt` are built from this.\n\n**Fragmentation** is wasted memory that cannot be used.\n- **Internal fragmentation:** memory is allocated in fixed-size blocks, so part of an allocated block is unused. Example: a 10 KB request in a 12 KB partition or fixed-size pages wastes 2 KB. Occurs with paging (only in the last page) and fixed partitioning. Reduce with smaller block sizes.\n- **External fragmentation:** enough total free memory exists but it is split into non-contiguous holes, so a large contiguous request fails. Occurs with variable-size partitioning and segmentation. Fixes: **compaction**, or **paging**, which removes the contiguity requirement.\n\n**System calls.** A system call is the controlled entry point from user programs to kernel services: file I/O (`open`, `read`, `write`), process control (`fork`, `exec`, `wait`), memory (`mmap`), and networking. Path: the program calls a library wrapper (like `write`), which places the call number and arguments in registers and executes a trap instruction; the CPU switches to **kernel mode**, the kernel runs the handler, then returns the result and switches back to user mode. This protects the system, since user code cannot touch hardware directly.",
+ "followUps": [
+  "Why is shared memory faster than pipes, and what must you add to use it safely?",
+  "Does paging eliminate all fragmentation?",
+  "What is the difference between a system call and a library function call?",
+  "What happens during fork() and exec()?"
+ ]
+}

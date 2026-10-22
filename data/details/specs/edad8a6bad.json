@@ -1,0 +1,18 @@
+{
+ "qid": "edad8a6bad",
+ "question": "AI-assisted coding round (software engineer, onsite) at Stripe, as reported second-hand from several candidates. The exercise runs in **HackerRank with a built-in AI chat** that can read the README, plan, write code, add tests and debug.\n\nYou are given a list of transactions and a list of rules. **Each rule says whether to accept or block a transaction, followed by an `if` condition.** Parse the rules and decide for each transaction which rule matches. The first parts are mostly keyword and string matching; **later parts add AND/OR boolean logic** and build on earlier parts. There is a detailed README, and the coding portion is only around 30 minutes, so you are expected to lean on the AI and review its work.",
+ "lookingFor": [
+  "Can you read a detailed spec fast and extract requirements correctly?",
+  "Do you review AI output critically (plan, code, tests) instead of accepting it blindly?",
+  "Can you design a small parser and evaluator with boolean logic (precedence, grouping)?",
+  "Do you add tests and debug effectively?",
+  "Is your code extensible for the later parts of the exercise?"
+ ],
+ "answer": "**Workflow with the AI (what tends to work):**\n1. Have the AI read the README and summarise the requirements. Check the summary against the README yourself: wrong assumptions here cost the most.\n2. Ask for a short implementation plan and review it before any code is written. Push back on anything that will not extend to boolean logic.\n3. Let it generate code in small steps, one part at a time. Read every diff.\n4. Ask for tests, then add your own edge cases. Run them and debug failures by reading the code, not by re-prompting blindly.\n\n**Design that survives later parts.** Do not hard-code string checks. Split the problem into:\n- **Parse:** turn each rule line (`accept if ...` or `block if ...`) into `(action, condition)`. Tokenise the condition into fields, operators (`==`, `contains`, etc. as the spec says), values, `AND`, `OR` and parentheses if present.\n- **Condition AST:** a small tree of nodes: `Compare(field, op, value)`, `And(left, right)`, `Or(left, right)`.\n- **Evaluate:** `matches(node, transaction)` recursively: `Compare` looks up the field, `And` and `Or` short-circuit.\n- **Decide:** iterate rules in the order the spec defines (first match wins, or follow the README on conflicts and default action) and return the action and rule for each transaction.\n\n**Boolean precedence.** Usually `AND` binds tighter than `OR`; implement it with a recursive-descent parser with two levels (`parse_or` calls `parse_and`, which calls `parse_atom`). Confirm the precedence in the README.\n\n**Edge cases to test:** no rule matches (default?), multiple rules match, missing fields, case sensitivity, extra whitespace, empty rule list.\n\n**Pitfalls:** accepting AI code that passes the sample but ignores a README rule, letting the AI rewrite working code, and not leaving time to test.",
+ "followUps": [
+  "How would you extend the grammar to support NOT and parentheses?",
+  "What happens if two rules match with different actions? How do you define precedence?",
+  "How did you verify that the AI-generated code was correct?",
+  "What is the time complexity per transaction, and how would you speed it up for millions of transactions?"
+ ]
+}

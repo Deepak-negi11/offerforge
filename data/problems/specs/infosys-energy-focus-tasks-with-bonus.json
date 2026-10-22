@@ -1,0 +1,45 @@
+{
+ "pid": "infosys-energy-focus-tasks-with-bonus",
+ "title": "Energy/Focus Tasks With Bonus",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given `n` tasks in a fixed order, numbered `0` to `n - 1`. Task `i` costs `energy[i]` units of energy and `focus[i]` units of focus, and pays `reward[i]`.\n\nYou start with `e0` units of energy and `f0` units of focus. You may select any subset of the tasks, each at most once, as long as the **total energy** of the selected tasks does not exceed `e0` and the **total focus** does not exceed `f0` (either may be spent down to exactly `0`).\n\nYour total reward is the sum of the rewards of the selected tasks, plus a **bonus** for every pair of consecutive tasks that are both selected: if tasks `i` and `i + 1` are both selected, you earn an extra `min(reward[i], reward[i + 1])`. In a run of three or more consecutive selected tasks, every adjacent pair earns its own bonus.\n\nPrint the maximum total reward you can obtain. Selecting no tasks is allowed and gives `0`.",
+ "input_format": "The first line contains three integers `n`, `e0` and `f0`.\nEach of the next `n` lines contains three integers `energy[i]`, `focus[i]` and `reward[i]`.",
+ "output_format": "Print a single integer: the maximum total reward including bonuses.",
+ "constraints": [
+  "1 ≤ n ≤ 100",
+  "1 ≤ e0, f0 ≤ 60",
+  "1 ≤ energy[i], focus[i] ≤ 60",
+  "1 ≤ reward[i] ≤ 10^4"
+ ],
+ "examples": [
+  {
+   "input": "3 5 5\n2 2 4\n2 2 6\n3 1 3",
+   "output": "14",
+   "explanation": "Select tasks 0 and 1: energy 4 <= 5 and focus 4 <= 5. Rewards 4 + 6 = 10, plus a bonus of min(4, 6) = 4 for the consecutive pair, giving 14. Adding task 2 would need energy 7 > 5. The other options are worse: tasks 1 and 2 give 6 + 3 + min(6, 3) = 12, and tasks 0 and 2 are not consecutive and give only 7."
+  },
+  {
+   "input": "3 3 3\n1 1 5\n1 1 5\n1 1 5",
+   "output": "25",
+   "explanation": "All three tasks fit (energy 3, focus 3). Rewards 15, plus a bonus of 5 for the pair (0, 1) and 5 for the pair (1, 2), total 25."
+  }
+ ],
+ "complexity": {
+  "time": "O(n * e0 * f0)",
+  "space": "O(e0 * f0)"
+ },
+ "hints": [
+  "Without the bonus this is a 0/1 knapsack with two budgets. Which extra piece of information do you need to price the bonus when you consider task i?",
+  "Process the tasks in order and remember only whether the previous task was selected. The bonus for taking task i after task i - 1 is `min(reward[i - 1], reward[i])`.",
+  "Use a table indexed by (energy used, focus used, previous taken?) holding the best reward so far. For each task, either skip it or take it, update the used amounts, and add the bonus when the previous task was taken."
+ ],
+ "reference": "import sys\n\ndef main():\n    d = sys.stdin.read().split()\n    n, E, F = int(d[0]), int(d[1]), int(d[2])\n    NEG = -1\n    dp0 = [[NEG] * (F + 1) for _ in range(E + 1)]  # previous task not taken\n    dp1 = [[NEG] * (F + 1) for _ in range(E + 1)]  # previous task taken\n    dp0[0][0] = 0\n    prev_r = 0\n    for i in range(n):\n        ce, cf, r = int(d[3 + 3 * i]), int(d[4 + 3 * i]), int(d[5 + 3 * i])\n        n0 = [[NEG] * (F + 1) for _ in range(E + 1)]\n        n1 = [[NEG] * (F + 1) for _ in range(E + 1)]\n        bonus = min(prev_r, r)\n        for u in range(E + 1):\n            row0, row1 = dp0[u], dp1[u]\n            for v in range(F + 1):\n                a, b = row0[v], row1[v]\n                m = a if a > b else b\n                if m < 0:\n                    continue\n                if m > n0[u][v]:\n                    n0[u][v] = m\n                nu, nv = u + ce, v + cf\n                if nu <= E and nv <= F:\n                    best = a + r if a >= 0 else -1\n                    if b >= 0 and b + r + bonus > best:\n                        best = b + r + bonus\n                    if best > n1[nu][nv]:\n                        n1[nu][nv] = best\n        dp0, dp1 = n0, n1\n        prev_r = r\n    ans = 0\n    for u in range(E + 1):\n        ans = max(ans, max(dp0[u]), max(dp1[u]))\n    print(ans)\n\nmain()\n",
+ "brute": "import sys\nd = sys.stdin.read().split()\nn, E, F = int(d[0]), int(d[1]), int(d[2])\nen = [int(d[3 + 3 * i]) for i in range(n)]\nfo = [int(d[4 + 3 * i]) for i in range(n)]\nrw = [int(d[5 + 3 * i]) for i in range(n)]\nbest = 0\nfor mask in range(1 << n):\n    se = sf = tot = 0\n    for i in range(n):\n        if mask >> i & 1:\n            se += en[i]\n            sf += fo[i]\n            tot += rw[i]\n            if i + 1 < n and mask >> (i + 1) & 1:\n                tot += min(rw[i], rw[i + 1])\n    if se <= E and sf <= F and tot > best:\n        best = tot\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(E, F, ts):\n        return f\"{len(ts)} {E} {F}\\n\" + '\\n'.join(f'{a} {b} {c}' for a, b, c in ts)\n    tests = [\n        fmt(5, 5, [(2, 2, 4), (2, 2, 6), (3, 1, 3)]),\n        fmt(1, 1, [(1, 1, 7)]),\n        fmt(1, 1, [(2, 1, 7)]),\n        fmt(3, 3, [(1, 1, 5), (1, 1, 5), (1, 1, 5)]),\n        fmt(2, 9, [(1, 1, 5), (1, 1, 100), (2, 1, 5)]),\n        fmt(10, 10, [(11, 1, 5), (1, 11, 9)]),\n    ]\n    for _ in range(70):\n        n = rng.randint(1, 9)\n        E = rng.randint(1, 8)\n        F = rng.randint(1, 8)\n        hi = rng.choice([4, 9, 30])\n        tests.append(fmt(E, F, [(rng.randint(1, 4), rng.randint(1, 4), rng.randint(1, hi)) for _ in range(n)]))\n    def big(n, E, F, cmax, rmax):\n        return fmt(E, F, [(rng.randint(1, cmax), rng.randint(1, cmax), rng.randint(1, rmax)) for _ in range(n)])\n    tests.append(big(100, 60, 60, 8, 10**4))\n    tests.append(big(100, 60, 60, 4, 10**4))\n    tests.append(big(100, 60, 60, 12, 10**4))\n    tests.append(big(100, 60, 60, 1, 10**4))\n    tests.append(big(60, 60, 40, 6, 100))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_reward(energy: List[int], focus: List[int], reward: List[int], e0: int, f0: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, e0, f0 = int(data[0]), int(data[1]), int(data[2])\n    energy = [int(data[3 + 3 * i]) for i in range(n)]\n    focus = [int(data[4 + 3 * i]) for i in range(n)]\n    reward = [int(data[5 + 3 * i]) for i in range(n)]\n    print(max_reward(energy, focus, reward, e0, f0))\n\n\nmain()\n",
+  "javascript": "function maxReward(energy, focus, reward, e0, f0) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], e0 = t[1], f0 = t[2]\nconst energy = [], focus = [], reward = []\nfor (let i = 0; i < n; i++) {\n  energy.push(t[3 + 3 * i])\n  focus.push(t[4 + 3 * i])\n  reward.push(t[5 + 3 * i])\n}\nconsole.log(String(maxReward(energy, focus, reward, e0, f0)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxReward(vector<int>& energy, vector<int>& focus, vector<long long>& reward, int e0, int f0) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, e0, f0;\n    cin >> n >> e0 >> f0;\n    vector<int> energy(n), focus(n);\n    vector<long long> reward(n);\n    for (int i = 0; i < n; i++) cin >> energy[i] >> focus[i] >> reward[i];\n    cout << maxReward(energy, focus, reward, e0, f0) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxReward(int[] energy, int[] focus, long[] reward, int e0, int f0) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int e0 = (int) in.nval;\n        in.nextToken();\n        int f0 = (int) in.nval;\n        int[] energy = new int[n], focus = new int[n];\n        long[] reward = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); energy[i] = (int) in.nval;\n            in.nextToken(); focus[i] = (int) in.nval;\n            in.nextToken(); reward[i] = (long) in.nval;\n        }\n        System.out.println(maxReward(energy, focus, reward, e0, f0));\n    }\n}\n"
+ }
+}

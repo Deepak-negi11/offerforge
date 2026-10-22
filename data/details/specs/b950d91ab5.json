@@ -1,0 +1,18 @@
+{
+ "qid": "b950d91ab5",
+ "question": "Mastercard on-campus Software Engineer, Technical Interview 2. Questions reported: **write a query to fetch the employee with the second highest salary** from an employee table (on paper), **explain normalization in DBMS**, and (opening question) **who is Mastercard's biggest competitor?**",
+ "lookingFor": [
+  "Can you write correct SQL and handle ties and the missing-second-value case?",
+  "Do you know multiple approaches and when each fits?",
+  "Do you understand normal forms and the reasons for normalising?",
+  "Have you done basic homework on the company and its market?"
+ ],
+ "answer": "**Second highest salary.** Assume `Employee(id, name, salary)`.\n\nApproach 1: subquery with MAX, which handles ties because it compares distinct values.\n\n    SELECT name, salary\n    FROM Employee\n    WHERE salary = (SELECT MAX(salary) FROM Employee\n                    WHERE salary < (SELECT MAX(salary) FROM Employee));\n\nApproach 2: window function (returns all employees tied at second place; N-th highest by changing 2).\n\n    SELECT name, salary\n    FROM (SELECT name, salary,\n                 DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk\n          FROM Employee) t\n    WHERE rnk = 2;\n\nApproach 3: `LIMIT/OFFSET` on distinct values.\n\n    SELECT DISTINCT salary FROM Employee\n    ORDER BY salary DESC LIMIT 1 OFFSET 1;\n\nPoint out that plain `ORDER BY salary DESC LIMIT 1 OFFSET 1` is wrong when the top salary is duplicated, and that `RANK` leaves gaps after ties while `DENSE_RANK` does not. If only one distinct salary exists, the first query returns no rows (the LeetCode-style version wraps it to return NULL).\n\n**Normalization.** Organising tables to reduce redundancy and avoid update, insert and delete anomalies.\n- 1NF: atomic values, no repeating groups.\n- 2NF: 1NF and no partial dependency of a non-key column on part of a composite key.\n- 3NF: 2NF and no transitive dependency (non-key column depending on another non-key column).\n- BCNF: every determinant is a candidate key. Higher forms (4NF, 5NF) deal with multivalued and join dependencies.\nExample: storing the department name in every employee row repeats it; moving it to a Department table fixes it. Trade-off: more joins, so some systems denormalise deliberately for read speed.\n\n**Competitor question.** Visa is the network most commonly named as Mastercard's main competitor; American Express and regional or domestic schemes (and newer payment methods) also compete. Read the company's overview before the interview and mention what differentiates it.",
+ "followUps": [
+  "How would you find the Nth highest salary?",
+  "What is the difference between RANK, DENSE_RANK and ROW_NUMBER?",
+  "How do you find the second highest salary per department?",
+  "What is denormalization and when is it justified?",
+  "What is a partial dependency? Give an example."
+ ]
+}

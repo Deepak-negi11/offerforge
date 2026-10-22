@@ -1,0 +1,49 @@
+{
+ "pid": "fraction-to-recurring-decimal",
+ "title": "Fraction to Recurring Decimal",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given a fraction as a string `p/q`, where `p` is the numerator and `q` is the denominator. Either part may carry a leading `-` sign, for example `2/5`, `-2/5` or `2/-5`. Write the value of the fraction as a decimal string.\n\nRules for the output:\n\n- If the fraction is a whole number, print it with no decimal point (`8/4` prints `2`).\n- If the decimal expansion terminates, print it exactly, with no trailing zeros (`-50/8` prints `-6.25`).\n- If the digits after the decimal point repeat forever, print the non-repeating digits first, then wrap the repeating block in parentheses. Use the **shortest** repeating block that starts as early as possible, so `1/6` is `0.1(6)` and `2/3` is `0.(6)`.\n- The integer part is printed as usual, with `0` when the magnitude is below 1. A leading `-` is printed only when the value is negative; zero is always printed as `0`.\n\nIt is guaranteed that the answer is shorter than `10^4` characters for every test.",
+ "input_format": "A single line containing the fraction in the form `p/q`, with no spaces.",
+ "output_format": "Print the decimal string as described above.",
+ "constraints": [
+  "-2^31 ≤ p, q ≤ 2^31 - 1",
+  "q ≠ 0",
+  "The answer has fewer than 10^4 characters"
+ ],
+ "examples": [
+  {
+   "input": "1/6",
+   "output": "0.1(6)",
+   "explanation": "1/6 = 0.1666...: the digit 1 appears once and the digit 6 repeats forever, so the repeating block `6` goes in parentheses."
+  },
+  {
+   "input": "-22/7",
+   "output": "-3.(142857)",
+   "explanation": "22/7 = 3.142857142857...: the block `142857` repeats right after the decimal point. The value is negative, so a `-` is added in front."
+  },
+  {
+   "input": "50/-8",
+   "output": "-6.25",
+   "explanation": "50/8 = 6.25 exactly, so nothing repeats. The negative sign in the denominator makes the value negative."
+  }
+ ],
+ "complexity": {
+  "time": "O(L), where L is the length of the output",
+  "space": "O(L)"
+ },
+ "hints": [
+  "Handle the sign separately, then work with absolute values. The integer part is just the quotient of the integer division.",
+  "Produce fractional digits by long division: multiply the remainder by 10, the next digit is the quotient by the denominator, and the new remainder is what is left over.",
+  "A remainder can only take q different values, so a repeat is guaranteed once one occurs twice. Store the output position at which each remainder first appeared; when you see one again, insert `(` at that position."
+ ],
+ "reference": "import sys\n\ndef main():\n    s = sys.stdin.read().split()[0]\n    a, b = s.split('/')\n    p, q = int(a), int(b)\n    neg = p != 0 and ((p < 0) != (q < 0))\n    p, q = abs(p), abs(q)\n    ip, r = divmod(p, q)\n    out = str(ip)\n    if r:\n        digs = []\n        seen = {}\n        while r and r not in seen:\n            seen[r] = len(digs)\n            r *= 10\n            digs.append(str(r // q))\n            r %= q\n        if r:\n            k = seen[r]\n            out += '.' + ''.join(digs[:k]) + '(' + ''.join(digs[k:]) + ')'\n        else:\n            out += '.' + ''.join(digs)\n    print(('-' if neg else '') + out)\n\nmain()\n",
+ "brute": "import sys\n\ns = sys.stdin.read().split()[0]\na, b = s.split('/')\np, q = int(a), int(b)\nneg = p != 0 and ((p < 0) != (q < 0))\np, q = abs(p), abs(q)\nwhole = p // q\nrem = p % q\ntext = str(whole)\nif rem != 0:\n    rems = []\n    digits = []\n    while rem != 0 and rem not in rems:\n        rems.append(rem)\n        rem *= 10\n        digits.append(rem // q)\n        rem = rem % q\n    text += '.'\n    if rem == 0:\n        text += ''.join(map(str, digits))\n    else:\n        k = rems.index(rem)\n        text += ''.join(map(str, digits[:k])) + '(' + ''.join(map(str, digits[k:])) + ')'\nprint('-' + text if neg else text)\n",
+ "generator": "def gen(rng):\n    def order10(q):\n        r, k = 10 % q, 1\n        while r != 1:\n            r = r * 10 % q\n            k += 1\n        return k\n\n    tests = []\n    primes = [q for q in range(9000, 9986) if all(q % d for d in range(2, int(q ** 0.5) + 1))]\n    primes.sort(key=lambda q: -order10(q))\n    for q in primes[:3]:\n        p = rng.randint(1, 2 ** 31 - 1)\n        while p % q == 0:\n            p += 1\n        tests.append(f\"{p}/{q}\")\n    tests.append(f\"-{rng.randint(1, 2 ** 31 - 1) // 2}/{primes[3]}\")\n    tests.append(f\"1/{primes[0]}\")\n    tests += ['0/5', '0/-7', '5/1', '8/4', '-2147483648/1', '-2147483648/-1', '2147483647/-2147483648', '2147483647/2147483647',\n              '1/3', '2/3', '-1/7', '1/-3', '1/2', '-1/2', '1/1220703125', '1/1073741824', '1/6', '1/90', '7/12', '-7/-12']\n    tests.append(f\"{rng.randint(1, 2 ** 31 - 1)}/{3 * 3 * 3 * 37 * 101 * 7}\")\n    for _ in range(40):\n        p = rng.randint(-60, 60)\n        q = rng.choice([x for x in range(-40, 41) if x != 0])\n        tests.append(f\"{p}/{q}\")\n    for _ in range(15):\n        p = rng.randint(-2 ** 31, 2 ** 31 - 1)\n        q = rng.randint(1, 500) * rng.choice([1, 2, 4, 5, 8, 10, 25, 125])\n        tests.append(f\"{p}/{rng.choice([-1, 1]) * q}\")\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef fraction_to_decimal(numerator: int, denominator: int) -> str:\n    # Write your solution here\n    return \"\"\n\n\ndef main():\n    s = sys.stdin.read().split()[0]\n    a, b = s.split('/')\n    print(fraction_to_decimal(int(a), int(b)))\n\n\nmain()\n",
+  "javascript": "function fractionToDecimal(numerator, denominator) {\n  // Write your solution here\n  return \"\"\n}\n\nconst parts = input.trim().split('/')\nconsole.log(fractionToDecimal(Number(parts[0]), Number(parts[1])))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring fractionToDecimal(long long numerator, long long denominator) {\n    // Write your solution here\n    return \"\";\n}\n\nint main() {\n    string s;\n    cin >> s;\n    size_t k = s.find('/');\n    long long p = stoll(s.substr(0, k)), q = stoll(s.substr(k + 1));\n    cout << fractionToDecimal(p, q) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String fractionToDecimal(long numerator, long denominator) {\n        // Write your solution here\n        return \"\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String s = br.readLine().trim();\n        int k = s.indexOf('/');\n        long p = Long.parseLong(s.substring(0, k)), q = Long.parseLong(s.substring(k + 1));\n        System.out.println(fractionToDecimal(p, q));\n    }\n}\n"
+ }
+}

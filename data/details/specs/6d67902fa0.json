@@ -1,0 +1,18 @@
+{
+ "qid": "6d67902fa0",
+ "question": "**Design a log aggregation system.** Components to cover: **producers, a distributed queue, consumers, time-series storage, backpressure and retries.** (System design, Software Engineer, Netflix.)",
+ "lookingFor": [
+  "Can you design an end-to-end pipeline from producers to storage and queries?",
+  "Do you understand why a distributed queue sits in the middle?",
+  "Do you handle backpressure, retries, duplicates and ordering?",
+  "Do you choose storage fitted to time-ordered data with retention?",
+  "Do you consider cost, sampling and reliability at high volume?"
+ ],
+ "answer": "**Requirements.** Collect logs from thousands of services and hosts, make them searchable by service, time and level within seconds, retain for a fixed period, and never take down the producers if the pipeline is slow. Assume very high write throughput and relatively few reads.\n\n**Pipeline**\n1. **Producers.** A lightweight agent on each host (or a library) tails log files, batches and compresses lines, adds metadata (service, host, level, timestamp), and sends them on. A local disk buffer lets it survive short outages.\n2. **Distributed queue** (for example Kafka). Topics partitioned by service or host. It absorbs bursts, decouples producers from storage, allows replay, and lets several consumers read independently.\n3. **Consumers.** A consumer group parses, enriches and writes logs to storage in batches. Scale by adding consumers up to the partition count. Commit offsets only after a successful write.\n4. **Storage.** A time-series or log store, partitioned by time (daily or hourly), such as an Elasticsearch-style index for search or a columnar/wide-column store for cheaper volume. Hot data on fast storage, older data moved to object storage, and expired by retention policy.\n5. **Query layer.** An API/UI supporting filters by service, level, time range and text, with pagination.\n\n**Backpressure.** If storage slows down, consumers fall behind and the queue grows (lag). The queue provides the buffer; monitor consumer lag and autoscale consumers. If the queue itself fills, producers' agents apply bounded buffers and then drop low-priority logs (DEBUG) first, or sample, rather than blocking the application. Rate-limit noisy services.\n\n**Retries.** Producers retry sending with exponential backoff and jitter. Consumers retry failed writes, and send persistently bad messages to a **dead-letter queue**. Delivery is **at-least-once**, so make writes idempotent using a unique log id to deduplicate.\n\n**Ordering.** Order is preserved only within a partition; rely on timestamps for display and accept minor reordering.\n\n**Reliability and cost.** Replicate queue partitions and storage across zones, compress, index only the fields needed, and alert on pipeline lag and drop rates.",
+ "followUps": [
+  "What do you do when consumers cannot keep up with the producers?",
+  "How do you avoid duplicate log entries with at-least-once delivery?",
+  "Which logs would you drop first under overload, and how?",
+  "How would you design retention so storage cost stays bounded?"
+ ]
+}

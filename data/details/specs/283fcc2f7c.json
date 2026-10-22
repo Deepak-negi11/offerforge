@@ -1,0 +1,19 @@
+{
+ "qid": "283fcc2f7c",
+ "question": "Walmart Global Tech SDE-III online assessment (HackerRank, about 80 minutes). Alongside two LeetCode-medium problems there was a **Java + Spring project task in an integrated VS Code**: set up a basic Spring profile configuration, **read values from property/yml files and return them based on the active profile, falling back to a default when a value is not defined for that profile**, complete the stubbed methods, and make the application run without errors with all provided tests passing. A related report describes loading values from a `.yml` file into class members and using a default string if the variable is missing.",
+ "lookingFor": [
+  "Practical Spring Boot configuration knowledge.",
+  "Profile-specific properties and fallback to defaults.",
+  "Type-safe binding with `@ConfigurationProperties` or `@Value`.",
+  "Reading and running tests to drive the implementation.",
+  "Debugging startup errors under time pressure."
+ ],
+ "answer": "**How Spring Boot resolves configuration.** `application.properties` or `application.yml` holds the defaults. A profile file such as `application-dev.properties` (or `application-dev.yml`) is loaded when that profile is active and its values **override** the defaults. Activate a profile with `spring.profiles.active=dev`, an environment variable `SPRING_PROFILES_ACTIVE`, or in tests with `@ActiveProfiles(\"dev\")`.\n\n**Files**\n```yaml\n# application.yml (defaults)\napp:\n  greeting: \"hello-default\"\n---\nspring:\n  config:\n    activate:\n      on-profile: dev\napp:\n  greeting: \"hello-dev\"\n```\nIn `.properties`, `application-dev.properties` contains `app.greeting=hello-dev`.\n\n**Reading values**\n- `@Value(\"${app.greeting:hello-default}\")` injects the property, with the text after `:` as the fallback if the key is absent everywhere.\n- Type-safe grouping:\n```java\n@ConfigurationProperties(prefix = \"app\")\npublic class AppProps { private String greeting = \"fallback\"; /* getter, setter */ }\n```\nRegister with `@EnableConfigurationProperties` or `@ConfigurationPropertiesScan`. A field initialiser works as the default when the key is missing.\n- Programmatic: inject `Environment` and call `env.getProperty(\"app.greeting\", \"fallback\")`.\n\n**Profile-specific beans.** `@Profile(\"dev\")` on a `@Configuration` or `@Bean` to choose different implementations.\n\n**Task approach.** Read the tests first to learn the exact method names, keys and expected strings. Check the stubs for which approach they expect (a `@Value` field or an `Environment`). Run the tests early, and read the stack trace if the context fails to start. Common causes: a wrong property key, a missing `@Component`/`@Configuration` annotation, an inactive profile in the test class, a YAML indentation error, or a missing getter/setter for binding.\n\n**Precedence reminder.** Command-line arguments and environment variables beat profile files, which beat the default file.",
+ "followUps": [
+  "What is the order of precedence between application.yml, a profile file and an environment variable?",
+  "Difference between @Value and @ConfigurationProperties?",
+  "How do you activate more than one profile?",
+  "How would you keep secrets out of the property files?",
+  "How can you test with a different profile in a Spring Boot test?"
+ ]
+}

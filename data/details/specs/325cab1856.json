@@ -1,0 +1,17 @@
+{
+ "qid": "325cab1856",
+ "question": "Eight-round interview loop at NVIDIA (Bengaluru, Software Engineer) with fairly easy rounds: simple DSA problems, Python fundamentals, concurrency, queues and other CS fundamentals, and a final managerial round.\n\nReported question topics: **binary search, a distributed task scheduler, and priority queues.** The exact prompt was not given, so this write-up designs a distributed task scheduler that runs jobs at given times or priorities across many workers.",
+ "lookingFor": [
+  "Can you define requirements: task types, priority, delay or cron, retries, scale?",
+  "Do you pick the right data structures (priority queue, time-ordered storage) and explain them?",
+  "Do you handle distribution: multiple schedulers and workers, leases, failures and exactly-once versus at-least-once?",
+  "Do you discuss trade-offs and bottlenecks?"
+ ],
+ "answer": "**Requirements.** Clients submit tasks with a run time (now, delayed or recurring) and priority. The system executes each task on a worker, retries failures, never loses tasks, and scales horizontally. Assume at-least-once delivery with idempotent tasks (exactly-once is very hard).\n\n**API.** `submit(task, runAt, priority)`, `cancel(id)`, `status(id)`.\n\n**Core idea.** Tasks are kept ordered by `(runAt, priority)`. Inside one process that is a **min-heap** (priority queue): peek the earliest task, sleep until due, pop and dispatch. Pushing and popping cost O(log n).\n\n**Distributed design.**\n\n- **Storage:** a durable store (SQL or a key-value store) with a tasks table: `id, payload, run_at, priority, status, attempts, lease_until`, indexed on `(status, run_at)`. Partition by task id or time bucket for scale.\n- **Scheduler or dispatcher:** polls for due tasks and puts them on a work queue, or workers claim them directly.\n- **Claiming safely:** a worker atomically claims a task and sets a `lease_until` timestamp (for example `UPDATE ... WHERE status='READY' AND run_at<=now LIMIT k` with row locking such as `SKIP LOCKED`). If the worker dies, the lease expires and another worker takes the task.\n- **Workers:** pull tasks, execute, then mark done. Heartbeats extend leases for long tasks.\n- **Retries:** exponential backoff and a maximum attempt count, then a dead-letter state.\n- **Recurring tasks:** after each run, insert the next occurrence.\n- **Leader election or partitioning:** to avoid duplicate scheduling, either elect one active scheduler (via ZooKeeper, etcd or a DB lock) or give each scheduler its own shard of tasks.\n\n**Bottlenecks and scale.** The hot spot is the \"due tasks\" query: use time-bucketed partitions or a timing wheel in memory, with the database as the source of truth. Add rate limiting per tenant, priority queues (separate queues per priority to avoid starvation, with aging), and metrics on lag between `run_at` and actual start.\n\n**Trade-offs.** Polling a database is simple but adds latency and load; a message broker with delayed delivery lowers latency but adds a system to operate.",
+ "followUps": [
+  "How do you avoid running the same task twice?",
+  "How would you prevent low-priority tasks from starving?",
+  "What happens if the scheduler leader crashes?",
+  "Where does binary search or a heap appear in your design?"
+ ]
+}

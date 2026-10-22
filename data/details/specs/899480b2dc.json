@@ -1,0 +1,19 @@
+{
+ "qid": "899480b2dc",
+ "question": "In a Salesforce SDE intern interview, after discussing the candidate's projects, the interviewer asked: **explain authentication versus authorization**, and then asked about the **user flow of the candidate's own project** (login, signup, multiple users). The candidate reported that this question is common whenever a project has a login system or multiple user roles.",
+ "lookingFor": [
+  "Do you know the difference between proving identity and granting permissions?",
+  "Can you describe a real login flow end to end: credentials, hashing, sessions or tokens?",
+  "Do you understand role-based access and why checks must happen on the server?",
+  "Are you aware of basic security practices (password hashing, HTTPS, token expiry)?",
+  "Can you map the concepts onto your own project?"
+ ],
+ "answer": "**Definitions.**\n\n- **Authentication (authn)** answers \"who are you?\": verifying identity with a password, a one-time code, a biometric or a federated login such as OAuth/OpenID Connect.\n- **Authorization (authz)** answers \"what are you allowed to do?\": deciding which resources and actions an authenticated identity can access. Authentication comes first; authorization is checked on every request.\n\nExample: a person logs in with email and password (authn). A regular user can view their own posts, but only an admin can delete other users' posts (authz). A 401 response means \"not authenticated\"; a 403 means \"authenticated but not permitted\".\n\n**A typical flow you can describe for your project.**\n\n1. **Signup:** the client sends email and password over HTTPS. The server validates input, hashes the password with a slow, salted algorithm (bcrypt, scrypt or Argon2), and stores only the hash.\n2. **Login:** the server finds the user, compares the password with the stored hash, and on success issues a credential. Two common choices: a **server-side session** (a random session id in an HTTP-only, secure cookie, with session data on the server) or a **signed token such as a JWT** (sent in a header or cookie, verified by signature, with a short expiry and a refresh token).\n3. **Each request:** a middleware reads the cookie or token, verifies it, and attaches the user to the request. If invalid or expired, return 401.\n4. **Authorization:** the handler checks the user's role (role-based access control) or ownership of the resource (for example, `post.ownerId == user.id`) and returns 403 if not allowed. The check must be on the server, because hiding a button in the UI is not security.\n5. **Logout and expiry:** delete the session or let the token expire, and revoke refresh tokens.\n\n**Practical points to mention:** never store plain-text passwords, use HTTPS, rate-limit login attempts, keep tokens out of localStorage where possible to reduce XSS exposure, and apply least privilege.\n\n**Mistakes to avoid:** mixing up the two terms, saying you \"encrypt\" passwords instead of hashing them, relying on client-side checks, or being unable to describe your own project's login flow. Prepare the flow of your actual project, including roles, before the interview.",
+ "followUps": [
+  "What is the difference between a session and a JWT? What are the trade-offs?",
+  "How would you store passwords, and why salt them?",
+  "What is a 401 versus a 403 response?",
+  "What is OAuth and how is it different from authentication?",
+  "How do you prevent a user from accessing another user's data (IDOR)?"
+ ]
+}

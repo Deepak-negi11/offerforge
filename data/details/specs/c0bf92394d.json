@@ -1,0 +1,18 @@
+{
+ "qid": "c0bf92394d",
+ "question": "Apple (Senior Software Engineer, Java/Spring Boot, and SDE profiles; a 2025 Ads Delivery loop). Reported prompt: **design a rate limiter and implement the core algorithm**, for example **sliding window**, often backed by **Redis**. Follow-ups cover where it sits in a **distributed API gateway**, what happens on **cache (Redis) failure**, **partitioning**, and **static versus dynamic limit configuration**. The 2025 Ads Delivery loop asked for a distributed rate limiter that enforces limits on calls between internal microservices (Payments, Orders, Inventory) over HTTP/gRPC.",
+ "lookingFor": [
+  "Choosing and justifying a rate limiting algorithm and knowing its trade-offs.",
+  "Correct, atomic distributed counting (for example Redis scripts).",
+  "Failure thinking: fail-open versus fail-closed, hot keys, clock issues.",
+  "Placement in the architecture and clean client contract (headers, status 429).",
+  "Configuration, observability and scaling."
+ ],
+ "answer": "**Requirements:** limit requests per key (user, API key, client service, endpoint) to X per window; very low overhead per request (a few ms at most); accurate enough under concurrency; works across many gateway instances; configurable limits; clear response (HTTP 429 with `Retry-After`). For internal microservices the key is typically caller service plus target API.\n\n**Algorithms and trade-offs**\n- **Fixed window counter:** simple, but allows a burst of up to 2x at window edges.\n- **Sliding window log:** store timestamps, exact but memory-heavy.\n- **Sliding window counter:** weight the previous window's count by the overlap, `current + previous * (1 - elapsed/window)`; cheap and a good approximation.\n- **Token bucket:** allows controlled bursts with a steady refill rate; easy to store as `(tokens, lastRefill)`.\n\n**Core implementation with Redis:** use a **Lua script** (atomic, one round trip) so that read, compute and write cannot interleave. For the sliding log: `ZREMRANGEBYSCORE key 0 (now - window)`, `ZCARD key`, if below the limit then `ZADD key now now`, and `EXPIRE key window`. For token bucket keep `tokens` and `ts` in a hash and compute the refill in the script. Use Redis server time or a single time source to avoid client clock skew.\n\n**Placement:** at the API gateway or a sidecar for edge traffic; as a shared library or sidecar for service-to-service calls (HTTP and gRPC interceptors), calling a central limiter store. A local in-memory counter plus periodic sync reduces calls to Redis at the price of some inaccuracy.\n\n**Scaling and partitioning:** shard keys by hash across a Redis cluster; hot keys (one very busy client) can be split across sub-keys with each getting a share, or limited locally first. Keep one key per limiter so scripts touch a single shard.\n\n**Failures:** if Redis is down, choose **fail-open** (allow traffic, protect availability, rely on service-level protection) for most APIs and **fail-closed** for sensitive ones such as payments; add timeouts and a circuit breaker, and a local fallback limiter.\n\n**Configuration:** static limits in a file are simple; dynamic limits come from a config service or database, cached and pushed to instances, so limits can change without redeploy and per tenant or plan.\n\n**Observability:** metrics for allowed, rejected, latency and Redis errors; alert on sudden rejection spikes.",
+ "followUps": [
+  "Why use a Lua script or atomic operation rather than GET then SET in Redis?",
+  "Compare token bucket and sliding window. When would you choose each?",
+  "What happens if two gateway nodes have clock drift?",
+  "How would you rate limit per user across multiple data centres?"
+ ]
+}

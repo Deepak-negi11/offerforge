@@ -1,0 +1,18 @@
+{
+ "qid": "382d0a0d59",
+ "question": "Asked in a Paytm Senior Software Engineer interview (Java, microservices and Kafka round): explain Kafka partitions, leaders and followers, offset commits, consumer group rebalancing, and how at-least-once versus exactly-once delivery is achieved.",
+ "lookingFor": [
+  "Accurate model of Kafka's storage and replication",
+  "Understanding of how consumer groups share partitions and what rebalancing costs",
+  "Reasoning about commit timing and the resulting delivery guarantee",
+  "Knowing what exactly-once really covers and where it stops"
+ ],
+ "answer": "**Partitions.** A topic is split into partitions, each an ordered, append-only log. Order is guaranteed only within a partition. The producer picks the partition from the message key (same key goes to the same partition) or round-robin. Partitions are the unit of parallelism.\n\n**Leaders and followers.** Each partition has one leader broker that serves all reads and writes, and followers that replicate it. Followers that are caught up form the in-sync replica set (ISR). If the leader fails, a new leader is elected from the ISR. With `acks=all` and `min.insync.replicas=2`, a write is acknowledged only after enough replicas have it, so an acknowledged message survives a broker failure.\n\n**Offsets.** Each record has an offset within its partition. A consumer group stores its committed offset per partition (in the internal `__consumer_offsets` topic). After a restart the consumer resumes from the last committed offset.\n\n**Consumer groups and rebalancing.** Within a group, each partition is assigned to exactly one consumer, so more consumers than partitions means idle consumers. When a consumer joins, leaves or stops sending heartbeats (or exceeds `max.poll.interval.ms`), the group coordinator triggers a rebalance and reassigns partitions. Eager rebalancing pauses everyone; cooperative (incremental) rebalancing moves only the affected partitions. Duplicates can occur around rebalances because uncommitted work is replayed.\n\n**Delivery semantics.**\n\n- **At-most-once:** commit the offset first, then process. A crash loses messages.\n- **At-least-once:** process first, then commit. A crash causes reprocessing, so duplicates are possible. This is the common default and needs idempotent consumers (deduplicate on a business key or use upserts).\n- **Exactly-once:** the producer is made idempotent (`enable.idempotence=true`, using producer id and sequence numbers) and uses transactions to write output records and the consumed offsets atomically. Consumers read with `isolation.level=read_committed`. This gives exactly-once for Kafka-to-Kafka pipelines (Kafka Streams enables it with one setting). For side effects outside Kafka, such as a database write or an email, you still need idempotent writes or to store the offset in the same database transaction.\n\nA common mistake is to say exactly-once means each message is physically delivered once. It means the effect is applied once.",
+ "followUps": [
+  "What happens to ordering when you increase partitions on a topic?",
+  "How do you handle a poison message that always fails processing?",
+  "What does acks=all do and what is the cost?",
+  "How would you make a consumer idempotent when writing to a database?",
+  "How do you choose the number of partitions?"
+ ]
+}

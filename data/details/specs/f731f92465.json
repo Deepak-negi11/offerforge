@@ -1,0 +1,19 @@
+{
+ "qid": "f731f92465",
+ "question": "A set of backend concept questions from a Walmart Software Engineer III hiring-manager round:\n\n- What are **optimistic and pessimistic locking**?\n- What is a **dirty write**? Also asked: microservices and **dependency injection**.\n- What is **Kafka** and the **pub-sub model**?\n- **How is partitioning done in Kafka**, and how can you scale up your project using Kafka?\n- What approach would you take to **auto-scale your current project**?",
+ "lookingFor": [
+  "Can you explain concurrency control approaches with a clear example and trade-offs?",
+  "Do you know the transaction anomalies (dirty read and dirty write) and how isolation prevents them?",
+  "Do you understand Kafka's model: topics, partitions, consumer groups and ordering?",
+  "Can you link scaling consumers and partitions to throughput?",
+  "Can you describe auto-scaling concretely: metrics, limits and stateless design?"
+ ],
+ "answer": "**Pessimistic locking** assumes conflicts are likely: lock the row up front (`SELECT ... FOR UPDATE`), so other transactions wait until you commit. Safe, but it reduces concurrency and can cause deadlocks. **Optimistic locking** assumes conflicts are rare: read without a lock, keep a version column, and update with `WHERE id=? AND version=?`; if zero rows are updated someone else changed it, so retry or fail. Good for read-heavy workloads; bad when contention is high.\n\n**Dirty write:** transaction T2 overwrites a value that T1 has written but not yet committed; if T1 rolls back, the data is corrupt. It is prevented by row-level write locks held until commit, and is disallowed even at the lowest standard isolation levels. A dirty read is reading uncommitted data.\n\n**Dependency injection:** an object receives its dependencies from outside (constructor, setter, field) instead of creating them. This gives loose coupling and easy testing with mocks. Spring's container creates and wires beans. **Microservices:** an application split into small, independently deployable services, each owning its data and communicating via APIs or events. Benefits: independent scaling and deployment; costs: network failures, distributed data consistency and operational complexity.\n\n**Kafka and pub-sub.** Kafka is a distributed, durable, append-only log. Producers publish messages to **topics**; consumers subscribe. In pub-sub, many independent subscribers each receive every message. A topic is divided into **partitions**; ordering is guaranteed only within a partition. The producer picks the partition by hashing the message key (same key leads to the same partition and so ordered per key) or round-robin if there is no key. Partitions are replicated across brokers for fault tolerance.\n\n**Consumer groups:** within one group, each partition is read by exactly one consumer, so a group shares the work; different groups each get all messages. To scale, add partitions and add consumers up to the partition count (extra consumers sit idle). Choose keys that spread load evenly to avoid hot partitions, and watch consumer lag.\n\n**Auto-scaling your project.** Keep services stateless (state in a DB, cache or Kafka); run them in containers on Kubernetes with a Horizontal Pod Autoscaler driven by CPU, request rate or Kafka consumer lag; set min and max replicas and health checks; make sure the database, connection pools and downstream services can handle the extra load; and make consumers idempotent.",
+ "followUps": [
+  "How do you decide the number of partitions for a topic?",
+  "What happens to ordering when you add partitions to a topic?",
+  "When would you choose pessimistic over optimistic locking?",
+  "How does a consumer group rebalance work?",
+  "What are the limits of auto-scaling a service backed by a single database?"
+ ]
+}

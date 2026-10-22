@@ -1,0 +1,50 @@
+{
+ "pid": "basic-calculator",
+ "title": "Basic Calculator",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "Implement a calculator that evaluates an arithmetic expression given as a string `s`. The expression is built from:\n\n- non-negative integers written in decimal digits (no leading zeros except the number `0` itself),\n- the binary operators `+` and `-`,\n- opening and closing parentheses `(` and `)`,\n- space characters, which carry no meaning and can appear between any two tokens (but never inside a number).\n\nThe string is always a valid expression. A `-` may also be used as a **unary minus**, but only at the very start of the expression or immediately after an opening parenthesis (ignoring spaces), for example `-(2 + 3)` or `4 - (-1 + 2)`. A unary `+` never appears. Parentheses group sub-expressions and can be nested arbitrarily deep, so the calculator must not rely on built-in expression evaluation and should avoid deep recursion.\n\nEvaluate the expression and print its integer value. Every intermediate value fits in a signed 64-bit integer.\n\n**Follow-up:** Describe how you would extend the evaluator to also support `*` and `/` with the usual precedence.",
+ "input_format": "A single line containing the expression `s`.",
+ "output_format": "Print a single integer: the value of the expression.",
+ "constraints": [
+  "1 ≤ |s| ≤ 10^5",
+  "s consists of digits, '+', '-', '(', ')' and spaces",
+  "every number is between 0 and 10^9",
+  "s is a valid expression in the form described above"
+ ],
+ "examples": [
+  {
+   "input": "1 - (2 - (3 - 4))",
+   "output": "-2",
+   "explanation": "3 - 4 = -1, then 2 - (-1) = 3, then 1 - 3 = -2."
+  },
+  {
+   "input": "-(2+3)-(-4+1)",
+   "output": "-2",
+   "explanation": "The first group is 5, so -(2+3) = -5. The second group is -4 + 1 = -3, and subtracting it adds 3. The total is -5 + 3 = -2."
+  },
+  {
+   "input": "10 + 20 - 30",
+   "output": "0",
+   "explanation": "Spaces are ignored; 10 + 20 = 30, and 30 - 30 = 0."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Without parentheses this is a left-to-right scan: keep a running total and the sign of the number you are reading.",
+  "A minus sign in front of a parenthesis flips the sign of everything inside it. When you reach '(', save the running total and the current sign somewhere, then start a fresh total.",
+  "Use a stack for the saved (total, sign) pairs. On ')', finish the inner number, multiply the inner total by the saved sign and add it to the saved total."
+ ],
+ "reference": "import sys\n\ndef main():\n    s = sys.stdin.readline().rstrip('\\n')\n    res, sign, num = 0, 1, 0\n    stack = []\n    for ch in s:\n        if ch.isdigit():\n            num = num * 10 + int(ch)\n        elif ch == '+':\n            res += sign * num\n            num, sign = 0, 1\n        elif ch == '-':\n            res += sign * num\n            num, sign = 0, -1\n        elif ch == '(':\n            stack.append(res)\n            stack.append(sign)\n            res, sign, num = 0, 1, 0\n        elif ch == ')':\n            res += sign * num\n            num = 0\n            res *= stack.pop()\n            res += stack.pop()\n    res += sign * num\n    print(res)\n\nmain()\n",
+ "brute": "import sys\n\ns = sys.stdin.readline().rstrip('\\n')\ntoks = []\ni = 0\nwhile i < len(s):\n    c = s[i]\n    if c == ' ':\n        i += 1\n    elif c.isdigit():\n        j = i\n        while j < len(s) and s[j].isdigit():\n            j += 1\n        toks.append(int(s[i:j]))\n        i = j\n    else:\n        toks.append(c)\n        i += 1\npos = 0\n\ndef expr():\n    global pos\n    total = 0\n    if pos < len(toks) and toks[pos] == '-':\n        pos += 1\n        total = -term()\n    else:\n        total = term()\n    while pos < len(toks) and toks[pos] in ('+', '-'):\n        op = toks[pos]\n        pos += 1\n        v = term()\n        total = total + v if op == '+' else total - v\n    return total\n\ndef term():\n    global pos\n    t = toks[pos]\n    pos += 1\n    if t == '(':\n        v = expr()\n        pos += 1\n        return v\n    return t\n\nprint(expr())\n",
+ "generator": "def gen(rng):\n    import re\n\n    def spaced(s, p):\n        toks = re.findall(r'\\d+|[-+()]', s)\n        out = []\n        for t in toks:\n            out.append(t)\n            if rng.random() < p:\n                out.append(' ' * rng.randint(1, 3))\n        return ''.join(out).strip()\n\n    def num(big):\n        return str(rng.randint(0, 10**9 if big else 20))\n\n    def expr(depth, big):\n        s = '-' if rng.random() < 0.25 else ''\n        for t in range(rng.randint(1, 4)):\n            if t:\n                s += rng.choice('+-')\n            if depth > 0 and rng.random() < 0.4:\n                s += '(' + expr(depth - 1, big) + ')'\n            else:\n                s += num(big)\n        return s\n\n    tests = ['1', '0', '-5', '(1)', '-(3)', '2-1', '1 - (2 - (3 - 4))', '-(2+3)-(-4+1)', '(((7)))', '10 + 20 - 30',\n             '0-0', '1+(-2)', '(-1)-(-1)', '  12  ']\n    tests = [t.strip() for t in tests]\n    for _ in range(40):\n        tests.append(spaced(expr(rng.randint(0, 4), False), rng.choice([0, 0.3, 0.8])))\n    for _ in range(6):\n        tests.append(spaced(expr(rng.randint(2, 5), True), 0.3))\n    tests = [t for t in tests if len(t) <= 380]\n    L = 10**5\n    # deeply nested, alternating signs\n    parts, d, size = [], 0, 0\n    while size < L - 40000:\n        piece = f\"{rng.randint(0, 10**9)}{rng.choice('+-')}(\"\n        parts.append(piece)\n        size += len(piece)\n        d += 1\n    nested = ''.join(parts) + '5' + ')' * d\n    tests.append(nested)\n    tests.append('(' * 40000 + '-7' + ')' * 40000)\n    # long flat expression with spaces\n    flat, size = [], 0\n    while size < L - 30:\n        piece = str(rng.randint(0, 10**9)) + ' ' + rng.choice('+-') + ' '\n        flat.append(piece)\n        size += len(piece)\n    tests.append(''.join(flat) + '1')\n    # many small groups\n    groups, size = [], 0\n    while size < L - 40:\n        g = '(' + str(rng.randint(0, 10**9)) + rng.choice('+-') + str(rng.randint(0, 10**9)) + ')'\n        piece = g + rng.choice('+-')\n        groups.append(piece)\n        size += len(piece)\n    tests.append(''.join(groups) + '0')\n    # nesting where every group is subtracted\n    k = (L - 100) // 5\n    t = '-(' + ''.join(f\"{rng.randint(0, 9)}-(\" for _ in range(k)) + '1' + ')' * (k + 1)\n    tests.append(t)\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef calculate(s: str) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    s = sys.stdin.readline().rstrip('\\n')\n    print(calculate(s))\n\n\nmain()\n",
+  "javascript": "function calculate(s) {\n  // Write your solution here\n  return 0\n}\n\nconst s = input.split('\\n')[0].replace(/\\r$/, '')\nconsole.log(String(calculate(s)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long calculate(const string& s) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    string s;\n    getline(cin, s);\n    if (!s.empty() && s.back() == '\\r') s.pop_back();\n    cout << calculate(s) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long calculate(String s) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String s = br.readLine();\n        if (s == null) s = \"\";\n        System.out.println(calculate(s));\n    }\n}\n"
+ }
+}

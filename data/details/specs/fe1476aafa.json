@@ -1,0 +1,17 @@
+{
+ "qid": "fe1476aafa",
+ "question": "Cognizant GenC technical interview (DBMS / SQL). The candidate was asked to **explain the ACID properties** of a transaction. Reports show it alongside questions on DDL vs DML, sub-queries, and DELETE vs TRUNCATE vs DROP.",
+ "lookingFor": [
+  "Accurate definition of each of A, C, I and D.",
+  "A concrete example such as a bank transfer.",
+  "Awareness of how the DBMS implements them.",
+  "Understanding of isolation levels and trade-offs."
+ ],
+ "answer": "ACID describes the guarantees a database transaction (a group of operations treated as one logical unit) gives, so data stays correct even with failures and concurrent users.\n\nUse one running example: transfer 500 from account A to account B (debit A, credit B).\n\n**Atomicity: all or nothing.** Either both steps happen or neither does. If the system crashes after the debit but before the credit, the debit is rolled back. Implemented through the transaction log / undo information and `COMMIT` / `ROLLBACK`.\n\n**Consistency: valid state to valid state.** A transaction must leave the database satisfying all rules: constraints, keys, foreign keys, triggers and business rules (for example the total money in A and B is unchanged, balance not negative). Part of this is enforced by the DB (constraints) and part by correct application logic.\n\n**Isolation: concurrent transactions do not interfere.** The result should be as if they ran one after another (serialisable). Without isolation you get dirty reads, non-repeatable reads and phantom reads. Implemented with locking or MVCC. SQL isolation levels trade correctness for concurrency: Read Uncommitted, Read Committed, Repeatable Read, Serializable. Many databases default to Read Committed (PostgreSQL, Oracle, SQL Server) while MySQL InnoDB defaults to Repeatable Read.\n\n**Durability: committed means permanent.** Once `COMMIT` returns, the change survives power loss or crashes. Implemented with write-ahead logging (the log is flushed to disk before commit is acknowledged) and recovery on restart (redo).\n\n**Code illustration.**\n\n```sql\nBEGIN;\nUPDATE accounts SET balance = balance - 500 WHERE id = 1;\nUPDATE accounts SET balance = balance + 500 WHERE id = 2;\nCOMMIT;  -- or ROLLBACK on error\n```\n\n**Contrast.** Many NoSQL systems relax some ACID guarantees for scale and availability and follow BASE (basically available, soft state, eventual consistency), though several now offer transactions.\n\nKeep the answer short in the interview: define each letter in one sentence, then give the bank example.",
+ "followUps": [
+  "What are dirty read, non-repeatable read and phantom read?",
+  "What is a deadlock in a database and how is it resolved?",
+  "What is the difference between COMMIT and ROLLBACK, and what is a SAVEPOINT?",
+  "ACID versus CAP: how are they different?"
+ ]
+}

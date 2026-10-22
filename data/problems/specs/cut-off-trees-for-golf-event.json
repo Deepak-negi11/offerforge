@@ -1,0 +1,50 @@
+{
+ "pid": "cut-off-trees-for-golf-event",
+ "title": "Cut Off Trees in Ascending Order",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given an `r × c` grid describing a forest. Each cell holds a non-negative integer:\n\n- `0` is an obstacle that can never be entered.\n- `1` is an open cell with no tree.\n- A value `h ≥ 2` is a tree of height `h`. All tree heights in the grid are **distinct**.\n\nYou start at the top-left cell `(0, 0)`, which is guaranteed to be non-zero, and must cut down **every tree in increasing order of height**. In one step you move to an adjacent cell (up, down, left or right) that is not an obstacle. You may walk through a cell that still holds a tree without cutting it, and a cut tree leaves an ordinary open cell. Cutting costs no steps, and if you are standing on a tree when its turn comes, you simply cut it. If the starting cell holds a tree, it is cut when its height comes up like any other.\n\nYou may finish on any cell. Print the **minimum total number of steps** needed to cut all the trees, or `-1` if some tree cannot be reached in its turn. If the forest contains no trees, the answer is `0`.",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains `c` space-separated integers, the cell values of that row.",
+ "output_format": "Print one integer: the minimum number of steps, or `-1` if it is impossible.",
+ "constraints": [
+  "1 ≤ r, c ≤ 30",
+  "0 ≤ grid[i][j] ≤ 10^9",
+  "grid[0][0] ≠ 0",
+  "All values greater than 1 are distinct"
+ ],
+ "examples": [
+  {
+   "input": "2 3\n1 3 2\n4 0 5",
+   "output": "9",
+   "explanation": "The trees in increasing order are 2, 3, 4, 5. Walking (0,0) to 2 takes 2 steps, 2 to 3 takes 1 step, 3 to 4 takes 2 steps (via (0,0)). The cell below 3 is an obstacle, so 4 to 5 must go back around the top row: 4 steps. Total 2 + 1 + 2 + 4 = 9."
+  },
+  {
+   "input": "1 3\n1 0 2",
+   "output": "-1",
+   "explanation": "The only tree is behind an obstacle, so it can never be reached."
+  },
+  {
+   "input": "2 2\n3 1\n2 4",
+   "output": "4",
+   "explanation": "The start cell holds tree 3, but tree 2 comes first. Walk down 1 step to cut 2, walk back up 1 step to cut 3, then walk 2 steps to the cell holding 4. Total 1 + 1 + 2 = 4."
+  }
+ ],
+ "complexity": {
+  "time": "O(T · r · c)",
+  "space": "O(r · c)"
+ },
+ "hints": [
+  "The order of the trees is forced by their heights, so the only real question is the shortest walk between two consecutive trees.",
+  "Sort the trees by height. The best walk to the next tree never depends on how you got to the current one, so you can add up independent shortest paths.",
+  "Each shortest path in an unweighted grid is a BFS. Run one BFS per consecutive pair and return -1 as soon as one of them fails."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    W = c + 2\n    g = [0] * ((r + 2) * W)\n    trees = []\n    for i in range(r):\n        for j in range(c):\n            v = int(data[2 + i * c + j])\n            p = (i + 1) * W + (j + 1)\n            g[p] = 1 if v else 0\n            if v > 1:\n                trees.append((v, p))\n    trees.sort()\n    start = W + 1\n    dirs = (1, -1, W, -W)\n\n    def bfs(s, t):\n        if s == t:\n            return 0\n        seen = bytearray(len(g))\n        seen[s] = 1\n        q = [s]\n        d = 0\n        while q:\n            d += 1\n            nq = []\n            for u in q:\n                for dd in dirs:\n                    w = u + dd\n                    if g[w] and not seen[w]:\n                        if w == t:\n                            return d\n                        seen[w] = 1\n                        nq.append(w)\n            q = nq\n        return -1\n\n    total = 0\n    cur = start\n    for _, p in trees:\n        d = bfs(cur, p)\n        if d < 0:\n            print(-1)\n            return\n        total += d\n        cur = p\n    print(total)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\ncells = {}\nvals = {}\nfor i in range(r):\n    for j in range(c):\n        v = int(data[2 + i * c + j])\n        if v:\n            cells[(i, j)] = len(cells)\n            vals[(i, j)] = v\nINF = 10**9\nm = len(cells)\nD = [[INF] * m for _ in range(m)]\nfor (i, j), a in cells.items():\n    D[a][a] = 0\n    for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n        b = cells.get((i + di, j + dj))\n        if b is not None:\n            D[a][b] = 1\nfor k in range(m):\n    for a in range(m):\n        for b in range(m):\n            if D[a][k] + D[k][b] < D[a][b]:\n                D[a][b] = D[a][k] + D[k][b]\ntrees = sorted((v, p) for p, v in vals.items() if v > 1)\ncur = cells[(0, 0)]\ntotal = 0\nok = True\nfor v, p in trees:\n    t = cells[p]\n    if D[cur][t] >= INF:\n        ok = False\n        break\n    total += D[cur][t]\n    cur = t\nprint(total if ok else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(g):\n        return f'{len(g)} {len(g[0])}\\n' + '\\n'.join(' '.join(map(str, row)) for row in g)\n    def rand_grid(r, c, pw, pt, hi):\n        g = [[1] * c for _ in range(r)]\n        cells = [(i, j) for i in range(r) for j in range(c)]\n        heights = rng.sample(range(2, hi + 1), len(cells))\n        k = 0\n        for (i, j) in cells:\n            x = rng.random()\n            if (i, j) != (0, 0) and x < pw:\n                g[i][j] = 0\n            elif x < pw + pt:\n                g[i][j] = heights[k]\n                k += 1\n        return g\n    tests = [\n        fmt([[1]]), fmt([[7]]), fmt([[1, 1], [1, 1]]),\n        fmt([[1, 3, 2], [4, 0, 5]]),\n        fmt([[1, 0, 2]]), fmt([[1, 2, 3]]), fmt([[1], [3], [2]]),\n        fmt([[5, 4], [0, 1]]),\n        fmt([[2, 0, 0], [0, 1, 3]]),\n    ]\n    for _ in range(40):\n        r, c = rng.randint(1, 5), rng.randint(1, 5)\n        tests.append(fmt(rand_grid(r, c, rng.choice([0.0, 0.15, 0.3]), rng.choice([0.3, 0.6, 1.0]), 50)))\n    R = C = 30\n    tests.append(fmt(rand_grid(R, C, 0.0, 1.0, 10**9)))\n    tests.append(fmt(rand_grid(R, C, 0.15, 0.8, 10**9)))\n    # snake maze: walls on odd rows with a single gap alternating sides\n    g = [[1] * C for _ in range(R)]\n    for i in range(1, R, 2):\n        for j in range(C):\n            g[i][j] = 0\n        g[i][C - 1 if (i // 2) % 2 == 0 else 0] = 1\n    open_cells = [(i, j) for i in range(R) for j in range(C) if g[i][j]]\n    hs = rng.sample(range(2, 10**9), len(open_cells))\n    order = open_cells[:]\n    rng.shuffle(order)\n    for (i, j), h in zip(order, hs):\n        if (i, j) != (0, 0):\n            g[i][j] = h\n    tests.append(fmt(g))\n    # heights alternate between opposite corners of an open grid (long walks)\n    g = [[1] * C for _ in range(R)]\n    cells = [(i, j) for i in range(R) for j in range(C)]\n    cells.sort(key=lambda p: (p[0] * 31 + p[1]) if (p[0] + p[1]) % 2 else (R + C) * 40 - (p[0] * 31 + p[1]))\n    hs = sorted(rng.sample(range(2, 10**9), len(cells)))\n    for (i, j), h in zip(cells, hs):\n        g[i][j] = h\n    tests.append(fmt(g))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef cut_off_trees(forest: List[List[int]]) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    forest = [[int(data[2 + i * c + j]) for j in range(c)] for i in range(r)]\n    print(cut_off_trees(forest))\n\n\nmain()\n",
+  "javascript": "function cutOffTrees(forest) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst r = t[0], c = t[1]\nconst forest = []\nfor (let i = 0; i < r; i++) forest.push(t.slice(2 + i * c, 2 + (i + 1) * c))\nconsole.log(String(cutOffTrees(forest)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint cutOffTrees(vector<vector<long long>>& forest) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<vector<long long>> forest(r, vector<long long>(c));\n    for (int i = 0; i < r; i++)\n        for (int j = 0; j < c; j++) cin >> forest[i][j];\n    cout << cutOffTrees(forest) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int cutOffTrees(long[][] forest) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int r = (int) in.nval;\n        in.nextToken();\n        int c = (int) in.nval;\n        long[][] forest = new long[r][c];\n        for (int i = 0; i < r; i++) {\n            for (int j = 0; j < c; j++) {\n                in.nextToken();\n                forest[i][j] = (long) in.nval;\n            }\n        }\n        System.out.println(cutOffTrees(forest));\n    }\n}\n"
+ }
+}

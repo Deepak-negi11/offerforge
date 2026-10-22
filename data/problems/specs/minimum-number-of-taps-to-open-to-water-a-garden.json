@@ -1,0 +1,48 @@
+{
+ "pid": "minimum-number-of-taps-to-open-to-water-a-garden",
+ "title": "Minimum Fountains to Water the Whole Garden",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "A garden has `n` positions numbered `0` to `n - 1`, with a fountain at every position. The fountain at position `i` has range `a[i]`:\n\n- If `a[i] > 0`, turning it on waters every position from `i - a[i]` to `i + a[i]` (inclusive), clipped to the garden boundaries `[0, n - 1]`. The position `i` itself is part of this range.\n- If `a[i] = 0`, the fountain is broken: turning it on waters nothing, not even position `i`.\n\nChoose the **minimum number of fountains** to turn on so that every position `0..n-1` is watered by at least one chosen fountain. If it is impossible to water the entire garden, whatever you choose, print `-1`.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` integers `a[0..n-1]`.",
+ "output_format": "Print a single integer: the minimum number of fountains to turn on, or `-1` if the whole garden cannot be watered.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ a[i] ≤ 10^5"
+ ],
+ "examples": [
+  {
+   "input": "7\n2 0 0 1 0 0 3",
+   "output": "2",
+   "explanation": "Fountain 0 waters positions 0..2 and fountain 6 waters positions 3..6 (3 to the left, clipped on the right). Together they cover everything. One fountain is not enough."
+  },
+  {
+   "input": "3\n0 0 1",
+   "output": "-1",
+   "explanation": "Only fountain 2 works and it waters positions 1..2. Position 0 can never be watered."
+  },
+  {
+   "input": "5\n1 0 2 0 0",
+   "output": "1",
+   "explanation": "Fountain 2 waters positions 0..4 (clipped to the garden), so one fountain is enough."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Turn each working fountain into an interval [max(0, i - a[i]), min(n - 1, i + a[i])]. The task becomes covering the integer positions 0..n-1 with the fewest intervals.",
+  "Greedy: with positions 0..pos-1 already covered, among all intervals that start at or before pos, take the one that reaches furthest to the right.",
+  "Precompute for each left endpoint the furthest right endpoint, then sweep once. If no interval starting at or before pos reaches pos, the answer is -1. Beware the zero-range fountains."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(data[1 + i]) for i in range(n)]\n    reach = [-1] * n\n    for i, v in enumerate(a):\n        if v > 0:\n            l = max(0, i - v)\n            r = min(n - 1, i + v)\n            if r > reach[l]:\n                reach[l] = r\n    best = -1\n    j = 0\n    pos = 0\n    cnt = 0\n    while pos < n:\n        while j <= pos:\n            if reach[j] > best:\n                best = reach[j]\n            j += 1\n        if best < pos:\n            print(-1)\n            return\n        cnt += 1\n        pos = best + 1\n    print(cnt)\n\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(data[1 + i]) for i in range(n)]\ncover = []\nfor i, v in enumerate(a):\n    m = 0\n    if v > 0:\n        for p in range(max(0, i - v), min(n - 1, i + v) + 1):\n            m |= 1 << p\n    cover.append(m)\nfull = (1 << n) - 1\nbest = -1\nfor mask in range(1 << n):\n    c = 0\n    for i in range(n):\n        if mask >> i & 1:\n            c |= cover[i]\n    if c == full:\n        k = bin(mask).count('1')\n        if best == -1 or k < best:\n            best = k\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n\n    tests = [\n        fmt([0]), fmt([1]), fmt([5]),\n        fmt([0, 0, 0]),\n        fmt([1, 0, 2, 0, 0]),\n        fmt([2, 0, 0, 1, 0, 0, 3]),\n        fmt([0, 0, 1]),\n        fmt([1, 1, 1, 1, 1, 1]),\n        fmt([0, 3, 0, 0, 0, 0, 0]),\n        fmt([3, 0, 0, 0, 0, 0, 3]),\n        fmt([0, 2, 0, 0, 2, 0, 0, 2, 0]),\n        fmt([100000] * 5),\n    ]\n    for n in (2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12):\n        for _ in range(3):\n            mode = rng.random()\n            if mode < 0.4:\n                a = [rng.choice([0, 0, 0, 1, 2]) for _ in range(n)]\n            elif mode < 0.8:\n                a = [rng.choice([0, 0, 1, 2, 3]) for _ in range(n)]\n            else:\n                a = [rng.randint(0, 5) for _ in range(n)]\n            tests.append(fmt(a))\n    N = 100000\n    tests.append(fmt([1] * N))\n    tests.append(fmt([rng.choice([0, 0, 1, 2]) for _ in range(N)]))\n    a = [0] * N\n    for i in range(5, N, 10):\n        a[i] = 5 + rng.randint(0, 3)\n    tests.append(fmt(a))\n    tests.append(fmt([rng.choice([0, 0, 0, 0, 0, 0, 0, 0, 0, rng.randint(1, 60)]) for _ in range(N)]))\n    a = [0] * N\n    a[N // 2] = 100000\n    tests.append(fmt(a))\n    tests.append(fmt([rng.randint(0, 100000) for _ in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_cover(a: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(data[1 + i]) for i in range(n)]\n    print(min_cover(a))\n\n\nmain()\n",
+  "javascript": "function minCover(a) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst a = t.slice(1, 1 + n)\nconsole.log(String(minCover(a)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minCover(vector<int>& a) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    cout << minCover(a) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minCover(int[] a) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] a = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (int) in.nval;\n        }\n        System.out.println(minCover(a));\n    }\n}\n"
+ }
+}

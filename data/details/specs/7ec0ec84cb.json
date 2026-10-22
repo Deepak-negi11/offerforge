@@ -1,0 +1,17 @@
+{
+ "qid": "7ec0ec84cb",
+ "question": "AMD on-campus internship interview. The candidate was asked: **how do you check the size of a data type in C, and how would you find it without using the `sizeof` operator?**",
+ "lookingFor": [
+  "Knowing `sizeof` semantics: compile-time operator, `size_t` result, units of `char`.",
+  "Pointer arithmetic: pointer difference scales by element size.",
+  "Creativity under constraint, plus awareness of undefined-behaviour caveats.",
+  "Correct printing with `%zu`."
+ ],
+ "answer": "**Normal way.** `sizeof` is an operator, not a function. It is evaluated at compile time (except for variable-length arrays) and yields a `size_t` giving the size in bytes (units of `char`). Print it with `%zu`.\n\n```c\nprintf(\"%zu %zu\\n\", sizeof(int), sizeof(double));\n```\n\n**Without `sizeof`: use pointer arithmetic.** Adding 1 to a typed pointer advances it by the size of the pointee, and subtracting two pointers of the same type yields a count of elements. Cast to `char *` to get a byte difference.\n\n```c\n#include <stdio.h>\n\n#define SIZE_OF_VAR(x)  ((char *)(&(x) + 1) - (char *)&(x))\n#define SIZE_OF_TYPE(T) ((char *)((T *)0 + 1) - (char *)(T *)0)\n\nint main(void)\n{\n    int a;\n    double d;\n    printf(\"%ld %ld\\n\", (long)SIZE_OF_VAR(a), (long)SIZE_OF_VAR(d));\n    printf(\"%ld\\n\", (long)SIZE_OF_TYPE(int));\n    return 0;\n}\n```\n\nExplanation: `&a + 1` is the address one whole object past `a`, so subtracting the bytes at `&a` gives the object's size. The second macro does the same using a null pointer as the base; it is the classic trick but technically undefined behaviour, since arithmetic on a null pointer is not allowed, so prefer the variable form in real code.\n\n**Another approach for integer types: count bits.** Start with `unsigned x = ~0u` and shift right until it becomes 0, counting the steps; divide by `CHAR_BIT` (from `limits.h`) to get bytes. This works for unsigned integer types but not for structs or floating point.\n\n**Alternatives:** use `limits.h` (`UINT_MAX`) and `float.h` constants to reason about sizes, or print the difference of consecutive array element addresses: `(char *)&arr[1] - (char *)&arr[0]`.\n\n**Remember:** sizes are implementation-defined (`int` is commonly 4 bytes, `long` is 8 on 64-bit Linux and 4 on 64-bit Windows), and structs include padding for alignment.",
+ "followUps": [
+  "Why does `sizeof(struct)` sometimes exceed the sum of its members?",
+  "What does `sizeof` return for an array parameter inside a function, and why?",
+  "Is `sizeof` evaluated at run time or compile time?",
+  "What is `size_t` and why is it unsigned?"
+ ]
+}

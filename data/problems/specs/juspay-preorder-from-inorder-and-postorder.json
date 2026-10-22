@@ -1,0 +1,49 @@
+{
+ "pid": "juspay-preorder-from-inorder-and-postorder",
+ "title": "Preorder From Inorder and Postorder",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given the **inorder** and the **postorder** traversal of a binary tree in which all node values are distinct. Reconstruct the tree and print its **preorder** traversal (root, then left subtree, then right subtree).\n\nThe two traversals are guaranteed to describe one valid binary tree. Note that a node with a single child can have it as the left or the right child; the two traversals together always determine which one it is.\n\nYou do not have to build the tree explicitly if you can compute the preorder directly.",
+ "input_format": "The first line contains an integer `n`, the number of nodes.\nThe second line contains `n` integers: the inorder traversal.\nThe third line contains `n` integers: the postorder traversal.",
+ "output_format": "Print `n` space-separated integers: the preorder traversal.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ value ≤ 10^9, all values distinct",
+  "The height of the tree is at most 5000"
+ ],
+ "examples": [
+  {
+   "input": "4\n3 5 7 9\n5 3 9 7",
+   "output": "7 3 5 9",
+   "explanation": "The last postorder value, 7, is the root. In the inorder sequence, 3 and 5 lie to its left and 9 to its right. The left part (3, 5) has postorder 5 3, so its root is 3 and 5 is its right child. The right part is just 9. Preorder: 7, then the left subtree 3 5, then 9."
+  },
+  {
+   "input": "3\n6 8 4\n6 8 4",
+   "output": "4 8 6",
+   "explanation": "Root 4 has nothing to its right in the inorder sequence, so everything else is its left subtree; repeating the argument gives the chain 4, 8, 6 going down-left."
+  },
+  {
+   "input": "1\n42\n42",
+   "output": "42",
+   "explanation": "A single node is its own preorder."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "The last element of the postorder sequence is always the root of the current subtree.",
+  "Find the root in the inorder sequence: everything before it is the left subtree, everything after it is the right subtree. Their sizes tell you which slices of the postorder belong to each side.",
+  "Searching for the root linearly each time can be quadratic; store each value's inorder position in a hash map so every split costs O(1)."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    ino = [int(x) for x in data[1:1 + n]]\n    post = [int(x) for x in data[1 + n:1 + 2 * n]]\n    pos = {v: i for i, v in enumerate(ino)}\n    out = []\n    stack = [(0, n - 1, 0, n - 1)]\n    while stack:\n        il, ir, pl, pr = stack.pop()\n        if il > ir:\n            continue\n        root = post[pr]\n        out.append(root)\n        k = pos[root]\n        ls = k - il\n        stack.append((k + 1, ir, pl + ls, pr - 1))\n        stack.append((il, k - 1, pl, pl + ls - 1))\n    print(' '.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\nsys.setrecursionlimit(10000)\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nino = [int(x) for x in data[1:1 + n]]\npost = [int(x) for x in data[1 + n:1 + 2 * n]]\n\ndef build(ino, post):\n    if not ino:\n        return []\n    root = post[-1]\n    k = ino.index(root)\n    left = build(ino[:k], post[:k])\n    right = build(ino[k + 1:], post[k:-1])\n    return [root] + left + right\n\nprint(' '.join(map(str, build(ino, post))))\n",
+ "generator": "def gen(rng):\n    CAP = 4900\n\n    def make(n, rng, deep, vals):\n        left = [-1] * n\n        right = [-1] * n\n        depth = [0] * n\n        slots = [(0, 0), (0, 1)]\n        for v in range(1, n):\n            while True:\n                if deep and rng.random() < 0.95:\n                    idx = len(slots) - 1\n                else:\n                    idx = rng.randrange(len(slots))\n                p, s = slots[idx]\n                if depth[p] + 1 <= CAP:\n                    break\n            slots[idx] = slots[-1]\n            slots.pop()\n            if s == 0:\n                left[p] = v\n            else:\n                right[p] = v\n            depth[v] = depth[p] + 1\n            slots.append((v, 0))\n            slots.append((v, 1))\n        ino = []\n        st = []\n        cur = 0\n        while st or cur != -1:\n            while cur != -1:\n                st.append(cur)\n                cur = left[cur]\n            cur = st.pop()\n            ino.append(cur)\n            cur = right[cur]\n        order = []\n        st = [0]\n        while st:\n            u = st.pop()\n            order.append(u)\n            if left[u] != -1:\n                st.append(left[u])\n            if right[u] != -1:\n                st.append(right[u])\n        post = order[::-1]\n        return ([vals[u] for u in ino], [vals[u] for u in post])\n\n    def fmt(res):\n        a, b = res\n        return str(len(a)) + '\\n' + ' '.join(map(str, a)) + '\\n' + ' '.join(map(str, b))\n\n    tests = []\n    tests.append(fmt(make(1, rng, False, [7])))\n    tests.append(fmt(make(2, rng, False, [3, 9])))\n    tests.append(fmt(make(2, rng, False, [9, 3])))\n    # pure chains: all-left and all-right\n    for n in (5, 6):\n        vals = rng.sample(range(1, 100), n)\n        tests.append(fmt((vals[::-1], vals)))\n        tests.append(fmt((vals, vals[::-1])))\n    for n in (3, 4, 5, 6, 7, 8, 9, 10, 12):\n        for _ in range(3):\n            tests.append(fmt(make(n, rng, rng.random() < 0.4, rng.sample(range(1, 40), n))))\n    # max-size cases\n    big = 100000\n    tests.append(fmt(make(big, rng, True, rng.sample(range(1, 10**9 + 1), big))))\n    tests.append(fmt(make(big, rng, True, rng.sample(range(1, 10**9 + 1), big))))\n    tests.append(fmt(make(big, rng, False, rng.sample(range(1, big + 1), big))))\n    tests.append(fmt(make(60000, rng, True, rng.sample(range(1, 10**9 + 1), 60000))))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef preorder(inorder: List[int], postorder: List[int]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    inorder = [int(x) for x in data[1:1 + n]]\n    postorder = [int(x) for x in data[1 + n:1 + 2 * n]]\n    print(' '.join(map(str, preorder(inorder, postorder))))\n\n\nmain()\n",
+  "javascript": "function preorder(inorder, postorder) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst inorder = t.slice(1, 1 + n)\nconst postorder = t.slice(1 + n, 1 + 2 * n)\nconsole.log(preorder(inorder, postorder).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> preorder(vector<int>& inorder, vector<int>& postorder) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> inorder(n), postorder(n);\n    for (int i = 0; i < n; i++) cin >> inorder[i];\n    for (int i = 0; i < n; i++) cin >> postorder[i];\n    vector<int> res = preorder(inorder, postorder);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] preorder(int[] inorder, int[] postorder) {\n        // Write your solution here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] inorder = new int[n], postorder = new int[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); inorder[i] = (int) in.nval; }\n        for (int i = 0; i < n; i++) { in.nextToken(); postorder[i] = (int) in.nval; }\n        int[] res = preorder(inorder, postorder);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

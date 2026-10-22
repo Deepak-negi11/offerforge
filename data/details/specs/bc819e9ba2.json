@@ -1,0 +1,19 @@
+{
+ "qid": "bc819e9ba2",
+ "question": "LinkedIn AI Engineer (IC2) virtual onsite, round 1 (one hour, **AI-assisted IDE**). Implement an **LRU cache** using AI tools and keep refining it as the interviewer asks for more. A later requirement was a **validation method for keys**. The candidate used the AI to generate a skeleton (doubly linked list plus hash map), prompted for a custom `DoubleLinkedList` class, and felt the interviewer kept adding features until the design was over-engineered through prompting alone.",
+ "lookingFor": [
+  "Can you build an LRU cache correctly (O(1) get and put) and explain the structure?",
+  "Can you accept new requirements (such as key validation) without breaking the design?",
+  "Do you drive the AI with clear, scoped prompts instead of letting it over-engineer?",
+  "Do you review, test and simplify generated code?",
+  "Do you make and justify design decisions (what to validate, where, and what to do on failure)?"
+ ],
+ "answer": "**Core design.** A hash map from key to node plus a doubly linked list ordered by recency, with sentinel head and tail. `get` moves the node to the front; `put` inserts at the front and evicts the tail when over capacity. Both operations are O(1). Be able to say why a singly linked list or a plain list fails (O(n) removal or move).\n\n**Key validation.** Treat it as a requirement to clarify, not a coding task to rush. Ask: what makes a key valid (type, non-null, hashable, length limit, allowed characters, namespace prefix)? Should an invalid key raise an error, return a miss, or be silently ignored? Is validation a public method (`is_valid_key(k)`) called by `get` and `put`, or an injected validator so the cache stays generic? A good answer is a single small method or an injected callable, called at the start of both `get` and `put`, with a clear exception type and tests for each rule. State the trade-off: validating on every call costs a little CPU but protects invariants and keeps bad keys from polluting the cache.\n\n**Working in an AI-assisted IDE.**\n- Start by writing the interface and invariants yourself (capacity greater than 0, size never exceeds capacity, the map and list always agree).\n- Ask the AI for one thing at a time, for example the node class, then `get`, then `put`. Small prompts keep the output reviewable.\n- Review for bugs that generated code often has: forgetting to unlink a node before re-linking, not removing the evicted key from the map, off-by-one at capacity, no handling of capacity 1.\n- Ask for tests, run them, and add your own for eviction order and the validation rules.\n- When requirements grow, resist adding layers. If the AI proposes extra abstractions (generics, observers, thread pools) that the problem does not need, say so and keep the design minimal, then mention what you would add if required (locking, TTL, metrics).\n\n**Mistake to avoid:** accepting a large generated class you cannot explain. If you cannot defend a line, delete or rewrite it.",
+ "followUps": [
+  "How would you make the cache thread-safe without a global lock becoming a bottleneck?",
+  "How would you add TTL expiry and a size limit by bytes instead of by entry count?",
+  "When would you reject a generated design as over-engineered?",
+  "How would you test eviction order and the validation rules?",
+  "How would you extend this to a distributed cache?"
+ ]
+}

@@ -1,0 +1,48 @@
+{
+ "pid": "infosys-split-array-into-k-parts-at-minimum-cost",
+ "title": "Split Array Into K Parts at Minimum Cost",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `a` of `n` integers and an integer `K`. Divide the array into exactly `K` non-empty **contiguous** subarrays (every element belongs to exactly one subarray).\n\nThe cost of a subarray with first element `L` and last element `R` is\n\n`(maximum of the subarray - minimum of the subarray) + |L - R|`.\n\nThe cost of a division is the sum of the costs of its `K` subarrays. Print the minimum possible cost over all divisions.",
+ "input_format": "The first line contains two integers `n` and `K`.\nThe second line contains `n` integers `a[0], ..., a[n - 1]`.",
+ "output_format": "Print one integer: the minimum total cost.",
+ "constraints": [
+  "1 ≤ K ≤ n ≤ 300",
+  "-10^9 ≤ a[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "4 2\n1 5 2 8",
+   "output": "5",
+   "explanation": "Split into [1, 5, 2] and [8]. The first part costs (5 - 1) + |1 - 2| = 5, and a single element costs 0. The other splits are worse: [1] | [5, 2, 8] costs 0 + (6 + 3) = 9 and [1, 5] | [2, 8] costs 8 + 12 = 20."
+  },
+  {
+   "input": "3 3\n3 1 4",
+   "output": "0",
+   "explanation": "K equals n, so every element is its own subarray, and a single-element subarray costs 0."
+  },
+  {
+   "input": "4 1\n4 -2 6 3",
+   "output": "9",
+   "explanation": "K = 1 forces the whole array as one subarray: (6 - (-2)) + |4 - 3| = 8 + 1 = 9."
+  }
+ ],
+ "complexity": {
+  "time": "O(n^2 * K)",
+  "space": "O(n^2)"
+ },
+ "hints": [
+  "Let dp[k][i] be the minimum cost of splitting the first i elements into exactly k parts. Think about where the last part starts.",
+  "The cost of every subarray a[j..i-1] can be precomputed in O(n^2) total by extending the right end while tracking the running maximum and minimum.",
+  "dp[k][i] = min over j of dp[k - 1][j] + cost(j, i - 1). The answer is dp[K][n]."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, K = int(data[0]), int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    cost = []\n    for j in range(n):\n        row = []\n        mx = mn = a[j]\n        for e in range(j, n):\n            x = a[e]\n            if x > mx:\n                mx = x\n            if x < mn:\n                mn = x\n            row.append(mx - mn + abs(a[j] - x))\n        cost.append(row)\n    INF = 1 << 62\n    prev = [INF] * (n + 1)\n    prev[0] = 0\n    for k in range(1, K + 1):\n        cur = [INF] * (n + 1)\n        for i in range(k, n - (K - k) + 1):\n            cur[i] = min([prev[j] + cost[j][i - 1 - j] for j in range(k - 1, i)])\n        prev = cur\n    print(prev[n])\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, K = int(data[0]), int(data[1])\na = [int(x) for x in data[2:2 + n]]\n\ndef seg(l, r):\n    s = a[l:r + 1]\n    return max(s) - min(s) + abs(s[0] - s[-1])\n\ndef rec(start, parts):\n    if parts == 1:\n        return seg(start, n - 1)\n    best = None\n    for end in range(start, n - parts + 1):\n        v = seg(start, end) + rec(end + 1, parts - 1)\n        if best is None or v < best:\n            best = v\n    return best\n\nprint(rec(0, K))\n",
+ "generator": "def gen(rng):\n    def fmt(a, k):\n        return \"%d %d\\n%s\" % (len(a), k, \" \".join(map(str, a)))\n    M = 10**9\n    tests = [fmt([7], 1), fmt([1, 5, 2, 8], 2), fmt([3, 1, 4], 3), fmt([4, -2, 6, 3], 1), fmt([5, 5, 5, 5], 2),\n             fmt([-M, M, -M, M], 2), fmt([-M, M], 1), fmt([1, 2, 3, 4, 5, 6], 3)]\n    for n in (2, 3, 4, 5, 6, 8, 10):\n        for _ in range(3):\n            hi = rng.choice([3, 10, 100])\n            a = [rng.randint(-hi, hi) for _ in range(n)]\n            tests.append(fmt(a, rng.randint(1, n)))\n    for n in (15, 25):\n        a = [rng.randint(-30, 30) for _ in range(n)]\n        tests.append(fmt(a, rng.randint(2, n // 2)))\n    N = 300\n    tests.append(fmt([rng.randint(-M, M) for _ in range(N)], 100))\n    tests.append(fmt([rng.randint(-M, M) for _ in range(N)], 150))\n    tests.append(fmt([rng.randint(-1000, 1000) for _ in range(N)], 60))\n    tests.append(fmt([rng.randint(-M, M) for _ in range(N)], 1))\n    tests.append(fmt([rng.randint(-M, M) for _ in range(N)], 300))\n    tests.append(fmt([rng.randint(-M, M) for _ in range(N)], 299))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_cost(a: List[int], k: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    print(min_cost(a, k))\n\n\nmain()\n",
+  "javascript": "function minCost(a, k) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst a = t.slice(2, 2 + n)\nconsole.log(String(minCost(a, k)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minCost(vector<long long>& a, int k) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    cout << minCost(a, k) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minCost(long[] a, int k) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (long) in.nval;\n        }\n        System.out.println(minCost(a, k));\n    }\n}\n"
+ }
+}

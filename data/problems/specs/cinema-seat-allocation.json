@@ -1,0 +1,50 @@
+{
+ "pid": "cinema-seat-allocation",
+ "title": "Cinema Seat Allocation Variant",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A cinema hall has `n` rows numbered `1` to `n`. Every row has exactly 10 seats numbered `1` to `10` from left to right. Some seats are already reserved. You are given the list of reserved seats as pairs `(row, seat)`.\n\nYou want to seat as many **groups of four people** as possible. A group must occupy four consecutive seats in a single row, and because of the walkways in the hall the only allowed blocks are:\n\n- seats `2, 3, 4, 5`,\n- seats `4, 5, 6, 7`, and\n- seats `6, 7, 8, 9`.\n\nAll four seats of a block must be unreserved, and two groups may not share a seat. Seats `1` and `10` can never be part of a group. Note that blocks `2-5` and `6-9` can be used together in the same row, but `4-7` overlaps both of them.\n\nPrint the maximum number of groups that can be seated in the whole hall.",
+ "input_format": "The first line contains two integers `n` and `m`, the number of rows and the number of reserved seats.\nEach of the next `m` lines contains two integers `row` and `seat`.",
+ "output_format": "Print one integer: the maximum number of groups of four that can be seated.",
+ "constraints": [
+  "1 ≤ n ≤ 10^9",
+  "0 ≤ m ≤ min(10 × n, 10^5)",
+  "1 ≤ row ≤ n, 1 ≤ seat ≤ 10",
+  "All reserved seats are distinct"
+ ],
+ "examples": [
+  {
+   "input": "2 3\n1 3\n1 8\n2 10",
+   "output": "3",
+   "explanation": "In row 1 seat 3 blocks 2-5 and seat 8 blocks 6-9, but block 4-7 is free, so row 1 seats 1 group. In row 2 only seat 10 is reserved, which no block uses, so blocks 2-5 and 6-9 are both free and row 2 seats 2 groups. Total 3."
+  },
+  {
+   "input": "3 2\n2 5\n3 1",
+   "output": "5",
+   "explanation": "Row 1 has no reservations and seats 2 groups. In row 2, seat 5 blocks 2-5 and 4-7, but 6-9 is free: 1 group. In row 3, seat 1 is never used, so 2 groups. Total 2 + 1 + 2 = 5."
+  },
+  {
+   "input": "1 2\n1 4\n1 7",
+   "output": "0",
+   "explanation": "Seat 4 lies in blocks 2-5 and 4-7, and seat 7 lies in blocks 4-7 and 6-9, so every block has a reserved seat."
+  }
+ ],
+ "complexity": {
+  "time": "O(m)",
+  "space": "O(m)"
+ },
+ "hints": [
+  "A row with no reserved seats always seats exactly 2 groups, so you never need to visit the rows that have no reservations. Count them with arithmetic.",
+  "For each row that does have reservations, record which of the seats 2 to 9 are taken, for example in a bitmask or a small set.",
+  "In one row: if both 2-5 and 6-9 are free, the answer is 2; otherwise it is 1 if any of the three blocks is free, else 0."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    rows = {}\n    for i in range(m):\n        r = int(data[2 + 2 * i])\n        s = int(data[3 + 2 * i])\n        rows[r] = rows.get(r, 0) | (1 << s)\n    left = sum(1 << s for s in (2, 3, 4, 5))\n    mid = sum(1 << s for s in (4, 5, 6, 7))\n    right = sum(1 << s for s in (6, 7, 8, 9))\n    total = 2 * (n - len(rows))\n    for mask in rows.values():\n        a = (mask & left) == 0\n        c = (mask & right) == 0\n        b = (mask & mid) == 0\n        if a and c:\n            total += 2\n        elif a or b or c:\n            total += 1\n    print(total)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nreserved = set()\nfor i in range(m):\n    reserved.add((int(data[2 + 2 * i]), int(data[3 + 2 * i])))\nblocks = [(2, 3, 4, 5), (4, 5, 6, 7), (6, 7, 8, 9)]\n\ndef row_best(r):\n    best = 0\n    for mask in range(8):\n        chosen = [blocks[i] for i in range(3) if mask >> i & 1]\n        seats = [s for b in chosen for s in b]\n        if len(seats) != len(set(seats)):\n            continue\n        if any((r, s) in reserved for s in seats):\n            continue\n        best = max(best, len(chosen))\n    return best\n\ntouched = {r for r, s in reserved}\ntotal = sum(row_best(r) for r in touched) + (n - len(touched)) * row_best(0)\nprint(total)\n",
+ "generator": "def gen(rng):\n    def fmt(n, res):\n        return f'{n} {len(res)}\\n' + '\\n'.join(f'{r} {s}' for r, s in res)\n    tests = [fmt(1, [(1, 1)]), fmt(1, [(1, 3), (1, 8)]), fmt(1, [(1, 2), (1, 9)]), fmt(1, [(1, 5)]),\n             fmt(1, [(1, 4), (1, 6)]), fmt(1, [(1, 1), (1, 10)]), fmt(3, [(2, 5)]), fmt(2, [(1, 2), (1, 6), (2, 9), (2, 3)]),\n             fmt(10**9, [(1, 5), (10**9, 10)]), fmt(5, [])]\n    for n in (1, 2, 3, 4, 6, 8, 10, 12):\n        for _ in range(3):\n            cnt = rng.randint(0, min(10 * n, 14))\n            allseats = [(r, s) for r in range(1, n + 1) for s in range(1, 11)]\n            tests.append(fmt(n, rng.sample(allseats, cnt)))\n    for _ in range(4):\n        n = rng.choice([10**5, 10**9])\n        cnt = rng.randint(5, 12)\n        res = set()\n        while len(res) < cnt:\n            res.add((rng.randint(1, min(n, 3)), rng.randint(1, 10)))\n        tests.append(fmt(n, sorted(res)))\n    N = 10**9\n    M = 100000\n    res = set()\n    while len(res) < M:\n        res.add((rng.randint(1, 60000), rng.randint(1, 10)))\n    res = list(res)\n    rng.shuffle(res)\n    tests.append(fmt(N, res))\n    res = set()\n    while len(res) < M:\n        res.add((rng.randint(1, N), rng.choice([1, 2, 5, 9, 10, 3, 8, 4, 6, 7])))\n    res = list(res)\n    rng.shuffle(res)\n    tests.append(fmt(N, res))\n    res = [(r, s) for r in range(1, 10001) for s in range(1, 11)]\n    rng.shuffle(res)\n    tests.append(fmt(10000, res))\n    res = []\n    for r in range(1, 50001):\n        res.append((r, rng.choice([2, 3, 4, 5])))\n        res.append((r, rng.choice([6, 7, 8, 9])))\n    rng.shuffle(res)\n    tests.append(fmt(N, res))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef max_groups(n: int, reserved: List[Tuple[int, int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    reserved = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(m)]\n    print(max_groups(n, reserved))\n\n\nmain()\n",
+  "javascript": "function maxGroups(n, reserved) {\n  // reserved is an array of [row, seat] pairs\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst reserved = []\nfor (let i = 0; i < m; i++) reserved.push([t[2 + 2 * i], t[3 + 2 * i]])\nconsole.log(String(maxGroups(n, reserved)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxGroups(long long n, vector<pair<long long, int>>& reserved) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    long long n;\n    int m;\n    cin >> n >> m;\n    vector<pair<long long, int>> reserved(m);\n    for (int i = 0; i < m; i++) cin >> reserved[i].first >> reserved[i].second;\n    cout << maxGroups(n, reserved) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxGroups(long n, long[] rows, int[] seats) {\n        // rows[i], seats[i] describe the i-th reserved seat\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        long n = (long) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        long[] rows = new long[m];\n        int[] seats = new int[m];\n        for (int i = 0; i < m; i++) {\n            in.nextToken();\n            rows[i] = (long) in.nval;\n            in.nextToken();\n            seats[i] = (int) in.nval;\n        }\n        System.out.println(maxGroups(n, rows, seats));\n    }\n}\n"
+ }
+}

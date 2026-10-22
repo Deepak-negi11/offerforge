@@ -1,0 +1,18 @@
+{
+ "qid": "c39826e1ae",
+ "question": "Goldman Sachs full loop for a Vice President Software Engineer (Dallas). Two design rounds were reported: (1) **implement Instagram: pick any functionality and implement it in detail**, and (2) a design round to **implement a course booking system**. The loop also included LRU cache, resume questions and a managerial round.",
+ "lookingFor": [
+  "Picking a well-scoped feature and going deep rather than skimming.",
+  "Object-oriented design: entities, interfaces, patterns, clean APIs.",
+  "Concurrency and correctness for booking and capacity.",
+  "Thinking about how the design extends to a distributed system.",
+  "Communicating assumptions and trade-offs."
+ ],
+ "answer": "**Approach for both:** clarify requirements, list entities and operations, sketch classes and interfaces, then write the core logic and discuss concurrency and scale. Choose scope you can finish, and say what you leave out.\n\n**Instagram, pick one feature, for example posting photos and the follow feed (or likes and comments).**\n- Requirements: upload a photo with caption, follow users, view a feed, like.\n- Classes: `User`, `Post`, `Follow` relation, `Feed`/`FeedService`, `Like`. Services: `PostService.createPost`, `FollowService.follow`, `FeedService.getFeed(userId, cursor)`.\n- Implementation points: store images in object storage, metadata in a DB; feed by fetching followees' posts sorted by time with cursor pagination; likes unique per (user, post); observer or queue to update feeds asynchronously.\n- Mention that a distributed version needs sharding and caching.\n\n**Course booking system:**\n- Entities: `Course`, `Session/Batch` (capacity, schedule, price), `Student`, `Booking` (status: PENDING, CONFIRMED, CANCELLED, WAITLISTED), `Payment`.\n- Operations: search courses, `book(studentId, batchId)`, `cancel`, `listBookings`, and promote from the waitlist on cancellation.\n- Key correctness issue: **do not overbook** when two students take the last seat. In memory, make seat decrement and booking creation atomic with a lock per batch. In a database, use a transaction with `UPDATE batch SET seats_left = seats_left - 1 WHERE id=? AND seats_left > 0` and check the affected row count, or `SELECT ... FOR UPDATE`.\n- Prevent duplicate bookings with a unique constraint on (student, batch). Hold a seat for a few minutes during payment, then release it.\n- Patterns: strategy for pricing or discounts, state pattern for booking status, repository for persistence.\n\n**Mistakes to avoid:** starting to code before agreeing on scope, ignoring concurrency on the last seat, and designing every Instagram feature at once.",
+ "followUps": [
+  "How do you make the course booking safe when the service runs on several servers?",
+  "How would you design the waitlist so it is fair?",
+  "How would you handle payment failure after a seat was held?",
+  "How would the Instagram feed change at 100 million users?"
+ ]
+}

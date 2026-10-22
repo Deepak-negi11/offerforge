@@ -1,0 +1,19 @@
+{
+ "qid": "48446fed1a",
+ "question": "Round 2 (technical) of a D. E. Shaw software engineer interview for a new graduate: the interviewer asked for the candidate's favourite board game (chess) and then asked them to **design a chess game following all the principles of object-oriented design**. After roughly 30 minutes of designing classes, the interviewer asked the candidate to **point to where inheritance, encapsulation, function overloading and overriding were used**, then asked about **polymorphism, the benefits of OOP, and the differences between access modifiers**.",
+ "lookingFor": [
+  "Decomposing a game into well-defined classes and responsibilities.",
+  "Applying inheritance and polymorphism correctly for pieces.",
+  "Being able to explain each OOP principle with a concrete place in your own code.",
+  "Knowing access modifiers and why they matter.",
+  "Separation of rules, state and presentation."
+ ],
+ "answer": "**Requirements.** Two players, standard 8x8 board, legal moves per piece, turns, capture, check and checkmate, optional undo and a move history. No AI in the first version.\n\n**Classes**\n- `Game` (board, players, currentTurn, status, moveHistory): `makeMove(from, to)`, `isCheck()`, `isCheckmate()`.\n- `Board` (8x8 grid of `Square`): `getPiece(pos)`, `movePiece(...)`, `isPathClear(a, b)`.\n- `Square` / `Position` (row, col), `Player` (name, colour), `Move` (from, to, piece, captured piece).\n- `Piece` (abstract; colour, position, `canMove(board, from, to)`) with subclasses `King, Queen, Rook, Bishop, Knight, Pawn`.\n- `enum Color`, `enum GameStatus`.\n\n**Where each principle appears**\n- **Inheritance:** each concrete piece extends the abstract `Piece`, reusing colour, position and capture logic.\n- **Polymorphism and overriding:** `Game` calls `piece.canMove(...)` on a `Piece` reference; the runtime type (`Knight`, `Rook`) decides which override runs. Adding a new piece requires no change to `Game` (open/closed principle).\n- **Encapsulation:** fields such as the board grid and piece positions are `private`; they change only through `movePiece` and validated methods, so the board cannot become illegal.\n- **Overloading:** for example `Board.isEmpty(Position p)` and `Board.isEmpty(int row, int col)`, or `Game.makeMove(Move)` and `makeMove(Position, Position)`. Overloading is resolved at compile time by parameter types.\n- **Abstraction:** `Piece` hides how each piece moves behind one method.\n\n**Special rules** (castling, en passant, promotion) are handled as extra cases in `King`/`Pawn` and `Game`, or via a `MoveValidator` strategy.\n\n**Access modifiers (Java):** `private` (same class only), default or package-private (same package), `protected` (package plus subclasses), `public` (everywhere). Use the most restrictive that works.\n\n**Benefits of OOP:** reuse, modularity, maintainability, easier extension through polymorphism.\n\n**Mistake to avoid:** one giant `Game` class with `if (type == KNIGHT)` chains.",
+ "followUps": [
+  "How would you detect checkmate?",
+  "How would you implement undo and redo?",
+  "How would you add an AI player or online multiplayer?",
+  "What is the difference between overloading and overriding, and which is compile-time?",
+  "What design patterns would you use here (Strategy, Factory, Command, Observer)?"
+ ]
+}

@@ -1,0 +1,48 @@
+{
+ "pid": "rubrik-find-redundant-servers",
+ "title": "Find Redundant Servers",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A server farm has `N` servers, numbered `0` to `N - 1`. Server `i` is operational during every integer moment of time from `l[i]` to `r[i]`, both inclusive.\n\nThe company wants to decommission one server to free up resources. A server is **redundant** if, after decommissioning it, the number of integer moments of time at which **at least one** server is operational does not decrease. In other words, every moment in `[l[i], r[i]]` must still be covered by some other server.\n\nCheck each server on its own (only that one server is removed). Print the indices of all redundant servers in increasing order, or `-1` if there is none.",
+ "input_format": "The first line contains an integer `N`.\nEach of the next `N` lines contains two integers `l[i]` and `r[i]`.",
+ "output_format": "Print the indices of all redundant servers in increasing order, separated by spaces, on one line. If no server is redundant, print `-1`.",
+ "constraints": [
+  "1 ≤ N ≤ 10^5",
+  "0 ≤ l[i] ≤ r[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3\n1 4\n5 6\n1 8",
+   "output": "0 1",
+   "explanation": "Server 0 covers moments 1 to 4, and server 2 also covers all of them, so removing server 0 loses nothing. The same holds for server 1 (moments 5 and 6 are covered by server 2). Server 2 is the only one covering moments 7 and 8, so it is not redundant."
+  },
+  {
+   "input": "2\n0 5\n0 5",
+   "output": "0 1",
+   "explanation": "The two servers cover exactly the same moments, so either one can be removed without losing any moment."
+  },
+  {
+   "input": "3\n1 2\n3 4\n2 3",
+   "output": "2",
+   "explanation": "Moment 1 is covered only by server 0 and moment 4 only by server 1, so neither of them is redundant. Server 2 covers moments 2 and 3, which servers 0 and 1 also cover, so it is redundant."
+  }
+ ],
+ "complexity": {
+  "time": "O(N log N)",
+  "space": "O(N)"
+ },
+ "hints": [
+  "A server is redundant exactly when no moment inside its interval is covered by that server alone.",
+  "Coordinates go up to 10^9, so compress them: the interesting points are every l[i] and every r[i] + 1. Between two consecutive points the number of active servers is constant (use a difference array).",
+  "Mark the compressed segments that are covered by exactly one server and build prefix sums of those marks. A server is redundant if its range of segments contains no marked segment."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    L = [int(data[1 + 2 * i]) for i in range(n)]\n    R = [int(data[2 + 2 * i]) + 1 for i in range(n)]\n    pts = sorted(set(L + R))\n    idx = {p: i for i, p in enumerate(pts)}\n    m = len(pts)\n    diff = [0] * (m + 1)\n    for i in range(n):\n        diff[idx[L[i]]] += 1\n        diff[idx[R[i]]] -= 1\n    pre = [0] * (m + 1)\n    cur = 0\n    for j in range(m):\n        cur += diff[j]\n        pre[j + 1] = pre[j] + (1 if cur == 1 else 0)\n    res = []\n    for i in range(n):\n        if pre[idx[R[i]]] - pre[idx[L[i]]] == 0:\n            res.append(i)\n    print(' '.join(map(str, res)) if res else -1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nL = [int(data[1 + 2 * i]) for i in range(n)]\nR = [int(data[2 + 2 * i]) for i in range(n)]\n\ndef covered(skip):\n    s = set()\n    for i in range(n):\n        if i != skip:\n            s.update(range(L[i], R[i] + 1))\n    return len(s)\n\ntotal = covered(-1)\nres = [i for i in range(n) if covered(i) == total]\nprint(' '.join(map(str, res)) if res else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(iv):\n        return str(len(iv)) + '\\n' + '\\n'.join(f'{a} {b}' for a, b in iv)\n    tests = [fmt([(5, 5)]), fmt([(0, 0), (0, 0)]), fmt([(1, 4), (5, 6), (1, 8)]), fmt([(0, 5), (0, 5)]),\n             fmt([(1, 2), (3, 4), (2, 3)]), fmt([(1, 1), (2, 2), (3, 3)]), fmt([(1, 3), (2, 4), (3, 5)]),\n             fmt([(0, 10**9), (0, 10**9), (5, 6)]), fmt([(1, 5), (1, 5), (1, 5)])]\n    for n in (2, 3, 4, 6, 8, 10, 12):\n        for hi in (6, 15, 40):\n            iv = []\n            for _ in range(n):\n                a = rng.randint(0, hi)\n                b = rng.randint(a, min(hi, a + rng.randint(0, hi)))\n                iv.append((a, b))\n            tests.append(fmt(iv))\n    N = 100000\n    iv = []\n    for _ in range(N):\n        a = rng.randint(0, 10**9)\n        b = min(10**9, a + rng.randint(0, 10**8))\n        iv.append((a, b))\n    tests.append(fmt(iv))\n    iv = []\n    for _ in range(N):\n        a = rng.randint(0, 10**9 - 5)\n        iv.append((a, a + rng.randint(0, 5)))\n    tests.append(fmt(iv))\n    iv = [(10**9 - 1, 10**9)] * N\n    tests.append(fmt(iv))\n    iv = []\n    for i in range(N):\n        if i % 2 == 0:\n            iv.append((i * 10000, i * 10000 + 15000))\n        else:\n            iv.append((i * 10000 + 3, i * 10000 + 4))\n    tests.append(fmt(iv))\n    iv = [(rng.randint(0, 10**9), 10**9) for _ in range(N)]\n    tests.append(fmt(iv))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef find_redundant(l: List[int], r: List[int]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    l = [int(data[1 + 2 * i]) for i in range(n)]\n    r = [int(data[2 + 2 * i]) for i in range(n)]\n    res = find_redundant(l, r)\n    print(' '.join(map(str, res)) if res else -1)\n\n\nmain()\n",
+  "javascript": "function findRedundant(l, r) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst l = [], r = []\nfor (let i = 0; i < n; i++) {\n  l.push(t[1 + 2 * i])\n  r.push(t[2 + 2 * i])\n}\nconst res = findRedundant(l, r)\nconsole.log(res.length ? res.join(' ') : '-1')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> findRedundant(vector<long long>& l, vector<long long>& r) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> l(n), r(n);\n    for (int i = 0; i < n; i++) cin >> l[i] >> r[i];\n    vector<int> res = findRedundant(l, r);\n    if (res.empty()) {\n        cout << -1 << \"\\n\";\n    } else {\n        for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] findRedundant(long[] l, long[] r) {\n        // Write your solution here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] l = new long[n], r = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); l[i] = (long) in.nval;\n            in.nextToken(); r[i] = (long) in.nval;\n        }\n        int[] res = findRedundant(l, r);\n        if (res.length == 0) {\n            System.out.println(-1);\n            return;\n        }\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

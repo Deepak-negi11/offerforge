@@ -1,0 +1,17 @@
+{
+ "qid": "c52aa6479e",
+ "question": "Cognizant Digital Nurture technical interview (Java FSE track), in the database part. Reported question: **write a query to fetch the first three letters of every value in the `Name` column of the employee table, and explain it.** In the same round the candidate was also asked the second highest salary and, in the compiler, a set of five queries on a given schema.",
+ "lookingFor": [
+  "Knows string functions in SQL and their dialect differences.",
+  "Understands that functions are applied per row in the SELECT list.",
+  "Can explain the query rather than recite it.",
+  "Handles aliasing and distinct values."
+ ],
+ "answer": "You need a function that extracts a substring from the start of each value. The name varies by database.\n\n**MySQL / PostgreSQL / Oracle**\n\n    SELECT SUBSTRING(Name, 1, 3) AS first_three\n    FROM Employee;\n\nOracle uses `SUBSTR(Name, 1, 3)`; MySQL also accepts `SUBSTR` and `LEFT(Name, 3)`; SQL Server has `LEFT(Name, 3)` and `SUBSTRING(Name, 1, 3)`.\n\n**Explanation**\n- `Name` is the column; `1` is the starting position (SQL positions start at 1, not 0); `3` is the number of characters to take.\n- The function runs once per row, so the result has one row per employee, as asked (\"every row in the Name column\").\n- Names shorter than three characters are returned whole, with no error.\n- `AS first_three` gives the output column a readable name.\n- The original table is not changed; this is a read-only projection.\n\n**Variations the interviewer may ask**\n- Only distinct prefixes: `SELECT DISTINCT LEFT(Name, 3) FROM Employee;`\n- Last three letters: `RIGHT(Name, 3)` or `SUBSTRING(Name, -3)` in MySQL.\n- Combine with another column: `SELECT id, UPPER(LEFT(Name, 3)) FROM Employee;`\n- Filter on the prefix: `WHERE LEFT(Name, 3) = 'Joh'`. Note that a function on the column prevents index use; `WHERE Name LIKE 'Joh%'` can use an index.\n\n**Related queries from the same round:** second highest salary can be written as `SELECT MAX(salary) FROM Employee WHERE salary < (SELECT MAX(salary) FROM Employee);`, or with `LIMIT 1 OFFSET 1` over distinct salaries sorted descending.\n\nState the dialect you are assuming; if unsure, say \"In MySQL I would use `LEFT`, in Oracle `SUBSTR`\".",
+ "followUps": [
+  "How would you get the last three letters?",
+  "Why is the start index 1 in SUBSTRING?",
+  "How do you find the second highest salary without using LIMIT?",
+  "What happens with NULL names?"
+ ]
+}

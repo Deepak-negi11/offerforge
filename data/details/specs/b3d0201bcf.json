@@ -1,0 +1,18 @@
+{
+ "qid": "b3d0201bcf",
+ "question": "JPMorgan Chase, Software Engineer II (Associate), Round 2 High-Level Design (the hardest round, per the candidate). Given a **sales application built as a monolith**, **redesign it into a microservices architecture**. The discussion covered **service decomposition, caching, load balancing, API gateway, scalability and geo-location-based caching**.",
+ "lookingFor": [
+  "Decomposing by business capability and data ownership, not by technical layers.",
+  "A pragmatic migration plan instead of a big-bang rewrite.",
+  "Understanding the downsides of microservices and how to manage them.",
+  "Using caching, gateway and load balancing correctly.",
+  "Handling consistency across services."
+ ],
+ "answer": "**First ask why.** Reasons might be independent scaling and deployment, team autonomy, fault isolation. State the cost: distributed complexity, network failures, consistency, and operational overhead. Clarify the current pain points and traffic pattern.\n\n**Decomposition (by bounded context).** For a sales app: **Catalog and pricing**, **Customer or account**, **Cart and order**, **Inventory**, **Payment**, **Billing and invoicing**, **Notification**, **Reporting and analytics**. Each service owns its **own data store** (no shared database tables) and exposes APIs or events. Split along seams where the monolith is already loosely coupled and where scaling needs differ (catalog reads are heavy; payment is sensitive).\n\n**Migration plan: strangler fig.** Put an **API gateway** in front of the monolith, then extract one capability at a time (start with a low-risk, read-heavy one such as the catalog), route its traffic to the new service, and shrink the monolith gradually. Use database-per-service with data sync or change data capture during the transition.\n\n**Core infrastructure.**\n- **API gateway:** single entry point for routing, authentication, rate limiting and request aggregation.\n- **Load balancing:** L7 balancers in front of the gateway and per service with health checks; service discovery (Kubernetes services) for internal calls.\n- **Communication:** synchronous REST or gRPC for queries; **asynchronous events** (Kafka or a queue) for things like order placed, so inventory, billing and notification react independently.\n- **Consistency:** no cross-service ACID transactions; use the **saga** pattern with compensating actions, **idempotent** handlers and the outbox pattern.\n- **Resilience:** timeouts, retries with backoff, circuit breakers, bulkheads.\n- **Observability:** centralised logs, metrics and distributed tracing with correlation IDs.\n\n**Caching and geo-based caching.** Cache read-heavy data (catalog, prices) in **Redis** per service with TTLs and event-driven invalidation. For global users, serve static and cacheable API responses through a **CDN at edge locations**, and place regional read replicas and regional caches near users, routed by geo-DNS or latency-based routing. Accept that regional caches can be briefly stale; keep prices at checkout authoritative by re-reading from the source.\n\n**Trade-offs:** more infrastructure and testing complexity, and data duplication between services.",
+ "followUps": [
+  "How would you decide which service to extract first?",
+  "How do you handle a transaction spanning orders, inventory and payment?",
+  "How do you keep geo-distributed caches consistent when prices change?",
+  "When would you recommend keeping the monolith?"
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "qid": "3489487930",
+ "question": "Media.net system design / manager round (about 60 minutes, new-grad SDE). You have items with **(ID or URL, latitude, longitude, rating)**, with around **10^6 items, about 10^6 queries and k about 10-20**. Each query gives a **rectangle**, with the top-left and bottom-right latitude-longitude corners, and you return the **top 10 (or k) highest-rated items** inside it. Latitude ranges from -90 to 90 and longitude from -180 to 180 as floats. A **dynamic data structure** was expected, so items can be added or changed. The candidate proposed a map of maps over approximate lat-long buckets; the interviewer appreciated the approach but seemed unconvinced. Options mentioned: grid buckets, quadtree, range tree.",
+ "lookingFor": [
+  "Spatial indexing knowledge: grid, quadtree, k-d tree, range tree.",
+  "Combining spatial decomposition with top-k aggregation.",
+  "Complexity analysis for large n and many queries.",
+  "Handling updates and skewed data.",
+  "Stating assumptions and trade-offs clearly."
+ ],
+ "answer": "**Clarify.** Are updates frequent (inserts, rating changes, deletes), or mostly static? Is the data uniformly spread or clustered (cities)? Is a top-k answer required exactly? Assume exact answers and moderate updates.\n\n**Naive baselines.** Scan all `n = 10^6` items per query: `O(n)` and `10^12` operations over 10^6 queries, too slow. A fixed grid helps but skewed data makes some cells huge while queries over big areas touch many cells.\n\n**Core idea: a spatial tree where every node stores the top-k ratings of its subtree.**\n- Use a **quadtree** (or k-d tree) that splits a region until a leaf holds at most about 50 items. Each node keeps a small list of its **top-K items** (K = 20) in its whole region.\n- **Query:** recurse from the root. If a node's region is **fully inside** the query rectangle, take its precomputed top-K list without descending. If it only **partially overlaps**, recurse into children (or scan items at a leaf). If it is disjoint, skip it. Merge all candidate lists using a min-heap of size k.\n- The number of fully contained nodes plus boundary nodes visited is roughly proportional to the rectangle's perimeter in cells, so cost is about `O((boundary nodes + contained nodes) * k log k)`. Large queries finish fast because big contained nodes answer immediately.\n\n**Updates.** Insert: walk to the leaf, add the item, and update top-K lists on the path (`O(depth * K)`); split a leaf when it overflows. Delete or lower a rating: if the item is in an ancestor's top-K, **recompute that list from its children's lists** (children lists suffice if each child stores top-K, with refills from below if a child list is exhausted). Use a lazy rebuild if updates are heavy.\n\n**Alternatives.** A **grid pyramid** (hierarchical grid) is a simple quadtree variant with top-K lists per cell at each level. A **2D range tree** with top-k stored per node gives `O(log^2 n + k)` style queries but uses `O(n log n)` memory and is harder to update. A **k-d tree** is compact but query cost is about `O(sqrt(n))` plus merging.\n\n**Details.** Handle the longitude wrap around +/-180 by splitting such a rectangle into two. Use a heap for merging. Memory: n nodes of items plus K entries for each internal node.\n\n**Scaling out:** shard by geographic region and merge top-k from shards; cache popular query rectangles.",
+ "followUps": [
+  "What is the complexity of your query, and when does it degrade?",
+  "How do you handle items clustered heavily in a few cities?",
+  "How do you handle a rating change that removes an item from a node's top-K?",
+  "How would you distribute this across machines?",
+  "Why is a quadtree or k-d tree better than a hash map of approximate cells?"
+ ]
+}

@@ -1,0 +1,49 @@
+{
+ "pid": "swiggy-optimal-control-center-location",
+ "title": "Optimal Control Center Location",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "An energy company runs `n` wind farms and must build one control center to manage all of them. Farm `i` is located at integer coordinates `(x[i], y[i])`. Because of terrain and other considerations, reaching each farm has its own cost multiplier `premium[i]`.\n\nThe control center is placed at integer coordinates `(cx, cy)`, which may be any integers (not necessarily the location of a farm, and several farms may share a location). For farm `i`:\n\n- its distance to the control center is the Manhattan distance `|x[i] - cx| + |y[i] - cy|`;\n- the cost to connect it is `premium[i] * distance[i]`.\n\nThe total cost is the sum of the connection costs of all farms. Determine the minimum possible total cost over all integer positions `(cx, cy)`.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains three integers `x[i]`, `y[i]` and `premium[i]`.",
+ "output_format": "Print a single integer: the minimum total cost.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "-10^6 ≤ x[i], y[i] ≤ 10^6",
+  "1 ≤ premium[i] ≤ 1000"
+ ],
+ "examples": [
+  {
+   "input": "3\n0 0 1\n4 0 1\n2 6 2",
+   "output": "16",
+   "explanation": "Place the center at (2, 0). Farm 0 costs 1 * 2 = 2, farm 1 costs 1 * 2 = 2 and farm 2 costs 2 * 6 = 12, for a total of 16. No other position does better."
+  },
+  {
+   "input": "3\n1 1 10\n5 5 1\n9 9 1",
+   "output": "24",
+   "explanation": "The heavy farm at (1, 1) pulls the center onto itself. The other two farms cost 8 + 16 = 24."
+  },
+  {
+   "input": "1\n-3 7 5",
+   "output": "0",
+   "explanation": "With a single farm the center goes on top of it."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Manhattan distance separates: the total cost is (cost in x) + (cost in y), so cx and cy can be optimised independently.",
+  "For one axis, minimising the sum of weight * |coordinate - c| is solved by a weighted median.",
+  "Sort the farms by coordinate, accumulate weights until the running total reaches half of the total weight, and take that coordinate (it is an integer already). Then sum the costs."
+ ],
+ "reference": "import sys\n\n\ndef best(vals):\n    # vals: list of (coordinate, weight)\n    vals.sort()\n    total = sum(w for _, w in vals)\n    run = 0\n    med = vals[0][0]\n    for c, w in vals:\n        run += w\n        if 2 * run >= total:\n            med = c\n            break\n    return sum(w * abs(c - med) for c, w in vals)\n\n\ndef main():\n    d = sys.stdin.read().split()\n    n = int(d[0])\n    xs, ys = [], []\n    for i in range(n):\n        x, y, p = int(d[1 + 3 * i]), int(d[2 + 3 * i]), int(d[3 + 3 * i])\n        xs.append((x, p))\n        ys.append((y, p))\n    print(best(xs) + best(ys))\n\n\nmain()\n",
+ "brute": "import sys\n\nd = sys.stdin.read().split()\nn = int(d[0])\nF = [(int(d[1 + 3 * i]), int(d[2 + 3 * i]), int(d[3 + 3 * i])) for i in range(n)]\nlox = min(f[0] for f in F) - 1\nhix = max(f[0] for f in F) + 1\nloy = min(f[1] for f in F) - 1\nhiy = max(f[1] for f in F) + 1\nbest = None\nfor cx in range(lox, hix + 1):\n    for cy in range(loy, hiy + 1):\n        c = sum(p * (abs(x - cx) + abs(y - cy)) for x, y, p in F)\n        if best is None or c < best:\n            best = c\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(fs):\n        return str(len(fs)) + '\\n' + '\\n'.join(f'{x} {y} {p}' for x, y, p in fs)\n    tests = [fmt([(0, 0, 1)]), fmt([(3, 3, 7), (3, 3, 2)]), fmt([(0, 0, 1), (4, 0, 1), (2, 6, 2)]),\n             fmt([(1, 1, 10), (5, 5, 1), (9, 9, 1)]), fmt([(-3, 7, 5)]), fmt([(0, 0, 1), (10, 10, 1)]),\n             fmt([(0, 0, 1), (0, 1, 1), (0, 2, 1), (0, 3, 1)])]\n    for n in (2, 3, 4, 5, 6, 8):\n        for _ in range(4):\n            tests.append(fmt([(rng.randint(-6, 6), rng.randint(-6, 6), rng.randint(1, 9)) for _ in range(n)]))\n    for _ in range(3):\n        tests.append(fmt([(rng.randint(-3, 3), rng.randint(-3, 3), rng.randint(1, 1000)) for _ in range(8)]))\n    N = 100000\n    tests.append(fmt([(rng.randint(-10**6, 10**6), rng.randint(-10**6, 10**6), rng.randint(1, 1000)) for _ in range(N)]))\n    tests.append(fmt([(rng.choice((-10**6, 10**6)), rng.choice((-10**6, 10**6)), 1000) for _ in range(N)]))\n    tests.append(fmt([(rng.randint(-10**6, -10**6 + 5), rng.randint(10**6 - 5, 10**6), rng.randint(1, 1000)) for _ in range(N)]))\n    tests.append(fmt([(i - 50000, 50000 - i, 1 + i % 1000) for i in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_cost(x: List[int], y: List[int], premium: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    x = [int(data[1 + 3 * i]) for i in range(n)]\n    y = [int(data[2 + 3 * i]) for i in range(n)]\n    premium = [int(data[3 + 3 * i]) for i in range(n)]\n    print(min_cost(x, y, premium))\n\n\nmain()\n",
+  "javascript": "function minCost(x, y, premium) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst x = [], y = [], premium = []\nfor (let i = 0; i < n; i++) {\n  x.push(t[1 + 3 * i])\n  y.push(t[2 + 3 * i])\n  premium.push(t[3 + 3 * i])\n}\nconsole.log(String(minCost(x, y, premium)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minCost(vector<long long>& x, vector<long long>& y, vector<long long>& premium) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> x(n), y(n), premium(n);\n    for (int i = 0; i < n; i++) cin >> x[i] >> y[i] >> premium[i];\n    cout << minCost(x, y, premium) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minCost(long[] x, long[] y, long[] premium) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] x = new long[n], y = new long[n], premium = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); x[i] = (long) in.nval;\n            in.nextToken(); y[i] = (long) in.nval;\n            in.nextToken(); premium[i] = (long) in.nval;\n        }\n        System.out.println(minCost(x, y, premium));\n    }\n}\n"
+ }
+}

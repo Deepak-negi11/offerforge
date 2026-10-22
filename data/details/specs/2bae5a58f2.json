@@ -1,0 +1,19 @@
+{
+ "qid": "2bae5a58f2",
+ "question": "An onsite round for a Senior Software Engineer role (7 years of experience) at Salesforce combining one DSA question with a low-level design of the Connect 4 game (a 6-row by 7-column grid where two players drop discs into columns and the first to connect four in a row, column or diagonal wins).",
+ "lookingFor": [
+  "Can you identify the entities and give them clear responsibilities (Board, Player, Game, Disc)?",
+  "Is the win-check logic efficient and correct in all four directions?",
+  "Does the design handle invalid moves, a full column, a draw and turn order?",
+  "Is it extensible (board size, win length, more players, undo) without over-engineering?",
+  "Do you consider testability and, if asked, concurrency?"
+ ],
+ "answer": "**Requirements.** Two players alternate; a move chooses a column; the disc falls to the lowest empty row; the game ends with a winner (4 in a line) or a draw (board full). Optional: configurable size and win length, undo, replay, a computer player.\n\n**Classes:**\n- `Disc`/`Color`: enum `RED`, `YELLOW`.\n- `Player(name, color)`.\n- `Board(rows, cols)`: holds `Disc[][] grid`; `dropDisc(col, color)` returns the placed row or throws if the column is full or invalid; `isFull()`.\n- `Game(board, players, winLength)`: tracks `currentPlayer` and `state` (IN_PROGRESS, WON, DRAW); `play(col)` validates, drops, checks the result, and switches turn.\n- `WinChecker` (a strategy or helper) so the rule is replaceable.\n\n```java\nboolean isWin(int r, int c, Color col) {\n  int[][] dirs = {{0,1},{1,0},{1,1},{1,-1}};   // horizontal, vertical, two diagonals\n  for (int[] d : dirs) {\n    int count = 1 + count(r, c, d[0], d[1], col) + count(r, c, -d[0], -d[1], col);\n    if (count >= winLength) return true;\n  }\n  return false;\n}\n// count(): walk from (r,c) in that direction while in bounds and same colour\n```\n**Key point:** check only around the **last placed disc**, not the whole board. That is O(winLength) per move instead of O(rows x cols).\n\n**State rules:** reject moves after the game ends; reject moves out of turn; the draw check is `board.isFull()` after a non-winning move.\n\n**Design choices to mention:** the grid can store column heights (`int[] nextRow`) so a drop is O(1); `Game` talks to `Player` through an interface (human, bot) so a bot can implement `chooseColumn(board)`; the UI or console is separate from game logic; listeners/observer for events; a `Move` history stack gives undo.\n\n**Testing:** inject board states and assert wins on all four directions, edge columns, a full column and a draw.\n\n**Concurrency (if asked):** make `play` synchronized per game, or use a lock keyed by game id for an online version.",
+ "followUps": [
+  "How would you make the win condition and board size configurable?",
+  "How would you implement undo and replay?",
+  "How would you add a computer opponent?",
+  "How would you extend this for an online multiplayer game?",
+  "Why check only around the last move?"
+ ]
+}

@@ -1,0 +1,44 @@
+{
+ "pid": "snowflake-product-revenue-and-customer-count",
+ "title": "Product Revenue and Customer Count",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "You are given two datasets.\n\n- **Products:** a list of `(product_id, price)` pairs. Product ids are distinct.\n- **Sales:** a list of `(customer_id, product_id, quantity)` records. Every sale refers to a product that appears in the products list. A customer may buy the same product in several records, and a customer may buy several different products.\n\nFor every product that has **at least one sale**, compute:\n\n- the number of **distinct customers** who bought it (a customer who bought the product in several records counts once, while two different customers who bought it count as 2), and\n- its **total revenue**: the sum over all of its sales of `price × quantity`.\n\nPrint one line per such product in the form `<number_of_customers> <product_id> <total_revenue>`, ordered by `product_id` in ascending order. Products with no sales are not printed.",
+ "input_format": "The first line contains an integer `m`, the number of products.\nEach of the next `m` lines contains `product_id` and `price`.\nThen a line with an integer `s`, the number of sales.\nEach of the next `s` lines contains `customer_id`, `product_id` and `quantity`.",
+ "output_format": "One line per product that has at least one sale, in ascending product id order: `<number_of_customers> <product_id> <total_revenue>`.",
+ "constraints": [
+  "1 ≤ m, s ≤ 5 · 10^4",
+  "1 ≤ product_id, customer_id ≤ 10^9",
+  "1 ≤ price, quantity ≤ 10^4"
+ ],
+ "examples": [
+  {
+   "input": "3\n101 10\n102 20\n103 15\n3\n1 101 5\n2 103 2\n1 103 1",
+   "output": "1 101 50\n2 103 45",
+   "explanation": "Product 101 was bought only by customer 1: 5 × 10 = 50 revenue. Product 103 was bought by customers 2 and 1: 2 × 15 + 1 × 15 = 45 revenue, 2 customers. Product 102 has no sales, so it is not printed."
+  },
+  {
+   "input": "2\n5 3\n6 4\n4\n1 5 2\n1 5 3\n2 5 1\n3 5 1",
+   "output": "3 5 21",
+   "explanation": "Customer 1 bought product 5 twice but counts once, so the distinct customers are 1, 2 and 3. Total quantity is 2 + 3 + 1 + 1 = 7, so revenue is 7 × 3 = 21. Product 6 was never sold."
+  }
+ ],
+ "complexity": {
+  "time": "O((m + s) log m)",
+  "space": "O(m + s)"
+ },
+ "hints": [
+  "Put the products into a hash map from product id to price so that each sale can find its price in constant time.",
+  "For each product keep a running revenue total and a set of the customers seen so far.",
+  "Print only products that appeared in at least one sale, sorted by product id."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    m = int(data[0])\n    price = {}\n    p = 1\n    for _ in range(m):\n        price[int(data[p])] = int(data[p + 1])\n        p += 2\n    s = int(data[p])\n    p += 1\n    rev = {}\n    cust = {}\n    for _ in range(s):\n        c, pid, q = int(data[p]), int(data[p + 1]), int(data[p + 2])\n        p += 3\n        rev[pid] = rev.get(pid, 0) + price[pid] * q\n        cust.setdefault(pid, set()).add(c)\n    print('\\n'.join(f'{len(cust[pid])} {pid} {rev[pid]}' for pid in sorted(rev)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nm = int(data[0])\nproducts = []\np = 1\nfor _ in range(m):\n    products.append((int(data[p]), int(data[p + 1])))\n    p += 2\ns = int(data[p])\np += 1\nsales = []\nfor _ in range(s):\n    sales.append((int(data[p]), int(data[p + 1]), int(data[p + 2])))\n    p += 3\nout = []\nfor pid, pr in sorted(products):\n    rows = [(c, q) for c, pp, q in sales if pp == pid]\n    if rows:\n        out.append(f'{len(set(c for c, q in rows))} {pid} {sum(pr * q for c, q in rows)}')\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    def fmt(products, sales):\n        return (str(len(products)) + '\\n' + '\\n'.join(f'{a} {b}' for a, b in products) + '\\n' + str(len(sales)) + '\\n'\n                + '\\n'.join(f'{a} {b} {c}' for a, b, c in sales))\n    tests = [\n        fmt([(101, 10), (102, 20), (103, 15)], [(1, 101, 5), (2, 103, 2), (1, 103, 1)]),\n        fmt([(5, 3), (6, 4)], [(1, 5, 2), (1, 5, 3), (2, 5, 1), (3, 5, 1)]),\n        fmt([(1, 1)], [(1, 1, 1)]),\n        fmt([(9, 10000)], [(500000000, 9, 10000)]),\n        fmt([(3, 2), (1, 5), (2, 7)], [(4, 3, 1), (4, 1, 1), (4, 2, 1)]),\n    ]\n    for _ in range(25):\n        m = rng.randint(1, 6)\n        pids = rng.sample(range(1, 30), m)\n        products = [(p, rng.randint(1, 20)) for p in pids]\n        s = rng.randint(1, 10)\n        sales = [(rng.randint(1, 4), rng.choice(pids), rng.randint(1, 5)) for _ in range(s)]\n        tests.append(fmt(products, sales))\n    pids = rng.sample(range(1, 10**9 + 1), 50000)\n    products = [(p, rng.randint(1, 10**4)) for p in pids]\n    tests.append(fmt(products, [(rng.randint(1, 10**9), rng.choice(pids), rng.randint(1, 10**4)) for _ in range(50000)]))\n    small = pids[:50]\n    tests.append(fmt(products, [(rng.randint(1, 1000), rng.choice(small), rng.randint(1, 10**4)) for _ in range(50000)]))\n    tests.append(fmt([(7, 10**4)] + products[:49999], [(rng.randint(1, 10**9), 7, 10**4) for _ in range(50000)]))\n    tests.append(fmt(products, [(1 + i % 7, pids[i % 50000], 1 + i % 10000) for i in range(50000)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef summarize(products: List[List[int]], sales: List[List[int]]) -> List[List[int]]:\n    # Write your solution here\n    # Return rows [number_of_customers, product_id, total_revenue] ordered by product_id\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    m = int(data[0])\n    p = 1\n    products = []\n    for _ in range(m):\n        products.append([int(data[p]), int(data[p + 1])])\n        p += 2\n    s = int(data[p])\n    p += 1\n    sales = []\n    for _ in range(s):\n        sales.append([int(data[p]), int(data[p + 1]), int(data[p + 2])])\n        p += 3\n    rows = summarize(products, sales)\n    print('\\n'.join(' '.join(map(str, r)) for r in rows))\n\n\nmain()\n",
+  "javascript": "function summarize(products, sales) {\n  // Write your solution here\n  // Return rows [numberOfCustomers, productId, totalRevenue] ordered by productId\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst m = t[0]\nlet p = 1\nconst products = []\nfor (let i = 0; i < m; i++) {\n  products.push([t[p], t[p + 1]])\n  p += 2\n}\nconst s = t[p]\np += 1\nconst sales = []\nfor (let i = 0; i < s; i++) {\n  sales.push([t[p], t[p + 1], t[p + 2]])\n  p += 3\n}\nconsole.log(summarize(products, sales).map(r => r.join(' ')).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<array<long long, 3>> summarize(vector<pair<long long, long long>>& products, vector<array<long long, 3>>& sales) {\n    // Write your solution here\n    // Return rows {numberOfCustomers, productId, totalRevenue} ordered by productId\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int m;\n    cin >> m;\n    vector<pair<long long, long long>> products(m);\n    for (auto& pr : products) cin >> pr.first >> pr.second;\n    int s;\n    cin >> s;\n    vector<array<long long, 3>> sales(s);\n    for (auto& sl : sales) cin >> sl[0] >> sl[1] >> sl[2];\n    auto rows = summarize(products, sales);\n    for (auto& r : rows) cout << r[0] << ' ' << r[1] << ' ' << r[2] << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    // Return rows {numberOfCustomers, productId, totalRevenue} ordered by productId\n    static List<long[]> summarize(long[][] products, long[][] sales) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int m = (int) in.nval;\n        long[][] products = new long[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); products[i][0] = (long) in.nval;\n            in.nextToken(); products[i][1] = (long) in.nval;\n        }\n        in.nextToken();\n        int s = (int) in.nval;\n        long[][] sales = new long[s][3];\n        for (int i = 0; i < s; i++) {\n            for (int j = 0; j < 3; j++) {\n                in.nextToken();\n                sales[i][j] = (long) in.nval;\n            }\n        }\n        StringBuilder sb = new StringBuilder();\n        for (long[] r : summarize(products, sales)) sb.append(r[0]).append(' ').append(r[1]).append(' ').append(r[2]).append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

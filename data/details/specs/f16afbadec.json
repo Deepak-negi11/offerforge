@@ -1,0 +1,18 @@
+{
+ "qid": "f16afbadec",
+ "question": "Uber SDE-2 (L4), Coding Round 2 (LLD / machine coding): **design a Circuit Breaker**. The candidate reported that the requirements looked like a rate limiter combined with a circuit breaker: the breaker **opened when the number of requests (not the number of errors) exceeded a threshold**. They were expected to show the `CLOSED`, `OPEN` and `HALF_OPEN` states, come up with test cases and answer concurrency questions.",
+ "lookingFor": [
+  "Do you know the circuit breaker pattern and its three states and transitions?",
+  "Can you implement a clean state machine and keep transitions correct under concurrency?",
+  "Do you clarify an unusual requirement (request-count threshold) and design a sliding window for it?",
+  "Do you design for testability (injectable clock) and write meaningful test cases?",
+  "Can you discuss concurrency choices and trade-offs?"
+ ],
+ "answer": "**Clarify.** What triggers OPEN: the requirement as reported counts requests in a time window (threshold N per window), unlike the classic failure-rate trigger. How long does OPEN last (`cooldown`)? How many trial calls in HALF_OPEN? What does a rejected call do (throw or fallback)?\n\n**Interface.** `CircuitBreaker.execute(Supplier<T> call)` or `allowRequest()` plus `onSuccess()`/`onFailure()`. Config: `threshold`, `windowMs`, `cooldownMs`, `halfOpenMaxCalls`.\n\n**States.**\n\n- `CLOSED`: calls pass through. Record each request in a sliding window (queue of timestamps or bucketed counter). If the count in the window exceeds `threshold`, move to OPEN and record `openedAt`.\n- `OPEN`: reject immediately (fail fast) until `now - openedAt >= cooldown`, then move to HALF_OPEN on the next request.\n- `HALF_OPEN`: allow a limited number of trial calls. If they succeed, go to CLOSED and reset counters; if any fails (or the policy says so), go back to OPEN and restart the cooldown.\n\nThe same structure works for the classic error-rate trigger: only the CLOSED-state counting rule changes. Put that rule behind a `TripPolicy` interface so both variants are supported.\n\n**Implementation notes.** Use a state enum or the State pattern (one class per state). Inject a `Clock` so tests can advance time. Sliding window: a deque of timestamps with eviction on each call, or fixed time buckets for O(1) memory.\n\n**Concurrency.** State and counters change together, so guard transitions with a lock (or `AtomicReference<State>` plus CAS). In HALF_OPEN only the permitted number of threads may probe: use an `AtomicInteger` permit counter. Do not hold the lock while running the protected call.\n\n**Tests.** Stay CLOSED under the threshold; trip at threshold+1; reject while OPEN; become HALF_OPEN after cooldown; probe success closes; probe failure re-opens; concurrent callers do not exceed the half-open limit.\n\n**Mistake to avoid:** coding before agreeing which signal opens the breaker.",
+ "followUps": [
+  "How would you change the design to trip on failure percentage over a minimum volume?",
+  "How would you share circuit state across multiple service instances?",
+  "What is the difference between a circuit breaker and a rate limiter?",
+  "How do you avoid a thundering herd when the breaker closes?"
+ ]
+}

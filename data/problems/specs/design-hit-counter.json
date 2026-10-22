@@ -1,0 +1,45 @@
+{
+ "pid": "design-hit-counter",
+ "title": "Design Hit Counter",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "Design a `HitCounter` that records page hits and reports how many hits happened in the past 5 minutes (300 seconds).\n\nIt supports two operations:\n\n- `hit t`: record one hit at timestamp `t` (in seconds). Several hits may share the same timestamp.\n- `count t`: report the number of hits whose timestamp lies in the window `[t - 299, t]`, that is, the last 300 seconds including second `t` itself.\n\nTimestamps are given in **non-decreasing order** across all operations (both `hit` and `count`), like a real clock that only moves forward. Every test contains at least one `count` operation.\n\nRead the operations from the input, process them in order and print the answer of every `count` operation.\n\n**Follow-up:** the interviewers asked to (1) take the timestamp from the system clock instead of passing it in, and (2) support a very large number of hits per second using a fixed-size structure (for example a circular array of 300 buckets indexed by `t % 300`) instead of storing every hit. Only the explicit-timestamp version is tested here.",
+ "input_format": "The first line contains the number of operations `q`.\nEach of the next `q` lines is either `hit t` or `count t`.",
+ "output_format": "For every `count` operation, in order, print one line with the answer.",
+ "constraints": [
+  "1 ≤ q ≤ 10^5",
+  "1 ≤ t ≤ 10^9",
+  "Timestamps are non-decreasing in the order of operations",
+  "At least one `count` operation"
+ ],
+ "examples": [
+  {
+   "input": "7\nhit 1\nhit 2\nhit 3\ncount 4\nhit 300\ncount 300\ncount 301",
+   "output": "3\n4\n3",
+   "explanation": "count 4 sees hits 1, 2, 3 (window [-295, 4]) so 3. count 300 uses window [1, 300] and sees hits at 1, 2, 3, 300, so 4. count 301 uses window [2, 301]; the hit at 1 has expired, leaving 2, 3, 300, so 3."
+  },
+  {
+   "input": "5\nhit 10\nhit 10\ncount 10\ncount 309\ncount 310",
+   "output": "2\n2\n0",
+   "explanation": "Both hits at second 10 count at time 10. At time 309 the window is [10, 309], so they still count. At time 310 the window is [11, 310] and both have expired."
+  }
+ ],
+ "complexity": {
+  "time": "O(1) amortised per operation",
+  "space": "O(number of hits in the last 300 seconds)"
+ },
+ "hints": [
+  "Because timestamps never go backwards, the oldest hits are always the first ones to expire.",
+  "Keep the hit timestamps in a queue (deque). On count t, pop from the front while the front is older than t - 299; the queue length is the answer.",
+  "To make memory independent of the hit rate, store (timestamp, count) pairs or use 300 buckets indexed by t % 300 that you reset when their stored timestamp is stale."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    dq = deque()  # [timestamp, hits]\n    total = 0\n    out = []\n    for i in range(q):\n        op, t = data[1 + 2 * i], int(data[2 + 2 * i])\n        if op == 'hit':\n            if dq and dq[-1][0] == t:\n                dq[-1][1] += 1\n            else:\n                dq.append([t, 1])\n            total += 1\n        else:\n            while dq and dq[0][0] <= t - 300:\n                total -= dq.popleft()[1]\n            out.append(total)\n    print('\\n'.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nq = int(data[0])\nhits = []\nout = []\nfor i in range(q):\n    op, t = data[1 + 2 * i], int(data[2 + 2 * i])\n    if op == 'hit':\n        hits.append(t)\n    else:\n        out.append(sum(1 for h in hits if t - 299 <= h <= t))\nprint('\\n'.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def fmt(ops):\n        return str(len(ops)) + '\\n' + '\\n'.join(f'{o} {t}' for o, t in ops)\n\n    def make(q, steps, p_hit, rng, start=1):\n        t = start\n        ops = []\n        for _ in range(q - 1):\n            t += rng.choice(steps)\n            ops.append(('hit' if rng.random() < p_hit else 'count', t))\n        t += rng.choice(steps)\n        ops.append(('count', t))\n        return ops\n\n    tests = [\n        fmt([('count', 1)]),\n        fmt([('hit', 1), ('count', 1)]),\n        fmt([('hit', 1), ('hit', 2), ('hit', 3), ('count', 4), ('hit', 300), ('count', 300), ('count', 301)]),\n        fmt([('hit', 10), ('hit', 10), ('count', 10), ('count', 309), ('count', 310)]),\n        fmt([('hit', 5), ('count', 304), ('count', 305)]),\n        fmt([('hit', 10**9), ('count', 10**9)]),\n    ]\n    for q in (3, 5, 8, 12, 16, 20, 24):\n        for steps in ([0, 1, 2], [0, 50, 100, 150], [0, 1, 299, 300, 301]):\n            tests.append(fmt(make(q, steps, 0.6, rng)))\n    Q = 100000\n    tests.append(fmt(make(Q, [0, 0, 1, 2], 0.8, rng)))\n    tests.append(fmt(make(Q, [0, 1, 5, 20, 300], 0.5, rng)))\n    tests.append(fmt([('hit', 5)] * (Q - 1) + [('count', 5)]))\n    tests.append(fmt(make(Q, [0, 100, 299, 300, 301, 10000], 0.7, rng)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\nclass HitCounter:\n    def __init__(self):\n        pass\n\n    def hit(self, timestamp: int) -> None:\n        # Write your solution here\n        pass\n\n    def get_hits(self, timestamp: int) -> int:\n        # Write your solution here\n        return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    counter = HitCounter()\n    out = []\n    for i in range(q):\n        op, t = data[1 + 2 * i], int(data[2 + 2 * i])\n        if op == 'hit':\n            counter.hit(t)\n        else:\n            out.append(counter.get_hits(t))\n    print('\\n'.join(map(str, out)))\n\n\nmain()\n",
+  "javascript": "class HitCounter {\n  constructor() {}\n\n  hit(timestamp) {\n    // Write your solution here\n  }\n\n  getHits(timestamp) {\n    // Write your solution here\n    return 0\n  }\n}\n\nconst tok = input.split(/\\s+/).filter(Boolean)\nconst q = Number(tok[0])\nconst counter = new HitCounter()\nconst out = []\nfor (let i = 0; i < q; i++) {\n  const op = tok[1 + 2 * i], t = Number(tok[2 + 2 * i])\n  if (op === 'hit') counter.hit(t)\n  else out.push(counter.getHits(t))\n}\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nclass HitCounter {\npublic:\n    HitCounter() {}\n\n    void hit(long long timestamp) {\n        // Write your solution here\n    }\n\n    int getHits(long long timestamp) {\n        // Write your solution here\n        return 0;\n    }\n};\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int q;\n    cin >> q;\n    HitCounter counter;\n    string out;\n    for (int i = 0; i < q; i++) {\n        string op;\n        long long t;\n        cin >> op >> t;\n        if (op == \"hit\") counter.hit(t);\n        else out += to_string(counter.getHits(t)) + \"\\n\";\n    }\n    cout << out;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static class HitCounter {\n        HitCounter() {}\n\n        void hit(long timestamp) {\n            // Write your solution here\n        }\n\n        int getHits(long timestamp) {\n            // Write your solution here\n            return 0;\n        }\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        int q = Integer.parseInt(br.readLine().trim());\n        HitCounter counter = new HitCounter();\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < q; i++) {\n            StringTokenizer st = new StringTokenizer(br.readLine());\n            String op = st.nextToken();\n            long t = Long.parseLong(st.nextToken());\n            if (op.equals(\"hit\")) counter.hit(t);\n            else sb.append(counter.getHits(t)).append('\\n');\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

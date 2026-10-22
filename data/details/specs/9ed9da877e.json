@@ -1,0 +1,18 @@
+{
+ "qid": "9ed9da877e",
+ "question": "Adobe MLE-II (experienced, 3+ years), round 2. After one Python coding question, the interviewer ran a **deep dive into LLMs, the transformer architecture and attention mechanisms.** Explain how transformers and attention work and be ready to discuss LLM training, inference and limits.",
+ "lookingFor": [
+  "Correct mechanics of self-attention, not just buzzwords.",
+  "Understanding of the transformer block and why it replaced RNNs.",
+  "Knowledge of LLM training and inference trade-offs (cost, context, KV cache).",
+  "Ability to reason about limitations and practical mitigations."
+ ],
+ "answer": "**Why transformers.** RNNs process tokens sequentially, which limits parallelism and struggles with long-range dependencies. Transformers use **attention** so every token can look at every other token, and training parallelises across the sequence.\n\n**Self-attention.** Each token embedding `x` is projected to a query `Q`, key `K` and value `V` with learned matrices. Attention is `softmax(QK^T / sqrt(d_k)) V`:\n- `QK^T` gives similarity scores between all token pairs.\n- Dividing by `sqrt(d_k)` stops large dot products from saturating softmax.\n- Softmax turns scores into weights; the output is a weighted sum of values.\n**Multi-head attention** runs several heads in parallel with different projections so the model can capture different relations, then concatenates and projects.\n\n**Transformer block.** Multi-head attention, residual connection plus layer norm, a position-wise feed-forward network (two linear layers with a nonlinearity), residual plus norm again. Stack many blocks. Attention has no sense of order, so **positional information** is added (sinusoidal, learned, or rotary embeddings).\n\n**Variants.** Encoder-only (BERT, bidirectional, good for understanding), decoder-only (GPT-style, **causal mask** so a token only attends to earlier tokens, trained for next-token prediction), encoder-decoder (T5, uses cross-attention).\n\n**Cost.** Attention is O(n^2) in sequence length for compute and memory, which limits context length. Mitigations: FlashAttention (memory-efficient kernels), sparse or sliding-window attention, grouped-query attention.\n\n**LLM lifecycle.** Pre-training on large text corpora, then instruction tuning and preference alignment (RLHF or similar). At inference, tokens are generated one at a time, using a **KV cache** to avoid recomputing keys and values for earlier tokens. Sampling controls (temperature, top-p) trade determinism for diversity.\n\n**Limitations.** Hallucination, knowledge cutoff, context limits. Common mitigations: retrieval-augmented generation, grounding and evaluation.",
+ "followUps": [
+  "Why divide by sqrt(d_k) in scaled dot-product attention?",
+  "What does a causal mask do and why is it needed for training a decoder?",
+  "What is the KV cache and what is its memory cost?",
+  "How would you fine-tune an LLM for a domain task cheaply (for example LoRA)?",
+  "RAG versus fine-tuning: when would you use each?"
+ ]
+}

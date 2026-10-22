@@ -1,0 +1,48 @@
+{
+ "pid": "sprinklr-words-added-and-removed-between-sentences",
+ "title": "Words Added and Removed Between Sentences",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A text editor stores a **previous sentence** of `n` words and a **current sentence** of `m` words. The current sentence was obtained from the previous one by removing some words and adding some new words. Added words may be equal to removed ones if they were put back at a different position.\n\nThe editor wants to show the change using as few edits as possible, where one edit is either removing a single word from the previous sentence or adding a single word at some position. Words keep their relative order; a word that stays must stay in the same relative order with respect to the other words that stay. Words are compared exactly (case-sensitive), and repeated words are distinct occurrences.\n\nPrint two integers: the number of words that were **removed** and the number of words that were **added** in an edit script with the minimum total number of edits. (The minimum total is unique, and so are both counts.)\n\n**Follow-up:** also report which words were removed and which were added, and then reduce the extra memory you use. The interviewer asked for the best possible time and space.",
+ "input_format": "The first line contains `n`.\nThe second line contains the `n` words of the previous sentence.\nThe third line contains `m`.\nThe fourth line contains the `m` words of the current sentence.",
+ "output_format": "Print two integers separated by a space: the number of removed words and the number of added words.",
+ "constraints": [
+  "1 ≤ n, m ≤ 1200",
+  "Each word has 1 to 10 lowercase letters or digits and contains no spaces"
+ ],
+ "examples": [
+  {
+   "input": "5\nthe quick brown fox jumps\n5\nthe brown quick fox leaps",
+   "output": "2 2",
+   "explanation": "Keep `the quick fox` (3 words, in the same order in both sentences). Then `brown` and `jumps` are removed, and `brown` and `leaps` are added: 2 removals and 2 additions. Fewer edits are impossible because no 4 words appear in the same order in both."
+  },
+  {
+   "input": "3\na b c\n3\na b c",
+   "output": "0 0",
+   "explanation": "The sentences are identical, so nothing changes."
+  },
+  {
+   "input": "3\nx y z\n2\np q",
+   "output": "3 2",
+   "explanation": "No word is shared, so every old word is removed and every new word is added."
+  }
+ ],
+ "complexity": {
+  "time": "O(n * m)",
+  "space": "O(min(n, m))"
+ },
+ "hints": [
+  "Words that survive form a common subsequence of the two sentences. Which common subsequence gives the fewest edits?",
+  "If the longest common subsequence (of words) has length L, then n - L words are removed and m - L are added.",
+  "Compute L with DP over word pairs; each row of the table depends only on the previous row, so two rows are enough."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = data[1:1 + n]\n    m = int(data[1 + n])\n    b = data[2 + n:2 + n + m]\n    prev = [0] * (m + 1)\n    for x in a:\n        cur = [0] * (m + 1)\n        for j in range(m):\n            if x == b[j]:\n                cur[j + 1] = prev[j] + 1\n            else:\n                c1 = cur[j]\n                c2 = prev[j + 1]\n                cur[j + 1] = c1 if c1 > c2 else c2\n        prev = cur\n    L = prev[m]\n    print(n - L, m - L)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = data[1:1 + n]\nm = int(data[1 + n])\nb = data[2 + n:2 + n + m]\nbest = 0\nfor mask in range(1 << n):\n    seq = [a[i] for i in range(n) if mask >> i & 1]\n    if len(seq) <= best:\n        continue\n    j = 0\n    for w in b:\n        if j < len(seq) and seq[j] == w:\n            j += 1\n    if j == len(seq):\n        best = len(seq)\nprint(n - best, m - best)\n",
+ "generator": "def gen(rng):\n    def fmt(a, b):\n        return '%d\\n%s\\n%d\\n%s' % (len(a), ' '.join(a), len(b), ' '.join(b))\n\n    def words(k):\n        return ['w%d' % i for i in range(k)]\n\n    tests = [fmt(['a'], ['a']), fmt(['a'], ['b']), fmt(['a', 'b', 'c'], ['a', 'b', 'c']),\n             fmt(['x', 'y', 'z'], ['p', 'q']), fmt(['a', 'a', 'a'], ['a']), fmt(['a', 'b', 'a'], ['b', 'a', 'b']),\n             fmt(['a', 'b', 'c', 'd'], ['d', 'c', 'b', 'a'])]\n    for _ in range(14):\n        vocab = ['a', 'b', 'c', 'd', 'e'][:rng.choice((2, 3, 4, 5))]\n        n = rng.randint(1, 10)\n        m = rng.randint(1, 10)\n        tests.append(fmt([rng.choice(vocab) for _ in range(n)], [rng.choice(vocab) for _ in range(m)]))\n    for k in (3, 10, 500):\n        v = words(k)\n        tests.append(fmt([rng.choice(v) for _ in range(300)], [rng.choice(v) for _ in range(250)]))\n    N = 1200\n    for k in (2, 3, 6, 1000):\n        v = words(k)\n        tests.append(fmt([rng.choice(v) for _ in range(N)], [rng.choice(v) for _ in range(N)]))\n    base = [rng.choice(words(50)) for _ in range(N)]\n    shuffled = base[:]\n    rng.shuffle(shuffled)\n    tests.append(fmt(base, base[:]))\n    tests.append(fmt(base, shuffled))\n    tests.append(fmt(base, base[::-1]))\n    tests.append(fmt(['w0'] * N, ['w0'] * N))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_edits(prev: List[str], cur: List[str]) -> List[int]:\n    # Write your solution here\n    return [0, 0]\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    prev = data[1:1 + n]\n    m = int(data[1 + n])\n    cur = data[2 + n:2 + n + m]\n    print(' '.join(map(str, min_edits(prev, cur))))\n\n\nmain()\n",
+  "javascript": "function minEdits(prev, cur) {\n  // Write your solution here\n  return [0, 0]\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0])\nconst prev = t.slice(1, 1 + n)\nconst m = parseInt(t[1 + n])\nconst cur = t.slice(2 + n, 2 + n + m)\nconsole.log(minEdits(prev, cur).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> minEdits(vector<string>& prev, vector<string>& cur) {\n    // Write your solution here\n    return {0, 0};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n;\n    vector<string> prev(n);\n    for (int i = 0; i < n; i++) cin >> prev[i];\n    cin >> m;\n    vector<string> cur(m);\n    for (int i = 0; i < m; i++) cin >> cur[i];\n    vector<int> res = minEdits(prev, cur);\n    cout << res[0] << \" \" << res[1] << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] minEdits(String[] prev, String[] cur) {\n        // Write your solution here\n        return new int[]{0, 0};\n    }\n\n    public static void main(String[] args) throws IOException {\n        StringTokenizer st = new StringTokenizer(new String(System.in.readAllBytes()));\n        int n = Integer.parseInt(st.nextToken());\n        String[] prev = new String[n];\n        for (int i = 0; i < n; i++) prev[i] = st.nextToken();\n        int m = Integer.parseInt(st.nextToken());\n        String[] cur = new String[m];\n        for (int i = 0; i < m; i++) cur[i] = st.nextToken();\n        int[] res = minEdits(prev, cur);\n        System.out.println(res[0] + \" \" + res[1]);\n    }\n}\n"
+ }
+}

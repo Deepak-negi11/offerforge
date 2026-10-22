@@ -1,0 +1,17 @@
+{
+ "qid": "837d40cbcb",
+ "question": "In the technical interview for a **System Software Engineer Intern** role at NVIDIA, the candidate was given code with **two nested loops summing a 2D array**: one version adds **row-wise** and another **column-wise**. They were asked **which loop they prefer and why**, then **what a cache is and how the access order affects cache performance**, and to modify the code accordingly.",
+ "lookingFor": [
+  "Do you understand memory layout of 2D arrays (row-major in C)?",
+  "Do you understand cache lines, spatial and temporal locality?",
+  "Can you predict performance and fix code with loop interchange or tiling?",
+  "Can you explain the hierarchy and why locality matters?"
+ ],
+ "answer": "**What a cache is.** A small, fast memory between the CPU and main memory that keeps recently used data. Memory is moved in **cache lines** (typically 64 bytes). Access patterns that reuse data (**temporal locality**) or touch nearby addresses (**spatial locality**) get cache hits; others cause misses, which cost tens to hundreds of cycles.\n\n**Layout.** C and C++ store a 2D array in **row-major** order: `a[i][j]` and `a[i][j+1]` are adjacent in memory.\n\n```c\n/* row-wise (cache friendly) */\nfor (i = 0; i < N; i++)\n    for (j = 0; j < N; j++)\n        sum += a[i][j];\n\n/* column-wise (cache hostile) */\nfor (j = 0; j < N; j++)\n    for (i = 0; i < N; i++)\n        sum += a[i][j];\n```\n\n**Which is faster.** The row-wise loop reads consecutive addresses. One 64-byte line holds 16 `int`s, so after one miss the next 15 accesses hit (about 1 miss per 16 accesses), and the hardware prefetcher also helps. The column-wise loop jumps by `N * sizeof(int)` bytes each step. For a large `N` every access lands on a different cache line, and by the time you return to the next column the earlier lines were probably evicted, so nearly every access misses; page-table lookups (TLB misses) can add to the cost. Both loops do the same arithmetic and give the same result, but the column version can be many times slower for large arrays.\n\n**Fix.** Choose the loop order to match the layout (**loop interchange**). For algorithms that need both orders, such as matrix multiplication or transpose, use **blocking/tiling**: process small tiles that fit in the cache so each loaded line is reused. In Fortran, arrays are column-major, so the preference reverses.\n\n**Related points.** Prefer arrays and contiguous structures over pointer-chasing linked lists, pad to avoid false sharing in multi-threaded code, and measure with a profiler (for example `perf stat` cache-miss counters) rather than guessing.",
+ "followUps": [
+  "How would you speed up matrix multiplication using cache blocking?",
+  "What are the types of cache misses (compulsory, capacity, conflict)?",
+  "What is false sharing?",
+  "What changes in a language that stores arrays in column-major order?"
+ ]
+}

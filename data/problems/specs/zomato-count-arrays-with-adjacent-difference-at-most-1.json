@@ -1,0 +1,49 @@
+{
+ "pid": "zomato-count-arrays-with-adjacent-difference-at-most-1",
+ "title": "Count Arrays With Adjacent Difference at Most 1",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `arr` of length `n` and an integer `M`. Some entries of `arr` are `0`, meaning the value is missing; every other entry is already a positive integer between `1` and `M`.\n\nReplace every `0` with a positive integer from `[1, M]` (each zero is chosen independently). A completed array is **valid** if every pair of neighbouring elements differs by at most 1:\n\n`|arr[i] - arr[i + 1]| ≤ 1` for all `0 ≤ i < n - 1`.\n\nCount the number of valid completed arrays. Two completions are different if they differ in at least one position. Since the count can be huge, print it **modulo** `1000000007`.",
+ "input_format": "The first line contains two integers `n` and `M`.\nThe second line contains `n` integers `arr[0], ..., arr[n-1]`.",
+ "output_format": "Print a single integer: the number of valid completed arrays modulo 1000000007.",
+ "constraints": [
+  "1 ≤ n ≤ 1000",
+  "1 ≤ M ≤ 1000",
+  "0 ≤ arr[i] ≤ M"
+ ],
+ "examples": [
+  {
+   "input": "3 3\n0 2 0",
+   "output": "9",
+   "explanation": "The middle value is fixed at 2. Each end may be 1, 2 or 3, because all three differ from 2 by at most 1, and the two ends are chosen independently: 3 × 3 = 9."
+  },
+  {
+   "input": "4 3\n0 0 0 0",
+   "output": "41",
+   "explanation": "Let f[v] be the number of valid prefixes ending in value v. For length 1, f = [1, 1, 1]. Each next f[v] is the sum of f[v-1], f[v], f[v+1] (those in range), giving [2, 3, 2] for length 2, [5, 7, 5] for length 3 and [12, 17, 12] for length 4. The total is 12 + 17 + 12 = 41."
+  },
+  {
+   "input": "3 4\n1 0 4",
+   "output": "0",
+   "explanation": "The middle value x would need |1 - x| ≤ 1 and |x - 4| ≤ 1, which means x ≤ 2 and x ≥ 3. No value works, so there are no valid arrays."
+  }
+ ],
+ "complexity": {
+  "time": "O(n·M)",
+  "space": "O(M)"
+ },
+ "hints": [
+  "Think of building the array from left to right. What do you need to remember about the prefix to know which values are allowed next?",
+  "Let dp[v] be the number of valid ways to fill the prefix so that the last element equals v. A new element equal to v can follow a previous element equal to v - 1, v or v + 1.",
+  "If the next entry is a fixed value, keep only that one value in the new dp; if it is zero, compute all M values. Each step costs O(M), so the whole thing is O(n·M). Take everything modulo 1000000007."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0]); M = int(data[1])\n    arr = [int(x) for x in data[2:2 + n]]\n    MOD = 10 ** 9 + 7\n    # dp[v] for v in 0..M+1, indices 0 and M+1 are padding (always 0)\n    dp = [0] * (M + 2)\n    if arr[0] == 0:\n        for v in range(1, M + 1):\n            dp[v] = 1\n    else:\n        dp[arr[0]] = 1\n    for i in range(1, n):\n        if arr[i] == 0:\n            dp = [0] + [(a + b + c) % MOD for a, b, c in zip(dp, dp[1:], dp[2:])] + [0]\n        else:\n            v = arr[i]\n            nd = [0] * (M + 2)\n            nd[v] = (dp[v - 1] + dp[v] + dp[v + 1]) % MOD\n            dp = nd\n    print(sum(dp) % MOD)\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import product\n\ndata = sys.stdin.read().split()\nn = int(data[0]); M = int(data[1])\narr = [int(x) for x in data[2:2 + n]]\nzeros = [i for i in range(n) if arr[i] == 0]\ncount = 0\nfor fill in product(range(1, M + 1), repeat=len(zeros)):\n    b = arr[:]\n    for idx, val in zip(zeros, fill):\n        b[idx] = val\n    if all(abs(b[i] - b[i + 1]) <= 1 for i in range(n - 1)):\n        count += 1\nprint(count % (10 ** 9 + 7))\n",
+ "generator": "def gen(rng):\n    def fmt(M, arr):\n        return f\"{len(arr)} {M}\\n\" + \" \".join(map(str, arr))\n\n    tests = [\n        fmt(1, [0]), fmt(1, [1]), fmt(5, [0]), fmt(3, [5 - 2]),\n        fmt(2, [1, 0, 0, 2]), fmt(4, [1, 0, 4]), fmt(3, [0, 0, 0, 0]),\n        fmt(4, [4, 0, 0, 0, 1]), fmt(3, [2, 2, 2]), fmt(3, [1, 3]),\n    ]\n    for _ in range(60):\n        n = rng.randint(1, 8)\n        M = rng.randint(1, 4)\n        pz = rng.choice([0.3, 0.6, 0.9])\n        arr = [0 if rng.random() < pz else rng.randint(1, M) for _ in range(n)]\n        # sometimes derive the fixed values from a valid array so the answer is nonzero\n        if rng.random() < 0.5:\n            cur = rng.randint(1, M)\n            full = []\n            for _ in range(n):\n                full.append(cur)\n                cur = min(M, max(1, cur + rng.choice([-1, 0, 1])))\n            arr = [0 if rng.random() < pz else full[i] for i in range(n)]\n        zeros = sum(1 for x in arr if x == 0)\n        if zeros > 6:\n            arr = [0 if (i < 6 and x == 0) else (x if x else 1) for i, x in enumerate(arr)]\n        tests.append(fmt(M, arr))\n    # bigger, not brute-forced\n    for _ in range(3):\n        n = rng.randint(30, 200)\n        M = rng.randint(5, 50)\n        cur = rng.randint(1, M)\n        full = []\n        for _ in range(n):\n            full.append(cur)\n            cur = min(M, max(1, cur + rng.choice([-1, 0, 1])))\n        tests.append(fmt(M, [0 if rng.random() < 0.7 else x for x in full]))\n    n, M = 1000, 1000\n    tests.append(fmt(M, [0] * n))\n    cur = 500\n    full = []\n    for _ in range(n):\n        full.append(cur)\n        cur = min(M, max(1, cur + rng.choice([-1, 0, 1])))\n    tests.append(fmt(M, [0 if rng.random() < 0.9 else x for x in full]))\n    tests.append(fmt(M, [0] * 500 + [700] + [0] * 499))\n    tests.append(fmt(M, [0] * (n - 1) + [1]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\nMOD = 10 ** 9 + 7\n\n\ndef count_arrays(arr: List[int], m: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    arr = [int(x) for x in data[2:2 + n]]\n    print(count_arrays(arr, m))\n\n\nmain()\n",
+  "javascript": "const MOD = 1000000007n\n\nfunction countArrays(arr, m) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst arr = t.slice(2, 2 + n)\nconsole.log(String(countArrays(arr, m)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nconst long long MOD = 1000000007LL;\n\nlong long countArrays(vector<int>& arr, int m) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<int> arr(n);\n    for (auto& x : arr) cin >> x;\n    cout << countArrays(arr, m) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static final long MOD = 1_000_000_007L;\n\n    static long countArrays(int[] arr, int m) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[] arr = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            arr[i] = (int) in.nval;\n        }\n        System.out.println(countArrays(arr, m));\n    }\n}\n"
+ }
+}

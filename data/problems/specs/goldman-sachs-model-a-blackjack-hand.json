@@ -1,0 +1,48 @@
+{
+ "pid": "goldman-sachs-model-a-blackjack-hand",
+ "title": "Model a Blackjack Hand",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "In blackjack, a hand is a list of cards and its value is computed from the card ranks:\n\n- cards `2` to `10` are worth their number,\n- `J`, `Q` and `K` are each worth 10,\n- an Ace `A` is worth **either 1 or 11**, chosen independently for every Ace.\n\nYou are given a hand as a list of card ranks. Compute two things:\n\n1. The **best total** of the hand: the largest total that is at most 21 over all ways to value the Aces. If every way of valuing the Aces exceeds 21 (a **bust**), the best total is the smallest possible total, that is, with all Aces counted as 1.\n2. Whether the hand is a **blackjack**. A blackjack is a hand of **exactly two cards** whose best total is 21 (an Ace together with a 10, `J`, `Q` or `K`). A hand that reaches 21 with three or more cards is not a blackjack, and neither is a bust.\n\nSuits are irrelevant, so only ranks are given.\n\n**Follow-up:** Model this as classes (for example `Card`, `Hand` with `add(card)`, `value()` and `isBlackjack()`), and discuss how you would keep the value cheap to compute when cards are added one at a time.",
+ "input_format": "The first line contains an integer `n`, the number of cards.\nThe second line contains `n` ranks separated by spaces, each one of `A`, `2`, `3`, `4`, `5`, `6`, `7`, `8`, `9`, `10`, `J`, `Q`, `K`.",
+ "output_format": "Print the best total, a space, and then `YES` if the hand is a blackjack or `NO` otherwise.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "Each rank is one of A, 2-10, J, Q, K (a hand may contain any number of equal ranks)"
+ ],
+ "examples": [
+  {
+   "input": "2\nA K",
+   "output": "21 YES",
+   "explanation": "The Ace counts as 11 and the King as 10, giving 21 with exactly two cards, which is a blackjack."
+  },
+  {
+   "input": "4\nA A 9 K",
+   "output": "21 NO",
+   "explanation": "Counting both Aces as 1 gives 21. Counting one Ace as 11 gives 31, which busts. The best total is 21, but the hand has four cards."
+  },
+  {
+   "input": "3\nK Q 5",
+   "output": "25 NO",
+   "explanation": "10 + 10 + 5 = 25 busts, so the best total is the only total, 25."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Start by counting every Ace as 1. What does it cost to turn one Ace into 11?",
+  "Turning an Ace from 1 to 11 adds 10. How many Aces could ever be counted as 11 in a hand without exceeding 21?",
+  "At most one Ace can count as 11. Compute the total with all Aces as 1, and add 10 if the hand has an Ace and the result stays at most 21. Blackjack also needs exactly two cards."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    cards = data[1:1 + n]\n    total = 0\n    aces = 0\n    for c in cards:\n        if c == 'A':\n            aces += 1\n            total += 1\n        elif c in ('J', 'Q', 'K'):\n            total += 10\n        else:\n            total += int(c)\n    if aces and total + 10 <= 21:\n        total += 10\n    print(total, 'YES' if n == 2 and total == 21 else 'NO')\n\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import product\n\ndata = sys.stdin.read().split()\nn = int(data[0])\ncards = data[1:1 + n]\nbase = 0\naces = 0\nfor c in cards:\n    if c == 'A':\n        aces += 1\n    elif c in ('J', 'Q', 'K'):\n        base += 10\n    else:\n        base += int(c)\ntotals = set()\nfor choice in product((1, 11), repeat=aces):\n    totals.add(base + sum(choice))\nok = [t for t in totals if t <= 21]\nbest = max(ok) if ok else min(totals)\nprint(best, 'YES' if n == 2 and best == 21 else 'NO')\n",
+ "generator": "def gen(rng):\n    ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']\n\n    def fmt(cs):\n        return f'{len(cs)}\\n' + ' '.join(cs)\n\n    tests = [\n        fmt(['A', 'K']), fmt(['K', 'A']), fmt(['A', '10']), fmt(['A', 'J']), fmt(['A', 'Q']),\n        fmt(['A', 'A']), fmt(['A']), fmt(['K']), fmt(['A', '9']), fmt(['A', '5', '5']),\n        fmt(['7', '7', '7']), fmt(['K', 'Q', '5']), fmt(['A', 'A', '9']), fmt(['A', 'A', 'A', '8']),\n        fmt(['10', 'J']), fmt(['5', '6', 'K']), fmt(['A'] * 10), fmt(['A'] * 11), fmt(['A'] * 12),\n        fmt(['2', '3', '4', '5', '7']),\n    ]\n    for n in (2, 2, 2, 3, 3, 4, 5, 6, 8, 10, 12):\n        for _ in range(3):\n            tests.append(fmt([rng.choice(ranks) for _ in range(n)]))\n    for n in (2, 3, 4):\n        for _ in range(5):\n            tests.append(fmt([rng.choice(['A', 'A', '2', '5', '9', '10', 'K']) for _ in range(n)]))\n    N = 100000\n    tests.append(fmt([rng.choice(ranks) for _ in range(N)]))\n    tests.append(fmt(['A'] * N))\n    tests.append(fmt(['A'] * 20 + ['A'] * 2000))\n    tests.append(fmt(['A'] + ['2'] * 4 + ['A'] * 5))\n    tests.append(fmt([rng.choice(['A', '2']) for _ in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef evaluate_hand(cards: List[str]) -> Tuple[int, bool]:\n    # Write your solution here\n    return 0, False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    cards = data[1:1 + n]\n    total, blackjack = evaluate_hand(cards)\n    print(total, 'YES' if blackjack else 'NO')\n\n\nmain()\n",
+  "javascript": "function evaluateHand(cards) {\n  // Write your solution here\n  return [0, false]\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = Number(t[0])\nconst cards = t.slice(1, 1 + n)\nconst [total, blackjack] = evaluateHand(cards)\nconsole.log(total + ' ' + (blackjack ? 'YES' : 'NO'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\npair<long long, bool> evaluateHand(vector<string>& cards) {\n    // Write your solution here\n    return {0, false};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<string> cards(n);\n    for (int i = 0; i < n; i++) cin >> cards[i];\n    auto res = evaluateHand(cards);\n    cout << res.first << \" \" << (res.second ? \"YES\" : \"NO\") << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    // returns {best total, 1 if blackjack else 0}\n    static long[] evaluateHand(String[] cards) {\n        // Write your solution here\n        return new long[]{0, 0};\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        int n = Integer.parseInt(br.readLine().trim());\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        String[] cards = new String[n];\n        for (int i = 0; i < n; i++) cards[i] = st.nextToken();\n        long[] res = evaluateHand(cards);\n        System.out.println(res[0] + \" \" + (res[1] == 1 ? \"YES\" : \"NO\"));\n    }\n}\n"
+ }
+}

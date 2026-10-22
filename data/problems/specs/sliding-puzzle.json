@@ -1,0 +1,49 @@
+{
+ "pid": "sliding-puzzle",
+ "title": "Sliding Puzzle",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "A sliding-tile board has `r` rows and `c` columns and holds the tiles `1, 2, ..., r*c - 1` plus one empty square written as `0`.\n\nIn one move you slide a tile into the empty square: the empty square swaps places with one of its up, down, left or right neighbours.\n\nThe board is **solved** when, read row by row from the top-left, it shows `1, 2, ..., r*c - 1` followed by `0` in the bottom-right corner.\n\nGiven the starting board, print the minimum number of moves needed to solve it, or `-1` if no sequence of moves can solve it.",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains `c` integers: the starting board. It is a permutation of `0` to `r*c - 1`.",
+ "output_format": "Print a single integer: the minimum number of moves, or `-1` if the board cannot be solved.",
+ "constraints": [
+  "1 ≤ r, c",
+  "2 ≤ r · c ≤ 9",
+  "The board is a permutation of 0 to r·c - 1"
+ ],
+ "examples": [
+  {
+   "input": "2 3\n1 2 3\n0 4 5",
+   "output": "2",
+   "explanation": "Slide 4 left into the empty square, then slide 5 left. The board becomes 1 2 3 / 4 5 0."
+  },
+  {
+   "input": "2 3\n2 1 3\n4 5 0",
+   "output": "-1",
+   "explanation": "Only tiles 1 and 2 are swapped relative to the solved board. Sliding moves can never change the parity needed to fix a single swap, so this board is unsolvable."
+  },
+  {
+   "input": "3 3\n1 2 3\n4 0 6\n7 5 8",
+   "output": "2",
+   "explanation": "Move the empty square down by sliding 5 up, then right by sliding 8 left."
+  }
+ ],
+ "complexity": {
+  "time": "O((r·c)! · r·c)",
+  "space": "O((r·c)!)"
+ },
+ "hints": [
+  "Treat every arrangement of the board as a node and every legal move as an edge. You want a shortest path, so which traversal fits?",
+  "Encode a board as a string or tuple so it can be stored in a visited set; precompute which positions are adjacent to each position.",
+  "If the BFS exhausts all reachable states without meeting the solved board, the answer is -1."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    N = r * c\n    s = ''.join(data[2:2 + N])\n    g = ''.join(str(x) for x in list(range(1, N)) + [0])\n    if s == g:\n        print(0)\n        return\n    adj = [[] for _ in range(N)]\n    for i in range(N):\n        y, x = divmod(i, c)\n        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n            ny, nx = y + dy, x + dx\n            if 0 <= ny < r and 0 <= nx < c:\n                adj[i].append(ny * c + nx)\n    seen = {s: 0}\n    q = deque([s])\n    while q:\n        cur = q.popleft()\n        d = seen[cur] + 1\n        z = cur.index('0')\n        for nz in adj[z]:\n            l = list(cur)\n            l[z], l[nz] = l[nz], '0'\n            nxt = ''.join(l)\n            if nxt not in seen:\n                if nxt == g:\n                    print(d)\n                    return\n                seen[nxt] = d\n                q.append(nxt)\n    print(-1)\n\nmain()\n",
+ "brute": "import sys\nfrom collections import deque\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\nN = r * c\nstart = tuple(int(x) for x in data[2:2 + N])\ngoal = tuple(list(range(1, N)) + [0])\ndist = {goal: 0}\nq = deque([goal])\nwhile q:\n    cur = q.popleft()\n    z = cur.index(0)\n    y, x = divmod(z, c)\n    for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n        ny, nx = y + dy, x + dx\n        if 0 <= ny < r and 0 <= nx < c:\n            lst = list(cur)\n            lst[z], lst[ny * c + nx] = lst[ny * c + nx], lst[z]\n            t = tuple(lst)\n            if t not in dist:\n                dist[t] = dist[cur] + 1\n                q.append(t)\nprint(dist.get(start, -1))\n",
+ "generator": "def gen(rng):\n    def fmt(r, c, b):\n        return '%d %d\\n' % (r, c) + '\\n'.join(' '.join(map(str, b[i * c:(i + 1) * c])) for i in range(r))\n\n    def goal(n):\n        return list(range(1, n)) + [0]\n\n    def scramble(r, c, steps):\n        n = r * c\n        b = goal(n)\n        z = n - 1\n        for _ in range(steps):\n            y, x = divmod(z, c)\n            opts = [(y + dy) * c + x + dx for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)) if 0 <= y + dy < r and 0 <= x + dx < c]\n            nz = rng.choice(opts)\n            b[z], b[nz] = b[nz], b[z]\n            z = nz\n        return b\n\n    tests = []\n    tests.append(fmt(1, 2, [1, 0]))\n    tests.append(fmt(1, 2, [0, 1]))\n    tests.append(fmt(2, 1, [0, 1]))\n    tests.append(fmt(2, 2, [1, 2, 3, 0]))\n    tests.append(fmt(2, 2, [3, 2, 1, 0]))\n    tests.append(fmt(1, 3, [0, 1, 2]))\n    tests.append(fmt(1, 3, [2, 1, 0]))\n    tests.append(fmt(3, 3, [1, 2, 3, 4, 5, 6, 7, 8, 0]))\n    tests.append(fmt(3, 3, [8, 6, 7, 2, 5, 4, 3, 0, 1]))\n    tests.append(fmt(3, 3, [6, 4, 7, 8, 5, 0, 3, 2, 1]))\n    tests.append(fmt(3, 3, [2, 1, 3, 4, 5, 6, 7, 8, 0]))\n    tests.append(fmt(3, 3, [1, 2, 3, 4, 5, 6, 8, 7, 0]))\n    tests.append(fmt(3, 3, [0, 8, 7, 6, 5, 4, 3, 2, 1]))\n    shapes = [(1, 4), (1, 5), (2, 2), (2, 3), (3, 2), (2, 4), (4, 2), (1, 9), (9, 1), (3, 3), (1, 6), (5, 1)]\n    for r, c in shapes:\n        n = r * c\n        reps = 2 if n >= 9 else 4\n        for _ in range(reps):\n            b = list(range(n))\n            rng.shuffle(b)\n            tests.append(fmt(r, c, b))\n        if r > 1 and c > 1:\n            tests.append(fmt(r, c, scramble(r, c, rng.randint(1, 40))))\n    for _ in range(3):\n        tests.append(fmt(3, 3, scramble(3, 3, rng.randint(30, 120))))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef sliding_puzzle(board: List[List[int]]) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    board = [[int(data[2 + i * c + j]) for j in range(c)] for i in range(r)]\n    print(sliding_puzzle(board))\n\n\nmain()\n",
+  "javascript": "function slidingPuzzle(board) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst r = t[0], c = t[1]\nconst board = []\nfor (let i = 0; i < r; i++) board.push(t.slice(2 + i * c, 2 + (i + 1) * c))\nconsole.log(slidingPuzzle(board))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint slidingPuzzle(vector<vector<int>>& board) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<vector<int>> board(r, vector<int>(c));\n    for (int i = 0; i < r; i++)\n        for (int j = 0; j < c; j++) cin >> board[i][j];\n    cout << slidingPuzzle(board) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int slidingPuzzle(int[][] board) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int r = (int) in.nval;\n        in.nextToken();\n        int c = (int) in.nval;\n        int[][] board = new int[r][c];\n        for (int i = 0; i < r; i++)\n            for (int j = 0; j < c; j++) {\n                in.nextToken();\n                board[i][j] = (int) in.nval;\n            }\n        System.out.println(slidingPuzzle(board));\n    }\n}\n"
+ }
+}

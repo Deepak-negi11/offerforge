@@ -1,0 +1,17 @@
+{
+ "qid": "deb15bbd0b",
+ "question": "Juspay SDE Intern / FTE, system interview (anything could be asked: OS, DBMS, networking, DSA and system design concepts). Reported: questions on the candidate's projects, such as **how you implemented a particular endpoint in your API and how JWT authentication works**, plus the expectation of high-level-design concepts such as **load balancing, sharding, replication, proxy and CDN**.",
+ "lookingFor": [
+  "You can explain your own project's code clearly, including the choices you made.",
+  "Correct understanding of token-based authentication and its security limits.",
+  "Basic scalability concepts and when each is used.",
+  "Ability to discuss trade-offs and failure cases, not only definitions."
+ ],
+ "answer": "**Walking through an endpoint (use your own project).** Cover the request path in order: route and HTTP method, auth middleware, input validation, authorisation (does this user own this resource?), the service/business logic, the database call (parameterised queries, a transaction if several writes), and the response with proper status codes (200, 201, 400, 401, 403, 404, 409, 500) and a consistent error format. Mention extras you did: pagination, idempotency for POST, rate limiting, logging and tests.\n\n**How JWT authentication works.**\n- A JWT has three base64url parts: header, payload (claims such as `sub`, `exp`, `iat`, `iss`, `aud`) and a signature. The payload is only encoded, **not encrypted**, so never put secrets in it.\n- Login: the client sends credentials, the server checks the password hash, then issues a signed token (HS256 with a shared secret, or RS256/ES256 with a private key).\n- Each request carries `Authorization: Bearer <token>`. The server verifies the signature, expiry, issuer and audience, then trusts the claims without a database lookup (stateless).\n- Practical points: short-lived access tokens plus a refresh token; revocation is hard, so use short expiry and a denylist for emergencies; store tokens safely (an HttpOnly, Secure cookie is safer against XSS than localStorage, but needs CSRF protection); always use HTTPS; reject `alg: none` and pin the expected algorithm.\n\n**HLD concepts in one line each.**\n- *Load balancer:* spreads traffic across servers (round robin, least connections), runs health checks, and can terminate TLS (L4 versus L7).\n- *Sharding:* splits data across databases by a key (hash or range) to scale writes and storage; watch for hot shards and the difficulty of cross-shard queries and resharding.\n- *Replication:* copies data to replicas (leader-follower) for read scaling and availability; watch replication lag and failover.\n- *Proxy:* a forward proxy acts for clients; a reverse proxy sits in front of servers (caching, security, routing).\n- *CDN:* caches static content at edge locations near users, reducing latency and origin load; handle cache invalidation and TTLs.",
+ "followUps": [
+  "How would you log a user out or revoke a JWT before it expires?",
+  "What is the difference between authentication and authorisation?",
+  "How would you pick a shard key for a payments table?",
+  "How are JWTs different from server-side sessions, and when would you prefer sessions?"
+ ]
+}

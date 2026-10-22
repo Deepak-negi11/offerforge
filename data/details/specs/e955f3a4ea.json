@@ -1,0 +1,18 @@
+{
+ "qid": "e955f3a4ea",
+ "question": "Microsoft SDE-1 (L60), LLD round with a tech lead (about 35 minutes for the design). **Design a notification module that can be used by other services to notify targeted users.** The candidate started with the Observer pattern; as they wrote classes and methods, the interviewer raised several edge cases, showing he was looking for a different architecture, and the remaining time went on requirements and correcting the code.",
+ "lookingFor": [
+  "Asking clarifying questions before choosing a pattern.",
+  "Separating the notification request, routing, channels and delivery.",
+  "Handling edge cases: targeting, retries, preferences, duplicates.",
+  "Choosing patterns for the actual problem, not by reflex.",
+  "Adapting the design when requirements change."
+ ],
+ "answer": "**Lesson from the report.** Observer fits in-process event subscription, but this problem is closer to a *service* with targeting, multiple channels, reliability and preferences. Clarify first.\n\n**Questions to ask.** Who are the clients (other services)? How are users targeted (a user ID, a group, a segment, a broadcast)? Which channels (email, SMS, push, in-app)? Real-time or can it be queued? Do users have preferences and quiet hours? Must delivery be guaranteed? Volume?\n\n**Design.**\n- `NotificationRequest` (type, targets, payload or template id, priority) submitted via `NotificationService.send(request)`.\n- `TargetResolver` expands users, groups or segments into concrete recipients (Strategy per target type).\n- `PreferenceService` checks channel opt-ins and quiet hours.\n- `TemplateEngine` renders content per channel and locale.\n- `Channel` interface (`send(recipient, message)`) with `EmailChannel`, `SmsChannel`, `PushChannel`; a `ChannelFactory`/registry; adding a channel needs no core change.\n- A **queue** between request and delivery (producer/worker) so slow providers do not block callers; per-channel workers.\n- `NotificationLog`/store with status (queued, sent, failed) for audit and retries.\n\n**Reliability.** Retry with exponential backoff, a dead-letter queue, idempotency key from the caller to avoid duplicates, rate limits per user and per provider, a fallback channel.\n\n**Patterns.** Strategy (channels, target resolution), Factory, Template Method (common send pipeline), Observer only for internal status events, Chain of Responsibility for filters (preferences, dedup, throttling).\n\n**Edge cases.** User with no valid contact, user deleted, huge broadcast (fan-out in batches), duplicate requests, partial failures across channels, time zones.\n\n**What to do in the interview.** Write the interface first, name the extension points, and walk through one request end to end before coding.",
+ "followUps": [
+  "Why is a plain Observer insufficient here?",
+  "How do you avoid sending the same notification twice?",
+  "How would you handle a broadcast to ten million users?",
+  "How do you respect user preferences and quiet hours?"
+ ]
+}

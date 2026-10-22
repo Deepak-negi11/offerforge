@@ -1,0 +1,19 @@
+{
+ "qid": "2d2dfdbbc5",
+ "question": "In a second technical round for an SMTS role on Oracle Health (4 years of experience), the candidate was given a stream of events shaped as **(userId, eventType, timestamp)** and asked to **find the top 100 users by event count over the last hour**.\n\nThe discussion was in two parts: first a **high-level design** (batch versus streaming, **Flink versus Spark Streaming**, sliding windows, scale), and then **coding the main methods** of the solution.",
+ "lookingFor": [
+  "Can you clarify requirements: freshness, accuracy, event volume, late or out-of-order events?",
+  "Do you understand sliding windows and event time versus processing time?",
+  "Can you design a correct distributed top-K (local top-K then global merge)?",
+  "Can you compare stream engines and pick based on latency and state needs?",
+  "Can you code the core data structure (bucketed counts plus a size-K min-heap)?"
+ ],
+ "answer": "**Clarify.** Rate of events (assume 100k/s), how fresh the result must be (say updated every minute), exact or approximate, handling of late events, and who reads it (a dashboard API).\n\n**Batch vs streaming.** A batch job (Spark on hourly files) is simple but results are stale by up to the batch interval. A **streaming** job gives a continuously updated answer, so use streaming here.\n\n**High-level design**\n1. Events go to **Kafka**, partitioned by `userId`, so all events of a user land in one partition.\n2. A **Flink** job keyed by `userId` keeps a **sliding window** of 1 hour that advances every minute, using **event time** with watermarks and an allowed lateness. Counts are held in managed state.\n3. Each parallel subtask emits its **local top 100** for the window; a single-parallelism step merges them into the **global top 100**. This is exact because each user belongs to exactly one subtask, so any global top-100 user is also in its subtask's top 100.\n4. Results go to Redis or a table for the read API.\n\n**Flink vs Spark Streaming.** Flink is a true record-at-a-time engine with rich event-time and state support and low latency. Spark Structured Streaming is micro-batch based: easier if you already run Spark, with seconds of latency. Either can work at this latency target.\n\n**Efficient sliding window.** Avoid keeping 60 overlapping windows. Keep **per-minute buckets** per user: `Map<userId, long[60]>`. On each minute tick, drop the oldest bucket and recompute totals, or store a running total and subtract the expired bucket.\n\n```java\nvoid onEvent(String user, long ts) {\n    long minute = ts / 60000;\n    counts.computeIfAbsent(user, u -> new long[60])[(int)(minute % 60)]++;\n}\nList<String> top100() {   // min-heap of size 100, O(U log 100)\n    PriorityQueue<Map.Entry<String,Long>> h = new PriorityQueue<>(Map.Entry.comparingByValue());\n    for (var e : totals.entrySet()) { h.add(e); if (h.size() > 100) h.poll(); }\n    return h.stream().map(Map.Entry::getKey).toList();\n}\n```\n(Bucket expiry on the minute tick must zero the stale slot first.)\n\n**Scale/trade-offs.** If users number in the hundreds of millions, memory for exact counts grows; use a **Count-Min Sketch with a heap** or Space-Saving for approximate heavy hitters. Checkpoint state for fault tolerance.",
+ "followUps": [
+  "How do you handle late and out-of-order events?",
+  "Why does merging each partition's local top 100 give the exact global top 100?",
+  "How would you reduce memory if there are billions of distinct users?",
+  "What does exactly-once processing mean here and how is it achieved in Flink?",
+  "How would the design change to support the top 100 over arbitrary time ranges?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "62a40d050b",
+ "question": "Swiggy SDE-2 (Full Stack) online assessment on HackerEarth, 3 hours total, two questions. Question 1: **build an API for a word game application in Node.js, backed by an SQLite database**. Technical specifications, implementation rules, and testing/submission instructions were provided. The other question was a React with TypeScript task (a home inventory manager).\n\nA fuller version reported elsewhere describes CRUD endpoints plus scoring rules for submitted words. The exact endpoints and scoring formula were not shared, so treat those details as unconfirmed.",
+ "lookingFor": [
+  "Can you turn a written spec into REST endpoints with correct status codes quickly?",
+  "Comfort with Node.js and SQL (SQLite) without heavy scaffolding.",
+  "Input validation and error handling against hidden tests.",
+  "Clean separation of routes, data access and scoring logic.",
+  "Time management in a long, two-part assessment."
+ ],
+ "answer": "**Plan the 3 hours.** Spend the first 10 minutes reading the spec and the provided tests; those tests are effectively the grader. Split time roughly: backend about 80-90 minutes, frontend the rest, leaving 15 minutes for re-running tests and edge cases.\n\n**Typical shape of the API (confirm against the spec).**\n- `POST /words` or `POST /games/:id/words`: submit a word, validate it, compute a score, store it.\n- `GET /words`, `GET /words/:id`: list and fetch, with any filters in the spec.\n- `PUT/PATCH /words/:id` and `DELETE /words/:id` for the CRUD parts.\n- Return `201` on create, `200` on read/update, `204` or `200` on delete, `400` for invalid input, `404` for a missing id, `409` for duplicates if the spec says so.\n\n**Structure.** Keep three layers, even in a small project:\n1. Routes/controllers: parse params, call a service, map errors to status codes.\n2. Service: scoring rules as pure functions (for example letter values summed, bonuses for length), easy to unit test.\n3. Data access: SQLite via `better-sqlite3` or `sqlite3`, using parameterised queries (`?` placeholders) never string concatenation, to avoid SQL injection.\n\n**Data model.** A table like `words(id INTEGER PRIMARY KEY, word TEXT NOT NULL, score INTEGER NOT NULL, created_at TEXT)` with a unique index if duplicates are disallowed. Run schema creation on startup (`CREATE TABLE IF NOT EXISTS`).\n\n**Details graders usually check.**\n- Normalise case and trim whitespace before validating and scoring.\n- Reject empty, non-alphabetic or over-long input with a clear JSON error body.\n- Deterministic ordering in list responses.\n- Correct content type (`application/json`) and port or start script as instructed.\n\n**Mistakes to avoid.** Reading the spec once and coding from memory; scoring logic buried inside route handlers; unhandled promise rejections that crash the server; forgetting to close or reuse the DB connection; hard-coding paths that differ in the grader environment.\n\n**Test as you go.** Hit each endpoint with `curl` or the provided test suite after every route, not at the end.",
+ "followUps": [
+  "How would you prevent two concurrent requests from submitting the same word twice?",
+  "How would you paginate the list endpoint?",
+  "Why use parameterised queries, and what does SQLite do differently from a server database regarding concurrency?",
+  "How would you unit test the scoring function?"
+ ]
+}

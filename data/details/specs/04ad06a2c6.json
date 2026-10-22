@@ -1,0 +1,19 @@
+{
+ "qid": "04ad06a2c6",
+ "question": "Two linked questions from a Swiggy SDE-1 interview (a later round): **\"If I type www.facebook.com and click search, what happens in the background?\"** and **\"Tell me about the data structure a DNS server uses. How does DNS search for an IP address?\"**\n\nExplain how a domain name is resolved to an IP address, and what data structure a DNS server might use.",
+ "lookingFor": [
+  "Do you understand how names resolve through the DNS hierarchy?",
+  "Do you know the role of caching and TTL?",
+  "Can you place DNS inside the larger page-load flow (TCP, TLS, HTTP)?",
+  "Can you connect the problem to a data structure with justification?",
+  "Do you know where DNS can fail and how it is secured?"
+ ],
+ "answer": "**Resolution steps** (for `www.facebook.com`):\n1. The browser checks its own cache, then the OS cache and the `hosts` file.\n2. If missing, the OS asks the configured **recursive resolver** (ISP, or a public one) over UDP port 53 (TCP for large responses).\n3. The resolver checks its cache. On a miss, it works down the hierarchy iteratively:\n   - **Root server** returns the address of the `.com` TLD servers.\n   - **TLD server** returns the authoritative name servers for `facebook.com`.\n   - **Authoritative server** returns the answer (an A record for IPv4, AAAA for IPv6, or a CNAME to chase).\n4. The resolver caches the result for the record's **TTL** and returns the IP to the client, which caches it too.\n\n**Then the page load continues:** TCP handshake to the IP, TLS handshake, HTTP request, response, rendering. Large sites use DNS-based load balancing or anycast, so the IP returned can differ by location.\n\n**Data structures**\n- The namespace itself is a **tree** (hierarchy) read right to left: root, `com`, `facebook`, `www`. Each node is a zone or delegation point.\n- A name server stores records in a **hash table** keyed by domain name (and type) for O(1) average lookup of an exact name.\n- A **trie** keyed on the reversed labels (`com -> facebook -> www`) is a natural fit for hierarchical lookup, delegation and wildcard or longest-suffix matching, and shares common suffixes in memory. Real implementations such as BIND use a red-black tree/database over domain labels, so there is no single \"correct\" answer; justify your choice by the operations needed.\n- The resolver cache is a hash map with expiry (TTL), often with an LRU bound.\n\n**Failure and security notes:** negative caching (NXDOMAIN), cache poisoning (mitigated by DNSSEC and randomised ports/IDs), and DoH/DoT for privacy.",
+ "followUps": [
+  "What is the difference between recursive and iterative queries?",
+  "What are A, AAAA, CNAME, MX, NS and TXT records?",
+  "Why does DNS use UDP, and when does it fall back to TCP?",
+  "What is DNS cache poisoning and how is it prevented?",
+  "How does CDN or load-balancer DNS routing work?"
+ ]
+}

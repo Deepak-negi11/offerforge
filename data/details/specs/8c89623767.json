@@ -1,0 +1,19 @@
+{
+ "qid": "8c89623767",
+ "question": "Paytm Senior Software Engineer (SDE-2) technical round on microservices: **your API suddenly shows high latency. How do you debug it end to end? Which KPIs and dashboards do you check? How do you detect thread-pool starvation, and how do you spot slow downstream dependencies?** Another candidate also reported API latency questions in a first technical round.",
+ "lookingFor": [
+  "A systematic, hypothesis-driven debugging method rather than guessing.",
+  "Knowing the right metrics (latency percentiles, saturation, errors, traffic).",
+  "Understanding of thread pools, connection pools, GC and downstream timeouts.",
+  "Use of tracing, logs and dashboards, and mitigation versus root-cause fixes.",
+  "Communication under incident pressure."
+ ],
+ "answer": "**1. Triage and scope.** Is it all endpoints or one? All users or a region or tenant? When did it start? Correlate with deploys, config changes, traffic spikes or dependency incidents. If a deploy is the suspect, roll back first and investigate after.\n\n**2. KPIs to check** (RED plus saturation):\n- Rate (requests/sec), Errors (5xx, timeouts) and Duration as p50/p95/p99, not just averages.\n- CPU, memory, GC pause time, load, network.\n- Thread-pool active/queue size, DB and HTTP connection-pool usage, request queue depth.\n- Downstream latency and error rates per dependency (DB, cache, other services, message brokers).\n\n**3. Localise with tracing.** Use distributed traces (for example OpenTelemetry-based tools) to see where time is spent per request: our code, DB query, cache, or an outgoing call. Compare slow versus fast traces, and check logs using the correlation ID.\n\n**4. Thread-pool starvation signs.**\n- Latency grows while CPU stays low; the queue length grows and active threads sit at the max.\n- Thread dumps (several, seconds apart) show most threads blocked or waiting on the same I/O call, lock or connection pool.\n- Pool-exhaustion errors, rejected tasks, and requests waiting before they even enter the handler.\n\n**5. Slow downstream.** Per-dependency timing metrics, trace spans, and a spike in connection-pool wait time. Blocking calls without timeouts tie up threads and the slowness cascades.\n\n**6. Mitigate, then fix.** Add timeouts, circuit breakers, bulkheads (separate pools per dependency), retries with backoff and jitter, caching, and load shedding. Then fix the root cause (slow query, missing index, lock contention, GC tuning) and add an alert so you detect it earlier next time.",
+ "followUps": [
+  "How would you debug a slow SQL query behind the API?",
+  "What is the difference between a circuit breaker and a bulkhead?",
+  "Why do averages hide latency problems?",
+  "How would you tune a thread pool for blocking versus CPU-bound work?",
+  "How do you ensure an 8-core instance is fully utilised?"
+ ]
+}

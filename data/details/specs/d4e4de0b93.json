@@ -1,0 +1,18 @@
+{
+ "qid": "d4e4de0b93",
+ "question": "In the role-specialization round for a Software Engineer (Backend) role at PayPal, the candidate was given **scaffolded code and asked to complete it into a working Venmo-like payments feed**, a problem described as similar to **Design Twitter**: users make payments to each other and see a feed of recent payments.\n\nThe same candidate also reported a **TinyURL** design and an **LFU cache** in other rounds. No source passage was available, so the exact API of the scaffolding is unknown. Treat it as an in-memory object-oriented design with `pay` and `getFeed` style methods.",
+ "lookingFor": [
+  "Can you model entities cleanly (User, Payment, Feed) and extend given scaffolding?",
+  "Do you handle money safely (integer cents or BigDecimal, validation, balances)?",
+  "Can you build the feed efficiently, merging per-user payment lists by time?",
+  "Do you consider concurrency, idempotency and privacy of payments?",
+  "Do you write tests and discuss how the in-memory design would scale?"
+ ],
+ "answer": "**Clarify first.** Who sees a payment (the two parties, their friends, or public)? What does the feed contain (friends' payments and own), how many items, and what ordering? Are balances needed? Is concurrency expected?\n\n**Entities.**\n- `User(id, name, friends:Set<id>)`\n- `Payment(id, fromId, toId, amountCents, note, createdAt, visibility)`\n- `PaymentService` with `addFriend(a, b)`, `pay(from, to, amountCents, note)`, `getFeed(userId, limit)`.\n\n**Design (same shape as LeetCode 355, Design Twitter).**\n- Keep payments in a global list and a per-user list `Map<userId, List<Payment>>`, appended on `pay` for both sender and receiver.\n- **Fan-out on read:** `getFeed` takes the user's own list plus each friend's list and merges the most recent entries using a **max-heap on `createdAt`**, popping `limit` items. Cost is about O(f + limit log f) for f friends when each list is sorted by time and you walk from its tail.\n- **Fan-out on write** (push each payment into friends' precomputed feeds) makes reads O(1) but writes expensive for users with many friends. Choose read-time merge for the interview unless asked to scale, and mention the hybrid.\n\n**Correctness details.**\n- Store money as **integer cents** or `BigDecimal`, never `double`. Reject non-positive amounts and paying yourself.\n- Use a monotonic sequence or timestamp plus id to break ties so ordering is deterministic.\n- Return only payments the viewer is allowed to see, and hide amounts if the visibility rules require it (real Venmo-style feeds show the note but not the amount).\n- `pay` should be atomic: if you track balances, debit and credit in one synchronized section or under per-account ordered locks to avoid deadlock. Add an **idempotency key** so retries do not double-pay.\n\n**Scaling talk.** Persist payments in a database indexed by `(userId, createdAt desc)`, cache hot feeds, and paginate with a cursor (`createdAt`, id), not offsets.\n\nWrite a few unit tests: empty feed, ordering across friends, limit, and unfriend.",
+ "followUps": [
+  "How would you paginate the feed without offset?",
+  "How do you prevent a duplicate payment if the client retries?",
+  "Fan-out on write versus on read: when would you switch?",
+  "How would you add comments and likes to payments?"
+ ]
+}

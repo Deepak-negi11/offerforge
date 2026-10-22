@@ -1,0 +1,49 @@
+{
+ "pid": "salesforce-find-all-zero-sum-subarrays",
+ "title": "Find All Zero-Sum Subarrays",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "Given an array of integers that may contain both positive and negative numbers (and zeros), find **all** subarrays whose elements sum to exactly zero.\n\nA subarray is a contiguous, non-empty part of the array `a[i..j]` with `0 ≤ i ≤ j < n` (0-indexed, both ends included). Two subarrays are different if their `(i, j)` pairs differ, even when they contain the same values. For example, in `[0, 0]` the zero-sum subarrays are `(0, 0)`, `(0, 1)` and `(1, 1)`.\n\nPrint how many zero-sum subarrays there are, followed by every one of them as a pair `i j`, sorted by `i` first and then by `j`.\n\nIt is guaranteed that the number of zero-sum subarrays is at most `2·10^5`.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` space-separated integers `a[0], ..., a[n - 1]`.",
+ "output_format": "First print `k`, the number of zero-sum subarrays. Then print `k` lines `i j` (the start and end index, inclusive), sorted by `i` and then by `j`. If `k = 0`, print only `0`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "-10^9 ≤ a[i] ≤ 10^9 (prefix sums need 64-bit integers)",
+  "The number of zero-sum subarrays is at most 2·10^5"
+ ],
+ "examples": [
+  {
+   "input": "11\n6 3 -1 -3 4 -2 2 4 6 -12 -7",
+   "output": "5\n0 10\n2 4\n2 6\n5 6\n6 9",
+   "explanation": "Indices 2..4 hold -1, -3, 4 (sum 0). Indices 2..6 add -2 and 2, which cancel, so that is also 0. Indices 5..6 are -2, 2. Indices 6..9 are 2, 4, 6, -12, which sum to 0. Finally the whole array sums to 0 (0..10). That is 5 subarrays, listed by start index and then end index."
+  },
+  {
+   "input": "4\n0 0 5 0",
+   "output": "4\n0 0\n0 1\n1 1\n3 3",
+   "explanation": "Single zeros at indices 0, 1 and 3, plus the pair (0, 1) of two zeros. Nothing containing the 5 can sum to zero."
+  },
+  {
+   "input": "3\n1 2 3",
+   "output": "0",
+   "explanation": "All elements are positive, so no subarray sums to zero."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + k), where k is the number of subarrays reported",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Let P[t] be the sum of the first t elements. The subarray a[i..j] sums to zero exactly when P[i] equals P[j + 1].",
+  "Group the prefix positions 0..n by their prefix-sum value, for instance in a hash map from sum to a list of positions.",
+  "Every pair of positions p < q inside the same group gives the zero-sum subarray (p, q - 1). Walk the positions in increasing order and, for each, list the later positions of its group so the output comes out already sorted."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = data[1:1 + n]\n    groups = {}\n    pref = [0] * (n + 1)\n    s = 0\n    groups[0] = [0]\n    where = [0] * (n + 1)\n    for i in range(1, n + 1):\n        s += int(a[i - 1])\n        pref[i] = s\n        g = groups.setdefault(s, [])\n        where[i] = len(g)\n        g.append(i)\n    lines = []\n    for i in range(n + 1):\n        g = groups[pref[i]]\n        for t in range(where[i] + 1, len(g)):\n            lines.append(f'{i} {g[t] - 1}')\n    print(len(lines))\n    if lines:\n        print('\\n'.join(lines))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = list(map(int, data[1:1 + n]))\nres = []\nfor i in range(n):\n    s = 0\n    for j in range(i, n):\n        s += a[j]\n        if s == 0:\n            res.append(f'{i} {j}')\nprint(len(res))\nif res:\n    print('\\n'.join(res))\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n\n    tests = [fmt([6, 3, -1, -3, 4, -2, 2, 4, 6, -12, -7]), fmt([0, 0]), fmt([1, 2, 3]), fmt([0]), fmt([5]),\n             fmt([1, -1, 1, -1]), fmt([4, -4, 2, 2, -2, -2]), fmt([-10**9, 10**9, -10**9, 10**9]),\n             fmt([3, 0, -3, 0, 3])]\n    for n in (3, 5, 8, 12, 18, 25):\n        for hi in (2, 3, 5):\n            tests.append(fmt([rng.randint(-hi, hi) for _ in range(n)]))\n    N = 100000\n    # planted pairs separated by random large numbers\n    a = []\n    while len(a) + 3 <= N:\n        x = rng.randint(1, 10**9)\n        a += [x, -x, rng.choice([-1, 1]) * rng.randint(10**8, 10**9)]\n    a += [rng.randint(1, 10**9) for _ in range(N - len(a))]\n    tests.append(fmt(a))\n    # random large values with a few zeros\n    a = [rng.choice([-1, 1]) * rng.randint(1, 10**9) for _ in range(N)]\n    for _ in range(100):\n        a[rng.randrange(N)] = 0\n    tests.append(fmt(a))\n    # all ones: no zero-sum subarray\n    tests.append(fmt([1] * N))\n    # up then down at +-1e9: needs 64-bit prefix sums\n    tests.append(fmt([10**9] * (N // 2) + [-10**9] * (N // 2)))\n    # alternating 1,-1: many answers (about 1.6e5)\n    tests.append(fmt([1, -1] * 400))\n    # all zeros\n    tests.append(fmt([0] * 600))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef zero_sum_subarrays(a: List[int]) -> List[Tuple[int, int]]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    res = zero_sum_subarrays(a)\n    out = [str(len(res))]\n    out.extend(f'{i} {j}' for i, j in res)\n    print('\\n'.join(out))\n\n\nmain()\n",
+  "javascript": "function zeroSumSubarrays(a) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst a = t.slice(1, 1 + n)\nconst res = zeroSumSubarrays(a)\nconst out = [String(res.length)]\nfor (const [i, j] of res) out.push(i + ' ' + j)\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<pair<int, int>> zeroSumSubarrays(vector<long long>& a) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    vector<pair<int, int>> res = zeroSumSubarrays(a);\n    string out = to_string(res.size()) + \"\\n\";\n    for (auto& p : res) out += to_string(p.first) + \" \" + to_string(p.second) + \"\\n\";\n    cout << out;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<int[]> zeroSumSubarrays(long[] a) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (long) in.nval;\n        }\n        List<int[]> res = zeroSumSubarrays(a);\n        StringBuilder sb = new StringBuilder();\n        sb.append(res.size()).append('\\n');\n        for (int[] p : res) sb.append(p[0]).append(' ').append(p[1]).append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

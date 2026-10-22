@@ -1,0 +1,18 @@
+{
+ "qid": "a2dc2202b4",
+ "question": "JPMorgan Chase, Security Engineer (Java), Technical Interview 1. The coding task: **using Java Streams, merge two arrays keeping only the elements that are not common to both** (unique, non-common elements). The same round also covered Spring Boot annotations and bean lifecycle, `@Component` vs `@Bean`, REST API design and status codes, and tricky questions on concurrency and fail-fast vs fail-safe iterators.",
+ "lookingFor": [
+  "Fluency with the Streams API (boxed, filter, concat, collect) rather than falling back to nested loops.",
+  "Choosing a hash set so membership checks are O(1) instead of O(n).",
+  "Handling edge cases: duplicates inside one array, empty arrays, null input.",
+  "Core Spring knowledge: annotations, lifecycle, `@Component` vs `@Bean`.",
+  "Understanding of collection iterator semantics under concurrent modification."
+ ],
+ "answer": "**Coding part: symmetric difference of two arrays.** Clarify first: elements present in exactly one array; should duplicates inside one array be kept? I assume the result is a set of distinct values.\n\n```java\nint[] merge(int[] a, int[] b) {\n    Set<Integer> sa = Arrays.stream(a).boxed().collect(Collectors.toSet());\n    Set<Integer> sb = Arrays.stream(b).boxed().collect(Collectors.toSet());\n    return Stream.concat(\n            sa.stream().filter(x -> !sb.contains(x)),\n            sb.stream().filter(x -> !sa.contains(x)))\n        .mapToInt(Integer::intValue).toArray();\n}\n```\n\nTime is O(n + m) and space O(n + m). Using `List.contains` inside the filter would give O(n*m), which is the common mistake. Mention that `Collectors.toSet()` gives no ordering guarantee; use `LinkedHashSet` if order matters.\n\n**Spring questions, short answers.**\n- **Lifecycle:** instantiate, populate dependencies, aware callbacks, `@PostConstruct`, `InitializingBean`, bean is ready, then `@PreDestroy` on shutdown.\n- **`@Component` vs `@Bean`:** `@Component` marks a class of your own for classpath scanning; `@Bean` is a method in a `@Configuration` class that returns an object, used for third-party classes or when construction needs custom logic.\n- **Status codes:** 200 OK, 201 Created (with `Location`), 204 No Content, 400 bad input, 401 unauthenticated, 403 forbidden, 404 not found, 409 conflict, 500 server error.\n\n**Fail-fast vs fail-safe.** Fail-fast iterators (`ArrayList`, `HashMap`) track a `modCount` and throw `ConcurrentModificationException` if the structure changes during iteration. This is best-effort, not guaranteed. Fail-safe (more precisely weakly consistent) iterators, as in `CopyOnWriteArrayList` or `ConcurrentHashMap`, iterate over a snapshot or tolerate concurrent changes and never throw, but may not show the latest updates.",
+ "followUps": [
+  "How would the solution change if the arrays are sorted or very large?",
+  "What happens if you remove from an ArrayList inside a for-each loop, and how do you do it safely?",
+  "How does Spring resolve which bean to inject when there are two candidates?",
+  "Why is `HashMap` not thread safe, and what do you use instead?"
+ ]
+}

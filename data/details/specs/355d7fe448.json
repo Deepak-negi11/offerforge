@@ -1,0 +1,17 @@
+{
+ "qid": "355d7fe448",
+ "question": "Infosys HackWithInfy L2 interview (Systems Engineer level). The candidate was asked two LeetCode problems: **Jump Game** (a DP or greedy question) and the hard SQL problem **Trips and Users**. The candidate also reported that **system design** was asked and advised preparing for it.\n\nJump Game: given an array where each element is the maximum jump length from that index, decide whether you can reach the last index starting from the first. Trips and Users: from the `Trips` and `Users` tables, compute each day's cancellation rate of requests that involve only unbanned clients and drivers, within a given date range.",
+ "lookingFor": [
+  "Greedy or DP reasoning with a proof of correctness.",
+  "SQL: joins with filtering conditions, grouping and conditional aggregation.",
+  "Careful reading of requirements (what is in the numerator and denominator).",
+  "Breadth: ability to move into system design."
+ ],
+ "answer": "**Jump Game (LeetCode 55): greedy, O(n) time, O(1) space.** Track the farthest index reachable so far. Walk through the array; if the current index is beyond the farthest reach, you are stuck and the answer is false; otherwise update `farthest = max(farthest, i + nums[i])`. If you finish the loop, return true.\n```\ndef can_jump(nums):\n    far = 0\n    for i, x in enumerate(nums):\n        if i > far:\n            return False\n        far = max(far, i + x)\n    return True\n```\nWhy greedy works: the set of reachable indexes is always a prefix, so one number summarises it. A DP solution (`dp[i]` = reachable) is O(n^2), or O(n) with the greedy idea. Edge cases: a single element is true; zeros are only a problem if you cannot jump over them.\n\n**Trips and Users (LeetCode 262).** As I recall the problem, `Trips` has `client_id`, `driver_id`, `status` (`completed`, `cancelled_by_driver`, `cancelled_by_client`) and `request_at`; `Users` has `users_id` and `banned`. Re-read the statement for the exact date range and rounding. Steps:\n1. Join `Trips` to `Users` twice (as client and as driver) and keep only rows where both are not banned.\n2. Filter by the date range and group by day.\n3. Rate = cancelled trips / all trips, rounded to two decimals.\n```\nSELECT t.request_at AS Day,\n       ROUND(AVG(t.status <> 'completed'), 2) AS `Cancellation Rate`\nFROM Trips t\nJOIN Users c ON t.client_id = c.users_id AND c.banned = 'No'\nJOIN Users d ON t.driver_id = d.users_id AND d.banned = 'No'\nWHERE t.request_at BETWEEN '2013-10-01' AND '2013-10-03'\nGROUP BY t.request_at;\n```\n`AVG` of a 0/1 condition (MySQL) is the fraction; in other databases use `SUM(CASE WHEN status <> 'completed' THEN 1 ELSE 0 END) * 1.0 / COUNT(*)`. Use inner joins so banned users are excluded from both numerator and denominator.",
+ "followUps": [
+  "What is the DP formulation of Jump Game, and why is greedy better?",
+  "How would you find the minimum number of jumps (Jump Game II)?",
+  "Why does a LEFT JOIN give a wrong result for Trips and Users?",
+  "What index would speed up the Trips query?"
+ ]
+}

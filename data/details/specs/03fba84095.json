@@ -1,0 +1,19 @@
+{
+ "qid": "03fba84095",
+ "question": "Mastercard on-campus Software Engineer, Technical Interview 1 (database portion). You were given two tables, **Book** and **Author**, and asked to discuss: the type of relationship between them, the primary and foreign key structure, and how you would optimise retrieval speed in a SQL database (indexing) and in a NoSQL database (partitioning/sharding).",
+ "lookingFor": [
+  "Can you derive the relationship (many-to-many) from the real-world rules?",
+  "Do you know how a junction table with composite and foreign keys is modelled?",
+  "Do you understand what an index does and its write-time cost?",
+  "Can you transfer the idea to NoSQL: partition key choice, embedding vs referencing?",
+  "Can you reason about trade-offs rather than recite definitions?"
+ ],
+ "answer": "**Relationship.** A book can have several authors and an author can write several books, so it is **many-to-many**. A relational database cannot store this directly in two tables, so we add a junction (bridge) table.\n\n**Keys.**\n\n    Author(author_id PK, name, ...)\n    Book(book_id PK, title, isbn UNIQUE, ...)\n    BookAuthor(book_id FK -> Book, author_id FK -> Author,\n               author_order, PRIMARY KEY (book_id, author_id))\n\nEach side keeps its own primary key. The junction table holds two foreign keys, and together they form a composite primary key, which also prevents the same pair appearing twice. Use `ON DELETE CASCADE` (or restrict) deliberately.\n\n**Speeding up retrieval in SQL.**\n- The composite PK index on `(book_id, author_id)` already serves \"authors of a book\". Add a second index on `(author_id, book_id)` for \"books of an author\", since the PK index cannot serve that lookup efficiently.\n- Index columns used in `WHERE`, `JOIN` and `ORDER BY` (for example `Author.name`, `Book.title`); a prefix or full-text index suits search.\n- A covering index lets the query be answered from the index alone.\n- Check with `EXPLAIN` that the index is used; remember indexes slow inserts/updates and use space, so do not index everything.\n- Other levers: avoid `SELECT *`, paginate, cache hot reads, add read replicas, partition very large tables.\n\n**Speeding up retrieval in NoSQL.**\n- Model for the access pattern. In a document store you can embed a small author summary (id, name) inside each book document to avoid joins, and keep a separate author collection; this denormalisation trades update cost for read speed.\n- Choose a **partition (shard) key** with high cardinality and even distribution, so requests spread across nodes and no hot partition forms. For books, `book_id` hashes well; sharding by author name could skew toward a prolific author.\n- Reads that include the partition key hit one shard; others scatter-gather across all shards, so design secondary indexes or a second lookup table (author_id -> book ids) for the reverse query.\n- Use replication and caching for read-heavy loads.\n\nState your assumptions, for example \"reads far outnumber writes, so I accept extra indexes\".",
+ "followUps": [
+  "What happens to the junction table if an author is deleted?",
+  "Why is a composite index on (a, b) not the same as two separate indexes?",
+  "When would you embed authors in the book document instead of referencing them?",
+  "What problems does a poorly chosen shard key cause?",
+  "How would you store the order of authors on a book?"
+ ]
+}

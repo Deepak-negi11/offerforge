@@ -1,0 +1,18 @@
+{
+ "qid": "0b3d9837e0",
+ "question": "Sprinklr Product Engineering Intern technical round (2024): after resume and internship discussion, the candidate was asked to **implement a file system in C++** with the required functionality of **creating and deleting files and folders**. The same round ended with a math puzzle.",
+ "lookingFor": [
+  "Can you model a hierarchical file system with sensible classes (a tree)?",
+  "Do you use polymorphism or composition well (files versus directories)?",
+  "Can you handle paths, duplicate names and invalid operations?",
+  "Do you manage memory correctly in C++ (ownership, smart pointers, destructors)?",
+  "Do you discuss extensions: ls, move, permissions, size?"
+ ],
+ "answer": "**Requirements to clarify.** Create and delete files and directories by path (such as `/a/b/file.txt`), error on duplicates or missing parents, and decide whether deleting a non-empty directory is allowed (recursive delete). Single-threaded and in-memory.\n\n**Design.** A file system is a **tree**. Use the Composite pattern: a base `Node` with `name` and `parent`, and two subtypes.\n```\nstruct Node { std::string name; virtual ~Node() = default; };\nstruct File : Node { std::string content; };\nstruct Dir  : Node {\n  std::unordered_map<std::string, std::unique_ptr<Node>> children;\n};\nclass FileSystem {\n  Dir root;\n  Dir* resolve(const std::vector<std::string>& parts); // walks to the parent dir\npublic:\n  bool createDir(const std::string& path);\n  bool createFile(const std::string& path);\n  bool remove(const std::string& path);  // file or directory\n};\n```\n**Operations.**\n- **Parse the path** by splitting on `/` (skip empty parts).\n- **Create**: walk from the root to the parent directory; fail if a component is missing or is a file, or if the name already exists; insert a new `File` or `Dir` into `children`.\n- **Delete**: find the parent, erase the child by name. With `unique_ptr` ownership, erasing the entry frees the whole subtree recursively and automatically (no leaks). Optionally refuse non-empty directories unless a recursive flag is set.\n\n**Complexity.** O(depth) per operation, with O(1) average lookups at each level thanks to the hash map; `std::map` would keep names sorted for `ls`.\n\n**Edge cases.** Root deletion, trailing slashes, names containing `/`, creating a file inside a file, and empty paths. Return `bool` or an error code, or throw exceptions, consistently.\n\n**Extensions to mention.** `ls`, `mv`/`cp`, file content read and write, size computation (recursive), permissions, timestamps, symbolic links (cycles!), and concurrency with a reader-writer lock per directory.",
+ "followUps": [
+  "How would you implement `ls` and `find` and calculate the total size of a directory?",
+  "How would you support `move` of a directory, and prevent moving it inside itself?",
+  "How would you make the file system thread-safe?",
+  "Why use `unique_ptr`, and what would break with raw pointers?"
+ ]
+}

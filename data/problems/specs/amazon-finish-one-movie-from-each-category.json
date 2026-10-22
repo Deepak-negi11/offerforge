@@ -1,0 +1,49 @@
+{
+ "pid": "amazon-finish-one-movie-from-each-category",
+ "title": "Finish One Movie from Each Category",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A film festival shows movies in two categories, **A** and **B**. Every movie has a fixed start time and a duration, so the movie with start `s` and duration `d` runs from time `s` to time `s + d`. You want to watch at least one movie from category A and at least one from category B, in full.\n\nRules:\n\n- You can only watch one movie at a time, and you must watch each chosen movie from its start to its end.\n- You may start a movie at exactly the moment the previous one ends.\n- You can watch the two movies in either order (A first or B first).\n\nPrint the **earliest time** by which you can have finished one movie from each category (the end time of the second movie you watch). If it is impossible to watch one movie from each category without overlap, print `-1`.",
+ "input_format": "The first line contains two integers `a` and `b`: the number of movies in categories A and B.\nEach of the next `a` lines contains two integers `start` and `duration` for a movie in A.\nEach of the next `b` lines contains two integers `start` and `duration` for a movie in B.",
+ "output_format": "Print a single integer: the earliest time by which one movie from each category can be finished, or `-1`.",
+ "constraints": [
+  "1 ≤ a, b ≤ 7 · 10^4",
+  "0 ≤ start ≤ 10^6",
+  "1 ≤ duration ≤ 10^6"
+ ],
+ "examples": [
+  {
+   "input": "2 3\n1 3\n5 2\n2 2\n4 3\n8 1",
+   "output": "7",
+   "explanation": "Watch the A movie 1–4, then the B movie starting at 4 and ending at 7. The B movie 2–4 followed by the A movie 5–7 also ends at 7. Nothing finishes earlier."
+  },
+  {
+   "input": "1 2\n10 2\n1 3\n20 1",
+   "output": "12",
+   "explanation": "Watching B first is better: the B movie 1–4 and then the A movie 10–12 finish at 12. Watching A first (10–12) forces the late B movie 20–21."
+  },
+  {
+   "input": "1 1\n0 10\n5 3",
+   "output": "-1",
+   "explanation": "The movies run 0–10 and 5–8, so they overlap and you cannot watch both."
+  }
+ ],
+ "complexity": {
+  "time": "O((a + b) log (a + b))",
+  "space": "O(a + b)"
+ },
+ "hints": [
+  "Handle one order at a time, say A before B, and then repeat with the roles swapped. The answer is the better of the two.",
+  "For a fixed A movie ending at time `t`, you want the B movie that starts at or after `t` and ends as early as possible.",
+  "Sort B by start time and precompute a suffix minimum of end times, then binary search the first B movie starting at or after `t`."
+ ],
+ "reference": "import sys\nfrom bisect import bisect_left\n\nINF = float('inf')\n\ndef solve(A, B):\n    B = sorted(B)\n    starts = [s for s, d in B]\n    suf = [INF] * (len(B) + 1)\n    for i in range(len(B) - 1, -1, -1):\n        e = B[i][0] + B[i][1]\n        suf[i] = e if e < suf[i + 1] else suf[i + 1]\n    best = INF\n    for s, d in A:\n        k = bisect_left(starts, s + d)\n        if suf[k] < best:\n            best = suf[k]\n    return best\n\ndef main():\n    data = sys.stdin.read().split()\n    a, b = int(data[0]), int(data[1])\n    vals = list(map(int, data[2:2 + 2 * (a + b)]))\n    A = [(vals[2 * i], vals[2 * i + 1]) for i in range(a)]\n    B = [(vals[2 * (a + i)], vals[2 * (a + i) + 1]) for i in range(b)]\n    ans = min(solve(A, B), solve(B, A))\n    print(ans if ans < INF else -1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\na, b = int(data[0]), int(data[1])\nvals = list(map(int, data[2:2 + 2 * (a + b)]))\nA = [(vals[2 * i], vals[2 * i + 1]) for i in range(a)]\nB = [(vals[2 * (a + i)], vals[2 * (a + i) + 1]) for i in range(b)]\nbest = None\nfor s1, d1 in A:\n    for s2, d2 in B:\n        if s1 + d1 <= s2:\n            e = s2 + d2\n        elif s2 + d2 <= s1:\n            e = s1 + d1\n        else:\n            continue\n        if best is None or e < best:\n            best = e\nprint(-1 if best is None else best)\n",
+ "generator": "def gen(rng):\n    def fmt(A, B):\n        return '%d %d\\n' % (len(A), len(B)) + '\\n'.join('%d %d' % x for x in A + B)\n\n    tests = []\n    tests.append(fmt([(0, 1)], [(1, 1)]))\n    tests.append(fmt([(0, 1)], [(0, 1)]))\n    tests.append(fmt([(0, 10)], [(5, 3)]))\n    tests.append(fmt([(0, 10 ** 6)], [(10 ** 6, 10 ** 6)]))\n    tests.append(fmt([(1, 3), (5, 2)], [(2, 2), (4, 3), (8, 1)]))\n    tests.append(fmt([(10, 2)], [(1, 3), (20, 1)]))\n    for _ in range(45):\n        a = rng.randint(1, 6)\n        b = rng.randint(1, 6)\n        T = rng.choice([8, 20, 50])\n        D = rng.choice([2, 5, 15])\n        A = [(rng.randint(0, T), rng.randint(1, D)) for _ in range(a)]\n        B = [(rng.randint(0, T), rng.randint(1, D)) for _ in range(b)]\n        tests.append(fmt(A, B))\n    N = 70000\n    M = 10 ** 6\n    tests.append(fmt([(rng.randint(0, M), rng.randint(1, 50)) for _ in range(N)], [(rng.randint(0, M), rng.randint(1, 50)) for _ in range(N)]))\n    tests.append(fmt([(rng.randint(0, M), rng.randint(1, M)) for _ in range(N)], [(rng.randint(0, M), rng.randint(1, M)) for _ in range(N)]))\n    tests.append(fmt([(rng.randint(0, 1000), rng.randint(5000, M)) for _ in range(N)], [(rng.randint(0, 1000), rng.randint(5000, M)) for _ in range(N)]))\n    tests.append(fmt([(rng.randint(0, M // 2), rng.randint(1, 10)) for _ in range(N)], [(rng.randint(M // 2, M), rng.randint(1, 10)) for _ in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef earliest_finish(a: List[Tuple[int, int]], b: List[Tuple[int, int]]) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    na, nb = int(data[0]), int(data[1])\n    vals = list(map(int, data[2:2 + 2 * (na + nb)]))\n    a = [(vals[2 * i], vals[2 * i + 1]) for i in range(na)]\n    b = [(vals[2 * (na + i)], vals[2 * (na + i) + 1]) for i in range(nb)]\n    print(earliest_finish(a, b))\n\n\nmain()\n",
+  "javascript": "function earliestFinish(a, b) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst na = t[0], nb = t[1]\nconst a = [], b = []\nfor (let i = 0; i < na; i++) a.push([t[2 + 2 * i], t[3 + 2 * i]])\nfor (let i = 0; i < nb; i++) b.push([t[2 + 2 * (na + i)], t[3 + 2 * (na + i)]])\nconsole.log(earliestFinish(a, b))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long earliestFinish(vector<pair<long long, long long>>& a, vector<pair<long long, long long>>& b) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int na, nb;\n    cin >> na >> nb;\n    vector<pair<long long, long long>> a(na), b(nb);\n    for (int i = 0; i < na; i++) cin >> a[i].first >> a[i].second;\n    for (int i = 0; i < nb; i++) cin >> b[i].first >> b[i].second;\n    cout << earliestFinish(a, b) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long earliestFinish(long[][] a, long[][] b) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int na = (int) in.nval;\n        in.nextToken();\n        int nb = (int) in.nval;\n        long[][] a = new long[na][2], b = new long[nb][2];\n        for (int i = 0; i < na; i++) {\n            in.nextToken(); a[i][0] = (long) in.nval;\n            in.nextToken(); a[i][1] = (long) in.nval;\n        }\n        for (int i = 0; i < nb; i++) {\n            in.nextToken(); b[i][0] = (long) in.nval;\n            in.nextToken(); b[i][1] = (long) in.nval;\n        }\n        System.out.println(earliestFinish(a, b));\n    }\n}\n"
+ }
+}

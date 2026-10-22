@@ -1,0 +1,18 @@
+{
+ "qid": "0f8d6bb617",
+ "question": "Dream11 SDE-1 (Frontend), Hiring Manager round on real-world frontend and React knowledge. Reported questions:\n\n- How do you **optimise very large lists in React Native**? (The candidate answered with virtualisation.)\n- What is the **difference between `useEffect` and `useLayoutEffect`**?\n\nThe discussion also covered the React lifecycle and general performance best practices.",
+ "lookingFor": [
+  "Knowing why rendering thousands of rows is slow and how virtualisation fixes it.",
+  "Practical React Native list tuning rather than only theory.",
+  "Understanding of React's render, commit and effect timing.",
+  "Awareness of when each hook is appropriate and its cost.",
+  "Habit of measuring performance before optimising."
+ ],
+ "answer": "**Large lists in React Native.** Rendering every row mounts thousands of native views, which costs memory and blocks the JS thread. Use a virtualised list: `FlatList`/`SectionList`, or `FlashList` (recycling cells) for very long lists. Only rows near the viewport are mounted; the rest are replaced by blank space.\n\nTuning options:\n\n- Provide a stable `keyExtractor` (a unique id, not the index).\n- Give `getItemLayout` when rows have a fixed height so the list can skip measuring and jump to offsets.\n- Tune `initialNumToRender`, `windowSize`, `maxToRenderPerBatch`, `updateCellsBatchingPeriod`, and consider `removeClippedSubviews`.\n- Wrap row components in `React.memo`, keep `renderItem` and callbacks stable with `useCallback`, and avoid inline objects or functions as props so rows do not re-render needlessly.\n- Paginate with `onEndReached` instead of loading everything, and keep row UI cheap (optimised, correctly sized images, no heavy nested layouts).\n- Keep data updates immutable and minimal so only changed rows re-render.\n- Measure first: React DevTools profiler, Flipper or the performance monitor, then fix the actual bottleneck.\n\n**`useEffect` vs `useLayoutEffect`.** Both run after render and take a dependency array, but timing differs. `useEffect` runs asynchronously after React has committed changes and the screen has been painted (in React Native, after the native UI update), so it does not block rendering. Use it for data fetching, subscriptions, logging and most side effects. `useLayoutEffect` runs synchronously after the commit but before the browser (or native layer) paints, so a state update inside it is applied before the user sees a frame. Use it to measure a layout (for example read an element's size and position something accordingly) to avoid flicker. Because it blocks painting, heavy work in it hurts performance. Default to `useEffect` and reach for `useLayoutEffect` only when you see a visible flicker. On the server, `useLayoutEffect` also warns because there is no layout.",
+ "followUps": [
+  "Why can using the array index as a key cause bugs in lists?",
+  "FlatList versus FlashList: how does cell recycling differ?",
+  "How would you find which component is causing re-renders in a slow screen?",
+  "When does `React.memo` not help?"
+ ]
+}

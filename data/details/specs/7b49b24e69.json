@@ -1,0 +1,18 @@
+{
+ "qid": "7b49b24e69",
+ "question": "Goldman Sachs Analyst - Software Engineer, system design round. It was mostly a resume deep dive, followed by the question: **design a URL shortener.** No further details were reported (scale, custom aliases, analytics), so clarify them at the start.",
+ "lookingFor": [
+  "Structured requirements, estimation and API definition.",
+  "A sound ID generation strategy and collision handling.",
+  "Read-heavy optimisation: caching and database choice.",
+  "Awareness of trade-offs such as redirect type, expiry and abuse."
+ ],
+ "answer": "**Requirements.** Functional: create a short URL from a long URL (optional custom alias and expiry), redirect to the original, optionally basic click analytics. Non-functional: low-latency redirects, high availability, short links unpredictable enough. Assume 100M new URLs per month and a read:write ratio of about 100:1, giving roughly 40 writes/s and 4,000 reads/s on average.\n\n**Estimates:** 100M per month for 5 years is about 6 billion links. A 7-character base62 code gives 62^7, about 3.5 trillion combinations, which is plenty. Storage: about 500 bytes per record, so roughly 3 TB over 5 years.\n\n**API:** `POST /shorten {longUrl, alias?, expiresAt?}` returns `{shortUrl}`; `GET /{code}` returns HTTP 301/302 with `Location`. Use 302 if you need accurate analytics or expiry control (301 is cached by browsers).\n\n**Generating the code:**\n- *Hash and truncate* (MD5/SHA of the URL): simple, but collisions need checks, and the same URL always gives one code.\n- *Counter and base62 encode:* unique and short, with no collisions, but sequential codes are guessable and a single counter is a bottleneck. Fix with ranges allocated to each server, or a key generation service pre-generating random keys.\n- *Random code with a uniqueness check* (insert, retry on conflict).\n\n**Data model:** `urls(code PK, long_url, created_at, expires_at, user_id)`. Access is by key only, so a key-value store (DynamoDB, Cassandra) scales well; a relational DB with sharding by code also works.\n\n**Architecture:** clients, then a load balancer, stateless app servers, a **cache** (Redis, LRU) for hot codes, and the database. The cache serves most reads. A CDN or edge can cache redirects. Analytics events go to a queue and are processed asynchronously.\n\n**Bottlenecks and scaling:** shard by code; replicate for reads; rate-limit creation; validate URLs and block malicious or spam links; clean up expired links with a TTL or background job.",
+ "followUps": [
+  "Why choose 302 over 301, or the reverse?",
+  "How would you generate unique IDs across multiple servers without collisions?",
+  "How would you support custom aliases?",
+  "How would you track click analytics without slowing down redirects?",
+  "How would you stop users from guessing other people's links?"
+ ]
+}

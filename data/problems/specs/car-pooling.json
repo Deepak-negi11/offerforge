@@ -1,0 +1,50 @@
+{
+ "pid": "car-pooling",
+ "title": "Car Pooling",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A car drives along a straight road in **one direction only**: it starts at position `0` and never turns back. It has `capacity` empty seats.\n\nYou are given `n` trips. Trip `i` is described by three integers `passengers[i]`, `from[i]` and `to[i]`: a group of `passengers[i]` people waits at position `from[i]` and must be taken to position `to[i]`, where `from[i] < to[i]`.\n\nThe car picks a group up when it reaches `from[i]` and drops it off when it reaches `to[i]`. At a position where some groups leave and others board, the leaving groups get out **first**. The car may never carry more than `capacity` passengers at the same time, and it cannot skip a trip.\n\nPrint `true` if the car can serve all trips, otherwise `false`.\n\n**Follow-up:** Interviewers asked for a TreeMap solution, then an `O(n)` difference-array solution (positions are bounded here by `10^6`), and finally how you would handle the case where the trips are stored in a distributed database and cannot be loaded into memory on one machine.",
+ "input_format": "The first line contains the integers `capacity` and `n`.\nEach of the next `n` lines contains three integers `passengers[i]`, `from[i]` and `to[i]`.",
+ "output_format": "Print `true` if all trips can be served within the capacity, otherwise `false`.",
+ "constraints": [
+  "1 ≤ n ≤ 3 · 10^4",
+  "1 ≤ capacity ≤ 10^9",
+  "1 ≤ passengers[i] ≤ 10^4",
+  "0 ≤ from[i] < to[i] ≤ 10^6"
+ ],
+ "examples": [
+  {
+   "input": "3 2\n2 1 5\n3 5 7",
+   "output": "true",
+   "explanation": "The first group leaves at position 5 and the second boards at position 5. Leaving groups exit first, so the car never holds more than 3 people."
+  },
+  {
+   "input": "3 2\n2 1 5\n3 4 7",
+   "output": "false",
+   "explanation": "Between positions 4 and 5 both groups are on board: 2 + 3 = 5 passengers, more than the capacity of 3."
+  },
+  {
+   "input": "5 3\n2 1 4\n1 2 6\n2 3 5",
+   "output": "true",
+   "explanation": "At position 3 the car carries 2 + 1 + 2 = 5 people, exactly the capacity. After position 4 the first group leaves, so the load never goes above 5."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n) (or O(n + P) with a difference array over positions)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "The load only changes at pick-up and drop-off positions, so it is enough to check the load right after every change.",
+  "Turn each trip into two events: `+passengers` at `from` and `-passengers` at `to`. Sort the events by position.",
+  "When two events share a position, process the drop-offs before the pick-ups (negative changes first), then keep a running total and compare it with `capacity`."
+ ],
+ "reference": "import sys\ndef main():\n    data = sys.stdin.read().split()\n    cap, n = int(data[0]), int(data[1])\n    ev = []\n    for i in range(n):\n        p, a, b = int(data[2 + 3 * i]), int(data[3 + 3 * i]), int(data[4 + 3 * i])\n        ev.append((a, p))\n        ev.append((b, -p))\n    ev.sort()\n    load = 0\n    for x, d in ev:\n        load += d\n        if load > cap:\n            print('false')\n            return\n    print('true')\nmain()",
+ "brute": "import sys\ndata = sys.stdin.read().split()\ncap, n = int(data[0]), int(data[1])\nT = [(int(data[2 + 3 * i]), int(data[3 + 3 * i]), int(data[4 + 3 * i])) for i in range(n)]\nok = True\nfor x in range(0, max(t[2] for t in T) + 1):\n    load = sum(p for p, a, b in T if a <= x < b)\n    if load > cap:\n        ok = False\nprint('true' if ok else 'false')",
+ "generator": "def gen(rng):\n    def fmt(cap, ts):\n        return f'{cap} {len(ts)}\\n' + '\\n'.join(f'{p} {a} {b}' for p, a, b in ts)\n    def maxload(ts):\n        ev = []\n        for p, a, b in ts:\n            ev.append((a, p))\n            ev.append((b, -p))\n        ev.sort()\n        m = cur = 0\n        for x, d in ev:\n            cur += d\n            m = max(m, cur)\n        return m\n    tests = [fmt(1, [(1, 0, 1)]), fmt(3, [(2, 1, 5), (3, 5, 7)]), fmt(3, [(2, 1, 5), (3, 4, 7)]),\n             fmt(4, [(2, 1, 5), (3, 3, 7)]), fmt(5, [(2, 1, 5), (3, 3, 7)]), fmt(10**9, [(10**4, 0, 10**6)] * 5),\n             fmt(1, [(1, 0, 3), (1, 1, 4)]), fmt(7, [(7, 0, 2), (7, 2, 4), (7, 4, 6)])]\n    for n in (1, 2, 3, 4, 6, 8, 10):\n        for _ in range(3):\n            ts = []\n            for _ in range(n):\n                a = rng.randint(0, 12)\n                ts.append((rng.randint(1, 6), a, a + rng.randint(1, 8)))\n            m = maxload(ts)\n            tests.append(fmt(rng.choice([m, m - 1 if m > 1 else m, m + 2]), ts))\n    def big(n, span, pmax):\n        ts = []\n        for _ in range(n):\n            a = rng.randint(0, span - 1)\n            b = min(10**6, a + rng.randint(1, span // 20 + 1))\n            ts.append((rng.randint(1, pmax), a, b))\n        return ts\n    ts = big(30000, 10**6, 10**4)\n    tests.append(fmt(maxload(ts), ts))\n    ts = big(30000, 10**6, 10**4)\n    tests.append(fmt(maxload(ts) - 1, ts))\n    ts = big(30000, 500000, 5000)\n    tests.append(fmt(maxload(ts), ts))\n    ts = [(10**4, i * 30, i * 30 + 99000 + 30 * (i % 7)) for i in range(30000)]\n    tests.append(fmt(10**9, ts))\n    return tests",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef can_carpool(capacity: int, passengers: List[int], start: List[int], end: List[int]) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    capacity, n = int(data[0]), int(data[1])\n    passengers = [int(data[2 + 3 * i]) for i in range(n)]\n    start = [int(data[3 + 3 * i]) for i in range(n)]\n    end = [int(data[4 + 3 * i]) for i in range(n)]\n    print('true' if can_carpool(capacity, passengers, start, end) else 'false')\n\n\nmain()\n",
+  "javascript": "function canCarpool(capacity, passengers, start, end) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst capacity = t[0], n = t[1]\nconst passengers = [], start = [], end = []\nfor (let i = 0; i < n; i++) {\n  passengers.push(t[2 + 3 * i])\n  start.push(t[3 + 3 * i])\n  end.push(t[4 + 3 * i])\n}\nconsole.log(canCarpool(capacity, passengers, start, end) ? 'true' : 'false')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool canCarpool(long long capacity, vector<long long>& passengers, vector<long long>& start, vector<long long>& end) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    long long capacity;\n    int n;\n    cin >> capacity >> n;\n    vector<long long> passengers(n), start(n), end(n);\n    for (int i = 0; i < n; i++) cin >> passengers[i] >> start[i] >> end[i];\n    cout << (canCarpool(capacity, passengers, start, end) ? \"true\" : \"false\") << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean canCarpool(long capacity, long[] passengers, long[] start, long[] end) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        long capacity = (long) in.nval;\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] passengers = new long[n], start = new long[n], end = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); passengers[i] = (long) in.nval;\n            in.nextToken(); start[i] = (long) in.nval;\n            in.nextToken(); end[i] = (long) in.nval;\n        }\n        System.out.println(canCarpool(capacity, passengers, start, end) ? \"true\" : \"false\");\n    }\n}\n"
+ }
+}

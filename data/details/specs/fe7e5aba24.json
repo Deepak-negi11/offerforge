@@ -1,0 +1,17 @@
+{
+  "qid": "fe7e5aba24",
+  "question": "Zomato SDE-1 interview (on campus, GeeksforGeeks experience). One of the questions asked the candidate to **implement backend request-handling logic in Go using goroutines and channels**, including **timeouts** and **edge cases**. The exact request-handling task was not recorded, so the usual version is a worker pool that processes a set of requests concurrently with per-request timeouts.",
+  "lookingFor": [
+    "Fluency with goroutines, channels, `sync.WaitGroup` and `context`",
+    "Avoiding goroutine leaks, deadlocks and data races",
+    "Handling timeouts and cancellation correctly",
+    "Edge-case awareness: empty input, closed channels, errors, shutdown"
+  ],
+  "answer": "**Design.** A fixed pool of workers reads requests from a `jobs` channel and sends outcomes on a `results` channel. A `context` carries the overall cancellation and each request gets its own timeout. This bounds concurrency (so a flood of requests cannot start unlimited goroutines).\n\n```go\ntype Request struct{ ID int }\ntype Result struct {\n    ID  int\n    Out string\n    Err error\n}\n\nfunc handle(ctx context.Context, r Request) (string, error) {\n    select {\n    case <-time.After(50 * time.Millisecond): // stands in for real work\n        return fmt.Sprintf(\"ok-%d\", r.ID), nil\n    case <-ctx.Done():\n        return \"\", ctx.Err()\n    }\n}\n\nfunc Process(ctx context.Context, reqs []Request, workers int, perReq time.Duration) []Result {\n    jobs := make(chan Request)\n    results := make(chan Result, len(reqs)) // buffered: workers never block\n    var wg sync.WaitGroup\n\n    for i := 0; i < workers; i++ {\n        wg.Add(1)\n        go func() {\n            defer wg.Done()\n            for r := range jobs {\n                c, cancel := context.WithTimeout(ctx, perReq)\n                out, err := handle(c, r)\n                cancel()\n                results <- Result{r.ID, out, err}\n            }\n        }()\n    }\n\n    go func() {\n        defer close(jobs)\n        for _, r := range reqs {\n            select {\n            case jobs <- r:\n            case <-ctx.Done():\n                return\n            }\n        }\n    }()\n\n    wg.Wait()\n    close(results)\n    var out []Result\n    for r := range results {\n        out = append(out, r)\n    }\n    return out\n}\n```\n\n**Why it is correct.**\n- Only the producer closes `jobs`, so workers exit when the channel is drained. Workers decrement the wait group, and `results` is closed only after all workers finish, so nothing sends on a closed channel.\n- `cancel()` is called per request to release the timer.\n- The buffered `results` channel means a worker never blocks on a slow collector.\n\n**Edge cases.** `workers <= 0` (default to 1), empty request slice (returns immediately), a request that times out (returns `context.DeadlineExceeded` in its `Result`), overall cancellation (the producer stops sending), recovering from a panic in a handler so one bad request does not crash the pool, and not mutating shared state without a mutex (run with `go test -race`). Results come back in completion order, so carry the ID, or write into a slice by index if the order matters.",
+  "followUps": [
+    "How would you detect and avoid goroutine leaks?",
+    "What is the difference between a buffered and an unbuffered channel here?",
+    "How do you propagate cancellation through an HTTP server handler?",
+    "How would you add rate limiting or back-pressure to this pool?"
+  ]
+}

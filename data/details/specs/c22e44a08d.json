@@ -1,0 +1,17 @@
+{
+ "qid": "c22e44a08d",
+ "question": "In a Databricks Senior Software Engineer coding round, the candidate was asked to implement a Set data structure with an iterator that reflects a snapshot of the set at the time the iterator is created, unaffected by later adds and removes. Snapshots had to be ordered, so the built-in Set could not simply be wrapped, and the interviewer later asked them to make snapshot fetching faster. The usual set operations (add, remove, contains) were also expected.",
+ "lookingFor": [
+  "Defining snapshot semantics clearly (what the iterator sees and in what order)",
+  "Brute-force copy solution, then an optimised design",
+  "Versioning or persistence ideas to make snapshots cheap",
+  "Complexity and memory trade-offs; cleanup of old versions"
+ ],
+ "answer": "**Clarify:** \"ordered\" most likely means a deterministic iteration order, for example insertion order (or sorted order). Iterators must see exactly the elements present at creation, even if the set is mutated while iterating.\n\n**Baseline: copy on iterator creation.** Keep a hash map for the set; `iterator()` copies the keys into a list. add/remove/contains are O(1); creating an iterator is **O(n)** time and memory. Correct but slow if iterators are created often. That is the part the interviewer wanted faster.\n\n**Faster: version stamps on an append-only log.**\n- Keep a global `version` counter, incremented on every mutation.\n- `log`: list of entries `[key, added_at, removed_at]` in insertion order (`removed_at = inf` while live).\n- `live`: dict `key -> its live log entry`.\n- `add(k)`: if absent, append `[k, ++version, inf]` and record it in `live`.\n- `remove(k)`: set the entry's `removed_at = ++version` and delete from `live`.\n- `iterator()`: record `v = version` and `n = len(log)`; this is **O(1)**.\n- Iterating yields the entries `log[i]`, i < n, where `added_at <= v < removed_at`.\n\n```python\nclass SnapSet:\n    def __init__(self):\n        self.log, self.live, self.ver = [], {}, 0\n    def add(self, k):\n        if k not in self.live:\n            self.ver += 1\n            e = [k, self.ver, float(\"inf\")]\n            self.log.append(e); self.live[k] = e\n    def remove(self, k):\n        e = self.live.pop(k, None)\n        if e: self.ver += 1; e[2] = self.ver\n    def iterator(self):\n        v, n = self.ver, len(self.log)          # O(1) snapshot\n        for i in range(n):\n            k, added, removed = self.log[i]\n            if added <= v < removed:\n                yield k\n```\n\nA key that is removed and added again simply becomes a new log entry. Entries appended after the snapshot have `added > v`, so they are skipped automatically. (`removed` is read when the generator runs, so a removal that happens later has `removed > v` and the key is still yielded, as required.)\n\n**Costs:** add/remove/contains O(1); iterator creation O(1); a full iteration scans the log, so it costs O(log length) including removed entries. **Compact** the log (drop entries whose `removed` is not greater than the oldest active iterator version) so it does not grow without bound.\n\n**Sorted-order alternative:** a persistent balanced tree (path copying) gives O(log n) updates and O(1) snapshots because a snapshot is just the old root pointer.",
+ "followUps": [
+  "How would you free memory held by old versions?",
+  "How would the design change if iteration order must be sorted?",
+  "Is it thread-safe? How would you make it so?",
+  "What is the time/space trade-off of copy-on-write vs versioning?"
+ ]
+}

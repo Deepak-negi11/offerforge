@@ -1,0 +1,50 @@
+{
+ "pid": "de-shaw-cheapest-ideas-covering-all-tags",
+ "title": "Cheapest Ideas Covering All Tags",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A problem-setting team has `N` ideas and `M` tags. A matrix `tag` of size `N x M` describes how they relate: `tag[i][j] = 1` means idea `i` is related to tag `j`, and `0` means it is not. Idea `i` has a cost `cost[i]`.\n\nChoose a set of ideas so that **every tag is covered**, meaning each tag `j` is related to at least one chosen idea. Return the minimum possible total cost of the chosen ideas.\n\nIf no set of ideas covers all the tags, return `-1`.",
+ "input_format": "The first line contains two integers `N` and `M`.\nThe second line contains `N` integers `cost[0..N-1]`.\nEach of the next `N` lines contains `M` integers (`0` or `1`): row `i` of `tag`.",
+ "output_format": "Print a single integer: the minimum total cost, or `-1` if the tags cannot all be covered.",
+ "constraints": [
+  "1 ≤ N ≤ 700",
+  "1 ≤ M ≤ 12",
+  "1 ≤ cost[i] ≤ 10^9",
+  "tag[i][j] ∈ {0, 1}"
+ ],
+ "examples": [
+  {
+   "input": "4 4\n2 2 2 3\n0 1 0 1\n0 1 1 1\n1 1 0 0\n1 0 1 0",
+   "output": "4",
+   "explanation": "Ideas 0 and 3 cover all four tags for 2 + 3 = 5. Ideas 1 and 2 also cover all tags: idea 1 covers tags 1, 2, 3 and idea 2 covers tags 0 and 1, for 2 + 2 = 4. No cheaper selection covers everything."
+  },
+  {
+   "input": "3 3\n10 3 4\n1 1 1\n1 1 0\n0 0 1",
+   "output": "7",
+   "explanation": "Idea 0 alone covers every tag but costs 10. Ideas 1 and 2 together cover all tags for 3 + 4 = 7."
+  },
+  {
+   "input": "3 3\n5 1 2\n1 0 0\n1 0 0\n0 1 0",
+   "output": "-1",
+   "explanation": "No idea is related to tag 2, so it can never be covered."
+  }
+ ],
+ "complexity": {
+  "time": "O(N * 2^M)",
+  "space": "O(2^M)"
+ },
+ "hints": [
+  "Since M is at most 12, describe the set of tags covered so far as a bitmask.",
+  "Turn each idea into a bitmask of the tags it covers. Let `dp[mask]` be the cheapest cost to cover exactly the tags in `mask`, or something that covers at least them.",
+  "Process the ideas one at a time. For each idea and each mask, try `dp[mask | idea_mask] = min(dp[mask | idea_mask], dp[mask] + cost)`. The answer is `dp[full]`."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    cost = [int(x) for x in data[2:2 + n]]\n    pos = 2 + n\n    best = {}\n    for i in range(n):\n        mask = 0\n        for j in range(m):\n            if data[pos + i * m + j] == '1':\n                mask |= 1 << j\n        if mask and (mask not in best or cost[i] < best[mask]):\n            best[mask] = cost[i]\n    size = 1 << m\n    INF = float('inf')\n    dp = [INF] * size\n    dp[0] = 0\n    for mask, c in best.items():\n        for s in range(size):\n            v = dp[s] + c\n            t = s | mask\n            if v < dp[t]:\n                dp[t] = v\n    ans = dp[size - 1]\n    print(-1 if ans == INF else ans)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\ncost = [int(x) for x in data[2:2 + n]]\nrows = []\nfor i in range(n):\n    rows.append([int(x) for x in data[2 + n + i * m: 2 + n + (i + 1) * m]])\nbest = -1\nfor sel in range(1 << n):\n    covered = [False] * m\n    tot = 0\n    for i in range(n):\n        if sel >> i & 1:\n            tot += cost[i]\n            for j in range(m):\n                if rows[i][j]:\n                    covered[j] = True\n    if all(covered) and (best == -1 or tot < best):\n        best = tot\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(cost, rows, m):\n        return f\"{len(cost)} {m}\\n\" + \" \".join(map(str, cost)) + \"\\n\" + \"\\n\".join(\" \".join(map(str, r)) for r in rows)\n\n    def rand(n, m, p, cmax):\n        cost = [rng.randint(1, cmax) for _ in range(n)]\n        rows = [[1 if rng.random() < p else 0 for _ in range(m)] for _ in range(n)]\n        return cost, rows\n\n    tests = [\n        \"4 4\\n2 2 2 3\\n0 1 0 1\\n0 1 1 1\\n1 1 0 0\\n1 0 1 0\",\n        \"3 3\\n10 3 4\\n1 1 1\\n1 1 0\\n0 0 1\",\n        \"3 3\\n5 1 2\\n1 0 0\\n1 0 0\\n0 1 0\",\n        \"1 1\\n7\\n1\",\n        \"1 1\\n7\\n0\",\n        \"2 2\\n1 1\\n0 0\\n0 0\",\n    ]\n    for n, m in [(2, 2), (3, 3), (4, 3), (5, 4), (6, 4), (6, 5), (8, 5), (8, 4), (10, 5), (12, 5), (12, 4), (9, 6)]:\n        for _ in range(2):\n            cost, rows = rand(n, m, rng.choice([0.25, 0.4, 0.6]), rng.choice([3, 10, 10**9]))\n            tests.append(fmt(cost, rows, m))\n    # large cases reaching N = 700, M = 12\n    for p, cmax in [(0.2, 10**9), (0.12, 10**9), (0.3, 1000), (0.08, 10**9)]:\n        cost, rows = rand(700, 12, p, cmax)\n        tests.append(fmt(cost, rows, 12))\n    # singles plus a few wide expensive ideas\n    cost = [rng.randint(1, 10**8) for _ in range(12)]\n    rows = [[1 if j == i else 0 for j in range(12)] for i in range(12)]\n    for _ in range(688):\n        c = rng.randint(1, 10**9)\n        r = [1 if rng.random() < 0.5 else 0 for _ in range(12)]\n        cost.append(c)\n        rows.append(r)\n    tests.append(fmt(cost, rows, 12))\n    # infeasible at full size: tag 11 never present\n    cost, rows = rand(700, 12, 0.3, 10**9)\n    for r in rows:\n        r[11] = 0\n    tests.append(fmt(cost, rows, 12))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_cost(n: int, m: int, cost: List[int], tag: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    cost = [int(x) for x in data[2:2 + n]]\n    tag = []\n    pos = 2 + n\n    for i in range(n):\n        tag.append([int(x) for x in data[pos + i * m: pos + (i + 1) * m]])\n    print(min_cost(n, m, cost, tag))\n\n\nmain()\n",
+  "javascript": "function minCost(n, m, cost, tag) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst cost = t.slice(2, 2 + n)\nconst tag = []\nfor (let i = 0; i < n; i++) {\n  tag.push(t.slice(2 + n + i * m, 2 + n + (i + 1) * m))\n}\nconsole.log(String(minCost(n, m, cost, tag)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minCost(int n, int m, vector<long long>& cost, vector<vector<int>>& tag) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<long long> cost(n);\n    for (int i = 0; i < n; i++) cin >> cost[i];\n    vector<vector<int>> tag(n, vector<int>(m));\n    for (int i = 0; i < n; i++)\n        for (int j = 0; j < m; j++) cin >> tag[i][j];\n    cout << minCost(n, m, cost, tag) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minCost(int n, int m, long[] cost, int[][] tag) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        long[] cost = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            cost[i] = (long) in.nval;\n        }\n        int[][] tag = new int[n][m];\n        for (int i = 0; i < n; i++) {\n            for (int j = 0; j < m; j++) {\n                in.nextToken();\n                tag[i][j] = (int) in.nval;\n            }\n        }\n        System.out.println(minCost(n, m, cost, tag));\n    }\n}\n"
+ }
+}

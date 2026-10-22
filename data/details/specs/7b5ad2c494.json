@@ -1,0 +1,19 @@
+{
+ "qid": "7b5ad2c494",
+ "question": "Design an **elevator system** (low-level design round, Salesforce SMTS). The discussion covered the major objects and classes, their responsibilities, the elevator's state, how requests are handled, how a request is assigned to an elevator, and the **algorithm the controller uses to pick an elevator so customer wait time is minimised**.\n\nThe interviewer went beyond class design and probed the scheduling algorithm, so expect LLD plus object modelling plus algorithmic reasoning.",
+ "lookingFor": [
+  "Clean object modelling with clear responsibilities",
+  "An explicit state machine for the elevator",
+  "A concrete, reasoned scheduling algorithm, not just 'pick the nearest'",
+  "Use of patterns such as Strategy where they help extensibility",
+  "Awareness of concurrency and edge cases"
+ ],
+ "answer": "**Requirements.** N elevators, M floors. Two kinds of requests: *hall calls* (floor plus direction up/down) and *cabin requests* (destination floor). Out of scope: UI, physics. Goal: minimise average wait time and avoid starvation.\n\n**Classes.**\n- `Request` (floor, direction), with an external and an internal variant.\n- `Elevator`: id, `currentFloor`, `direction`, `state`, and sorted sets of pending stops `upStops` and `downStops` (e.g. TreeSet), plus door operations.\n- `ElevatorState`: IDLE, MOVING_UP, MOVING_DOWN, DOOR_OPEN, OUT_OF_SERVICE.\n- `ElevatorController`: receives hall calls and delegates the choice to a `SchedulingStrategy` interface (Strategy pattern).\n- `Building` holds floors and elevators.\n\n**Per-elevator movement (LOOK/SCAN).** Keep moving in the current direction and serve stops on the way. Reverse only when no stops remain ahead. This avoids the zig-zag of FCFS and is the classic disk-scheduling idea applied to lifts.\n\n**Choosing an elevator (the key part).** For a hall call at floor f going direction d, compute a cost for each elevator and pick the minimum:\n- Idle: `|current - f|`.\n- Moving towards f in the same direction d and has not passed f: `|current - f|`, because it will pick the passenger up on the way.\n- Otherwise: distance to its farthest pending stop in the current direction, then back to f. Add a small penalty per extra stop already queued.\n- Skip out-of-service elevators.\n\nTies go to the less loaded elevator. `SchedulingStrategy` lets you swap in zoning, peak-hour (up-peak sends idle cars to the lobby) or destination dispatch.\n\n**Concurrency.** Each elevator runs its own loop or thread; the controller puts requests in a thread-safe queue, and a stop set is updated under a lock.\n\n**Edge cases.** Request for the current floor, duplicate requests, weight limit, emergency stop, starvation of far floors (age requests).",
+ "followUps": [
+  "How would you prevent starvation of a floor at the far end?",
+  "How does destination dispatch (choosing a floor before entering) change the design?",
+  "How would you make the scheduler thread-safe?",
+  "How would you test this without real hardware?",
+  "How would you extend it for express elevators or VIP floors?"
+ ]
+}

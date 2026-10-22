@@ -1,0 +1,17 @@
+{
+ "qid": "2b2a948e3f",
+ "question": "NVIDIA Software Intern technical interview, operating-systems segment. Questions reported:\n\n- What is multithreading? Is multithreading useful on a **uniprocessor**?\n- Compare thread switching and process switching. Which one is faster?\n- What are semaphores? Give an example using a semaphore that ensures mutual exclusion for a critical section.\n- What are `wait` and `signal`? Write their implementation.\n- What is the difference between kernel-level and user-level threads?",
+ "lookingFor": [
+  "Understanding that concurrency is not the same as parallelism",
+  "Precise reasoning about what state a context switch must save and what is shared",
+  "Correct semaphore semantics, including the blocking implementation",
+  "Trade-offs between user-level and kernel-level threading models"
+ ],
+ "answer": "**Multithreading on a uniprocessor.** Yes, it is still useful. Threads give *concurrency*, not parallelism: while one thread blocks on I/O, a page fault or a lock, another can use the CPU, and a GUI thread stays responsive while a worker computes. It does not speed up pure CPU-bound work and adds switching overhead.\n\n**Thread vs process switch.** Threads of one process share the address space, heap, globals and open files, so a thread switch saves and restores only registers, stack pointer and program counter. A process switch also changes the address space (page table, often TLB flush or ASID change, cache and TLB warm-up cost). So thread switching is faster.\n\n**Semaphore.** A non-negative integer with two atomic operations. A binary semaphore initialised to 1 gives mutual exclusion:\n\n```\nsemaphore mutex = 1;\nwait(mutex);   // entry\n  /* critical section */\nsignal(mutex); // exit\n```\n\n**Implementation** (busy-wait, textbook form): `wait(S){ while (S <= 0) ; S--; }` and `signal(S){ S++; }`, each executed atomically (test-and-set or disabling interrupts). The better blocking version keeps a queue:\n\n```\nwait(S):   S.value--; if (S.value < 0) { add caller to S.queue; block(); }\nsignal(S): S.value++; if (S.value <= 0) { remove P from S.queue; wakeup(P); }\n```\n\nThis avoids wasting CPU spinning. A negative value counts the waiting processes.\n\n**User-level vs kernel-level threads.**\n\n- User-level: managed by a library, the kernel sees one process. Switching is cheap (no syscall), scheduling is customisable, but one blocking syscall blocks all threads and they cannot run on multiple cores.\n- Kernel-level: the OS schedules each thread. A blocking call blocks only that thread and threads use multiple cores, but creation and switching cost a syscall.\n- Real systems often use a one-to-one model (Linux pthreads) or hybrids.\n\nMention the difference between a mutex (owned, only the locker unlocks) and a semaphore (signalled by anyone, can count resources).",
+ "followUps": [
+  "Mutex vs binary semaphore: what is the difference?",
+  "How is atomicity of wait and signal achieved on a multicore machine?",
+  "What can go wrong with semaphores (deadlock, priority inversion)?",
+  "What does a TLB flush cost in a process switch and how do ASIDs help?"
+ ]
+}

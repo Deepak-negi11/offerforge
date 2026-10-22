@@ -1,0 +1,17 @@
+{
+ "qid": "6ad6106c74",
+ "question": "Cognizant GenC online assessment, SQL. Reported task: **join an `animals` table with a `medical_records` table to produce a requested report**. The exact report columns were not reported; assessment SQL for GenC typically tests joins, filtering and aggregation. Interviews for the same programme also asked about INNER, LEFT and RIGHT JOINs, table creation, UPDATE and DELETE.",
+ "lookingFor": [
+  "Choosing the right join type for the report (inner versus left).",
+  "Correct join condition on the key, avoiding accidental cross joins.",
+  "Handling animals with no records (NULLs) and duplicates.",
+  "Clean aliasing, selecting only needed columns and ordering."
+ ],
+ "answer": "Because the exact report is not known, here is the approach plus a likely schema, so you can adapt it.\n\nAssumed tables:\n- `animals(animal_id PK, name, species, age)`\n- `medical_records(record_id PK, animal_id FK, visit_date, diagnosis, treatment, cost)`\n\n**Step 1: decide the join type.**\n- Report only animals that *have* records: `INNER JOIN`.\n- Report all animals, including those never treated: `LEFT JOIN` from `animals` (the missing side shows NULLs).\n- Find animals with no records: `LEFT JOIN ... WHERE m.record_id IS NULL`.\n\n**Step 2: join on the foreign key, not on a guess.**\n\n```sql\nSELECT a.animal_id, a.name, a.species,\n       m.visit_date, m.diagnosis, m.treatment\nFROM animals a\nINNER JOIN medical_records m ON m.animal_id = a.animal_id\nORDER BY a.name, m.visit_date;\n```\n\n**Variations you may be asked for.**\n\nAll animals with their latest-visit count and total cost:\n\n```sql\nSELECT a.animal_id, a.name,\n       COUNT(m.record_id) AS visits,\n       COALESCE(SUM(m.cost), 0) AS total_cost\nFROM animals a\nLEFT JOIN medical_records m ON m.animal_id = a.animal_id\nGROUP BY a.animal_id, a.name;\n```\n\nAnimals never treated:\n\n```sql\nSELECT a.name\nFROM animals a\nLEFT JOIN medical_records m ON m.animal_id = a.animal_id\nWHERE m.animal_id IS NULL;\n```\n\n**Why it works.** The join pairs each animal row with every matching record row; an animal with three records appears three times in a plain join, so use `GROUP BY` or `COUNT(DISTINCT ...)` when you want one row per animal. In a `LEFT JOIN`, put conditions on the right table in the `ON` clause, not `WHERE`, or you silently turn it into an inner join. Count a column from the right table (`m.record_id`), not `COUNT(*)`, so animals with zero records count as 0.\n\n**Pitfalls.** Ambiguous column names (qualify with aliases), forgetting the join condition (cross join), and column-name differences such as `id` versus `animal_id`. Read the table definitions in the assessment first.",
+ "followUps": [
+  "INNER JOIN versus LEFT JOIN versus FULL OUTER JOIN?",
+  "How do you find animals with more than three records?",
+  "What happens if you filter on the right table in WHERE of a LEFT JOIN?",
+  "How would you get each animal's most recent record?"
+ ]
+}

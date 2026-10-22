@@ -1,0 +1,17 @@
+{
+ "qid": "06a335df01",
+ "question": "In a Bloomberg SDE Intern technical round, the candidate was asked to implement their own resizable list class with O(1) indexed access that can allocate new memory and change size dynamically. The interviewer then asked how much extra memory to allocate when growing, and why.",
+ "lookingFor": [
+  "Implementing a dynamic array with correct capacity vs size management",
+  "Amortized analysis of growth strategies",
+  "Reasoned choice of growth factor (memory vs copy cost)",
+  "Edge cases: bounds checks, shrinking, large sizes"
+ ],
+ "answer": "**Design:** store elements in a contiguous fixed-size buffer. Track `size` (elements used) and `capacity` (buffer length). `get(i)` and `set(i, v)` are plain array indexing: **O(1)**. `append` writes at `buffer[size]`; when `size == capacity`, allocate a bigger buffer, copy the old elements, free the old one.\n\n```python\nclass DynArray:\n    def __init__(self):\n        self._cap, self._n = 4, 0\n        self._buf = [None] * self._cap\n\n    def __getitem__(self, i):\n        if not 0 <= i < self._n: raise IndexError(i)\n        return self._buf[i]\n\n    def append(self, x):\n        if self._n == self._cap:\n            self._resize(self._cap * 2)\n        self._buf[self._n] = x\n        self._n += 1\n\n    def _resize(self, new_cap):\n        new = [None] * new_cap\n        for i in range(self._n):\n            new[i] = self._buf[i]\n        self._buf, self._cap = new, new_cap\n```\n\n**How much extra to allocate? Grow geometrically**, by a constant factor (such as 2x), not by a constant amount.\n- Growing by a fixed +k: each resize copies n items and happens every k appends, so n appends cost O(n^2 / k) in total, i.e. O(n) per append on average. Too slow.\n- Growing by a factor g > 1: copies happen at sizes c, gc, g^2 c, ...; total copy work is a geometric series bounded by about n * g/(g-1). That is **amortized O(1) per append**. With g = 2, each element is copied at most about twice on average.\n\n**The trade-off:** a larger factor means fewer copies but more wasted memory (up to (g-1)/g of the buffer unused). Smaller factors waste less. Real implementations differ: Java's `ArrayList` grows by 1.5x; some C++ standard libraries use 2x, others 1.5x; CPython over-allocates only by roughly 12.5%. A factor below about 1.618 also lets freed earlier blocks be reused by the allocator, a reason often given for 1.5x.\n\n**Optional:** shrink when size falls below capacity/4 (not /2, to avoid thrashing when alternating push/pop), and reserve capacity if the final size is known. Adapting growth to past usage, as one candidate suggested, is possible but rarely worth the complexity versus a simple factor.",
+ "followUps": [
+  "Prove that append is amortized O(1) with doubling.",
+  "Why shrink at 1/4 and not 1/2 full?",
+  "What is the cost of insert at the beginning or middle?",
+  "How does this differ from a linked list in access time and cache behaviour?"
+ ]
+}

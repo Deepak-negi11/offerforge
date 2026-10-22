@@ -1,0 +1,49 @@
+{
+ "pid": "amazon-fractional-knapsack",
+ "title": "Fractional Knapsack",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "A truck can carry at most `W` units of weight. There are `n` boxes; box `i` weighs `weight[i]` and brings `profit[i]` if it is loaded. Boxes can be **split**: you may load any fraction `f` (`0 ≤ f ≤ 1`) of a box, which uses `f * weight[i]` of the capacity and earns `f * profit[i]`.\n\nLoad the boxes so that the total profit is as large as possible without exceeding the capacity `W`.\n\nThe maximum profit is not always a whole number, so print the **greatest integer that does not exceed** the maximum profit (the value rounded down).",
+ "input_format": "The first line contains two integers `n` and `W`.\nEach of the next `n` lines contains two integers `weight[i]` and `profit[i]`.",
+ "output_format": "Print a single integer: the maximum total profit rounded down.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ weight[i], profit[i] ≤ 10^6",
+  "1 ≤ W ≤ 10^11"
+ ],
+ "examples": [
+  {
+   "input": "3 10\n4 20\n6 24\n8 40",
+   "output": "50",
+   "explanation": "The profit per unit of weight is 5, 4 and 5. Load box 0 fully (weight 4, profit 20), leaving 6 units. Box 2 has the next best ratio, so load 6/8 of it for a profit of 30. Total 50."
+  },
+  {
+   "input": "2 5\n3 10\n4 7",
+   "output": "13",
+   "explanation": "Load box 0 fully (profit 10, 2 units left), then half of box 1 for a profit of 3.5. The maximum is 13.5, which rounds down to 13."
+  },
+  {
+   "input": "1 100\n7 3",
+   "output": "3",
+   "explanation": "The only box fits entirely, so the profit is 3."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "If you could only take whole boxes this would be hard, but fractions let you be greedy: a unit of capacity should always go to the box that pays the most per unit of weight.",
+  "Sort the boxes by `profit / weight` in decreasing order and load them fully while they fit.",
+  "Compare ratios exactly (cross-multiply `p1 * w2` with `p2 * w1`) instead of with floating point, and for the last, partially loaded box compute `remaining * profit // weight` with integer arithmetic."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, W = int(data[0]), int(data[1])\n    items = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(n)]\n    items.sort(key=lambda x: -((x[1] << 64) // x[0]))\n    total = 0\n    for w, p in items:\n        if W >= w:\n            W -= w\n            total += p\n        else:\n            total += W * p // w\n            break\n    print(total)\n\nmain()\n",
+ "brute": "import sys\nfrom fractions import Fraction\n\ndata = sys.stdin.read().split()\nn, W = int(data[0]), int(data[1])\nitems = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(n)]\nbest = Fraction(0)\nfor mask in range(1 << n):\n    ws = sum(items[i][0] for i in range(n) if mask >> i & 1)\n    if ws > W:\n        continue\n    ps = sum(items[i][1] for i in range(n) if mask >> i & 1)\n    rem = W - ws\n    extra = Fraction(0)\n    for j in range(n):\n        if not (mask >> j & 1):\n            w, p = items[j]\n            extra = max(extra, p * min(Fraction(1), Fraction(rem, w)))\n    best = max(best, ps + extra)\nprint(best.numerator // best.denominator)\n",
+ "generator": "def gen(rng):\n    def fmt(W, items):\n        return f\"{len(items)} {W}\\n\" + '\\n'.join(f'{w} {p}' for w, p in items)\n    tests = [fmt(10, [(4, 20), (6, 24), (8, 40)]), fmt(5, [(3, 10), (4, 7)]), fmt(100, [(7, 3)]),\n             fmt(1, [(10**6, 10**6)]), fmt(10**11, [(10**6, 10**6)] * 5), fmt(7, [(7, 1), (7, 1), (7, 1)])]\n    for n in (1, 2, 3, 4, 5, 6, 7):\n        for _ in range(3):\n            items = [(rng.randint(1, 10), rng.randint(1, 10)) for _ in range(n)]\n            tests.append(fmt(rng.randint(1, 30), items))\n    N = 10**5\n    items = [(rng.randint(1, 10**6), rng.randint(1, 10**6)) for _ in range(N)]\n    tests.append(fmt(sum(w for w, _ in items) // 2, items))\n    items = [(rng.randint(10**6 - 5, 10**6), rng.randint(10**6 - 5, 10**6)) for _ in range(N)]\n    tests.append(fmt(sum(w for w, _ in items) // 3, items))\n    items = [(10**6, 10**6)] * N\n    tests.append(fmt(10**11, items))\n    items = [(rng.randint(1, 100), rng.randint(1, 100)) for _ in range(N)]\n    tests.append(fmt(sum(w for w, _ in items) - 7, items))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_profit(weights: List[int], profits: List[int], capacity: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, w = int(data[0]), int(data[1])\n    weights = [int(data[2 + 2 * i]) for i in range(n)]\n    profits = [int(data[3 + 2 * i]) for i in range(n)]\n    print(max_profit(weights, profits, w))\n\n\nmain()\n",
+  "javascript": "function maxProfit(weights, profits, capacity) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], W = t[1]\nconst weights = [], profits = []\nfor (let i = 0; i < n; i++) {\n  weights.push(t[2 + 2 * i])\n  profits.push(t[3 + 2 * i])\n}\nconsole.log(String(maxProfit(weights, profits, W)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxProfit(vector<long long>& weights, vector<long long>& profits, long long capacity) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long W;\n    cin >> n >> W;\n    vector<long long> weights(n), profits(n);\n    for (int i = 0; i < n; i++) cin >> weights[i] >> profits[i];\n    cout << maxProfit(weights, profits, W) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxProfit(long[] weights, long[] profits, long capacity) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        long W = (long) in.nval;\n        long[] weights = new long[n], profits = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); weights[i] = (long) in.nval;\n            in.nextToken(); profits[i] = (long) in.nval;\n        }\n        System.out.println(maxProfit(weights, profits, W));\n    }\n}\n"
+ }
+}

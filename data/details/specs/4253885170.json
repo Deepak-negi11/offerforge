@@ -1,0 +1,17 @@
+{
+ "qid": "4253885170",
+ "question": "In the fourth round for an experienced developer role at SAP Labs, the interviewer asked two system design questions: **Design a traffic light system** (with a follow-up question the candidate did not remember) and **design an interview processing system**. Both were open-ended.",
+ "lookingFor": [
+  "Can you clarify requirements and state assumptions before designing?",
+  "Do you model state, timing and safety (no conflicting greens) for the traffic light?",
+  "Can you design a workflow system with entities, APIs and scaling concerns?",
+  "Do you discuss trade-offs and failure handling?"
+ ],
+ "answer": "**Design a traffic light system**\n\n*Requirements*: a four-way junction; green, yellow, red cycles; pedestrian crossings; never show conflicting greens; fail-safe on faults. Ask whether it is one junction or a city-wide network, fixed-timer or sensor-driven.\n\n*Model (LLD style)*\n- `Signal` (state: RED, YELLOW, GREEN), `Junction` (a set of signals and a `Phase` list), `Controller` (runs the cycle), `Timer`.\n- A **phase** is a set of compatible movements that may be green together (north-south straight, then east-west). The controller moves phase by phase: green for `G` seconds, yellow for `Y`, then an all-red gap before the next phase.\n- Use the **State pattern** for each signal's transitions, and a state machine with an explicit safety check that rejects any configuration where conflicting directions are green.\n- *Fail-safe*: on error, default to flashing red or all-red; watchdog timer for the controller.\n- *Extensions (likely follow-ups)*: sensors or cameras adjusting green time by queue length, emergency-vehicle priority, pedestrian button, coordinated \"green wave\" across junctions, remote monitoring over a message bus.\n\n**Design an interview processing system**\n\n*Requirements*: candidates apply, recruiters schedule interview rounds with interviewers, feedback is collected, decisions are made. Scale assumptions: thousands of candidates, hundreds of interviewers.\n\n*Entities*: `Candidate`, `Job`, `Application` (status), `InterviewRound` (type, order), `Interview` (candidate, interviewers, slot), `Feedback`, `Decision`.\n\n*API*: `POST /applications`, `GET /applications/{id}`, `POST /interviews` (schedule), `POST /interviews/{id}/feedback`, `PATCH /applications/{id}/status`.\n\n*Components*: web or API service, relational database (transactions for scheduling), scheduler that matches interviewer availability and avoids double booking, a notification service (email, calendar invites) fed by a queue, authentication and role-based access (recruiter, interviewer, hiring manager), audit log.\n\n*Key trade-offs*: prevent double booking with a unique constraint or row lock on (interviewer, slot); an application moves through an explicit state machine; notifications are asynchronous and retried; protect candidate data (privacy, access control). Scaling is mostly read-heavy dashboards, so cache and index them.",
+ "followUps": [
+  "How would you adapt the traffic light for a sensor-driven adaptive system?",
+  "How do you prevent two recruiters from booking the same interviewer slot?",
+  "How would you model the interview pipeline as a state machine?",
+  "What happens if the traffic controller crashes mid-cycle?"
+ ]
+}

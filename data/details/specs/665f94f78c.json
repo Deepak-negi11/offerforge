@@ -1,0 +1,17 @@
+{
+ "qid": "665f94f78c",
+ "question": "Media.net (Web Application Developer; a similar Database Developer round was also reported). At the end of the interview the candidate was asked to write an SQL query with two tables: **`Emp(id, name)` and `Salary(id, salary)`. Return the name of the employee with the highest salary.** A related question asks for the employees earning more than the table average. The interviewer wanted application-style, indirect questions solved cleanly, and in the database round also asked to find the person who worked the longest in a dataset with redundant names.",
+ "lookingFor": [
+  "Writing a correct join across two tables from scratch.",
+  "Handling ties for the maximum salary.",
+  "Knowing more than one approach and the trade-offs.",
+  "Using subqueries and aggregates for the average comparison."
+ ],
+ "answer": "**Highest salary, all ties included.**\n\n    SELECT e.name, s.salary\n    FROM Emp e\n    JOIN Salary s ON s.id = e.id\n    WHERE s.salary = (SELECT MAX(salary) FROM Salary);\n\nThe subquery finds the maximum salary once; the join returns every employee who has it, so ties are handled. If there is exactly one top earner you want, another option is\n\n    SELECT e.name\n    FROM Emp e JOIN Salary s ON s.id = e.id\n    ORDER BY s.salary DESC\n    LIMIT 1;\n\n(`TOP 1` in SQL Server, `FETCH FIRST 1 ROW ONLY` in Oracle and standard SQL). This returns only one row, arbitrarily choosing among ties, so mention that limitation. A window-function version uses `RANK() OVER (ORDER BY salary DESC)` and filters `rank = 1`; this is the most flexible when the question changes to \"second highest\" or \"top N per department\".\n\n**Employees earning above the average**\n\n    SELECT e.name, s.salary\n    FROM Emp e\n    JOIN Salary s ON s.id = e.id\n    WHERE s.salary > (SELECT AVG(salary) FROM Salary);\n\nThe scalar subquery computes the average once (it is not correlated), and the outer query filters against it. Note that you cannot write `WHERE salary > AVG(salary)` directly, because aggregates are not allowed in `WHERE`; use a subquery, `HAVING` with grouping, or a window function `AVG(salary) OVER ()`.\n\n**Edge cases to mention**\n- Employees with no salary row: the inner join omits them. Use a `LEFT JOIN` if they must appear, but NULL salaries then compare as unknown and drop out of the filter.\n- NULL salaries are ignored by `MAX` and `AVG`.\n- If `Salary.id` is not unique (several payments per employee), clarify what \"salary\" means and aggregate first.\n- An index on `Salary(salary)` can make the `MAX` lookup cheap.\n\nExplain the logic aloud as you write; the interviewer is grading reasoning as much as syntax.",
+ "followUps": [
+  "How would you find the second highest salary, and the Nth highest?",
+  "How would you find the highest salary in each department?",
+  "What is the difference between WHERE and HAVING?",
+  "How would you find the employee who has worked the longest if names repeat in the table?"
+ ]
+}

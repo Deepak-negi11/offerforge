@@ -1,0 +1,17 @@
+{
+ "qid": "ed418c5693",
+ "question": "Adobe Computer Scientist 1 (experienced), round 2. Alongside a DSA problem (**Asteroid Collision**) and a SQL question, the candidate was asked about some system-design concepts and to **explain idempotency**. Explain what idempotency means for APIs and distributed systems and how you would implement it.",
+ "lookingFor": [
+  "Precise definition of idempotency, distinct from safety and from exactly-once.",
+  "Understanding of why retries make it necessary in distributed systems.",
+  "Practical mechanisms: idempotency keys, unique constraints, conditional writes.",
+  "Awareness of edge cases such as concurrency and key expiry."
+ ],
+ "answer": "**Definition.** An operation is **idempotent** if performing it once or many times has the same effect on system state. `x = 5` is idempotent; `x = x + 1` is not. This is different from *safe* (no side effects at all): `DELETE /orders/42` is idempotent but not safe.\n\n**HTTP.** `GET`, `PUT`, `DELETE`, `HEAD` and `OPTIONS` are defined as idempotent. `POST` is not by default, and `PATCH` depends on the operation.\n\n**Why it matters.** Networks fail. If a client sends a payment request and the connection times out, it cannot tell whether the server processed it. Retrying is the only safe move, but a non-idempotent endpoint might **charge twice**. Message queues with at-least-once delivery have the same issue: consumers will see duplicates. Practically, \"exactly-once\" effect = at-least-once delivery plus an idempotent handler.\n\n**How to implement.**\n1. **Idempotency key**: the client sends a unique key (such as a UUID) in a header. The server stores `key -> (request hash, response)` the first time. On a repeat, it returns the stored response without re-executing. Persist the key and the result atomically with the business change, ideally in one DB transaction.\n2. **Natural keys and unique constraints**: for example a unique `(order_id, payment_attempt)` so a duplicate insert fails and is treated as success.\n3. **Upserts and absolute updates**: `SET status='PAID'` instead of incrementing, or `INSERT ... ON CONFLICT DO NOTHING`.\n4. **Conditional writes** with version numbers (optimistic concurrency).\n5. **Deduplication table** in consumers keyed by message id.\n\n**Pitfalls.**\n- Two concurrent requests with the same key: use a unique constraint or lock so only one runs, and have the other wait or get a 409.\n- The same key with a different payload should be rejected.\n- Keys need a TTL, and the retention window must exceed the client's retry window.\n- Side effects outside your database (emails, third-party calls) need their own idempotency.",
+ "followUps": [
+  "How would you design an idempotent payment API end to end?",
+  "What is the difference between at-least-once, at-most-once and exactly-once delivery?",
+  "Is DELETE idempotent if the second call returns 404 instead of 204?",
+  "How do you handle two concurrent requests that carry the same idempotency key?"
+ ]
+}

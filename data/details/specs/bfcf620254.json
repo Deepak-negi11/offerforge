@@ -1,0 +1,18 @@
+{
+ "qid": "bfcf620254",
+ "question": "Microsoft SDE-1 design round: **design an autocomplete search engine for millions of users**.\n\nThe candidate answered with a low-level design: a **Trie-based approach with an LFU cache** to keep the top-k most frequently used suggestions, and asked whether an SDE-1 round with about 1+ years of experience is expected to produce a full high-level design.",
+ "lookingFor": [
+  "Choosing the Trie and understanding its trade-offs.",
+  "Top-k retrieval per prefix efficiently.",
+  "Scaling beyond one machine: sharding, caching, update pipeline.",
+  "Latency requirements and ranking factors.",
+  "Moving from low-level data structure to full system view."
+ ],
+ "answer": "**Requirements.** Given a prefix, return the top 5-10 suggestions within roughly 100 ms, for millions of users. Suggestions are ranked by popularity (and possibly recency or personalization). Data is updated from search logs, not instantly.\n\n**Core data structure.** A **Trie** where each node stores its children and a precomputed list of the **top-k completions for that prefix** (with scores). Lookup is O(L) for prefix length L and then a direct read of the list, instead of traversing the subtree. Memory is the cost; compress with a radix tree or limit stored prefixes. An **LFU/LRU cache** in front holds hot prefixes (the first one or two characters are queried very often).\n\n**System design (HLD).**\n- **Query path:** the client sends a request after a debounce of a few hundred ms, minimum prefix length 1-2. Edge cache/CDN serves popular prefixes, then Redis or in-memory cache, then autocomplete servers holding the Trie.\n- **Offline data pipeline:** collect query logs, aggregate counts in batch (MapReduce/Spark) or streaming (Kafka plus Flink), filter spam and offensive terms, and build the Trie periodically (hourly or daily). Serve a new version by swapping a snapshot, so reads need no locks.\n- **Sharding:** partition by prefix range (e.g. first characters) or by hash, with replicas for availability. Beware hot shards for common letters; split by usage rather than alphabet.\n\n**Ranking.** Frequency decayed over time, trending queries, locale, and personalization as a re-ranking step.\n\n**Trade-offs.** Updating the Trie online per query is expensive and contended, so prefer periodic rebuilds and a small real-time layer for trending terms. A Trie with top-k lists costs memory but gives the lowest latency. Alternatives: Elasticsearch completion suggester, or a sorted-set index.\n\n**Failure and scale.** Replicas, fallback to cached results, and graceful degradation (return fewer or no suggestions rather than slow responses).\n\n**About SDE-1 expectations.** Lead with requirements and a clear LLD (Trie plus top-k), then briefly show you can scale it; that covers both readings of the question.",
+ "followUps": [
+  "How do you store top-k per node without huge memory use?",
+  "How would you handle typos or fuzzy matching?",
+  "How do you update suggestions for trending queries quickly?",
+  "How would you shard the Trie across machines?"
+ ]
+}

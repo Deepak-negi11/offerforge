@@ -1,0 +1,49 @@
+{
+ "pid": "amazon-max-sum-path-across-two-sorted-linked-lists",
+ "title": "Max-Sum Path Across Two Sorted Linked Lists",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given two singly linked lists `A` and `B`, each sorted in **strictly increasing** order. The lists may share some nodes: a node of `A` and a node of `B` with the same value are the **same common node**. Values that appear in only one list belong to that list alone.\n\nBuild a new linked list by walking forward through the lists:\n\n- Start at the head of `A` or at the head of `B`.\n- Move forward along the current list. Whenever you arrive at a common node you may stay on the current list or switch to the other list; the common node itself is taken once.\n- Stop when you reach the end of the list you are on.\n\nAmong all lists that can be built this way, output the one with the **maximum sum** of values. Values may be negative. If two choices for a stretch between common nodes have the same sum (or, with no common nodes, if both lists have the same sum), take the stretch from list `A`, so the answer is unique.\n\nPrint the values of the resulting list from head to tail.\n\n**Follow-up:** produce the result by relinking the existing nodes in place, using O(1) extra space apart from the output.",
+ "input_format": "The first line contains `n`, the length of `A`.\nThe second line contains `n` space-separated integers, the values of `A` in strictly increasing order.\nThe third line contains `m`, the length of `B`.\nThe fourth line contains `m` space-separated integers, the values of `B` in strictly increasing order.",
+ "output_format": "Print the values of the maximum-sum list, space-separated on one line.",
+ "constraints": [
+  "1 ≤ n, m ≤ 5 · 10^4",
+  "-10^9 ≤ value ≤ 10^9",
+  "Each list is strictly increasing"
+ ],
+ "examples": [
+  {
+   "input": "6\n1 4 8 9 10 15\n6\n2 4 5 6 10 20",
+   "output": "2 4 8 9 10 20",
+   "explanation": "The common nodes are 4 and 10. Before 4: `A` gives 1, `B` gives 2, so take 2. Between 4 and 10: `A` gives 8+9=17, `B` gives 5+6=11, so take 8 9. After 10: `A` gives 15, `B` gives 20, so take 20."
+  },
+  {
+   "input": "2\n5 6\n3\n1 2 3",
+   "output": "5 6",
+   "explanation": "There are no common nodes, so you stay on one list. `A` sums to 11 and `B` to 6."
+  },
+  {
+   "input": "2\n3 7\n3\n1 2 7",
+   "output": "3 7",
+   "explanation": "The only common node is 7. Before it, `A` gives 3 and `B` gives 1+2=3, a tie, so the stretch from `A` is used."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "The common nodes split both lists into independent stretches. The choice in one stretch does not affect the others.",
+  "Walk both lists with two pointers (like a merge). Keep a running sum for the stretch of each list since the last common node.",
+  "At a common node, append the stretch with the larger sum (A on ties), append the common node, and reset both sums. Do the same once more for the tails after the last common node."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    A = list(map(int, data[1:1 + n]))\n    m = int(data[1 + n])\n    B = list(map(int, data[2 + n:2 + n + m]))\n    i = j = 0\n    res = []\n    segA = []\n    segB = []\n    while i < n and j < m:\n        if A[i] < B[j]:\n            segA.append(A[i])\n            i += 1\n        elif A[i] > B[j]:\n            segB.append(B[j])\n            j += 1\n        else:\n            res.extend(segA if sum(segA) >= sum(segB) else segB)\n            res.append(A[i])\n            segA = []\n            segB = []\n            i += 1\n            j += 1\n    segA.extend(A[i:])\n    segB.extend(B[j:])\n    res.extend(segA if sum(segA) >= sum(segB) else segB)\n    print(' '.join(map(str, res)))\n\nmain()\n",
+ "brute": "import sys, itertools\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nA = list(map(int, data[1:1 + n]))\nm = int(data[1 + n])\nB = list(map(int, data[2 + n:2 + n + m]))\ncommon = set(A) & set(B)\n\ndef split(L):\n    segs = []\n    cur = []\n    for x in L:\n        cur.append(x)\n        if x in common:\n            segs.append(cur)\n            cur = []\n    segs.append(cur)\n    return segs\n\nsa = split(A)\nsb = split(B)\nbest = None\nbest_sum = None\nfor choice in itertools.product((0, 1), repeat=len(sa)):\n    res = []\n    for c, a, b in zip(choice, sa, sb):\n        res += a if c == 0 else b\n    s = sum(res)\n    if best is None or s > best_sum:\n        best = res\n        best_sum = s\nprint(' '.join(map(str, best)))\n",
+ "generator": "def gen(rng):\n    def fmt(A, B):\n        return f\"{len(A)}\\n{' '.join(map(str, A))}\\n{len(B)}\\n{' '.join(map(str, B))}\"\n\n    tests = [\n        fmt([1, 4, 8, 9, 10, 15], [2, 4, 5, 6, 10, 20]),\n        fmt([5, 6], [1, 2, 3]),\n        fmt([3, 7], [1, 2, 7]),\n        fmt([1], [1]),\n        fmt([1], [2]),\n        fmt([-5], [-3]),\n        fmt([-3, -1, 2], [-4, -1, 5]),\n        fmt([1, 2, 3], [1, 2, 3]),\n        fmt([1, 2, 3, 4], [4]),\n        fmt([4], [1, 2, 3, 4]),\n    ]\n    for _ in range(20):\n        size = rng.randint(2, 12)\n        lo = rng.choice([-20, 0, 1])\n        pool = rng.sample(range(lo, lo + 30), size)\n        A = sorted(rng.sample(pool, rng.randint(1, size)))\n        B = sorted(rng.sample(pool, rng.randint(1, size)))\n        tests.append(fmt(A, B))\n    N = 50000\n    vals = rng.sample(range(-10**9, 10**9 + 1), 75000)\n    common = sorted(vals[:25000])\n    A = sorted(common + vals[25000:50000])\n    B = sorted(common + vals[50000:75000])\n    tests.append(fmt(A, B))\n    vals = rng.sample(range(-10**9, 10**9 + 1), N + 5)\n    A = sorted(vals[:N])\n    B = sorted(vals[5:N] + vals[N:])\n    tests.append(fmt(A, B))\n    vals = rng.sample(range(-10**9, 10**9 + 1), 2 * N)\n    tests.append(fmt(sorted(vals[:N]), sorted(vals[N:])))\n    vals = sorted(rng.sample(range(-10**9, 10**9 + 1), N))\n    tests.append(fmt(vals, vals))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_sum_list(a: List[int], b: List[int]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    m = int(data[1 + n])\n    b = [int(x) for x in data[2 + n:2 + n + m]]\n    print(' '.join(map(str, max_sum_list(a, b))))\n\n\nmain()\n",
+  "javascript": "function maxSumList(a, b) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst a = t.slice(1, 1 + n)\nconst m = t[1 + n]\nconst b = t.slice(2 + n, 2 + n + m)\nconsole.log(maxSumList(a, b).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> maxSumList(vector<long long>& a, vector<long long>& b) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    cin >> m;\n    vector<long long> b(m);\n    for (int i = 0; i < m; i++) cin >> b[i];\n    vector<long long> res = maxSumList(a, b);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] maxSumList(long[] a, long[] b) {\n        // Write your solution here\n        return new long[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); a[i] = (long) in.nval;\n        }\n        in.nextToken();\n        int m = (int) in.nval;\n        long[] b = new long[m];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); b[i] = (long) in.nval;\n        }\n        long[] res = maxSumList(a, b);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

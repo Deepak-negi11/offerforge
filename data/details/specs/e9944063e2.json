@@ -1,0 +1,18 @@
+{
+ "qid": "e9944063e2",
+ "question": "Onsite system design round for a Machine Learning Engineer role at Stripe, with an emphasis on **real-time model deployment**. The reported loop was coding, debugging, system design, then hiring manager. The exact prompt is not given in the report, so a typical version is: design an ML system that scores requests in real time (for example fraud or risk scoring on payments) and covers how the model is trained, deployed and monitored.",
+ "lookingFor": [
+  "Can you frame the problem, the metrics and the latency budget before designing?",
+  "Do you understand online vs offline features and training-serving skew?",
+  "Can you design a low-latency serving path with safe rollout and fallback?",
+  "Do you plan monitoring, drift detection, and retraining?",
+  "Do you see the cost trade-offs of false positives vs false negatives?"
+ ],
+ "answer": "**1. Requirements.** Clarify the use case (assume real-time risk scoring on payments), latency budget (say p99 under about 100 ms end to end), throughput, label delay (fraud labels can arrive weeks later), and costs of false positives (blocked good users) vs false negatives (fraud losses). Business metrics: loss rate, approval rate. Model metrics: PR-AUC, recall at a fixed false-positive rate.\n\n**2. Offline training pipeline.**\n- Data from event logs and the warehouse, labelled with delayed outcomes.\n- Feature pipeline with point-in-time correctness (no leakage from the future).\n- Train, validate on a time-based split, register the model with its version, data snapshot and metrics.\n\n**3. Feature store.** An offline store for training and an online store (a low-latency key-value store such as Redis or DynamoDB) for serving, filled by the same feature definitions to avoid training-serving skew. Real-time aggregates (transactions in the last 10 minutes per card) come from a stream processor.\n\n**4. Serving path.** Request, then feature lookup, then model inference, then decision. Keep the model small enough (gradient boosted trees or a compact network), load it in memory, batch where possible, and set strict timeouts. **Fallback:** if features or the model time out, use a simpler rules-based score so payments never block.\n\n**5. Safe deployment.** Shadow mode (score but do not act), then canary traffic, then gradual ramp, with automatic rollback on metric regression. Keep old model versions loaded for quick rollback.\n\n**6. Monitoring.** Latency, error rates, feature distributions (drift), score distribution, and delayed-label performance. Alerts when inputs shift or approval rate jumps. Log features and scores for debugging and retraining.\n\n**7. Retraining.** Scheduled or drift-triggered retraining, with comparison against the current champion model before promotion.\n\n**Trade-offs:** model complexity vs latency, freshness of features vs cost, and explainability needs for rejected payments.",
+ "followUps": [
+  "What is training-serving skew and how do you prevent it?",
+  "How would you handle labels that arrive weeks after the prediction?",
+  "How do you roll out a new model safely and detect that it is worse?",
+  "What would you do if the feature store is down during serving?"
+ ]
+}

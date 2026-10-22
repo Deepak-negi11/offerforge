@@ -1,0 +1,18 @@
+{
+ "qid": "819042ecd2",
+ "question": "Atlassian Principal Engineer (P60) and P40 **system design round** on a **tagging system**: customers own entities across products (Jira tickets, Confluence pages, Bitbucket reviews), and owners can assign hashtags to them. The extension: **compute the top K popular tags** (for example for a dashboard), discussing **sliding versus tumbling windows**. Candidates reported being grilled on API design (methods, parameters, pagination), **Kafka vs SQS vs RabbitMQ**, and **Cassandra/DynamoDB vs Postgres** for storing tags. One candidate used **Flink with Redis sorted sets**, driven by a latency requirement of under 5 minutes for top-K tags.",
+ "lookingFor": [
+  "Turning vague requirements into functional and non-functional requirements.",
+  "Understanding streaming aggregation and windowing semantics.",
+  "Justifying technology choices against alternatives, not just naming them.",
+  "Data modelling for tag lookups at scale.",
+  "API design discipline: pagination, idempotency, authorisation per customer."
+ ],
+ "answer": "**Requirements:** (1) add or remove a tag on an entity; (2) fetch all entities with a tag for a customer across products; (3) show top K tags by popularity. Non-functional: multi-tenant isolation, read-heavy lookups, top-K fresh within about 5 minutes, high availability. State scale assumptions (for example millions of tag events per hour).\n\n**APIs:** `PUT /entities/{id}/tags/{tag}`, `DELETE ...`, `GET /tags/{tag}/entities?cursor=&limit=` (cursor pagination, not offset), `GET /tags/top?k=10&window=1h`. Scope every call by customer ID and enforce authorisation.\n\n**Data model:** two access paths. `entity_tags(customer, entity_id, tag)` and an inverted index `tag_entities(customer, tag, entity_id)`, partitioned by `(customer, tag)`. A wide-column store (Cassandra/DynamoDB) suits this key-based, high-write access and scales horizontally; Postgres is simpler and gives transactions and joins, fine at moderate scale. Choose by access pattern and growth.\n\n**Top-K pipeline:** tag events go to a **log** (Kafka) for ordered, replayable, multi-consumer streams; SQS is simpler but has no replay or strict partition ordering; RabbitMQ is a flexible broker without the same retained-log model. A stream processor (Flink or Kafka Streams) counts per tag per window and writes results to a **Redis sorted set** (`ZINCRBY`, `ZREVRANGE`) that serves the dashboard in milliseconds.\n\n**Windows**\n- **Tumbling:** fixed, non-overlapping (for example every hour): simple, cheap, but results jump at boundaries.\n- **Sliding (hopping):** overlapping (for example last 1 hour updated every 5 minutes): smoother and fresher, but more state and compute.\nFor a 5-minute freshness goal, use a sliding window with a 5-minute hop. Handle late events with watermarks.\n\n**Scaling and trade-offs:** hot tags (partition by tag plus a salt, then merge), exact counts vs approximate (Count-Min Sketch plus heap) when cardinality is huge, per-customer top-K versus global, and replay from the log to rebuild state.",
+ "followUps": [
+  "How would you handle a tag that suddenly becomes extremely hot?",
+  "Exact versus approximate top-K: when would you accept approximation?",
+  "How do you handle late or duplicate events in the stream?",
+  "Why cursor pagination instead of offset?"
+ ]
+}

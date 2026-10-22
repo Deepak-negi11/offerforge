@@ -1,0 +1,50 @@
+{
+ "pid": "decode-string",
+ "title": "Decode String",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A string has been compressed with a simple repetition code. A group of the form `k[text]` stands for `text` written `k` times in a row, where `k` is a positive integer. Groups can be **nested**: the `text` inside a group may itself contain groups. Plain letters outside any group are copied as they are.\n\nGiven the encoded string `s`, print the fully expanded string.\n\nRules:\n\n- The repeat count `k` is written in decimal and can have several digits, for example `12[ab]`.\n- A count is always immediately followed by an opening bracket. Digits never appear anywhere else, so the expanded text contains only letters.\n- Both square brackets `[ ]` and curly braces `{ }` are used as group delimiters, and they mean exactly the same thing. Brackets are always properly nested and each opening symbol is closed by the matching symbol of its own kind, so `3{a2[b]}` is valid while `3{a]` is not.\n- Every group has at least one letter inside it, and plain letters may appear before, between or after groups, so `ab2{abc}` expands to `ababcabc`.\n- The expanded string is guaranteed to have at most `10^5` characters.\n\nThe expansion can be done with a stack or with recursion. In either case, think about how you handle a multi-digit count and what happens at the closing bracket.",
+ "input_format": "A single line containing the encoded string `s` (it has no spaces).",
+ "output_format": "Print the decoded string on a single line.",
+ "constraints": [
+  "1 ≤ |s| ≤ 10^5",
+  "`s` consists of English letters, digits, and the symbols `[`, `]`, `{`, `}`",
+  "Every repeat count k satisfies 1 ≤ k ≤ 10^5",
+  "The decoded string has length at most 10^5"
+ ],
+ "examples": [
+  {
+   "input": "3[a2[bc]]",
+   "output": "abcbcabcbcabcbc",
+   "explanation": "The inner group `2[bc]` expands to `bcbc`, so the outer group is `3[abcbc]`, which repeats `abcbc` three times."
+  },
+  {
+   "input": "ab2{abc}",
+   "output": "ababcabc",
+   "explanation": "The letters `ab` are copied as they are, then the braces group `2{abc}` repeats `abc` twice."
+  },
+  {
+   "input": "2[x3{y}]z10[q]",
+   "output": "xyyyxyyyzqqqqqqqqqq",
+   "explanation": "`3{y}` gives `yyy`, so the first group is `2[xyyy]` = `xyyyxyyy`. Then the letter `z` is copied, and `10[q]` gives ten copies of `q`."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + L), where L is the length of the decoded string",
+  "space": "O(n + L)"
+ },
+ "hints": [
+  "Scan from left to right. When you read digits, build the whole number; when you see an opening bracket, you are about to start a fresh piece of text.",
+  "Use a stack. On an opening bracket push the text built so far together with the pending count, then start an empty text. On a closing bracket pop them and append the repeated inner text to the popped text.",
+  "Do not build strings by repeated concatenation in a loop that copies the whole string each time; collect pieces in a list and join them, and keep in mind that nesting can be tens of thousands of levels deep."
+ ],
+ "reference": "import sys\n\ndef main():\n    s = sys.stdin.read().split()[0]\n    cur = []\n    stack = []\n    num = 0\n    for ch in s:\n        if ch.isdigit():\n            num = num * 10 + int(ch)\n        elif ch == '[' or ch == '{':\n            stack.append((cur, num))\n            cur = []\n            num = 0\n        elif ch == ']' or ch == '}':\n            inner = ''.join(cur)\n            cur, k = stack.pop()\n            cur.append(inner * k)\n        else:\n            cur.append(ch)\n    print(''.join(cur))\n\nmain()\n",
+ "brute": "import sys\n\nsys.setrecursionlimit(10000)\ns = sys.stdin.read().split()[0]\npos = 0\n\ndef parse():\n    global pos\n    res = ''\n    while pos < len(s) and s[pos] not in ']}':\n        if s[pos].isdigit():\n            k = 0\n            while s[pos].isdigit():\n                k = k * 10 + int(s[pos])\n                pos += 1\n            pos += 1\n            inner = parse()\n            pos += 1\n            res += inner * k\n        else:\n            res += s[pos]\n            pos += 1\n    return res\n\nprint(parse())\n",
+ "generator": "import string\n\ndef gen(rng):\n    letters = string.ascii_letters\n    pairs = [('[', ']'), ('{', '}')]\n\n    def make(depth, parts):\n        out, size = [], 0\n        for _ in range(parts):\n            if depth == 0 or rng.random() < 0.45:\n                run = ''.join(rng.choice(letters) for _ in range(rng.randint(1, 3)))\n                out.append(run)\n                size += len(run)\n            else:\n                inner, isz = make(depth - 1, rng.randint(1, 3))\n                k = rng.choice([1, 2, 2, 3, 3, 4, 5, 10, 12])\n                o, c = rng.choice(pairs)\n                out.append(str(k) + o + inner + c)\n                size += k * isz\n        return ''.join(out), size\n\n    def small(depth, parts):\n        while True:\n            s, size = make(depth, parts)\n            if len(s) <= 300 and size <= 5000:\n                return s\n\n    tests = ['a', 'abc', '1[a]', '2[a]', '10[z]', '3[a2[bc]]', 'ab2{abc}', '2[a]2[b]', '2[2[2[a]]]', 'x3{y}z',\n             'Ab2[Cd]E', '12[ab]']\n    for depth, parts in ((1, 2), (2, 2), (2, 3), (3, 3), (4, 3), (3, 4)):\n        tests.append(small(depth, parts))\n    tests.append('a' * 100000)\n    tests.append('100000[a]')\n    tests.append('316[316[a]]')\n    tests.append('1[' * 33000 + 'xyz' + ']' * 33000)\n    tests.append('2[ab]' * 20000)\n    tests.append('2[' * 15 + 'ab' + ']' * 15)\n    big, size = [], 0\n    while True:\n        part, psz = make(5, 3)\n        if size + psz > 99000 or len(''.join(big)) + len(part) > 99000:\n            break\n        big.append(part)\n        size += psz\n    tests.append(''.join(big))\n    tests.append('7{' + 'q' * 14000 + '}')\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef decode_string(s: str) -> str:\n    # Write your solution here\n    return \"\"\n\n\ndef main():\n    s = sys.stdin.read().split()[0]\n    print(decode_string(s))\n\n\nmain()\n",
+  "javascript": "function decodeString(s) {\n  // Write your solution here\n  return ''\n}\n\nconst s = input.split(/\\s+/).filter(Boolean)[0]\nconsole.log(decodeString(s))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring decodeString(const string& s) {\n    // Write your solution here\n    return \"\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s;\n    cin >> s;\n    cout << decodeString(s) << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String decodeString(String s) {\n        // Write your solution here\n        return \"\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String s = br.readLine().trim();\n        System.out.println(decodeString(s));\n    }\n}\n"
+ }
+}

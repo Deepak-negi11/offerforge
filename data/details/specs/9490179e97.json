@@ -1,0 +1,17 @@
+{
+ "qid": "9490179e97",
+ "question": "Reported in an NVIDIA Senior Systems Software Engineer interview (API design): given a function that allocates a resource, design its signature so that the caller can use the resource while the **release stays with the callee** (the function that allocated it). The exact language and resource were not reported; the design is most naturally discussed in C or C++.",
+ "lookingFor": [
+  "Thinking in terms of ownership and lifetime, not just types",
+  "Recognising the scoped or callback pattern and when it beats returning a pointer",
+  "Awareness of leaks, double free and use-after-free as API failure modes",
+  "Willingness to clarify an ambiguous requirement"
+ ],
+ "answer": "**Clarify first.** \"Callee releases\" can mean (a) the allocating function frees the resource as soon as the caller is done using it, or (b) the library keeps ownership and frees it later (pool, arena, cache). Ask which, and whether the use is synchronous.\n\n**Option 1: scoped use via callback (case a).** The function allocates, lends the resource to a caller-supplied function, then releases it itself. The caller cannot leak it or free it twice.\n\n```c\ntypedef int (*use_fn)(void *res, size_t len, void *ctx);\n\nint with_buffer(size_t len, use_fn use, void *ctx) {\n    void *res = malloc(len);\n    if (!res) return -1;\n    int rc = use(res, len, ctx);\n    free(res);              // release stays with the callee\n    return rc;\n}\n```\n\nIn C++ the same idea is `template <class F> auto with_buffer(size_t n, F&& f)`, with the resource held by a local `unique_ptr` so it is released even if `f` throws. In Python or Java this is a context manager or `try`-with-resources.\n\n**Option 2: borrowed handle (case b).** Return a pointer or handle the caller may use but must not free, with a documented lifetime (\"valid until the next call\" or \"until `pool_destroy`\"). The library owns release. Add generation counters or opaque handles so stale handles are detected.\n\n**Option 3: shared ownership.** Return a `shared_ptr` or reference-counted handle; the last holder triggers release, which the callee defined through a custom deleter. Use when lifetime is not scoped.\n\n**Trade-offs.** The callback form gives the strongest guarantee but forces the code into a closure (awkward for long-lived resources and async use). Borrowed pointers are cheap but invite dangling use. Do not let the resource escape the callback (copying the pointer elsewhere); document it, or return data by copy.\n\nA plain `T *alloc(...)` that makes the caller free it is the opposite ownership model; mention it to show you considered it.",
+ "followUps": [
+  "What changes if the caller needs to keep the resource beyond the call?",
+  "How do you make the callback form exception-safe in C++?",
+  "What is RAII and how does it encode ownership?",
+  "How would you detect use-after-release of a borrowed handle?"
+ ]
+}

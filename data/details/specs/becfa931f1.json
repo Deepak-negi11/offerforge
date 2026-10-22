@@ -1,0 +1,18 @@
+{
+ "qid": "becfa931f1",
+ "question": "In a second technical round for a Myntra SDE intern on-campus interview, after project discussion, the interviewer asked whether any project was hosted and then: **suppose a website is hosted, how would you handle a sudden increase in traffic?** This discussion lasted 25 to 30 minutes in the round. A good answer is practical and ordered: measure first, then add capacity and reduce work.",
+ "lookingFor": [
+  "Systematic thinking: find the bottleneck before scaling blindly",
+  "Knowledge of caching, CDNs, load balancing and horizontal scaling",
+  "Database protection under load",
+  "Resilience: rate limiting, graceful degradation, autoscaling",
+  "Realism about a student project's actual hosting setup"
+ ],
+ "answer": "**Start with the facts.** Say what your project actually used (for example a single VM or a platform like Render or Vercel with a managed database), then answer for both that setup and a production setup. First check monitoring to learn what is saturating: CPU, memory, DB connections, bandwidth or a slow query, and whether the traffic is legitimate (a launch, a viral post) or abusive (bots, DDoS).\n\n**Quick wins that cut work per request**\n1. **CDN and static caching**: serve JS, CSS, images and cacheable pages from the edge, so most traffic never reaches your server.\n2. **Application caching**: cache hot reads (Redis or in memory) with sensible TTLs; add HTTP cache headers.\n3. **Database**: add missing indexes, fix slow queries, use connection pooling, and add read replicas for read-heavy traffic.\n4. **Optimise payloads**: compression, smaller images, pagination.\n\n**Add capacity**\n- Make the app **stateless** (sessions in Redis or tokens) so any instance can serve any request.\n- Put a **load balancer** in front of multiple instances and **autoscale** on CPU or request count.\n- Scale the database vertically at first, and later with replicas or sharding.\n\n**Protect the system**\n- **Rate limiting** per IP/user and a WAF for abusive traffic.\n- **Queue** slow or non-urgent work (emails, image processing) with background workers.\n- **Graceful degradation**: serve cached or reduced pages, disable expensive features, show a waiting room if needed.\n- Timeouts, circuit breakers and retry with backoff so one slow dependency does not take everything down.\n\n**Prepare and verify.** Load test (k6, JMeter, Locust) before a launch, set alerts, and keep a rollback plan. After the spike, review the metrics and fix the real bottleneck.\n\nFor a student project, an honest and good answer is: put a CDN in front, cache, scale the instance count or plan, and index the database.",
+ "followUps": [
+  "How would you find out which part of the system is the bottleneck?",
+  "What is the difference between vertical and horizontal scaling and what does horizontal scaling require of your app?",
+  "How do you protect the database during a spike?",
+  "How would you tell a viral spike from a DDoS attack?"
+ ]
+}

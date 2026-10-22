@@ -1,0 +1,49 @@
+{
+ "pid": "uber-minimum-code-transitions",
+ "title": "Minimum Code Transitions",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You manage a secure network in which every node is identified by a 4-digit numeric code such as `1234` (leading zeros are allowed, so `0042` is a valid code). You are given the list of **activated** codes, a `start` code and a `target` code. The start code is guaranteed to be in the activated list.\n\nYou can move from one code to another in a single **transition** only if the two codes differ in **exactly one digit position**. For example `1234` → `1235` is a valid transition, but `1234` → `1299` is not (two digits differ). You may only pass through codes that are in the activated list, and the target must be activated as well to be reached.\n\nReturn the minimum number of transitions needed to get from `start` to `target`, or `-1` if it is impossible. If `start` and `target` are the same code the answer is `0`.",
+ "input_format": "The first line contains an integer `m`, the number of activated codes.\nThe second line contains `m` distinct 4-character strings of digits: the activated codes.\nThe third line contains two 4-character digit strings: `start` and `target`.",
+ "output_format": "Print a single integer: the minimum number of transitions, or `-1` if `target` cannot be reached.",
+ "constraints": [
+  "1 ≤ m ≤ 10^4",
+  "Every code is exactly 4 characters, each a digit from `0` to `9`; activated codes are distinct",
+  "`start` is in the activated list; `target` is any 4-digit code"
+ ],
+ "examples": [
+  {
+   "input": "5\n0000 0001 0011 0111 1111\n0000 1111",
+   "output": "4",
+   "explanation": "Each consecutive pair differs in exactly one digit: 0000 → 0001 → 0011 → 0111 → 1111. Four transitions, and no shortcut exists because any other pair differs in two or more digits."
+  },
+  {
+   "input": "4\n1234 1235 1299 1239\n1234 1299",
+   "output": "2",
+   "explanation": "1234 → 1299 is not allowed (two digits differ). Going 1234 → 1239 changes one digit, and 1239 → 1299 changes one digit, giving 2 transitions."
+  },
+  {
+   "input": "3\n5000 5001 7777\n5000 7777",
+   "output": "-1",
+   "explanation": "7777 is activated but differs from both other codes in several digits, so it cannot be reached."
+  }
+ ],
+ "complexity": {
+  "time": "O(m · 4 · 10)",
+  "space": "O(m)"
+ },
+ "hints": [
+  "Treat each activated code as a graph node and ask for the shortest path in an unweighted graph.",
+  "You do not need to compare all pairs of codes: from a code, generate the 4 × 9 = 36 codes that differ in one digit and look each up in a hash set of activated codes.",
+  "Run a breadth-first search from `start`, keeping a visited set; the first time you pop `target` its level is the answer."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\n\ndef main():\n    data = sys.stdin.read().split()\n    m = int(data[0])\n    codes = set(data[1:1 + m])\n    start, target = data[1 + m], data[2 + m]\n    if target not in codes:\n        print(-1)\n        return\n    dist = {start: 0}\n    dq = deque([start])\n    while dq:\n        u = dq.popleft()\n        if u == target:\n            print(dist[u])\n            return\n        for p in range(4):\n            for d in '0123456789':\n                if d != u[p]:\n                    v = u[:p] + d + u[p + 1:]\n                    if v in codes and v not in dist:\n                        dist[v] = dist[u] + 1\n                        dq.append(v)\n    print(-1)\n\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nm = int(data[0])\ncodes = list(dict.fromkeys(data[1:1 + m]))\nstart, target = data[1 + m], data[2 + m]\n\n\ndef adjacent(a, b):\n    return sum(x != y for x, y in zip(a, b)) == 1\n\n\ndist = {start: 0}\nqueue = [start]\nfor u in queue:\n    for v in codes:\n        if v not in dist and adjacent(u, v):\n            dist[v] = dist[u] + 1\n            queue.append(v)\nprint(dist[target] if target in codes and target in dist else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(codes, s, t):\n        return str(len(codes)) + '\\n' + ' '.join(codes) + '\\n' + s + ' ' + t\n\n    def universe(digits):\n        res = ['']\n        for _ in range(4):\n            res = [x + d for x in res for d in digits]\n        return res\n\n    tests = [\n        fmt(['0000'], '0000', '0000'),\n        fmt(['1234', '1235'], '1234', '1235'),\n        fmt(['1234', '1299'], '1234', '1299'),\n        fmt(['1234', '1235'], '1234', '1236'),\n        fmt(['0000', '0001', '0011', '0111', '1111'], '0000', '1111'),\n        fmt(['0042', '0043', '0143', '1143', '1243'], '0042', '1243'),\n    ]\n    for _ in range(40):\n        digits = rng.choice(['01', '012', '0123'])\n        uni = universe(digits)\n        k = rng.randint(1, min(len(uni), 30))\n        codes = rng.sample(uni, k)\n        s = rng.choice(codes)\n        t = rng.choice(codes) if rng.random() < 0.7 else rng.choice(uni)\n        tests.append(fmt(codes, s, t))\n    for _ in range(6):\n        cur = [rng.randint(0, 9) for _ in range(4)]\n        seen = []\n        for _ in range(rng.randint(8, 35)):\n            c = ''.join(map(str, cur))\n            if c not in seen:\n                seen.append(c)\n            p = rng.randint(0, 3)\n            cur[p] = (cur[p] + rng.choice([-1, 1])) % 10\n        tests.append(fmt(seen, seen[0], seen[-1]))\n    allc = universe('0123456789')\n    sh = allc[:]\n    rng.shuffle(sh)\n    tests.append(fmt(sh, '0000', '9999'))\n    sub = rng.sample(allc, 1500)\n    if '0000' not in sub:\n        sub[0] = '0000'\n    tests.append(fmt(sub, '0000', rng.choice(sub)))\n    sub = rng.sample(allc, 200)\n    tests.append(fmt(sub, sub[0], sub[-1]))\n    lowc = universe('012345')\n    rng.shuffle(lowc)\n    tests.append(fmt(lowc, '0000', '5555'))\n    cur = [5, 5, 5, 5]\n    seen = []\n    seen_set = set()\n    for _ in range(40000):\n        c = ''.join(map(str, cur))\n        if c not in seen_set:\n            seen_set.add(c)\n            seen.append(c)\n        p = rng.randint(0, 3)\n        cur[p] = (cur[p] + rng.choice([-1, 1])) % 10\n    tests.append(fmt(seen, seen[0], seen[-1]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_transitions(codes: List[str], start: str, target: str) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    m = int(data[0])\n    codes = data[1:1 + m]\n    start, target = data[1 + m], data[2 + m]\n    print(min_transitions(codes, start, target))\n\n\nmain()\n",
+  "javascript": "function minTransitions(codes, start, target) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst m = parseInt(t[0])\nconst codes = t.slice(1, 1 + m)\nconsole.log(minTransitions(codes, t[1 + m], t[2 + m]))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minTransitions(vector<string>& codes, string start, string target) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int m;\n    cin >> m;\n    vector<string> codes(m);\n    for (int i = 0; i < m; i++) cin >> codes[i];\n    string start, target;\n    cin >> start >> target;\n    cout << minTransitions(codes, start, target) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minTransitions(String[] codes, String start, String target) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        Scanner sc = new Scanner(new BufferedInputStream(System.in));\n        int m = sc.nextInt();\n        String[] codes = new String[m];\n        for (int i = 0; i < m; i++) codes[i] = sc.next();\n        String start = sc.next();\n        String target = sc.next();\n        System.out.println(minTransitions(codes, start, target));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "c7911176f4",
+ "question": "In a technical interview (MS Teams, about 45 minutes) for a Software Engineering Intern role at Qualcomm, among several array questions, the candidate was asked:\n\n- How do you **check for integer overflow** (the question referenced the multiplication case)?\n- Calculate the **memory used** by `union { int i; char c[4]; } x;` and by `struct x { int i; char c[4]; };`.",
+ "lookingFor": [
+  "Do you know that signed overflow is undefined behaviour in C and unsigned wraps?",
+  "Can you check overflow before it happens, without relying on the result?",
+  "Do you know sizeof for unions and structs, including alignment?",
+  "Can you state the assumptions (size of int, padding rules)?"
+ ],
+ "answer": "**Union and struct size** (assuming 4-byte `int` with 4-byte alignment, as on common platforms):\n- `union { int i; char c[4]; }` overlays its members, so its size is the largest member: **4 bytes**. Writing `i` and reading `c[]` shows the bytes of the int (and its endianness).\n- `struct { int i; char c[4]; }` stores both: 4 + 4 = **8 bytes**. There is no padding here, since `char c[4]` ends at offset 8, a multiple of the struct's alignment (4). Always confirm with `sizeof`.\n\n**Integer overflow.** For signed ints, overflow is undefined behaviour, so you cannot compute then test the result; test before. Unsigned arithmetic wraps modulo 2^N, which is well defined.\n\n- **Addition (a, b non-negative):** overflow if `a > INT_MAX - b`. For mixed signs, check `b > 0 && a > INT_MAX - b` or `b < 0 && a < INT_MIN - b`.\n- **Multiplication (positive a, b):** overflow if `a != 0 && b > INT_MAX / a`. Handle signs and `INT_MIN` (`INT_MIN * -1`) separately.\n- **Widening:** compute in `long long` (or `int64_t`) and compare with `INT_MIN` and `INT_MAX`. This does not work for 64-bit operands.\n- **Unsigned multiply:** `c = a * b; if (a != 0 && c / a != b) overflow;`\n- **Compiler builtins:** `__builtin_add_overflow(a, b, &r)` and `__builtin_mul_overflow(a, b, &r)` (GCC and Clang) return true on overflow; C23 adds `<stdckdint.h>`.\n- Tools: `-fsanitize=undefined` (UBSan) catches signed overflow at runtime; `-ftrapv`.\n\nMistake to avoid: `if (a + b < a)` for signed ints, because the compiler is allowed to optimise it away.",
+ "followUps": [
+  "Why is signed overflow undefined but unsigned overflow defined?",
+  "What is struct padding and how can you reduce it?",
+  "How can a union be used to check endianness?",
+  "How would you find a missing number from 1 to N without overflow problems?"
+ ]
+}

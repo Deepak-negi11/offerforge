@@ -1,0 +1,18 @@
+{
+ "qid": "d5b7a9b1b0",
+ "question": "JPMorgan Chase, Software Engineer III (6 YOE), Technical Interview 2. Create a system to monitor volleyball team scores from match outcomes. Implement a class `GameTracker` with `void addMatch(String team1, String team2, String score)` and `String findFirst()`, which returns the team with the **highest score** after match results are recorded. **Constraint:** `findFirst` must run in **less than O(n)**. The candidate noted they did not do well on this round. The report does not define the exact `score` format or how team totals are derived.",
+ "lookingFor": [
+  "Asking clarifying questions about the score format and tie-breaking.",
+  "Maintaining aggregate state incrementally rather than recomputing.",
+  "Spotting that monotonic totals allow an O(1) leader pointer, and knowing the heap or tree alternative.",
+  "Clean class design with parsing and validation.",
+  "Complexity analysis and edge cases."
+ ],
+ "answer": "**Clarify.** What does `score` look like, for example \"25-20\" (points for team1 and team2)? Do teams accumulate points, or does a win add a fixed number? Ties for first place: lexicographic, or first to reach? Can a team's total ever decrease (corrections)? I assume points accumulate from the score string, totals never decrease, and ties go to the alphabetically smaller name.\n\n**Key insight.** If totals only increase, only the two teams in the current match can overtake the leader. So keep a `HashMap<String, Integer> totals` and a running `leader`. After each `addMatch`, update the two totals and compare each against the leader. That makes `addMatch` O(1) and `findFirst` **O(1)**, which satisfies \"less than O(n)\".\n\n```java\nclass GameTracker {\n    private final Map<String,Integer> total = new HashMap<>();\n    private String leader = null;\n\n    void addMatch(String t1, String t2, String score) {\n        String[] p = score.split(\"-\");\n        int s1 = Integer.parseInt(p[0].trim()), s2 = Integer.parseInt(p[1].trim());\n        bump(t1, s1); bump(t2, s2);\n    }\n    private void bump(String t, int pts) {\n        int v = total.merge(t, pts, Integer::sum);\n        if (leader == null) { leader = t; return; }\n        int lv = total.get(leader);\n        if (v > lv || (v == lv && t.compareTo(leader) < 0)) leader = t;\n    }\n    String findFirst() { return leader; }\n}\n```\n\n**If totals can decrease or be corrected,** the running leader is not enough. Use a `TreeSet` ordered by (total desc, name) and remove and reinsert on each update: `addMatch` O(log n), `findFirst` O(1) or O(log n). Or a max-heap with **lazy deletion**: push `(total, team)` on every update and, in `findFirst`, pop stale entries whose total differs from the map. That is O(log n) amortised.\n\n**Edge cases:** no matches yet (return null or throw), malformed score, same team on both sides, negative points, and thread safety if matches arrive concurrently (synchronise or use `ConcurrentHashMap` with care, since the leader update must be atomic).",
+ "followUps": [
+  "What changes if a match can be edited or removed later?",
+  "How would you return the top K teams?",
+  "How would you make this thread safe with high write volume?",
+  "What are the trade-offs between a heap with lazy deletion and a TreeSet?"
+ ]
+}

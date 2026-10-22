@@ -1,0 +1,43 @@
+{
+ "pid": "de-shaw-min-max-without-branching",
+ "title": "Min/Max Without Branching",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "You are given `t` pairs of integers `(a, b)`. For each pair, compute the **minimum** and the **maximum** of the two numbers.\n\nThe twist from the interview: the original question asked for the minimum or maximum of two integers **without using `if`/`else` or the ternary operator**. Your solution should therefore be built from arithmetic and bit operations only. Note that `a - b` can overflow a 32-bit integer for values near the ends of the range, so use 64-bit arithmetic (or a trick that avoids the subtraction).\n\nFor each pair print the minimum followed by the maximum.\n\n**Follow-up:** Do not call `min`, `max` or any comparison-based library function, and do not use `if`, `else`, `?:`, `&&`/`||` short-circuiting or loops inside the function that computes the answer. Only the output of the program is tested, but the exercise is to get there with bit tricks (for example, using the sign of `a - b` as a mask).",
+ "input_format": "The first line contains an integer `t`.\nEach of the next `t` lines contains two integers `a` and `b`.",
+ "output_format": "Print `t` lines. Line `i` contains two space-separated integers: the minimum and the maximum of the `i`-th pair.",
+ "constraints": [
+  "1 ≤ t ≤ 5 * 10^4",
+  "-2^31 ≤ a, b ≤ 2^31 - 1"
+ ],
+ "examples": [
+  {
+   "input": "3\n3 7\n10 -4\n5 5",
+   "output": "3 7\n-4 10\n5 5",
+   "explanation": "For (3, 7) the smaller value is 3. For (10, -4) the smaller value is -4. For equal values both answers are 5."
+  },
+  {
+   "input": "2\n-2147483648 2147483647\n2147483647 -2147483648",
+   "output": "-2147483648 2147483647\n-2147483648 2147483647",
+   "explanation": "The extreme values show why `a - b` overflows in 32 bits (the true difference is 4294967295), yet the answers are still the two endpoints in order."
+  }
+ ],
+ "complexity": {
+  "time": "O(t)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Think about what the sign of `a - b` tells you. If you compute it in 64-bit, shifting right by 63 gives a mask that is all ones when `a < b` and all zeros otherwise.",
+  "`min = b ^ ((a ^ b) & mask)` where `mask` is all ones exactly when `a < b`; the maximum is then `a ^ b ^ min`.",
+  "If you want to avoid overflow without 64-bit types, derive the mask from the sign bits of `a`, `b` and `a - b` carefully, or compare via `-(a < b)` in languages where that is a plain integer."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    t = int(data[0])\n    out = []\n    for i in range(t):\n        a = int(data[1 + 2 * i])\n        b = int(data[2 + 2 * i])\n        mask = (a - b) >> 64\n        lo = b ^ ((a ^ b) & mask)\n        hi = a ^ b ^ lo\n        out.append(str(lo) + ' ' + str(hi))\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nt = int(data[0])\nout = []\nfor i in range(t):\n    a = int(data[1 + 2 * i])\n    b = int(data[2 + 2 * i])\n    out.append(str(min(a, b)) + ' ' + str(max(a, b)))\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    LO, HI = -2**31, 2**31 - 1\n    def fmt(ps):\n        return str(len(ps)) + '\\n' + '\\n'.join(f'{a} {b}' for a, b in ps)\n    tests = [\n        fmt([(0, 0)]),\n        fmt([(1, 2)]),\n        fmt([(2, 1)]),\n        fmt([(LO, HI), (HI, LO), (LO, LO), (HI, HI)]),\n        fmt([(-1, 0), (0, -1), (-5, -3), (-3, -5), (7, 7), (-7, -7)]),\n        fmt([(LO, 0), (0, LO), (HI, 0), (0, HI), (LO, -1), (HI, -1)]),\n    ]\n    for n in (3, 8, 15, 20):\n        for _ in range(3):\n            tests.append(fmt([(rng.randint(-50, 50), rng.randint(-50, 50)) for _ in range(n)]))\n    for _ in range(3):\n        tests.append(fmt([(rng.randint(LO, HI), rng.randint(LO, HI)) for _ in range(20)]))\n    tests.append(fmt([(rng.randint(LO, HI), rng.randint(LO, HI)) for _ in range(50000)]))\n    tests.append(fmt([(rng.choice([LO, HI, 0, -1, 1]), rng.choice([LO, HI, 0, -1, 1])) for _ in range(50000)]))\n    tests.append(fmt([(rng.randint(-1000, 1000), rng.randint(-1000, 1000)) for _ in range(50000)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import Tuple\n\n\ndef min_max(a: int, b: int) -> Tuple[int, int]:\n    # Write your solution here\n    return (a, b)\n\n\ndef main():\n    data = sys.stdin.read().split()\n    t = int(data[0])\n    out = []\n    for i in range(t):\n        lo, hi = min_max(int(data[1 + 2 * i]), int(data[2 + 2 * i]))\n        out.append(str(lo) + ' ' + str(hi))\n    print('\\n'.join(out))\n\n\nmain()\n",
+  "javascript": "function minMax(a, b) {\n  // Write your solution here\n  return [a, b]\n}\n\nconst tk = input.split(/\\s+/).filter(Boolean).map(Number)\nconst t = tk[0]\nconst out = []\nfor (let i = 0; i < t; i++) {\n  const r = minMax(tk[1 + 2 * i], tk[2 + 2 * i])\n  out.push(r[0] + ' ' + r[1])\n}\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\npair<long long, long long> minMax(long long a, long long b) {\n    // Write your solution here\n    return {a, b};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int t;\n    cin >> t;\n    while (t--) {\n        long long a, b;\n        cin >> a >> b;\n        pair<long long, long long> r = minMax(a, b);\n        cout << r.first << ' ' << r.second << '\\n';\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] minMax(long a, long b) {\n        // Write your solution here\n        return new long[]{a, b};\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int t = (int) in.nval;\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < t; i++) {\n            in.nextToken(); long a = (long) in.nval;\n            in.nextToken(); long b = (long) in.nval;\n            long[] r = minMax(a, b);\n            sb.append(r[0]).append(' ').append(r[1]).append('\\n');\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

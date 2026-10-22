@@ -1,0 +1,19 @@
+{
+ "qid": "cc5492c3ab",
+ "question": "Flipkart SDE-2 machine-coding round: **Design a Music Player Application**. Build a working music player with these mandatory features: **search** songs by genre/type; **controls** (play, pause, resume, change/skip song); **user profiles** supporting premium and non-premium users; and **statistics** tracking exactly how many times each song has been played per user.\n\nBonus features: show the **top 3 most recently played songs**, and identify the **most popular songs** by play frequency. The solution is submitted (one file recommended) and the **next day** there is a one-to-one evaluation round where you explain your overall approach, why you used specific design patterns or SOLID principles, and how you would add (or code) the bonus features.",
+ "lookingFor": [
+  "Clean modelling of songs, users, playlists and the player state machine.",
+  "SOLID and design patterns applied for a reason, not for decoration.",
+  "Correct statistics (per-user play count) and sensible data structures for the bonus features.",
+  "Handling of the premium vs non-premium difference without scattering conditionals.",
+  "Ability to explain and extend your own code the next day."
+ ],
+ "answer": "**Clarify first.** What does non-premium change: ads, skip limits, or catalogue access? Is a play counted at start or after N seconds? Assume a simulated player (no real audio), and say so.\n\n**Entities.** `Song` (id, title, artist, genre), `User` (id, type), `Player` (current song, state: STOPPED/PLAYING/PAUSED), `PlayStats` (map userId -> songId -> count), `SongCatalog` (search by genre).\n\n**Core design.**\n- `User` holds a `UserPlan` (Strategy): `PremiumPlan` and `FreePlan` expose rules such as `canSkip()` or `maxSkipsPerHour()`. Adding a new plan is a new class (open/closed).\n- The player uses the *State* pattern (or a simple enum state with guarded transitions): pause only when playing, resume only when paused, skip while stopped is an error with a clear message.\n- `SongCatalog` keeps `Map<Genre, List<Song>>` so genre search is O(1) lookup plus result size. A `SearchStrategy` interface allows searching by artist later.\n- Play counts: `Map<UserId, Map<SongId, Integer>>`, updated through `StatsService` when a song starts. Single responsibility: the player does not know how stats are stored.\n\n**Bonus 1: last 3 played.** Keep a bounded deque (size 3) per user, push to the front on play, drop from the back; O(1).\n\n**Bonus 2: most popular.** Maintain global `Map<SongId, count>`; for top-k either sort on demand (O(n log n)) or keep a min-heap of size k (O(n log k)). Explain the trade-off, and that a sorted structure or heap updated on write helps if reads dominate.\n\n**Observer** can decouple \"song played\" events from stats and history updates, so adding a feature means adding a subscriber.\n\n**Pitfalls.** Static global state, a god class `MusicPlayer`, untested transitions, and failing silently on invalid commands. Use custom exceptions.",
+ "followUps": [
+  "Why did you choose Strategy (or State) here, and what would the code look like without it?",
+  "How would you add a playlist feature or shuffle mode?",
+  "How would you make the play counters thread-safe if many users play at once?",
+  "How would you scale most-popular songs to millions of plays per minute?",
+  "Which SOLID principle did your first version violate, and how did you fix it?"
+ ]
+}

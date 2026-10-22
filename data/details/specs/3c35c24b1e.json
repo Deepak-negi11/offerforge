@@ -1,0 +1,18 @@
+{
+ "qid": "3c35c24b1e",
+ "question": "In the system design round for an Engineer Full Stack role at PayPal, the candidate was asked about scalability, availability versus consistency trade-offs, CDNs, storing and serving images and videos, database sharding and replication. The main task was a **high-level design of a ticket booking system with focus on handling scale at the time of a famous event booking**, that is, a huge traffic spike when tickets go on sale. A DSA question (subsequences of a string in lexicographic order) followed in the same round.",
+ "lookingFor": [
+  "Do you identify the real problem: contention for a small, fixed inventory under a spike?",
+  "Can you prevent double booking while staying fast?",
+  "Do you use CDNs, caching, queues and rate limiting appropriately?",
+  "Can you explain sharding, replication and CAP choices per part of the system?",
+  "Do you handle payment timeouts and seat holds?"
+ ],
+ "answer": "**Requirements.** Browse events, view seat maps, select seats, pay, receive tickets. Rules: **never sell the same seat twice**; a seat is held for a short time during checkout. Scale: a hot event can see millions of users competing for tens of thousands of seats within seconds.\n\n**Key insight.** Browsing is read-heavy and can be stale; booking is a small, highly contended write that needs strong consistency.\n\n**Architecture.**\n- **CDN** serves static assets, images and videos, so they never hit origin. Event pages can be cached with short TTLs.\n- **Virtual waiting room / queue:** under spikes, admit users at a controlled rate (token-based), protecting the booking service and keeping the experience fair. Add rate limiting and bot protection.\n- **Stateless API tier** behind a load balancer, auto-scaled.\n- **Search/browse service** reading from caches and replicas.\n- **Booking service** with a **seat inventory** store.\n- **Payment service** (async with callbacks) and **notification service**.\n\n**Seat reservation.** Use a two-step flow: `HOLD` then `CONFIRM`. A hold is an atomic conditional write: `UPDATE seats SET status='HELD', held_by=?, expires_at=now()+10m WHERE seat_id=? AND status='AVAILABLE'`, where one affected row means success. Alternatively use Redis with `SET key NX EX` for the hold in front of the database. After payment succeeds, mark `SOLD`; on failure or expiry, a sweeper releases the hold. This avoids long database locks and prevents double sales.\n\n**Data and scaling.** Shard inventory by `event_id` (and optionally by section) so a hot event is isolated from others; replicate for availability. Reads from replicas or cache; **writes for seat state go to the primary**.\n\n**CAP.** Browsing and caches: favor availability (eventual consistency is acceptable, an out-of-date seat count is tolerable if the hold step is authoritative). Seat holds and payments: favor **consistency**, accepting that some requests fail or wait during partitions.\n\n**Other points.** Idempotent booking requests, async confirmation emails through a queue, load testing, graceful degradation (disable seat-map previews first), and monitoring.",
+ "followUps": [
+  "How do you avoid two users being shown the same available seat and both paying?",
+  "What happens if payment succeeds after the hold expired?",
+  "How would you shard a single extremely hot event?",
+  "How would you stop bots from buying all the tickets?"
+ ]
+}

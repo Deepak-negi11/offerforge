@@ -1,0 +1,50 @@
+{
+ "pid": "apple-print-all-sentence-combinations",
+ "title": "Print All Sentence Combinations",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given `k` lists of candidate words, one list per position of a sentence. Print every sentence that can be built by choosing exactly one word from each list, keeping the lists in their given order.\n\nRules:\n\n- Sentences are printed in the order a nested loop would produce them: the choice from the **first** list changes the slowest, and the choice from the **last** list changes the fastest. Within one list, words are tried in the order they are given.\n- Two sentences are different outputs even if they read the same (for example when a list contains the same word twice), so print one line per combination.\n- Words in a sentence are joined by a single space, except that a word made only of the punctuation characters `.`, `,`, `!`, `?`, `;`, `:` is attached directly to the previous word with no space (a punctuation word in the first position has nothing to attach to and is printed as is).\n\nFor example, the lists `[The]`, `[dog, cat]`, `[runs]`, `[.]` produce `The dog runs.` and `The cat runs.`.\n\n**Follow-up:** The interviewer expects exponential time because the number of sentences is the product of the list sizes. Think about how the recursion (or an iterative build) can write each sentence without recomputing shared prefixes.",
+ "input_format": "The first line contains an integer `k`.\nEach of the next `k` lines describes one list: an integer `m` followed by `m` words, separated by spaces.",
+ "output_format": "Print one sentence per line, in the order described above.",
+ "constraints": [
+  "1 ≤ k ≤ 12",
+  "1 ≤ m ≤ 10 for every list",
+  "1 ≤ length of each word ≤ 10; words contain no spaces",
+  "The total number of sentences (the product of all `m`) is at most 20000"
+ ],
+ "examples": [
+  {
+   "input": "5\n1 The\n2 dog cat\n2 runs walks\n2 quickly slowly\n1 .",
+   "output": "The dog runs quickly.\nThe dog runs slowly.\nThe dog walks quickly.\nThe dog walks slowly.\nThe cat runs quickly.\nThe cat runs slowly.\nThe cat walks quickly.\nThe cat walks slowly.",
+   "explanation": "There are 1 * 2 * 2 * 2 * 1 = 8 sentences. The second list changes slowest and the fourth list changes fastest. The final `.` is attached to the previous word."
+  },
+  {
+   "input": "3\n2 We I\n2 ship test\n2 ! ?",
+   "output": "We ship!\nWe ship?\nWe test!\nWe test?\nI ship!\nI ship?\nI test!\nI test?",
+   "explanation": "Eight combinations, listed with the first list varying slowest. `!` and `?` are punctuation words, so they attach to the verb."
+  },
+  {
+   "input": "2\n2 go go\n1 now",
+   "output": "go now\ngo now",
+   "explanation": "The first list contains `go` twice. Each combination is a separate line, so the sentence appears twice."
+  }
+ ],
+ "complexity": {
+  "time": "O(P * k)",
+  "space": "O(k) beyond the output (P is the number of sentences)"
+ },
+ "hints": [
+  "Think of the choice at each position as one level of a decision tree: the leaves are the sentences.",
+  "A recursive function that takes the index of the current list and the sentence built so far, and loops over that list's words, produces exactly the required order.",
+  "Be careful when appending a word: decide before joining whether it is a punctuation word, so it gets no leading space."
+ ],
+ "reference": "import sys\n\nPUNCT = set('.,!?;:')\n\ndef main():\n    data = sys.stdin.read().split()\n    k = int(data[0])\n    pos = 1\n    lists = []\n    for _ in range(k):\n        m = int(data[pos])\n        lists.append(data[pos + 1:pos + 1 + m])\n        pos += 1 + m\n    sentences = ['']\n    first = True\n    for words in lists:\n        nxt = []\n        for s in sentences:\n            for w in words:\n                if first or all(ch in PUNCT for ch in w):\n                    nxt.append(s + w)\n                else:\n                    nxt.append(s + ' ' + w)\n        sentences = nxt\n        first = False\n    print('\\n'.join(sentences))\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import product\n\ndata = sys.stdin.read().split()\nk = int(data[0])\npos = 1\nlists = []\nfor _ in range(k):\n    m = int(data[pos])\n    lists.append(data[pos + 1:pos + 1 + m])\n    pos += 1 + m\nout = []\nfor combo in product(*lists):\n    parts = []\n    for i, w in enumerate(combo):\n        pure = len(w) > 0 and all(c in '.,!?;:' for c in w)\n        if i > 0 and not pure:\n            parts.append(' ')\n        parts.append(w)\n    out.append(''.join(parts))\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    def fmt(lists):\n        return str(len(lists)) + '\\n' + '\\n'.join(str(len(l)) + ' ' + ' '.join(l) for l in lists)\n    def rw(lo, hi):\n        return ''.join(rng.choice('abcdefghij') for _ in range(rng.randint(lo, hi)))\n    punct = ['.', ',', '!', '?', ';', ':', '...', '?!']\n    tests = [\n        fmt([['a']]),\n        fmt([['!'], ['a', 'b']]),\n        fmt([['.']]),\n        fmt([['x', 'y'], ['.', '!']]),\n        fmt([['go', 'go'], ['now']]),\n        fmt([['The'], ['dog', 'cat'], ['runs', 'walks'], ['quickly', 'slowly'], ['.']]),\n        fmt([['a', 'b', 'c'], ['.', ','], ['d', 'e'], [';']]),\n    ]\n    for _ in range(14):\n        k = rng.randint(1, 5)\n        lists = []\n        for _ in range(k):\n            m = rng.randint(1, 3)\n            lists.append([rng.choice(punct) if rng.random() < 0.2 else rw(1, 4) for _ in range(m)])\n        tests.append(fmt(lists))\n    sizes = [2, 5, 2, 5, 2, 5, 2, 5, 2]\n    tests.append(fmt([[rw(1, 6) for _ in range(m)] for m in sizes]))\n    lists = [[rw(1, 6) for _ in range(3)] for _ in range(9)] + [[rw(1, 6)], [rw(1, 6)], [rng.choice(punct)]]\n    tests.append(fmt(lists))\n    tests.append(fmt([[rw(8, 10) for _ in range(10)] for _ in range(4)] + [[rw(8, 10), rw(8, 10)]]))\n    tests.append(fmt([[rw(1, 6)] for _ in range(11)] + [['.', '!']]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef all_sentences(options: List[List[str]]) -> List[str]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    k = int(data[0])\n    pos = 1\n    options = []\n    for _ in range(k):\n        m = int(data[pos])\n        options.append(data[pos + 1:pos + 1 + m])\n        pos += 1 + m\n    print('\\n'.join(all_sentences(options)))\n\n\nmain()\n",
+  "javascript": "function allSentences(options) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst k = parseInt(t[0])\nlet pos = 1\nconst options = []\nfor (let i = 0; i < k; i++) {\n  const m = parseInt(t[pos])\n  options.push(t.slice(pos + 1, pos + 1 + m))\n  pos += 1 + m\n}\nconsole.log(allSentences(options).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<string> allSentences(vector<vector<string>>& options) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int k;\n    cin >> k;\n    vector<vector<string>> options(k);\n    for (int i = 0; i < k; i++) {\n        int m;\n        cin >> m;\n        options[i].resize(m);\n        for (int j = 0; j < m; j++) cin >> options[i][j];\n    }\n    vector<string> res = allSentences(options);\n    for (const string& s : res) cout << s << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<String> allSentences(List<List<String>> options) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int k = Integer.parseInt(st.nextToken());\n        List<List<String>> options = new ArrayList<>();\n        for (int i = 0; i < k; i++) {\n            int m = Integer.parseInt(st.nextToken());\n            List<String> list = new ArrayList<>();\n            for (int j = 0; j < m; j++) list.add(st.nextToken());\n            options.add(list);\n        }\n        StringBuilder sb = new StringBuilder();\n        for (String s : allSentences(options)) sb.append(s).append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

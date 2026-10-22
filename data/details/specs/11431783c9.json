@@ -1,0 +1,19 @@
+{
+ "qid": "11431783c9",
+ "question": "In a second technical round for a Senior Product Engineer role at Sprinklr, the interviewer asked about the candidate's projects and then probed database decisions:\n\n- Which database did you use in your projects and **why PostgreSQL**?\n- What database might **Twitter** use?\n- How would you handle **increasing data load** (sharding)?\n- **On which parameter should you shard**?\n- How would you **query by user** after sharding (composite indexes or hashing)?\n- Have you used a message broker, and which one?\n\nThe candidate answered ACID for PostgreSQL, NoSQL for scale, sharding on timestamp, and mentioned Azure Service Bus.",
+ "lookingFor": [
+  "Can you justify a database choice with requirements rather than habit?",
+  "Do you know when relational guarantees matter and when NoSQL scale/shape matters?",
+  "Do you understand shard key selection, hot spots and query routing?",
+  "Can you connect sharding to indexing and access patterns?",
+  "Do you know message brokers and what problems they solve?"
+ ],
+ "answer": "**Why PostgreSQL.** Tie it to the requirements: transactions with ACID guarantees (for money, orders, inventory), relational integrity with foreign keys and constraints, rich SQL (joins, window functions), JSONB for semi-structured fields, mature tooling and extensions. A good answer names the access pattern that made the relational model right.\n\n**What Twitter might use.** Twitter-like workloads have huge write volume, simple key-based access (tweets by id, timelines by user) and relaxed consistency, so a sharded store (publicly Twitter built its own on sharded MySQL and uses other stores such as Manhattan and caches) or a wide-column/NoSQL store (Cassandra, DynamoDB) fits. Say it is a guess about architecture and focus on the reasoning: scale-out writes, denormalised reads, caching.\n\n**Scaling data: vertical, read replicas, caching, then sharding.** Sharding splits data across nodes.\n\n**Choosing the shard key.** Pick a key that:\n\n- appears in most queries (so a query hits one shard),\n- has high cardinality and spreads load evenly,\n- does not grow monotonically.\n\n**Timestamp is a poor shard key** because all new writes hit the latest shard (a **hot spot**), and old shards go idle. A better key is `user_id` (or `tweet_id` hashed). Use **hash-based sharding** (`hash(user_id) mod N`, ideally consistent hashing to ease resharding), or range sharding if range scans are needed.\n\n**Querying by user.** If you shard by `user_id`, a user's data lives on one shard, so queries route directly via the shard map. If you must query by another attribute (e.g. by time or by tweet id), use a **composite index** `(user_id, created_at DESC)` inside each shard, a secondary index/lookup table, or fan out to all shards and merge (expensive).\n\n**Message brokers.** They decouple producers from consumers, absorb spikes, and allow retries (Kafka, RabbitMQ, SQS, Azure Service Bus). Mention delivery guarantees (at-least-once, so consumers must be idempotent) and ordering per partition or session.\n\nBe honest about what you have used and describe trade-offs, such as cross-shard joins and transactions becoming hard.",
+ "followUps": [
+  "What is consistent hashing and how does it make resharding easier?",
+  "How do you handle a celebrity user whose shard becomes hot?",
+  "How would cross-shard transactions or joins work?",
+  "What is the difference between a message queue and a log such as Kafka?",
+  "When would you pick Cassandra or DynamoDB over PostgreSQL?"
+ ]
+}

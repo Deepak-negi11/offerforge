@@ -1,0 +1,18 @@
+{
+ "qid": "77147d6a55",
+ "question": "Google Application Engineer Intern (inter plus PPO, on campus), system design round of 50 minutes. **Design an e-commerce website**, discussing the **components, features and architecture**. The candidate was not selected, and no more specifics were reported.",
+ "lookingFor": [
+  "Scoping the product and stating requirements and scale before drawing boxes.",
+  "Decomposing into sensible services and a clear data model.",
+  "Handling correctness-critical flows: inventory, cart, checkout and payments.",
+  "Search, caching and performance for a read-heavy catalogue.",
+  "Trade-offs and bottlenecks, and clear communication."
+ ],
+ "answer": "**Requirements.** Functional: browse and search products, product pages, cart, checkout with payment, order history, seller or admin product management. Non-functional: high availability for browsing, strong correctness for inventory and payments, low latency, security. Assume, for example, 10 million users, 1 million daily active, read-to-write ratio far above 10:1; peak sales events cause traffic spikes.\n\n**API sketch.** `GET /products?q=`, `GET /products/{id}`, `POST /cart/items`, `POST /orders` (with an idempotency key), `GET /orders/{id}`, `POST /payments`.\n\n**Components.** Clients -> CDN and load balancer -> API gateway -> services:\n- *User and auth:* accounts, sessions or tokens.\n- *Catalogue:* product data, images (object storage plus CDN).\n- *Search:* inverted index (Elasticsearch or similar) fed from the catalogue.\n- *Cart:* fast key-value store (per-user cart, TTL).\n- *Inventory:* stock counts with reservation.\n- *Order:* order state machine (created, paid, shipped, delivered, cancelled).\n- *Payment:* integration with a payment provider; never store raw card data.\n- *Notification and recommendation:* asynchronous, via a message queue.\n\n**Data model.** Relational database for users, orders, order items, payments and inventory (transactions matter); document or key-value store for catalogue and cart; search index derived data.\n\n**Checkout flow (the hard part).** Reserve stock (with a timeout) when the order is created, charge the payment, then confirm and decrement stock; on failure or timeout release the reservation. Use idempotency keys so retries do not double-charge, and a saga or outbox pattern across services instead of distributed transactions.\n\n**Scaling.** Cache hot product pages (CDN, Redis), read replicas, shard orders by user id, queue for background work, autoscale stateless services, and rate limit. Pre-warm caches and use a waiting room for flash sales.\n\n**Trade-offs.** Strong consistency for stock and payment, eventual consistency for search and recommendations; monolith first is simpler than microservices for a small team.\n\n**Cover at the end.** Security (HTTPS, input validation, PCI scope reduction), monitoring and failure handling.",
+ "followUps": [
+  "How do you prevent overselling the last item when thousands of users try to buy it?",
+  "How would you keep the search index in sync with the catalogue?",
+  "How do you make the payment step idempotent?",
+  "How would the design change for a flash sale?"
+ ]
+}

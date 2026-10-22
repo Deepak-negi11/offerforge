@@ -1,0 +1,43 @@
+{
+ "pid": "makemytrip-connect-airports-at-minimum-cost",
+ "title": "Connect Airports at Minimum Cost",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "There are `n` airports on a map. Airport `i` is at integer coordinates `(x[i], y[i])`. Several airports may share the same coordinates.\n\nYou may build direct links between pairs of airports. The cost of a link between airports `i` and `j` is the **smaller** of their horizontal distance and their vertical distance:\n\n`cost(i, j) = min(|x[i] - x[j]|, |y[i] - y[j]|)`\n\nChoose a set of links so that every airport can reach every other airport, directly or through other airports, and the total cost of the chosen links is as small as possible.\n\nReturn that minimum total cost. If there is only one airport, the answer is `0`.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains two integers `x[i]` and `y[i]`.",
+ "output_format": "Print a single integer: the minimum total cost of connecting all airports.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ x[i], y[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "4\n1 1\n3 8\n4 2\n9 9",
+   "output": "3",
+   "explanation": "Label the airports A(1,1), B(3,8), C(4,2), D(9,9). The cheapest links are A-C with cost min(3,1)=1, B-C with cost min(1,6)=1 and B-D with cost min(6,1)=1. They connect all four airports, for a total of 3. No link costs 0, and any spanning set needs three links."
+  },
+  {
+   "input": "3\n0 0\n10 4\n20 1",
+   "output": "4",
+   "explanation": "Link costs: first-second min(10,4)=4, first-third min(20,1)=1, second-third min(10,3)=3. The two cheapest links, 1 and 3, already connect all three airports, so the total is 4."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "This is a minimum spanning tree problem, but with n up to 10^5 you cannot list all n^2 links.",
+  "Sort the airports by x and look only at neighbours in that order. Do the same for y. Argue that an optimal tree never needs any other link.",
+  "Take the 2(n - 1) candidate links, each with its true cost min(dx, dy), and run Kruskal's algorithm with a disjoint-set union."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    xs = [int(data[1 + 2 * i]) for i in range(n)]\n    ys = [int(data[2 + 2 * i]) for i in range(n)]\n    edges = []\n    for c in (xs, ys):\n        order = sorted(range(n), key=lambda i: c[i])\n        for a, b in zip(order, order[1:]):\n            edges.append((min(abs(xs[a] - xs[b]), abs(ys[a] - ys[b])), a, b))\n    edges.sort()\n    parent = list(range(n))\n\n    def find(v):\n        while parent[v] != v:\n            parent[v] = parent[parent[v]]\n            v = parent[v]\n        return v\n\n    total = 0\n    for w, a, b in edges:\n        ra, rb = find(a), find(b)\n        if ra != rb:\n            parent[ra] = rb\n            total += w\n    print(total)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nxs = [int(data[1 + 2 * i]) for i in range(n)]\nys = [int(data[2 + 2 * i]) for i in range(n)]\nINF = float('inf')\nbest = [INF] * n\nused = [False] * n\nbest[0] = 0\ntotal = 0\nfor _ in range(n):\n    v = -1\n    for i in range(n):\n        if not used[i] and (v == -1 or best[i] < best[v]):\n            v = i\n    used[v] = True\n    total += best[v]\n    for u in range(n):\n        if not used[u]:\n            c = min(abs(xs[u] - xs[v]), abs(ys[u] - ys[v]))\n            if c < best[u]:\n                best[u] = c\nprint(total)\n",
+ "generator": "def gen(rng):\n    def fmt(pts):\n        return str(len(pts)) + '\\n' + '\\n'.join(f'{x} {y}' for x, y in pts)\n    M = 10**9\n    tests = [\n        fmt([(0, 0)]),\n        fmt([(5, 5), (5, 5)]),\n        fmt([(0, 0), (M, M)]),\n        fmt([(0, 0), (0, M), (M, 0), (M, M)]),\n        fmt([(i * 3, 7) for i in range(8)]),\n        fmt([(i, i) for i in range(10)]),\n        fmt([(0, 0), (10, 4), (20, 1)]),\n    ]\n    for n in (2, 3, 5, 8, 12, 20, 30):\n        for hi in (6, 1000):\n            tests.append(fmt([(rng.randint(0, hi), rng.randint(0, hi)) for _ in range(n)]))\n    tests.append(fmt([(rng.randint(0, M), rng.randint(0, M)) for _ in range(100000)]))\n    tests.append(fmt([(rng.randint(0, 10**6), rng.randint(0, 10**6)) for _ in range(100000)]))\n    tests.append(fmt([(rng.randint(0, 300), rng.randint(0, 300)) for _ in range(100000)]))\n    pts = []\n    for _ in range(50000):\n        x = rng.randint(0, M)\n        pts.append((x, min(M, max(0, x + rng.randint(-1000, 1000)))))\n    tests.append(fmt(pts))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_cost(xs: List[int], ys: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    xs = [int(data[1 + 2 * i]) for i in range(n)]\n    ys = [int(data[2 + 2 * i]) for i in range(n)]\n    print(min_cost(xs, ys))\n\n\nmain()\n",
+  "javascript": "function minCost(xs, ys) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst xs = [], ys = []\nfor (let i = 0; i < n; i++) {\n  xs.push(t[1 + 2 * i])\n  ys.push(t[2 + 2 * i])\n}\nconsole.log(String(minCost(xs, ys)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minCost(vector<long long>& xs, vector<long long>& ys) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> xs(n), ys(n);\n    for (int i = 0; i < n; i++) cin >> xs[i] >> ys[i];\n    cout << minCost(xs, ys) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minCost(long[] xs, long[] ys) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] xs = new long[n], ys = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); xs[i] = (long) in.nval;\n            in.nextToken(); ys[i] = (long) in.nval;\n        }\n        System.out.println(minCost(xs, ys));\n    }\n}\n"
+ }
+}

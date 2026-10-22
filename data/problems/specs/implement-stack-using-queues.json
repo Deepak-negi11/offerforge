@@ -1,0 +1,45 @@
+{
+ "pid": "implement-stack-using-queues",
+ "title": "Implement Stack using Queues",
+ "difficulty": "Easy",
+ "source_note": "standard",
+ "statement": "Design a last-in-first-out (LIFO) stack that is built **only** from standard first-in-first-out queues. You may use the queue operations `push to back`, `peek/pop from front`, `size` and `is empty`, and nothing else (no list indexing, no reversing, no real stack).\n\nYour stack must support these operations:\n\n- `push x`: put the integer `x` on top of the stack.\n- `pop`: remove the element on top of the stack and print it.\n- `top`: print the element on top of the stack without removing it.\n- `empty`: print `true` if the stack has no elements, otherwise `false`.\n\nYou are given a sequence of operations. Process them in order and print one output line for every `pop`, `top` and `empty` operation (nothing is printed for `push`). A `pop` or `top` is only issued when the stack is non-empty.\n\n**Follow-up:** Can you do it with a single queue? What is the trade-off between making `push` expensive and making `pop` expensive?",
+ "input_format": "The first line contains an integer `n`, the number of operations.\nEach of the next `n` lines is one of `push x`, `pop`, `top` or `empty`.",
+ "output_format": "For each `pop`, `top` and `empty` operation in order, print one line: the integer, or `true` / `false`.",
+ "constraints": [
+  "1 ≤ n ≤ 3000",
+  "1 ≤ x ≤ 10^9",
+  "`pop` and `top` are only called on a non-empty stack",
+  "There is at least one `pop`, `top` or `empty` operation"
+ ],
+ "examples": [
+  {
+   "input": "9\npush 5\npush 8\ntop\npop\npush 2\ntop\npop\npop\nempty",
+   "output": "8\n8\n2\n2\n5\ntrue",
+   "explanation": "After pushing 5 and 8 the top is 8, and pop removes it. Pushing 2 makes 2 the top, which is then popped, and the next pop returns 5. The stack is now empty, so `empty` prints true."
+  },
+  {
+   "input": "4\nempty\npush 7\nempty\ntop",
+   "output": "true\nfalse\n7",
+   "explanation": "The stack starts empty. After pushing 7 it is not empty and 7 is on top."
+  }
+ ],
+ "complexity": {
+  "time": "O(n) for one of push/pop (the other operations O(1))",
+  "space": "O(n)"
+ },
+ "hints": [
+  "A queue hands elements back oldest-first, a stack newest-first. You need to change the order at some point, either when pushing or when popping.",
+  "After pushing x into an empty-front queue, rotate the older elements behind it so that x ends up at the front. Then pop and top are just front-of-queue operations.",
+  "To do it with one queue: push x, then move the previous size elements from the front to the back, one at a time."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    pos = 1\n    st = []\n    out = []\n    for _ in range(n):\n        op = data[pos]\n        pos += 1\n        if op == 'push':\n            st.append(int(data[pos]))\n            pos += 1\n        elif op == 'pop':\n            out.append(str(st.pop()))\n        elif op == 'top':\n            out.append(str(st[-1]))\n        else:\n            out.append('true' if not st else 'false')\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\npos = 1\nq1, q2 = [], []\nout = []\nfor _ in range(n):\n    op = data[pos]\n    pos += 1\n    if op == 'push':\n        x = int(data[pos])\n        pos += 1\n        q2.append(x)\n        while q1:\n            q2.append(q1.pop(0))\n        q1, q2 = q2, q1\n    elif op == 'pop':\n        out.append(str(q1.pop(0)))\n    elif op == 'top':\n        out.append(str(q1[0]))\n    else:\n        out.append('true' if len(q1) == 0 else 'false')\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    def make(n, pp, maxv):\n        ops = []\n        size = 0\n        for _ in range(n):\n            r = rng.random()\n            if size == 0:\n                if r < pp:\n                    ops.append('push %d' % rng.randint(1, maxv))\n                    size += 1\n                else:\n                    ops.append('empty')\n            elif r < pp:\n                ops.append('push %d' % rng.randint(1, maxv))\n                size += 1\n            else:\n                c = rng.choice(['pop', 'pop', 'top', 'empty'])\n                ops.append(c)\n                if c == 'pop':\n                    size -= 1\n        if all(o.startswith('push') for o in ops):\n            ops[-1] = 'empty'\n        return str(len(ops)) + '\\n' + '\\n'.join(ops)\n    tests = ['1\\nempty', '2\\npush 1\\ntop', '3\\npush 4\\npop\\nempty', '5\\npush 1\\npush 1\\npop\\npop\\nempty']\n    for n in (3, 5, 8, 12, 20):\n        for _ in range(4):\n            tests.append(make(n, rng.choice([0.4, 0.55, 0.7]), rng.choice([5, 100, 10**9])))\n    pushes = ['push %d' % rng.randint(1, 10**9) for _ in range(1500)]\n    tests.append('3000\\n' + '\\n'.join(pushes + ['pop', 'top'] * 750))\n    alt = []\n    for i in range(1500):\n        alt.append('push %d' % rng.randint(1, 10**9))\n        alt.append('top')\n    tests.append('3000\\n' + '\\n'.join(alt))\n    tests.append(make(3000, 0.6, 10**9))\n    tests.append(make(3000, 0.5, 10**9))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom collections import deque\n\n\nclass MyStack:\n    def __init__(self):\n        # Write your solution here (use only queue operations)\n        self.q = deque()\n\n    def push(self, x: int) -> None:\n        pass\n\n    def pop(self) -> int:\n        return 0\n\n    def top(self) -> int:\n        return 0\n\n    def empty(self) -> bool:\n        return True\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    pos = 1\n    st = MyStack()\n    out = []\n    for _ in range(n):\n        op = data[pos]\n        pos += 1\n        if op == 'push':\n            st.push(int(data[pos]))\n            pos += 1\n        elif op == 'pop':\n            out.append(str(st.pop()))\n        elif op == 'top':\n            out.append(str(st.top()))\n        else:\n            out.append('true' if st.empty() else 'false')\n    print('\\n'.join(out))\n\n\nmain()\n",
+  "javascript": "class MyStack {\n  constructor() {\n    // Write your solution here (use only queue operations)\n    this.q = []\n  }\n  push(x) {\n  }\n  pop() {\n    return 0\n  }\n  top() {\n    return 0\n  }\n  empty() {\n    return true\n  }\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0])\nlet pos = 1\nconst st = new MyStack()\nconst out = []\nfor (let i = 0; i < n; i++) {\n  const op = t[pos++]\n  if (op === 'push') st.push(parseInt(t[pos++]))\n  else if (op === 'pop') out.push(String(st.pop()))\n  else if (op === 'top') out.push(String(st.top()))\n  else out.push(st.empty() ? 'true' : 'false')\n}\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nclass MyStack {\npublic:\n    queue<long long> q;\n\n    MyStack() {\n        // Write your solution here (use only queue operations)\n    }\n    void push(long long x) {\n    }\n    long long pop() {\n        return 0;\n    }\n    long long top() {\n        return 0;\n    }\n    bool empty() {\n        return true;\n    }\n};\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    MyStack st;\n    string op;\n    while (n--) {\n        cin >> op;\n        if (op == \"push\") {\n            long long x;\n            cin >> x;\n            st.push(x);\n        } else if (op == \"pop\") {\n            cout << st.pop() << \"\\n\";\n        } else if (op == \"top\") {\n            cout << st.top() << \"\\n\";\n        } else {\n            cout << (st.empty() ? \"true\" : \"false\") << \"\\n\";\n        }\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static class MyStack {\n        Queue<Long> q = new ArrayDeque<>();\n\n        MyStack() {\n            // Write your solution here (use only queue operations)\n        }\n        void push(long x) {\n        }\n        long pop() {\n            return 0;\n        }\n        long top() {\n            return 0;\n        }\n        boolean empty() {\n            return true;\n        }\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        int n = Integer.parseInt(br.readLine().trim());\n        MyStack st = new MyStack();\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < n; i++) {\n            StringTokenizer tk = new StringTokenizer(br.readLine());\n            String op = tk.nextToken();\n            if (op.equals(\"push\")) st.push(Long.parseLong(tk.nextToken()));\n            else if (op.equals(\"pop\")) sb.append(st.pop()).append(\"\\n\");\n            else if (op.equals(\"top\")) sb.append(st.top()).append(\"\\n\");\n            else sb.append(st.empty() ? \"true\" : \"false\").append(\"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

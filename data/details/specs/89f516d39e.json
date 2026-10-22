@@ -1,0 +1,18 @@
+{
+ "qid": "89f516d39e",
+ "question": "In an SAP Labs first technical round for Scholar@SAP, the interviewer described a real-world ATM: you insert a card, enter a PIN, enter an amount and withdraw cash. The candidate was asked to write **pseudocode** for this, explaining the logic, including edge cases such as the amount being greater than the cash in the machine and a wrong PIN.\n\nFollow-up scenario: two people with a **joint account** insert their cards, enter PINs and amounts to withdraw at exactly the same time at different ATMs. How does the system handle this?",
+ "lookingFor": [
+  "Can you model the flow as clear steps or states and handle failure paths?",
+  "Do you validate and secure sensitive inputs (PIN attempts, card block)?",
+  "Do you separate machine cash from account balance, and handle both limits?",
+  "Do you understand transactions and concurrency control for a shared balance?",
+  "Can you explain your logic in pseudocode without drowning in syntax?"
+ ],
+ "answer": "**Clarify and structure.** Model the ATM as a small state machine: *Idle, Card inserted, PIN verified, Amount entered, Dispensing, Done/Eject card*. Components: ATM (cash inventory, hardware), Bank server (accounts, authentication, transactions).\n\n**Pseudocode.**\n```\ninsertCard(card):\n  if card invalid or blocked: eject; return\n  attempts = 0\n  while attempts < 3:\n    pin = readPin()\n    if bank.verifyPin(card, pin): break\n    attempts += 1\n  if attempts == 3: bank.blockCard(card); eject; return\n\n  amount = readAmount()\n  if amount <= 0 or amount % minNote != 0: error; return\n  if amount > atm.cashAvailable: error \"ATM has insufficient cash\"; return\n  if amount > dailyLimit(card): error; return\n\n  result = bank.withdraw(account, amount)      // atomic on the server\n  if result == INSUFFICIENT_FUNDS: error; return\n  if atm.dispense(amount) fails: bank.reverse(result.txnId); error; return\n  atm.cashAvailable -= amount\n  print receipt; eject card\n```\n\n**Edge cases.** Wrong PIN (limit attempts, then block), insufficient account balance, insufficient ATM cash or no right notes, hardware failure after debit (reverse the transaction), timeout or user cancel, network failure (do not dispense unless the bank confirmed), and never store or log the PIN (verify it as a hash or via an HSM).\n\n**Joint account concurrency.** The balance is shared state; the dangerous interleaving is a *lost update*: both ATMs read balance 1000, both approve 800, and the account is overdrawn.\n- Make the withdraw a **database transaction** with isolation: `SELECT balance ... FOR UPDATE` takes an exclusive (write) lock on the account row; the second transaction waits, then sees the reduced balance and is declined.\n- Equivalent alternatives: an atomic conditional update `UPDATE account SET balance = balance - :amt WHERE id = :id AND balance >= :amt` (check rows affected), or optimistic locking with a version column and retry.\n- Note that a plain *shared (read) lock* alone is not enough for read-then-write: use an exclusive lock on the write path, and keep the lock time short.\n- Use an idempotency key per withdrawal request so a retry does not debit twice, and record every transaction in a ledger.",
+ "followUps": [
+  "What isolation level would you use and which anomalies does it prevent?",
+  "How do you avoid deadlocks if one transaction locks two accounts (transfers)?",
+  "What if the ATM loses network after the bank debited but before cash was dispensed?",
+  "How would you design this as classes (ATM, Card, Account, Transaction, state classes)?"
+ ]
+}

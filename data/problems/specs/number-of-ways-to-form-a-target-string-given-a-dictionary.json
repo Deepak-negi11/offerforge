@@ -1,0 +1,45 @@
+{
+ "pid": "number-of-ways-to-form-a-target-string-given-a-dictionary",
+ "title": "Ways to Form a Target String",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given a list of `w` words that all have the same length `L`, and a string `target`.\n\nYou build `target` from left to right, one character at a time. To produce the character `target[p]` you pick a word and a column index `c` of that word (0-indexed) with `word[c] == target[p]`. The column indices used for consecutive characters of `target` must be **strictly increasing**: if `target[p]` was taken from column `c`, then `target[p + 1]` must be taken from a column greater than `c`.\n\nYou may use several characters from the same word, and the same column index never appears twice in one way because columns strictly increase. Two ways are different if, for some position `p` of `target`, they use a different word or a different column.\n\nPrint the number of different ways to form `target`, modulo `1000000007`.",
+ "input_format": "The first line contains an integer `w`.\nEach of the next `w` lines contains one word.\nThe last line contains `target`.",
+ "output_format": "Print one integer: the number of ways modulo 1000000007.",
+ "constraints": [
+  "1 ≤ w ≤ 1000",
+  "1 ≤ L ≤ 1000 (all words have the same length)",
+  "1 ≤ |target| ≤ 1000",
+  "All strings consist of lowercase English letters"
+ ],
+ "examples": [
+  {
+   "input": "2\naab\naba\naa",
+   "output": "5",
+   "explanation": "Column 0 holds `a`, `a`; column 1 holds `a`, `b`; column 2 holds `b`, `a`. The two `a` characters must come from increasing columns. Columns (0, 1): 2 choices of word times 1 = 2 ways. Columns (0, 2): 2 * 1 = 2 ways. Columns (1, 2): 1 * 1 = 1 way. Total 5."
+  },
+  {
+   "input": "2\nab\nba\nab",
+   "output": "1",
+   "explanation": "`a` must come from column 0 (word `ab`), and then `b` from column 1 (word `ab`). Taking `a` from column 1 leaves no later column for `b`."
+  }
+ ],
+ "complexity": {
+  "time": "O(w · L + L · |target|)",
+  "space": "O(L + |target|)"
+ },
+ "hints": [
+  "Only the multiset of letters in each column matters, not which word they come from. Count, for every column and letter, how many words have that letter there.",
+  "Let dp[p] be the number of ways to build the first p characters of target using the columns seen so far. Process columns from left to right.",
+  "When processing column c, extend dp[p] to dp[p + 1] by multiplying with the count of target[p] in column c. Update p in decreasing order so a column is used at most once per way."
+ ],
+ "reference": "import sys\nfrom collections import Counter\n\ndef main():\n    data = sys.stdin.read().split()\n    w = int(data[0])\n    words = data[1:1 + w]\n    target = data[1 + w]\n    MOD = 1000000007\n    L = len(words[0])\n    T = len(target)\n    if T > L:\n        print(0)\n        return\n    dp = [0] * (T + 1)\n    dp[0] = 1\n    for c, col in enumerate(zip(*words)):\n        cnt = Counter(col)\n        lo = max(1, T - (L - 1 - c))\n        hi = min(c + 1, T)\n        for p in range(hi, lo - 1, -1):\n            k = cnt.get(target[p - 1], 0)\n            if k:\n                dp[p] = (dp[p] + dp[p - 1] * k) % MOD\n    print(dp[T] % MOD)\n\nmain()\n",
+ "brute": "import sys\nfrom functools import lru_cache\n\ndata = sys.stdin.read().split()\nw = int(data[0])\nwords = data[1:1 + w]\ntarget = data[1 + w]\nMOD = 1000000007\nL = len(words[0])\nT = len(target)\n\n@lru_cache(None)\ndef g(p, c):\n    if p == T:\n        return 1\n    total = 0\n    for col in range(c, L):\n        for word in words:\n            if word[col] == target[p]:\n                total += g(p + 1, col + 1)\n    return total % MOD\n\nprint(g(0, 0) % MOD)\n",
+ "generator": "def gen(rng):\n    def fmt(words, target):\n        return str(len(words)) + '\\n' + '\\n'.join(words) + '\\n' + target\n    def rw(L, k):\n        return ''.join(rng.choice('abcdefghijklmnopqrstuvwxyz'[:k]) for _ in range(L))\n    tests = [\n        fmt(['a'], 'a'), fmt(['a'], 'b'), fmt(['ab'], 'abc'), fmt(['aaaa', 'aaaa'], 'aa'),\n        fmt(['abc', 'abc', 'abc'], 'abc'), fmt(['abc'], 'cba'), fmt(['ab', 'ba'], 'ba'),\n    ]\n    for _ in range(14):\n        w = rng.randint(1, 4)\n        L = rng.randint(1, 7)\n        k = rng.choice([1, 2, 3])\n        words = [rw(L, k) for _ in range(w)]\n        target = rw(rng.randint(1, L + 1), k)\n        tests.append(fmt(words, target))\n    # larger tests\n    W, L = 1000, 1000\n    tests.append(fmt([rw(L, 2) for _ in range(W)], rw(1000, 2)))\n    tests.append(fmt(['a' * L] * W, 'a' * 500))\n    tests.append(fmt([rw(L, 26) for _ in range(W)], rw(300, 26)))\n    tests.append(fmt([rw(L, 3) for _ in range(W)], rw(1000, 3)))\n    tests.append(fmt([rw(L, 4) for _ in range(300)], rw(999, 4)))\n    tests.append(fmt([rw(L, 1) for _ in range(W)], 'a' * 1000))\n    tests.append(fmt([rw(500, 2) for _ in range(W)], rw(1000, 2)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef num_ways(words: List[str], target: str) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    w = int(data[0])\n    words = data[1:1 + w]\n    target = data[1 + w]\n    print(num_ways(words, target))\n\n\nmain()\n",
+  "javascript": "function numWays(words, target) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst w = parseInt(t[0])\nconst words = t.slice(1, 1 + w)\nconst target = t[1 + w]\nconsole.log(String(numWays(words, target)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long numWays(vector<string>& words, const string& target) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int w;\n    cin >> w;\n    vector<string> words(w);\n    for (int i = 0; i < w; i++) cin >> words[i];\n    string target;\n    cin >> target;\n    cout << numWays(words, target) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long numWays(String[] words, String target) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        int w = Integer.parseInt(br.readLine().trim());\n        String[] words = new String[w];\n        for (int i = 0; i < w; i++) words[i] = br.readLine().trim();\n        String target = br.readLine().trim();\n        System.out.println(numWays(words, target));\n    }\n}\n"
+ }
+}

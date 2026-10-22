@@ -1,0 +1,19 @@
+{
+ "qid": "a72363ba3f",
+ "question": "In the LLD round for a Swiggy SDE-1 role, the question was to **design a Splitwise-style application**. The interviewer gave specifications and asked the candidate to identify the **objects, classes, actors and relationships**. Fully functional code was not expected, but the full solution was required in the time (the candidate did not finish and still advanced).",
+ "lookingFor": [
+  "Can you extract actors, entities and relationships from requirements?",
+  "Do you model balances correctly (who owes whom) and handle split types?",
+  "Is the design extensible via patterns (strategy for splits) without over-engineering?",
+  "Do you think about debt simplification and money precision?",
+  "Do you prioritise a core flow when time is short?"
+ ],
+ "answer": "**Requirements to confirm:** users, groups, add an expense paid by one (or many) users, split **equally, by exact amounts, or by percentage**, show balances (per user, per group), settle up. Optional: simplify debts.\n\n**Actors:** User (adds expenses, settles), and perhaps a Group admin.\n\n**Entities**\n- `User` (id, name, email), `Group` (id, name, members).\n- `Expense` (id, description, amount, paidBy, `splits`, group, createdAt).\n- `Split` (user, amount); subclasses or a strategy: `EqualSplit`, `ExactSplit`, `PercentSplit`.\n- `BalanceSheet`: for each user pair, net amount owed.\n- `Settlement` (from, to, amount).\n- `ExpenseService`, `BalanceService`, `SplitStrategy` (interface, validates the splits add up to the total).\n\n**Core flow**\n- Add expense: compute each participant's share through the chosen `SplitStrategy`; for every participant other than the payer, `balance[participant][payer] += share`. Keep a net map so A owing B and B owing A cancel out.\n- Show balances: for user U, list who owes them and whom they owe.\n- Settle: reduce the corresponding balance.\n\n**Design points**\n- **Strategy pattern** for splits; **factory** to pick a strategy; **observer** for notifications.\n- **Money:** store integer minor units (paise) or `BigDecimal`. Equal splits need a remainder rule (for example 100 split 3 ways gives 33.33, 33.33, 33.34, with the extra cent assigned to the payer or first user).\n- **Validation:** exact splits sum to the total; percentages sum to 100.\n- **Debt simplification:** compute each user's net balance, then repeatedly match the largest creditor with the largest debtor using two heaps. This minimises transactions for typical cases (the exact minimum is NP-hard).\n- **Persistence:** tables `users`, `groups`, `group_members`, `expenses`, `expense_splits`, `settlements`.\n\n**Time management:** model first, implement equal split and balances, then extend to other split types.",
+ "followUps": [
+  "How would you simplify debts in a group?",
+  "How do you handle rounding when splitting an amount equally?",
+  "How would you support multiple payers on one expense?",
+  "How would you add a new split type without modifying existing code?",
+  "How would you scale this to millions of users?"
+ ]
+}

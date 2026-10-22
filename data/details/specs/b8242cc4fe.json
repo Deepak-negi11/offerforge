@@ -1,0 +1,18 @@
+{
+ "qid": "b8242cc4fe",
+ "question": "In a technical interview for an experienced engineer role (SDE 2 / Engineer G26) at Texas Instruments, the interviewer asked about the different **storage classes in C**. The candidate named `auto`, `register`, `static` and `extern`, and the interviewer then went deep: **how each differs, how each is used, and where each is stored in memory.**",
+ "lookingFor": [
+  "Do you know the four storage classes and the difference between scope, lifetime and linkage?",
+  "Can you map each to a memory region (stack, registers, data, BSS)?",
+  "Can you give practical uses such as hiding symbols, keeping state across calls and sharing globals?",
+  "Do you know the caveats (address of a register variable, uninitialised values)?",
+  "Can you connect it to how the compiler and linker lay out a program?"
+ ],
+ "answer": "A storage class decides a variable's **lifetime** (how long it exists), **scope** (where its name is visible) and **linkage** (whether other files can see it).\n\n| Class | Default for | Lifetime | Typical storage |\n|---|---|---|---|\n| `auto` | local variables | until the block ends | stack |\n| `register` | hint for hot locals | until the block ends | CPU register if the compiler agrees, otherwise stack |\n| `static` | none (explicit) | whole program | data segment (initialised) or BSS (zero/uninitialised) |\n| `extern` | globals declared elsewhere | whole program | the segment where it is defined |\n\n**auto:** every local variable is `auto` by default, so the keyword is almost never written. It is uninitialised unless you set it and its contents are indeterminate (garbage).\n\n**register:** a request to keep the variable in a register for speed. Modern compilers decide this on their own. In C you **cannot take the address** of a register variable, because it might not be in memory.\n\n**static:**\n- Inside a function it keeps its value between calls (initialised once, before `main`). It lives in the data/BSS area, not on the stack.\n- At file scope it gives **internal linkage**: the name is private to that translation unit, which avoids name clashes.\n- Static storage without an initialiser is zeroed. Initialised statics go in `.data`, zero ones in `.bss`.\n\n**extern:** a declaration that says \"this variable or function is defined in another file\". Memory is allocated only at the definition. Globals have external linkage by default, so `extern int count;` in a header and `int count = 0;` in exactly one `.c` file is the usual pattern.\n\n```c\nstatic int calls = 0;       // file-private, in .data/.bss\nint shared = 5;             // global, visible to other files\n\nint next(void) {\n    static int n = 0;       // persists across calls\n    auto int tmp = 1;       // stack, destroyed on return\n    return n += tmp;\n}\n```\n\nHeap memory from `malloc` is not a storage class; it is dynamic allocation with its own lifetime.",
+ "followUps": [
+  "What is the difference between a static global and a normal global?",
+  "Why can you not take the address of a register variable?",
+  "What happens if you define a global in a header file included by two .c files?",
+  "Where do string literals and `const` globals live?"
+ ]
+}

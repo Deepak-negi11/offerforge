@@ -1,0 +1,17 @@
+{
+ "qid": "ae55d9fee9",
+ "question": "Zoho system design round (about 3 hours, around 15 of 60 candidates advanced). You are given a use case and must first create the design as an **ER diagram or a class diagram**, then build a **console application** from it using OOP principles (Java or C++ preferred, Python allowed). The reported task was an **Inventory Management System that processes purchase orders and sales orders**.",
+ "lookingFor": [
+  "Can you translate a business scenario into entities, relationships and cardinalities?",
+  "Does your code follow the diagram and apply OOP (encapsulation, abstraction, clear responsibilities)?",
+  "Do you protect stock integrity: no negative stock, atomic order processing?",
+  "Can you list and handle edge cases such as unknown product, partial fulfilment and cancellation?"
+ ],
+ "answer": "**Requirements.** Maintain products and their stock levels. A purchase order (PO) from a supplier increases stock when received. A sales order (SO) for a customer reduces stock and must be rejected or partially fulfilled if stock is insufficient. Show stock and order history in a console menu.\n\n**ER / class design.**\n\n- `Product(id, name, sku, price, reorderLevel)` with `quantityOnHand`.\n- `Supplier(id, name)` and `Customer(id, name)`; both could extend a `Party` base class.\n- `PurchaseOrder(id, supplier, date, status, lines)` and `SalesOrder(id, customer, date, status, lines)`. Both extend an abstract `Order` that holds the common state, with `OrderLine(product, quantity, unitPrice)`.\n- Relationships: Supplier 1..N PurchaseOrder, Customer 1..N SalesOrder, Order 1..N OrderLine, Product 1..N OrderLine.\n- Optional `StockMovement(product, delta, reason, orderId, time)`, an append-only ledger that makes stock auditable.\n\n**Processing rules.**\n\n- `receive(PO)`: for each line, add quantity to the product and record a movement; status moves to `RECEIVED`.\n- `fulfil(SO)`: first check every line has enough stock; if any fails, reject the whole order (or mark backorder), otherwise deduct and mark `FULFILLED`. Checking all lines before changing anything avoids half-applied orders.\n- Cancellation reverses the movements.\n\n**Structure.** `InventoryService` holds the logic and `Repository` classes (in-memory maps keyed by id) hold the data; `Main` only handles menu input and printing. Use a `Map<Integer, Product>` for O(1) lookups.\n\n**Edge cases.** Unknown product id, zero or negative quantity, duplicate product, order with no lines, and concurrent updates (synchronise stock changes, or use database transactions with a row lock if persisted).\n\n**Extensions.** Low-stock alerts at the reorder level, multiple warehouses (stock keyed by product and warehouse), and average-cost valuation.\n\n**Tip.** Draw the diagram first, keep it small and consistent with your code, and get the core flow working before polish.",
+ "followUps": [
+  "How would you prevent two simultaneous sales orders from overselling the last unit?",
+  "How would you extend this to multiple warehouses and stock transfers?",
+  "How would you value stock: FIFO, LIFO or weighted average? What changes in the data model?",
+  "How would the ER diagram map to relational tables?"
+ ]
+}

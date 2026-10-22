@@ -1,0 +1,17 @@
+{
+ "qid": "992b1b4254",
+ "question": "CRED SDE-1 Backend (lateral), Round 1 machine coding. A **boilerplate codebase** with an implementation of certain classes was provided. The task was to extend it to **compute and display latency, throughput and error rate within a given timestamp range**, based on **existing event data**. All test cases had to pass, and the solution was expected to be **extensible for future metrics such as p90 latency**. The focus was clean design, correctness and extensibility, not just passing tests.",
+ "lookingFor": [
+  "Extensible design (new metric without changing existing code).",
+  "Correct definitions: latency, throughput, error rate, percentiles.",
+  "Efficient range queries over event data.",
+  "Handling boundaries and empty ranges."
+ ],
+ "answer": "**Definitions to confirm up front** (ask or state assumptions, because tests decide).\n- **Latency** in a range: typically mean (or per-event duration) of requests completed in the range.\n- **Throughput**: number of events (or successful ones) per unit time in the range, such as count / (end - start).\n- **Error rate**: failed events / total events, handling total = 0.\n- **p90**: the value below which 90% of observations fall; state the method (nearest-rank: sort, take element at `ceil(0.9 * n)`).\n- Clarify whether the range is inclusive or exclusive on each end and how events are timestamped (start or end).\n\n**Extensible design (Strategy / Open-Closed).**\n\n```java\ninterface Metric {\n    String name();\n    double compute(List<Event> eventsInRange);\n}\nclass LatencyMetric implements Metric { ... }\nclass ThroughputMetric implements Metric { ... }\nclass ErrorRateMetric implements Metric { ... }\nclass PercentileLatencyMetric implements Metric { /* takes p */ }\n```\n\nA `MetricsService` holds a registry `Map<String, Metric>`, filters events to the range once, and applies the requested metrics. Adding p90 means adding one class and registering it; nothing existing changes.\n\n**Efficient range selection.** If events are appended in timestamp order, keep a sorted list and use binary search for the range (O(log n + k)). Otherwise a `TreeMap<timestamp, events>` and `subMap(start, end)`. For very frequent queries, prefix sums of counts, errors and total latency give O(log n) for count-based metrics; percentiles need the actual values (sort k items in O(k log k), or a quickselect).\n\n**Edge cases.** Empty range (return 0 or a defined value; avoid division by zero), single event, events exactly on the boundary, unsorted input, and zero-length ranges for throughput.\n\n**Quality.** Keep computation pure and unit-testable, avoid duplicate filtering code, and add tests for each metric including p90 to show extensibility.",
+ "followUps": [
+  "How would you compute p90 efficiently over a streaming sliding window?",
+  "How would you support metrics per endpoint or per service?",
+  "What data structures give fast range queries over time?",
+  "How would you test the metric calculations?"
+ ]
+}

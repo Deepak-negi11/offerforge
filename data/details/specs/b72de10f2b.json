@@ -1,0 +1,17 @@
+{
+ "qid": "b72de10f2b",
+ "question": "Design a peer-to-peer **online chess game** for a Zomato (Nugget) SDE-1 interview. Players are matched with others of **similar rating**, and the design should be extensible to **tournaments and leaderboards**. The emphasis was on the **data model**.\n\n(No source passage was available for this item, so the details above come from the short report only.)",
+ "lookingFor": [
+  "Can you derive entities and relationships for a game domain?",
+  "Can you design matchmaking and a rating system sensibly?",
+  "Do you think about real-time communication and game state integrity?",
+  "Is your model extensible without redesign?"
+ ],
+ "answer": "**Requirements.** Register and log in, get matched with a player of similar rating, play a real-time game with legal-move validation and a clock, update ratings, and later add tournaments and leaderboards. Assume 1M users and 100k concurrent games.\n\n**Data model**\n- `users(id, name, rating, created_at)`.\n- `games(id, white_id, black_id, time_control, status, result, started_at, ended_at, final_fen)`.\n- `moves(game_id, ply_no, move_san, fen_after, played_at)` with a primary key of `(game_id, ply_no)`; the move list is the source of truth and can rebuild a game.\n- `rating_history(user_id, game_id, old, new)`.\n- Later: `tournaments(id, format, start, end)`, `tournament_players`, `tournament_games(tournament_id, game_id, round)`, and a `leaderboard` derived from ratings or points.\n\n**Matchmaking.** A player joins a queue with `{rating, time_control}`. Keep one sorted set per time control (for example in Redis, scored by rating). A matcher finds the nearest opponent within a window that widens the longer the player waits, creates the game atomically and removes both from the queue. Handle the race where two matchers pick the same player by making removal atomic.\n\n**Real-time play.** Players connect with WebSockets to a game server. The **server is authoritative**: it validates each move with a chess engine library, applies it, updates the clock and broadcasts it. Keep live state in memory or Redis keyed by game ID, route both players to the same server (consistent hashing or a game-to-server mapping), and write moves to the database asynchronously or in batches. Support reconnect by replaying state from the move list, and handle resignation, timeouts and draw offers.\n\n**Ratings.** Use Elo (or Glicko for rating uncertainty): `new = old + K * (score - expected)`, where `expected = 1 / (1 + 10^((opp - old)/400))`.\n\n**Leaderboards.** A Redis sorted set gives top-N and rank in O(log n); periodic snapshots go to the database.\n\n**Extensibility and trade-offs.** Keep game rules and tournament pairing (Swiss, knockout) in separate modules; guard against cheating through server-side validation and engine-assistance detection.",
+ "followUps": [
+  "How would you handle a player disconnecting mid-game?",
+  "How would you scale the number of concurrent games across servers?",
+  "How would you pair players in a Swiss tournament?",
+  "How would you detect cheating or rating manipulation?"
+ ]
+}

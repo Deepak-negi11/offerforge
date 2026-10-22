@@ -1,0 +1,17 @@
+{
+ "qid": "9052a8ae12",
+ "question": "Juspay SDE off-campus, final system and cultural round. Reported: questions on **SSL certificates**, and a trick question on **how computers ensure network security by validating certificate authorities, including from locally stored ones** (that is, how a machine decides to trust a certificate using the root CAs stored on it).",
+ "lookingFor": [
+  "Understanding of public-key cryptography and digital signatures.",
+  "The chain of trust: leaf, intermediate and root certificates.",
+  "The checks a client performs when validating a certificate.",
+  "Awareness of trust stores, revocation and the risks of untrusted CAs."
+ ],
+ "answer": "**What a certificate is.** An SSL/TLS certificate (X.509) binds a public key to an identity, such as a domain name. It contains the subject and its alternative names (SAN), the public key, validity dates, the issuer, usage constraints, and a **digital signature** from the issuer made with the issuer's private key. (SSL is the old name; the protocol is now TLS.)\n\n**Chain of trust.** A website serves a **leaf certificate** and usually one or more **intermediate certificates**. The leaf was signed by an intermediate CA, and the intermediate was signed by a **root CA**. A root certificate is self-signed.\n\n**How the client validates (for example a browser).**\n1. *Build the chain* from the leaf up to a root.\n2. *Verify each signature* using the issuer's public key: the root's key verifies the intermediate, which verifies the leaf.\n3. *Check the root is trusted:* the root must already be in the machine's **trust store**, the set of root CA certificates shipped with the operating system or browser (for example the OS keychain or the browser's own store). This is the 'locally stored' part: trust is not discovered on the network, it is pre-installed. A self-signed certificate that is not in the store is rejected.\n4. *Check validity dates* (not expired, not yet valid).\n5. *Check the name:* the hostname you connected to must match the certificate's SAN.\n6. *Check constraints and revocation:* key usage and CA flags must allow the use, and the certificate must not be revoked (CRL, OCSP, or OCSP stapling).\n7. *Prove key ownership:* during the TLS handshake, the server proves it holds the private key matching the certificate (it signs handshake data), and the two sides agree on session keys, normally with ephemeral Diffie-Hellman for forward secrecy.\n\n**Why this is secure.** An attacker cannot forge a certificate without a trusted CA's private key. Risks: a compromised or mistaken CA, which is why Certificate Transparency logs exist, and a malicious root added to the trust store. Companies sometimes install their own root on managed devices so that inspection proxies can issue certificates.\n\n**Practical tip.** With `openssl s_client -connect host:443 -showcerts` you can see the chain.",
+ "followUps": [
+  "What happens if the intermediate certificate is missing from the server's response?",
+  "What is the difference between a CRL and OCSP?",
+  "How does a corporate proxy inspect HTTPS traffic without browser warnings?",
+  "What is certificate pinning and when would you use it?"
+ ]
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "38fc7f3f7d",
+ "question": "Tower Research Capital, Core Software Engineer Intern, Technical Interview 1 (C++). After a coding problem, the candidate was asked: **Is `std::vector` memory contiguous? Why, and how does it work under the hood** (growth and reallocation)?",
+ "lookingFor": [
+  "Knowing the vector's contiguity guarantee and what it enables.",
+  "Understanding of size versus capacity and amortised growth.",
+  "Awareness of iterator and reference invalidation on reallocation.",
+  "Performance reasoning: cache friendliness, `reserve`, move semantics."
+ ],
+ "answer": "**Yes, contiguous.** The C++ standard guarantees that `std::vector<T>` stores its elements in one contiguous block (since C++03 in practice, explicitly in C++11), so `&v[0] + i == &v[i]` and `v.data()` can be passed to C APIs. `std::vector<bool>` is the exception: it is a bit-packed specialisation and does not give real `bool&` references.\n\n**Why it is designed this way.**\n- Constant-time random access by pointer arithmetic.\n- Excellent **cache locality** and prefetching, which is why vector often beats linked lists in practice.\n- Interoperability with C functions expecting arrays.\n\n**How it works.** A typical implementation holds three pointers (begin, end of used elements, end of allocated storage), so it tracks:\n- **size:** number of elements.\n- **capacity:** number of elements that fit in the allocated block.\n\n**Growth on `push_back`.**\n1. If `size < capacity`, construct the new element at the end: O(1).\n2. Otherwise allocate a new, larger block (commonly 1.5x or 2x the capacity; the factor is implementation-defined).\n3. Move (or copy) the existing elements into it. Elements are moved if the move constructor is `noexcept`, otherwise copied to keep the strong exception guarantee (`std::move_if_noexcept`).\n4. Destroy the old elements, free the old block, and update pointers.\n\nBecause growth is geometric, the cost is **amortised O(1)** per `push_back`, though a single push can be O(n).\n\n**Consequences.**\n- A reallocation **invalidates all iterators, pointers and references** into the vector. Holding `&v[0]` across a `push_back` is a bug.\n- Call `reserve(n)` when you know the size to avoid repeated reallocations; use `emplace_back` to construct in place; `shrink_to_fit` may release unused capacity.\n- Insertion or erase in the middle is O(n) because elements shift.",
+ "followUps": [
+  "What is the difference between `size()` and `capacity()`?",
+  "Why is `vector<bool>` special?",
+  "When does `std::deque` or `std::list` beat `vector`?",
+  "What is the growth factor trade-off between 1.5x and 2x?"
+ ]
+}

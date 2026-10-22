@@ -1,0 +1,19 @@
+{
+ "qid": "31a677fb4c",
+ "question": "Myntra Managerial round (Senior Software Engineer, virtual, 1 hour). System design: a rate limiter. Functional requirements: limit the number of requests a client can send to an API within a time window; make the limit per window configurable; make sure the client gets a message (error or notification) whenever the threshold is crossed, on a single server or a combination of servers. Non-functional: highly available, low latency (every API request passes through it), and scalable. The discussion covered HLD and LLD, different rate-limiting algorithms, implementing the token bucket algorithm, storing token bucket state in a distributed system, and writing the required APIs.",
+ "lookingFor": [
+  "Knowledge of rate-limiting algorithms and their trade-offs.",
+  "Ability to implement token bucket cleanly.",
+  "Distributed state and atomicity (race conditions across servers).",
+  "Availability and latency reasoning: what happens if the limiter fails.",
+  "Clear API and response design."
+ ],
+ "answer": "**Algorithms.**\n- *Fixed window counter:* count per client per window; simple, but allows a 2x burst at window boundaries.\n- *Sliding window log:* store timestamps; accurate but memory heavy.\n- *Sliding window counter:* weighted blend of current and previous window; good accuracy at low cost.\n- *Token bucket:* a bucket holds up to `capacity` tokens and refills at `rate` per second; each request takes a token. Allows controlled bursts and is memory-cheap. *Leaky bucket* smooths output at a constant rate.\n\n**Token bucket implementation (single node).** Store `tokens` and `lastRefill` per client; on each request compute `tokens = min(capacity, tokens + (now - lastRefill) * rate)`, set `lastRefill = now`, then allow if `tokens >= 1` and decrement. No background timer is needed (lazy refill). Guard each bucket with a lock or use atomics, and keep buckets in a `ConcurrentHashMap` with eviction for idle clients.\n\n**Distributed state.** Many API servers must share the count.\n- Central store such as Redis, keyed by `clientId`, holding `tokens` and `lastRefill` in a hash. The read-compute-write must be atomic, so use a Lua script (or a transaction), otherwise two servers can both spend the last token.\n- Shard Redis by client key and replicate for availability.\n- To cut latency, keep a local approximate counter that syncs periodically, at the cost of some inaccuracy.\n- Clock issues: have the store provide the time or use relative refill logic.\n\n**Architecture.** Place the limiter in the API gateway or as middleware before the services, reading rules (limit, window, per client or per endpoint) from a configuration service cached locally. Decide the failure mode: fail open (allow traffic if the limiter store is down, favouring availability) or fail closed for sensitive endpoints.\n\n**Client notification.** Return HTTP 429 with headers `Retry-After`, `X-RateLimit-Limit` and `X-RateLimit-Remaining`; optionally emit an event for alerting or a notification to the client when the threshold is crossed.\n\n**APIs.** `allow(clientId, endpoint)` internal call returning allow/deny with remaining tokens, and admin APIs to create or update limits.\n\n**Trade-offs.** Accuracy vs latency (local vs central counters), memory per client, and per-user vs per-IP vs per-API-key keys.",
+ "followUps": [
+  "Why use a Lua script in Redis for the token bucket?",
+  "What happens if Redis goes down: fail open or fail closed?",
+  "How does the token bucket differ from the fixed window counter in burst handling?",
+  "How would you rate-limit by multiple dimensions (user and IP)?",
+  "How would you make the limiter work across data centres?"
+ ]
+}

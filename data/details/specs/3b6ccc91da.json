@@ -1,0 +1,19 @@
+{
+ "qid": "3b6ccc91da",
+ "question": "Low Level Design plus coding round for an SMTS role. You are given a system made of multiple microservices and their dependencies (which service calls or depends on which).\n\nDesign the classes and implement a **Service Dependency Impact Analyzer** that determines:\n\n- the impact if one service fails (which services are affected),\n- the **depth** of that impact,\n- whether the system contains **cyclic dependencies**.\n\nThe interviewer expected core traversal logic, depth calculation and cycle detection on a directed graph, with clean class design and thought about scalability.",
+ "lookingFor": [
+  "Can you model the problem as a directed graph and pick the traversal direction correctly?",
+  "Do you implement BFS/DFS and depth calculation without bugs?",
+  "Can you detect cycles in a directed graph (colors/recursion stack or Kahn's algorithm)?",
+  "Is the class design clean and extensible rather than one big function?",
+  "Have you thought about large graphs, repeated queries and caching?"
+ ],
+ "answer": "**Model.** Treat services as nodes and \"A depends on B\" as an edge. If B fails, the services affected are those that depend on B directly or transitively. So keep a **reverse adjacency map**: `dependents[B] = {A, ...}`. Impact analysis is then a traversal from B along `dependents`.\n\n**Classes.**\n\n- `Service` (id/name).\n- `DependencyGraph`: `addService`, `addDependency(from, to)`, holds both `dependencies` and `dependents` maps.\n- `ImpactAnalyzer`: takes a graph; `impactOf(serviceId)` returns an `ImpactReport` with the affected set and depth; `findCycle()` or `hasCycle()`.\n- `ImpactReport`: `affected`, `maxDepth`, optionally depth per service.\n\n**Impact and depth: BFS.** Start with the failed service at level 0 in a queue and a `visited` set. Process level by level; every newly discovered dependent gets `level + 1`. The affected set is all visited nodes except the start; depth is the largest level reached. BFS gives the shortest distance, which is the natural \"how many hops until it propagates\" answer. Cost is O(V + E) per query. A visited set also keeps the traversal safe if the graph has cycles.\n\n**Cycle detection (directed).** Use DFS with three states: unvisited, in the current recursion stack, done. Reaching a node that is in the stack means a cycle (record the path for a useful report). Alternative: Kahn's algorithm; if the topological order has fewer nodes than the graph, a cycle exists. Run it over every component, not only from one start node. For very deep graphs use an iterative DFS to avoid stack overflow.\n\n**Edge cases.** Unknown service id, isolated service (impact empty, depth 0), self-dependency (a cycle), duplicate edges, disconnected graph.\n\n**Scalability.** For many queries on a stable graph, precompute strongly connected components and the condensed DAG, or cache results and invalidate on graph change. For a live system, build the graph from tracing data, and weight edges (hard vs soft dependency) so that optional dependencies do not count as full impact.",
+ "followUps": [
+  "How would you distinguish hard from soft dependencies in the impact?",
+  "What is the time and space complexity of each operation?",
+  "How would you report the actual cycle path, not just that one exists?",
+  "How would you handle a graph with millions of services and frequent changes?",
+  "How would you test this class design?"
+ ]
+}

@@ -1,0 +1,49 @@
+{
+ "pid": "google-disconnect-leaves-at-minimum-cost",
+ "title": "Disconnect Leaves at Minimum Cost",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a tree with `n` nodes numbered `0` to `n - 1`. Every edge has a positive weight. A **leaf** of the original tree is a node with exactly one neighbour. (A tree with a single node has no leaves; in a tree with two nodes both nodes are leaves.)\n\nYou may delete any set of edges. The remaining edges form a forest. After the deletions, no two nodes that were leaves of the **original** tree may lie in the same connected component of the forest. Note that nodes which are not leaves have no restriction, and deleting edges can create new nodes of degree one; only the leaves of the original tree matter.\n\nThe cost of a deletion is the sum of the weights of the deleted edges. Print the minimum possible cost.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n - 1` lines contains three integers `u`, `v` and `w`: an edge between nodes `u` and `v` with weight `w`.",
+ "output_format": "Print a single integer: the minimum total weight of deleted edges.",
+ "constraints": [
+  "1 ≤ n ≤ 50000",
+  "1 ≤ w ≤ 10^9",
+  "The input is a tree, and the longest path in it has at most 5000 edges (so a recursive DFS stays within recursion limits)"
+ ],
+ "examples": [
+  {
+   "input": "5\n0 1 3\n1 2 5\n2 3 2\n1 4 4",
+   "output": "5",
+   "explanation": "The leaves are nodes 0, 3 and 4, so at least two edges must be cut. Deleting edge 2-3 (weight 2) and edge 0-1 (weight 3) leaves node 0 alone, node 3 alone and node 4 together with nodes 1 and 2. Any other pair of edges costs more."
+  },
+  {
+   "input": "5\n0 1 7\n0 2 1\n0 3 9\n0 4 4",
+   "output": "12",
+   "explanation": "A star with four leaves: every leaf must end up separated from the others, so all but one of the edges must go. Keep the heaviest edge (9) and delete 7 + 1 + 4 = 12."
+  },
+  {
+   "input": "4\n0 1 6\n1 2 2\n2 3 9",
+   "output": "2",
+   "explanation": "A path whose only leaves are nodes 0 and 3. Cutting the cheapest edge, 1-2 with weight 2, separates them."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Root the tree anywhere. A component can contain at most one original leaf, so for each subtree only two situations matter: the component containing the subtree's root has 0 leaves or exactly 1 leaf.",
+  "Define `f0[v]` and `f1[v]` as the minimum cost inside the subtree of `v` such that the component of `v` holds 0 or 1 original leaves. A node that is an original leaf starts with `f1 = 0` and `f0 = infinity`; any other node starts with `f0 = 0` and `f1 = infinity`.",
+  "For each child `c` with edge weight `w` you either delete the edge (pay `w + min(f0[c], f1[c])`, the leaf counts of the parent do not change) or keep it (the leaf counts add up and must not exceed 1). The answer is `min(f0[root], f1[root])`."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    d = sys.stdin.read().split()\n    n = int(d[0])\n    adj = [[] for _ in range(n)]\n    for i in range(n - 1):\n        u, v, w = int(d[1 + 3 * i]), int(d[2 + 3 * i]), int(d[3 + 3 * i])\n        adj[u].append((v, w))\n        adj[v].append((u, w))\n    INF = 10 ** 18\n    # f0[v] / f1[v]: min cost inside the subtree of v so that the component of v holds 0 / 1 original leaves\n    f0 = [0] * n\n    f1 = [INF] * n\n    for v in range(n):\n        if len(adj[v]) == 1:\n            f0[v], f1[v] = INF, 0\n    parent = [-1] * n\n    pw = [0] * n\n    order = []\n    stack = [0]\n    seen = [False] * n\n    seen[0] = True\n    while stack:\n        v = stack.pop()\n        order.append(v)\n        for u, w in adj[v]:\n            if not seen[u]:\n                seen[u] = True\n                parent[u] = v\n                pw[u] = w\n                stack.append(u)\n    for v in reversed(order):\n        p = parent[v]\n        if p < 0:\n            continue\n        cut = pw[v] + min(f0[v], f1[v])\n        a0, a1 = f0[p], f1[p]\n        f0[p] = min(a0 + cut, a0 + f0[v], INF)\n        f1[p] = min(a1 + cut, a1 + f0[v], a0 + f1[v], INF)\n    print(min(f0[0], f1[0]))\n\n\nmain()\n",
+ "brute": "import sys\n\nd = sys.stdin.read().split()\nn = int(d[0])\nedges = [(int(d[1 + 3 * i]), int(d[2 + 3 * i]), int(d[3 + 3 * i])) for i in range(n - 1)]\ndeg = [0] * n\nfor u, v, w in edges:\n    deg[u] += 1\n    deg[v] += 1\nbest = None\nfor mask in range(1 << (n - 1)):\n    comp = list(range(n))\n    def find(x):\n        while comp[x] != x:\n            comp[x] = comp[comp[x]]\n            x = comp[x]\n        return x\n    cost = 0\n    for i, (u, v, w) in enumerate(edges):\n        if mask >> i & 1:\n            cost += w\n        else:\n            comp[find(u)] = find(v)\n    cnt = {}\n    ok = True\n    for x in range(n):\n        if deg[x] == 1:\n            r = find(x)\n            if r in cnt:\n                ok = False\n                break\n            cnt[r] = 1\n    if ok and (best is None or cost < best):\n        best = cost\nprint(best)\n",
+ "generator": "def gen(rng):\n    def build(n, parents, wmax, shuffle_labels=True):\n        perm = list(range(n))\n        if shuffle_labels:\n            rng.shuffle(perm)\n        edges = []\n        for i in range(1, n):\n            a, b = perm[i], perm[parents[i]]\n            if rng.random() < 0.5:\n                a, b = b, a\n            edges.append((a, b, rng.randint(1, wmax)))\n        rng.shuffle(edges)\n        return str(n) + (\"\\n\" if edges else \"\") + \"\\n\".join(f\"{a} {b} {w}\" for a, b, w in edges)\n    def rand_parents(n, mode):\n        ps = [0] * n\n        for i in range(1, n):\n            if mode == \"rand\":\n                ps[i] = rng.randrange(i)\n            elif mode == \"path\":\n                ps[i] = i - 1\n            elif mode == \"mix\":\n                ps[i] = rng.choice([i - 1, rng.randrange(i)])\n            else:\n                ps[i] = 0\n        return ps\n    tests = [\"1\", \"2\\n0 1 5\", \"2\\n1 0 1000000000\", \"3\\n0 1 4\\n1 2 9\", \"3\\n2 0 4\\n1 0 9\"]\n    tests.append(\"5\\n0 1 3\\n1 2 5\\n2 3 2\\n1 4 4\")\n    tests.append(\"5\\n0 1 7\\n0 2 1\\n0 3 9\\n0 4 4\")\n    tests.append(\"4\\n0 1 6\\n1 2 2\\n2 3 9\")\n    for n in range(4, 13):\n        for mode in (\"rand\", \"path\", \"mix\", \"star\"):\n            if rng.random() < 0.5:\n                tests.append(build(n, rand_parents(n, mode), rng.choice([3, 10, 1000])))\n    for _ in range(20):\n        n = rng.randint(2, 12)\n        tests.append(build(n, rand_parents(n, rng.choice([\"rand\", \"mix\"])), rng.choice([2, 6, 10 ** 9])))\n    N = 50000\n    # random recursive tree (shallow)\n    tests.append(build(N, rand_parents(N, \"rand\"), 10 ** 9))\n    # star\n    tests.append(build(N, rand_parents(N, \"star\"), 10 ** 9))\n    # caterpillar: spine of 4000 nodes, every other node hangs off a spine node\n    sp = 4000\n    ps = [0] * N\n    for i in range(1, N):\n        ps[i] = i - 1 if i < sp else rng.randrange(sp)\n    tests.append(build(N, ps, 10 ** 9))\n    # broom: path of 2500 ending in a big star, plus weights mostly large\n    ps = [0] * N\n    for i in range(1, N):\n        ps[i] = i - 1 if i < 2500 else 2499\n    tests.append(build(N, ps, 10 ** 9))\n    # many long thin branches hanging off a hub (each branch up to 100 deep)\n    ps = [0] * N\n    for i in range(1, N):\n        ps[i] = 0 if i % 100 == 1 else i - 1\n    tests.append(build(N, ps, 10 ** 9))\n    # long path of 5000 nodes\n    tests.append(build(5001, rand_parents(5001, \"path\"), 10 ** 9))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef min_cost(n: int, edges: List[Tuple[int, int, int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    d = sys.stdin.read().split()\n    n = int(d[0])\n    edges = [(int(d[1 + 3 * i]), int(d[2 + 3 * i]), int(d[3 + 3 * i])) for i in range(n - 1)]\n    print(min_cost(n, edges))\n\n\nmain()\n",
+  "javascript": "function minCost(n, edges) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst edges = []\nfor (let i = 0; i < n - 1; i++) {\n  edges.push([t[1 + 3 * i], t[2 + 3 * i], t[3 + 3 * i]])\n}\nconsole.log(String(minCost(n, edges)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minCost(int n, vector<array<long long, 3>>& edges) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<array<long long, 3>> edges(max(0, n - 1));\n    for (int i = 0; i < n - 1; i++) cin >> edges[i][0] >> edges[i][1] >> edges[i][2];\n    cout << minCost(n, edges) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minCost(int n, long[][] edges) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[][] edges = new long[Math.max(0, n - 1)][3];\n        for (int i = 0; i < n - 1; i++) {\n            for (int j = 0; j < 3; j++) {\n                in.nextToken();\n                edges[i][j] = (long) in.nval;\n            }\n        }\n        System.out.println(minCost(n, edges));\n    }\n}\n"
+ }
+}

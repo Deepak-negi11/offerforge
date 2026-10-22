@@ -1,0 +1,19 @@
+{
+ "qid": "211f5a98f9",
+ "question": "LinkedIn Senior Software Engineer (Infrastructure), high-level design round: **design a distributed key-value store where keys stay in memory but values are stored in file storage or on a disk that can only be appended to**. Random reads are allowed, random writes are not, and the storage must be **durable**: after a node failure, the state must be recoverable. The candidate reported a good discussion on how data is stored and made durable.",
+ "lookingFor": [
+  "Do you know how to build on an append-only log (log-structured storage)?",
+  "Can you design the in-memory index and the on-disk record format?",
+  "Do you cover recovery, compaction and deletes under the append-only constraint?",
+  "Can you extend a single node to a distributed system with replication and sharding?",
+  "Do you discuss durability vs latency (fsync policy) and consistency trade-offs?"
+ ],
+ "answer": "**Core idea: a Bitcask-style log-structured store.** Because the disk is append-only, never update a record in place. Every put or delete is appended to the end of the current data file; the in-memory index points to the latest version.\n\n**Single node.**\n- Index: `key -> (file id, offset, value length, timestamp)` in a hash map. `get` does one memory lookup and one random read at that offset (allowed).\n- Record format: `[crc, timestamp, key size, value size, key, value]`. The CRC lets recovery detect torn or partial writes at the tail.\n- `put`: append to the active file, then update the index. `delete`: append a tombstone and remove the key from the index. Active files roll over at a size limit and become immutable.\n- Durability: append to the log first, `fsync` per write or in batches (group commit); that choice trades latency against how much you can lose on a crash.\n- Recovery: after a failure, rescan the data files in order, rebuilding the index (newest entry for a key wins) and truncating a corrupt tail. To speed this up, periodically write index **checkpoints or hint files** and replay only the log after the checkpoint.\n- Compaction: old versions and tombstones waste space, so a background process merges immutable files into new ones containing only live records, then swaps and deletes the old files; reads and writes continue during this.\n\n**Distribute it.**\n- *Partitioning:* shard keys across nodes by consistent hashing.\n- *Replication:* each shard has a leader and followers; the leader appends to its log and ships the records to followers (or uses a consensus protocol such as Raft, where the replicated log is the data log). Acknowledge after a quorum for durability.\n- *Failover:* a follower with the full log becomes leader; a new node recovers by copying a snapshot of files, then catching up on the log tail.\n\n**Limits to mention.** The index must fit in RAM (about the number of keys times about 50 to 100 bytes), so very large key counts require sharding; compaction causes write amplification; range scans are not supported unless you add a sorted structure such as an LSM tree.",
+ "followUps": [
+  "What happens if the node crashes in the middle of writing a record?",
+  "How do you speed up recovery for a very large log?",
+  "How does compaction work, and what is the write amplification cost?",
+  "How do you replicate writes and what does a quorum acknowledgement guarantee?",
+  "What if the keys no longer fit in memory?"
+ ]
+}

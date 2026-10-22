@@ -1,0 +1,18 @@
+{
+ "qid": "121bf86ffe",
+ "question": "Uber Software Engineer Intern (6-month), Low Level Design round (60 minutes). Design a **movie rating system**: add a user, add a movie, let a user rate a movie (a user can rate a movie only once, and a new rating replaces the old one), return the **top-k movies by average rating**, and upgrade a user from a normal user to a **critic** after they have rated 3 movies. The rating of a critic is given **double weight**.",
+ "lookingFor": [
+  "Can you translate a list of requirements into entities, APIs and data structures?",
+  "Do you handle rating replacement and keep aggregates correct (weighted sums)?",
+  "Can you implement top-k efficiently and explain the trade-offs?",
+  "Do you apply OOP cleanly (user types via polymorphism or strategy) and think of the weight-change edge case?",
+  "Do you test and handle invalid input?"
+ ],
+ "answer": "**Entities.**\n\n- `User(id, type, ratedCount)` where type is `NORMAL` or `CRITIC`. Weight comes from the type (`1` or `2`); model it as a `WeightPolicy` or a method on the type so adding a new tier does not touch the rating logic.\n- `Movie(id, name, weightedSum, totalWeight)`; average = `weightedSum / totalWeight`.\n- `RatingStore`: `Map<(userId, movieId), Rating(value, weightUsed)>`.\n- `RatingService` facade: `addUser`, `addMovie`, `rate(userId, movieId, value)`, `topK(k)`.\n\n**`rate` logic.**\n\n1. Validate user, movie and rating range (for example 1-5).\n2. If a previous rating exists, subtract its contribution: `weightedSum -= old.value * old.weightUsed`, `totalWeight -= old.weightUsed`. Do not count it as a new rated movie.\n3. Add the new one: `weightedSum += value * w`, `totalWeight += w`, store `weightUsed = w`.\n4. If this was a first-time rating, increment `user.ratedCount`; at 3, promote to `CRITIC`.\n\nStoring `weightUsed` matters: when a user is promoted, their earlier ratings were made at weight 1. Decide and state the policy: either keep old ratings at old weight (simple, shown above) or retroactively reweight all of that user's ratings (needs per-user rating lists and an update of each movie).\n\n**Top-k.**\n\n- Simple: compute averages for all movies, use a min-heap of size k: O(m log k) per query. Fine for a machine-coding round.\n- Faster queries: keep a sorted structure (`TreeSet` ordered by average, then id) and update it on every rating (remove, modify, re-insert) in O(log m); `topK` is then O(k).\n\nState tie-breaking (by id or by number of ratings) and what to do with unrated movies.\n\n**Concurrency and tests.** Synchronise `rate` per movie or globally; test replacing a rating, promotion exactly at the third movie, and top-k ties.",
+ "followUps": [
+  "Should promotion retroactively double the weight of earlier ratings, and how would you implement that?",
+  "How would you scale top-k to millions of movies and heavy write traffic?",
+  "How would you add a new user tier, such as a verified reviewer, with a different weight?",
+  "How would you make rate() thread-safe?"
+ ]
+}

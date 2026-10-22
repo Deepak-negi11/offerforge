@@ -1,0 +1,19 @@
+{
+ "qid": "c340071ee0",
+ "question": "Nutanix SDE new-grad on-campus system design round (round 2). The interviewer asked **concept questions on system design topics such as query optimisation, caching, indexing and API design**, and then asked the candidate to **design a system** (the system was not reported). Round 1 reportedly had a hard graph plus dynamic programming problem and a medium-hard problem. Be ready for both the fundamentals and an open design question.",
+ "lookingFor": [
+  "Practical database knowledge: indexes, query plans, and why queries are slow.",
+  "Understanding of caching strategies and failure modes.",
+  "Good API design practice: resources, pagination, idempotency, versioning.",
+  "Applying these concepts together in a coherent design.",
+  "Clear communication with trade-offs."
+ ],
+ "answer": "**Query optimisation.** Find slow queries first (slow query log, `EXPLAIN`/`EXPLAIN ANALYZE`). Typical fixes: add an index matching the filter and sort columns, select only needed columns, avoid functions on indexed columns in `WHERE` (they prevent index use), replace N+1 queries with joins or batching, paginate with keyset instead of large offsets, and denormalise or precompute for heavy reads. Keep statistics up to date so the planner picks good plans.\n\n**Indexing.**\n- A B-tree index speeds equality and range lookups and ordering at the cost of extra storage and slower writes.\n- *Composite indexes* follow the left-most prefix rule, so column order matters (equality columns first, then range).\n- *Covering indexes* include all queried columns to avoid table lookups. Low-cardinality columns benefit less. Hash indexes suit equality only.\n\n**Caching.**\n- Where: client or CDN, application memory, a distributed cache (e.g. Redis, Memcached), and the database buffer pool.\n- Patterns: cache-aside (read cache, on miss load and fill), write-through, and write-back.\n- Challenges: invalidation (use TTLs and invalidate on write), stampede when a hot key expires (request coalescing, jittered TTLs), stale data, and eviction policy such as LRU.\n\n**API design.** Resource-oriented URLs, correct verbs and status codes, pagination (cursor-based for big or changing data), filtering and sorting parameters, idempotency keys for POSTs that create or charge, consistent error format, versioning, authentication and rate limiting.\n\n**Tying it into a design.** After clarifying requirements and scale, sketch: clients, load balancer, stateless API servers, cache in front of a primary database with read replicas, a queue for slow work, and shard when one database is no longer enough. Pick the read/write ratio, then justify each component with the bottleneck it addresses (reads to cache and replicas, writes to sharding and queues).\n\n**Trade-offs to state:** consistency vs cache freshness, index count vs write speed, and complexity of sharding.",
+ "followUps": [
+  "Why might the database ignore an index you created?",
+  "How do you prevent a cache stampede on a hot key?",
+  "Offset pagination vs cursor pagination: which would you use and why?",
+  "How would you keep cache and database consistent on updates?",
+  "When would you shard instead of adding read replicas?"
+ ]
+}

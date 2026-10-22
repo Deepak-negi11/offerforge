@@ -1,0 +1,18 @@
+{
+ "qid": "7a1252f0cb",
+ "question": "BrowserStack SDE-1 **Engineering Manager round**: **design the database (ER diagram/schema) for a simple Twitter**. Requirements: a user can **follow and unfollow**, **post tweets**, see a **profile page showing only their own tweets**, and see a **home screen with tweets from others**. After the base design, extra requirements were added: a **like** feature (show the **total number of likes**, and when the user clicks it, **see who liked** the tweet), **retweets**, and the **celebrity problem**: how to effectively find the number of likes on a celebrity's posts.",
+ "lookingFor": [
+  "Sound relational modelling: entities, keys, relationships, constraints.",
+  "Index choices tied to the actual queries (profile, home feed).",
+  "Ability to extend the schema for new features cleanly.",
+  "Awareness of hot-row and fan-out problems at scale.",
+  "Clear reasoning about trade-offs such as denormalised counters."
+ ],
+ "answer": "**Entities and tables**\n- `users(id PK, handle UNIQUE, name, created_at)`\n- `follows(follower_id, followee_id, created_at, PK(follower_id, followee_id))` with an index on `followee_id` for reverse lookups. This is a many-to-many self-relationship; add a check that follower is not followee. Unfollow deletes the row.\n- `tweets(id PK, author_id FK, content, created_at, retweet_of_id NULL FK)` with index `(author_id, created_at DESC)`.\n- `likes(user_id FK, tweet_id FK, created_at, PK(user_id, tweet_id))` with index `(tweet_id, created_at)`. The composite PK prevents duplicate likes.\n\n**Queries**\n- **Profile:** `SELECT ... FROM tweets WHERE author_id = ? ORDER BY created_at DESC LIMIT 20` (use keyset pagination by `(created_at, id)`).\n- **Home feed (pull model):** `SELECT t.* FROM tweets t JOIN follows f ON f.followee_id = t.author_id WHERE f.follower_id = ? ORDER BY t.created_at DESC LIMIT 20`.\n- **Who liked:** `SELECT user_id FROM likes WHERE tweet_id = ? ORDER BY created_at DESC LIMIT 50`, paginated.\n\n**Retweets:** either a new `tweets` row with `retweet_of_id` pointing to the original (simple and appears in the author's timeline), or a separate `retweets` table. Showing the count means counting rows where `retweet_of_id = ?`.\n\n**Like counts and the celebrity problem:** `COUNT(*)` on `likes` for a tweet with millions of likes is slow, and updating a single counter row on every like becomes a **hot row** with lock contention.\n- Keep a denormalised `like_count` on `tweets` (or a `tweet_stats` table) updated in the same transaction as the insert into `likes`; this is fast to read but contended for hot tweets.\n- Reduce contention by **sharding the counter** (N counter rows per tweet, sum on read), or by **batching increments** through a queue or in-memory cache (for example Redis `INCR`) and flushing periodically. Accept that counts are **eventually consistent**; displayed counts can be approximate (for example \"1.2M\").\n- Cache hot tweets' counts and the first page of likers.\n\n**Feed at scale:** the pull model slows for users following thousands of accounts; use **fan-out on write** (precomputed timelines) for normal users and **fan-in on read** for celebrity authors, merging at read time.",
+ "followUps": [
+  "Why is the composite primary key on likes useful?",
+  "How would you paginate the home feed without OFFSET?",
+  "How would you keep a denormalised like_count consistent with the likes table?",
+  "Fan-out on write vs on read: which to use for celebrities?"
+ ]
+}

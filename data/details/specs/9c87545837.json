@@ -1,0 +1,18 @@
+{
+ "qid": "9c87545837",
+ "question": "Rapid-fire **Cassandra** questions, asked because a previous project used it:\n\n1. What is the replication factor?\n2. What is a partition key and a clustering key?\n3. How do you tune consistency?\n\nThe interviewer asked these without a deep design exercise, so crisp and correct definitions mattered.",
+ "lookingFor": [
+  "Accurate grasp of Cassandra's data distribution model",
+  "Understanding of replication and tunable consistency",
+  "Ability to relate key design to query patterns",
+  "Awareness of the CAP trade-offs behind the settings"
+ ],
+ "answer": "**Replication factor (RF).** The number of nodes that store a copy of each partition. With RF = 3, every row is stored on three nodes, which gives fault tolerance and read availability. It is set per keyspace, together with a replication strategy (`NetworkTopologyStrategy` is the production choice since it is rack and data-centre aware). Replicas are placed by walking the token ring from the partition's token.\n\n**Partition key vs clustering key.** In `PRIMARY KEY ((user_id), event_time, event_id)`:\n- The **partition key** (`user_id`) is hashed to a token that decides which nodes own the data. All rows with the same partition key live together, so queries should always supply it. Choose it for even distribution and to avoid huge or hot partitions.\n- **Clustering columns** (`event_time`, `event_id`) define the sort order of rows inside a partition on disk, which enables efficient range queries and slices within that partition.\n\nSo the partition key answers \"where\", and the clustering key answers \"in what order inside that place\". Cassandra tables are modelled around queries, often with denormalised copies per query.\n\n**Tuning consistency.** Cassandra offers tunable consistency per request: `ONE`, `QUORUM`, `LOCAL_QUORUM`, `ALL`, and so on. Quorum is `floor(RF/2) + 1`, which is 2 for RF = 3.\n- The rule for strong reads is **R + W > RF**. Writing at `QUORUM` and reading at `QUORUM` means read and write sets overlap, so a read sees the latest acknowledged write.\n- `ONE` for reads and writes favours latency and availability but allows stale reads (eventual consistency).\n- `LOCAL_QUORUM` gives strong consistency within one data centre without cross-region latency.\n- Background mechanisms such as hinted handoff, read repair and anti-entropy repair converge replicas.\n\nHigher consistency means higher latency and less availability when nodes are down, which is the CAP trade-off.",
+ "followUps": [
+  "What happens if you read at QUORUM but only one of three replicas is up?",
+  "What makes a bad partition key, and what is a hot partition?",
+  "How does Cassandra resolve conflicting writes?",
+  "Why is Cassandra modelled around queries rather than entities?",
+  "What are lightweight transactions and when would you use them?"
+ ]
+}

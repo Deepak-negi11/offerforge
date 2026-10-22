@@ -1,0 +1,17 @@
+{
+ "qid": "2b6a195c4f",
+ "question": "Google SWE III (L4) first technical phone round, coded in a Google-Docs-like editor with no ability to run code. The problem: **devices emit events such as \"Battery at 10%\" with timestamps; remove repeats of the same event that occur within 10 seconds of each other to reduce noise.** The reporter compared it to a mock logging service, with no file I/O. Flow: intros, the question, a test-case walkthrough, then follow-ups: **time and space complexity**, and **what bottlenecks you would expect in a real production deployment and how to handle them**.",
+ "lookingFor": [
+  "Clarifying the semantics (per device or global? 10 seconds from the last seen or the last emitted?).",
+  "A simple correct solution using a hash map and a per-key last timestamp.",
+  "Handling of memory growth and out-of-order events.",
+  "Moving from a single-process solution to a production design: partitioning, state, failures."
+ ],
+ "answer": "**Clarify.** Is the key `(deviceId, eventType)` or just the event string? Is the window measured from the *last emitted* event (suppress until 10 s have passed since the last one we let through) or from the last *seen* one (a continuous burst never emits again)? Are timestamps ordered? I will assume per `(device, event)`, measured from the last emitted event, with in-order timestamps.\n\n**Solution.** Keep `lastEmitted: Map<key, timestamp>`.\nFor each event `(key, ts)`: if `key` is absent or `ts - lastEmitted[key] >= 10`, emit and set `lastEmitted[key] = ts`; otherwise drop. This is O(1) per event, O(k) space for k distinct keys. Walk through a test: events at t = 0, 5, 10, 11 for one key emit at 0 and 10, drop 5 and 11. Edge cases: exactly 10 s apart (decide and state it), equal timestamps, empty input.\n\n**Memory.** Keys accumulate. Evict entries older than 10 s: use a queue or time-ordered structure of `(ts, key)` or a TTL cache, giving O(active keys in the window) space.\n\n**Production bottlenecks and fixes.**\n- *Single-node throughput and memory:* partition by `deviceId` (consistent hashing, for example Kafka partitions) so all events for one key reach one worker, which keeps its state local.\n- *Hot keys:* a chatty device overloads one partition; apply rate limiting upstream or sub-partition by event type.\n- *Out-of-order and late events:* use event-time with a small buffer (watermark), or accept approximate dedupe.\n- *Worker failure:* in-memory state is lost, so a restart can emit duplicates; checkpoint state (RocksDB or a shared store such as Redis with TTL), or accept at-least-once with idempotent downstream.\n- *Clock skew between devices:* use server receive time, or per-device sequence numbers.\n- *Observability:* metrics for dropped versus emitted, lag, and state size; backpressure when downstream is slow.\n\n**Trade-off to name:** exact dedupe needs state; a probabilistic structure (Bloom filter with rotating windows) saves memory at the cost of false positives, which would drop genuine events.",
+ "followUps": [
+  "How would you change the code if the window should slide with every seen event?",
+  "How do you bound memory for millions of devices?",
+  "What guarantees do you need from the message queue for this to be correct?",
+  "How would you test this component?"
+ ]
+}

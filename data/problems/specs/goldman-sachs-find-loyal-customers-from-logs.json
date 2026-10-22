@@ -1,0 +1,49 @@
+{
+ "pid": "goldman-sachs-find-loyal-customers-from-logs",
+ "title": "Find Loyal Customers From Logs",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "Every time a customer visits a website, a record `(timestamp, pageId, customerId)` is written to that day's log file. You are given the log of **day 1** and the log of **day 2**, each as a list of such records.\n\nA customer is **loyal** if both of these hold:\n\n- the customer appears in the log of day 1 **and** in the log of day 2 (visited on both days), and\n- across the records of both days together, the customer visited **at least two distinct pages** (two different `pageId` values).\n\nPrint the ids of all loyal customers in increasing order. If there are none, print `-1`.\n\nThe timestamps are part of the log format but do not affect the answer. A customer who visits the same page many times, even on both days, counts that page only once. A customer may have many records on a single day, and the records are not sorted.\n\n**Follow-up:** The logs are too large to fit in memory at once. How would you find the loyal customers?",
+ "input_format": "The first line contains two integers `a` and `b`: the number of records in the day 1 log and the day 2 log.\nThe next `a` lines each contain three integers `timestamp pageId customerId` (day 1).\nThe next `b` lines each contain three integers `timestamp pageId customerId` (day 2).",
+ "output_format": "Print the loyal customer ids in increasing order separated by single spaces, or `-1` if no customer is loyal.",
+ "constraints": [
+  "1 ≤ a, b ≤ 5 * 10^4",
+  "0 ≤ timestamp < 86400",
+  "1 ≤ pageId, customerId ≤ 10^6"
+ ],
+ "examples": [
+  {
+   "input": "4 3\n100 1 7\n200 2 8\n300 1 9\n400 3 7\n500 1 7\n600 4 9\n700 5 10",
+   "output": "7 9",
+   "explanation": "Customers 7 and 9 appear on both days. Customer 7 visited pages 1 and 3, and customer 9 visited pages 1 and 4, so both saw two distinct pages. Customers 8 and 10 each appear on only one day."
+  },
+  {
+   "input": "2 2\n10 5 1\n20 5 1\n30 5 1\n40 5 1",
+   "output": "-1",
+   "explanation": "Customer 1 visited on both days but only ever saw page 5, so no one is loyal."
+  },
+  {
+   "input": "2 2\n10 5 1\n20 6 2\n30 6 1\n40 5 2",
+   "output": "1 2",
+   "explanation": "Each customer visits one page on day 1 and a different page on day 2. The two distinct pages are counted across both days, so both are loyal."
+  }
+ ],
+ "complexity": {
+  "time": "O(a + b)",
+  "space": "O(a + b)"
+ },
+ "hints": [
+  "Which customers appear on both days? A set of day 1 customers and a set of day 2 customers answers this.",
+  "For each customer you only need to know whether they saw two different pages, so you never need to store more than two page ids per customer.",
+  "Use one hash map from customer to a set of pages (over both logs) plus the two day-sets, then filter and sort the matching ids."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    data = sys.stdin.read().split()\n    a, b = int(data[0]), int(data[1])\n    pages = {}\n    d1 = set()\n    d2 = set()\n    p = 2\n    for day in range(2):\n        cnt = a if day == 0 else b\n        target = d1 if day == 0 else d2\n        for _ in range(cnt):\n            page = int(data[p + 1])\n            cust = int(data[p + 2])\n            p += 3\n            target.add(cust)\n            s = pages.get(cust)\n            if s is None:\n                pages[cust] = {page}\n            elif len(s) < 2:\n                s.add(page)\n    res = sorted(c for c in d1 if c in d2 and len(pages[c]) >= 2)\n    print(' '.join(map(str, res)) if res else -1)\n\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\na, b = int(data[0]), int(data[1])\nrecs = []\np = 2\nfor _ in range(a + b):\n    recs.append((int(data[p]), int(data[p + 1]), int(data[p + 2])))\n    p += 3\nday1 = recs[:a]\nday2 = recs[a:]\ncusts = sorted(set(c for _, _, c in recs))\nres = []\nfor c in custs:\n    in1 = any(r[2] == c for r in day1)\n    in2 = any(r[2] == c for r in day2)\n    pg = set(r[1] for r in recs if r[2] == c)\n    if in1 and in2 and len(pg) >= 2:\n        res.append(c)\nprint(' '.join(map(str, res)) if res else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(d1, d2):\n        lines = [f'{len(d1)} {len(d2)}']\n        lines += [f'{t} {p} {c}' for t, p, c in d1]\n        lines += [f'{t} {p} {c}' for t, p, c in d2]\n        return '\\n'.join(lines)\n\n    def rec(pages, custs):\n        return (rng.randrange(86400), rng.randint(1, pages), rng.randint(1, custs))\n\n    tests = [\n        fmt([(0, 1, 1)], [(0, 1, 1)]),\n        fmt([(0, 1, 1)], [(5, 2, 1)]),\n        fmt([(0, 1, 1)], [(5, 2, 2)]),\n        fmt([(1, 1, 1), (2, 2, 1)], [(3, 3, 2)]),\n        fmt([(1, 7, 3), (2, 7, 3)], [(3, 7, 3), (4, 7, 3)]),\n        fmt([(1, 1, 5), (2, 2, 5), (3, 3, 5)], [(4, 1, 5)]),\n        fmt([(1, 1, 10**6)], [(2, 10**6, 10**6)]),\n    ]\n    for a, b, pages, custs in ((3, 3, 3, 3), (5, 4, 3, 4), (8, 8, 4, 5), (10, 12, 3, 6), (15, 15, 5, 8), (20, 20, 6, 10),\n                               (6, 6, 2, 3), (12, 10, 2, 4), (25, 25, 8, 12), (30, 30, 3, 15)):\n        for _ in range(2):\n            tests.append(fmt([rec(pages, custs) for _ in range(a)], [rec(pages, custs) for _ in range(b)]))\n    N = 50000\n    tests.append(fmt([rec(10**6, 30000) for _ in range(N)], [rec(10**6, 30000) for _ in range(N)]))\n    tests.append(fmt([rec(3, 20000) for _ in range(N)], [rec(3, 20000) for _ in range(N)]))\n    tests.append(fmt([rec(10**6, 10**6) for _ in range(N)], [rec(10**6, 10**6) for _ in range(N)]))\n    tests.append(fmt([rec(1, 40000) for _ in range(N)], [rec(1, 40000) for _ in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef loyal_customers(day1: List[Tuple[int, int, int]], day2: List[Tuple[int, int, int]]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    a, b = int(data[0]), int(data[1])\n    recs = [(int(data[2 + 3 * i]), int(data[3 + 3 * i]), int(data[4 + 3 * i])) for i in range(a + b)]\n    res = loyal_customers(recs[:a], recs[a:])\n    print(' '.join(map(str, res)) if res else -1)\n\n\nmain()\n",
+  "javascript": "function loyalCustomers(day1, day2) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst a = t[0], b = t[1]\nconst recs = []\nfor (let i = 0; i < a + b; i++) recs.push([t[2 + 3 * i], t[3 + 3 * i], t[4 + 3 * i]])\nconst res = loyalCustomers(recs.slice(0, a), recs.slice(a))\nconsole.log(res.length ? res.join(' ') : '-1')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> loyalCustomers(vector<array<long long,3>>& day1, vector<array<long long,3>>& day2) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int a, b;\n    cin >> a >> b;\n    vector<array<long long,3>> day1(a), day2(b);\n    for (int i = 0; i < a; i++) cin >> day1[i][0] >> day1[i][1] >> day1[i][2];\n    for (int i = 0; i < b; i++) cin >> day2[i][0] >> day2[i][1] >> day2[i][2];\n    vector<long long> res = loyalCustomers(day1, day2);\n    if (res.empty()) { cout << -1 << \"\\n\"; return 0; }\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] loyalCustomers(long[][] day1, long[][] day2) {\n        // Write your solution here\n        return new long[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken(); int a = (int) in.nval;\n        in.nextToken(); int b = (int) in.nval;\n        long[][] day1 = new long[a][3], day2 = new long[b][3];\n        for (int i = 0; i < a; i++)\n            for (int j = 0; j < 3; j++) { in.nextToken(); day1[i][j] = (long) in.nval; }\n        for (int i = 0; i < b; i++)\n            for (int j = 0; j < 3; j++) { in.nextToken(); day2[i][j] = (long) in.nval; }\n        long[] res = loyalCustomers(day1, day2);\n        if (res.length == 0) { System.out.println(-1); return; }\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

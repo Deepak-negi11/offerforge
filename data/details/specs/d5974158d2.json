@@ -1,0 +1,18 @@
+{
+ "qid": "d5974158d2",
+ "question": "Apple, Full-Stack Engineer (ICT3), technical phone screen. The problem was given vaguely and the candidate had to ask questions to pin it down. It narrowed to: **build a class that reads millions of votes from a ballot list and performs rank-based vote counting, and handle batching so memory usage stays bounded.** Apple interviewers reportedly cared about clarifying questions and clear communication as much as the final code.",
+ "lookingFor": [
+  "Asking clarifying questions before coding: ballot format, counting rule, ties, invalid ballots.",
+  "Designing a clean class and interface rather than a one-off script.",
+  "Handling large input with streaming and batches so memory is bounded.",
+  "Choosing sensible data structures (hash map tallies, compressed ballot patterns).",
+  "Talking through edge cases and complexity while coding."
+ ],
+ "answer": "**Clarify first.** What is a ballot: an ordered list of candidate IDs, best first? What is the counting rule: instant-runoff (eliminate the candidate with fewest votes, move their ballots to the next surviving preference, repeat until someone has more than 50%) or a points scheme such as Borda? How are ties, invalid ballots and partial rankings handled? Can the source be re-read (file, database cursor), or is it a one-shot stream?\n\n**Memory idea.** Never hold all ballots as objects. Read them through an iterator that yields batches (say 100k at a time). A plain tally (first choice or Borda) needs one pass: keep a map candidate -> score, update it per batch, discard the batch. Memory is O(candidates + batch).\n\n**Instant-runoff needs several rounds**, because eliminations change which candidate each ballot counts for. Two options:\n- Re-stream the ballots every round: for each ballot skip eliminated candidates and credit the first survivor. Time is O(rounds x ballots x ranking length), memory O(candidates + batch). Rounds are at most candidates - 1.\n- Compress first: many ballots are identical, so one pass builds a hash map from ranking (tuple) to count. If the distinct rankings fit in memory, every round runs on that small map. If not, fall back to re-streaming or an external group-by on disk.\n\n**Class sketch:** `VoteCounter(source, batch_size)` with `winner()`, plus private helpers `tally(eliminated)` and `lowest(tally)`. Keep the ballot source behind an interface so it can be a file, database or test fixture.\n\n**Edge cases:** tie for last place (use a deterministic rule such as lowest ID, or ask the interviewer), exhausted ballots (drop them from the majority denominator), duplicate or skipped ranks, empty input, a candidate who appears on no ballot.\n\n**Scaling:** batches can be tallied in parallel and the partial maps merged, since addition is associative. Test on a small election you can count by hand.",
+ "followUps": [
+  "How would you change the design if ballots arrive continuously and you want a live result?",
+  "What if the number of distinct rankings is too large for memory?",
+  "How do you break ties between candidates with equal fewest votes?",
+  "How would you test this class?"
+ ]
+}

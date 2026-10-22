@@ -1,0 +1,18 @@
+{
+ "qid": "5e9ba5f79d",
+ "question": "PhonePe SDE-2 machine coding round, a take-home style problem (6 to 24 hours reported) followed by a roughly one-hour review: **design and implement a logger library.** It should support **log levels**, multiple **sinks** (console, file and so on) and **processors**. In the review you must justify design choices. One candidate built a central manager of loggers, a Chain of Responsibility on log levels and a publish-subscribe broker, but added an overload letting the caller choose a specific sink; the interviewer said users should not need to think about sinks and rejected the solution for breaking the logging abstraction.",
+ "lookingFor": [
+  "Respecting the requirements and keeping the public API minimal.",
+  "Clean abstractions: Logger, Level, Sink, Processor/Formatter.",
+  "Appropriate patterns (Chain of Responsibility, Observer, Strategy) used with purpose.",
+  "Thread safety and performance (async logging, buffering).",
+  "Ability to defend or revise design decisions."
+ ],
+ "answer": "**Requirements to confirm.** Levels (DEBUG, INFO, WARN, ERROR, FATAL) with a minimum threshold; multiple sinks (console, file, maybe remote); processors that transform or enrich a message (timestamp, thread, formatting); configuration without changing code; thread-safe use from many threads.\n\n**Public API: keep it tiny.** `logger.log(level, message)` plus convenience methods like `info(msg)`. The caller never sees sinks. Which sinks receive a message is decided by **configuration**, not by call sites. This is the lesson from the reported rejection: extra overloads that expose internals leak the abstraction, even if optional.\n\n**Components.**\n- `LogLevel` enum with ordering.\n- `LogMessage(level, text, timestamp, threadName, loggerName)`.\n- `Sink` interface (`write(LogMessage)`) with `ConsoleSink`, `FileSink`; add new sinks without touching existing code (Open/Closed).\n- `Processor`/`Formatter`: a chain that enriches or formats messages. Chain of Responsibility fits; so does a simple ordered list.\n- `LoggerConfig`: maps level thresholds to sinks (for example ERROR also goes to a file), built with a builder.\n- `LoggerFactory.getLogger(name)` returns a cached logger.\n\n**Dispatch.** The logger filters by level, runs processors, then forwards to the configured sinks (Observer or a simple list). A pub-sub broker is acceptable but be ready to justify it; avoid unneeded complexity.\n\n**Concurrency and performance.** Synchronise file writes or use a single writer thread fed by a bounded `BlockingQueue` (asynchronous logging), with a policy for overflow (drop, block) and flush on shutdown. Handle sink failures so a broken sink does not crash the app.\n\n**Review prep.** Be able to explain each pattern, what you chose not to build, how to add a sink, and how to test (a fake in-memory sink).",
+ "followUps": [
+  "Why should the caller not choose the sink?",
+  "How would you make logging asynchronous without losing messages on shutdown?",
+  "How would you rotate log files?",
+  "How does your design follow SOLID?"
+ ]
+}

@@ -1,0 +1,49 @@
+{
+ "pid": "nearest-exit-from-entrance-in-maze",
+ "title": "Nearest Exit from Entrance in Maze",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given a maze as a grid of `r` rows and `c` columns. Each cell is either empty (`.`) or a wall (`+`). You start at the **entrance**, an empty cell given by its row and column (0-indexed) that lies on the border of the grid.\n\nIn one step you move from your cell to an adjacent empty cell: up, down, left or right. You cannot step onto a wall or leave the grid.\n\nAn **exit** is any empty cell on the border of the grid (first or last row, first or last column). The entrance cell itself does **not** count as an exit, even though it is on the border.\n\nFind the minimum number of steps from the entrance to the nearest exit. If no exit can be reached, the answer is `-1`.\n\n**Follow-up:** the candidate was asked to write the solution, cover the edge cases (no exit, a one-cell maze, a walled-in entrance) and do a dry run on an example.",
+ "input_format": "The first line contains two integers `r` and `c`.\nThe next `r` lines each contain a string of `c` characters, `.` or `+`.\nThe last line contains two integers `er` and `ec`, the entrance row and column.",
+ "output_format": "Print a single integer: the number of steps to the nearest exit, or `-1` if there is none.",
+ "constraints": [
+  "1 ≤ r, c ≤ 500",
+  "Each cell is `.` or `+`",
+  "The entrance is an empty cell on the border of the grid"
+ ],
+ "examples": [
+  {
+   "input": "3 5\n++.++\n.....\n+++++\n1 0",
+   "output": "3",
+   "explanation": "From the entrance (1, 0) walk right to (1, 1), then (1, 2), then up to (0, 2). That cell is on the top border, so it is an exit 3 steps away. The other exit (1, 4) is 4 steps away."
+  },
+  {
+   "input": "3 3\n+++\n.+.\n+++\n1 0",
+   "output": "-1",
+   "explanation": "The entrance (1, 0) is surrounded by walls, so it cannot move, and the empty cell (1, 2) is unreachable."
+  },
+  {
+   "input": "1 1\n.\n0 0",
+   "output": "-1",
+   "explanation": "The only cell is the entrance, which does not count as an exit."
+  }
+ ],
+ "complexity": {
+  "time": "O(r * c)",
+  "space": "O(r * c)"
+ },
+ "hints": [
+  "You want the fewest moves on an unweighted grid, so think about which traversal visits cells in order of distance.",
+  "Run a breadth-first search from the entrance, marking cells as visited when you enqueue them so each is processed once.",
+  "The first dequeued cell that lies on the border and is not the entrance is the nearest exit; check the entrance explicitly."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\n\ndef main():\n    t = sys.stdin.read().split()\n    r, c = int(t[0]), int(t[1])\n    g = t[2:2 + r]\n    er, ec = int(t[2 + r]), int(t[3 + r])\n    dist = [[-1] * c for _ in range(r)]\n    dist[er][ec] = 0\n    q = deque([(er, ec)])\n    while q:\n        x, y = q.popleft()\n        d = dist[x][y]\n        if (x, y) != (er, ec) and (x == 0 or y == 0 or x == r - 1 or y == c - 1):\n            print(d)\n            return\n        for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):\n            if 0 <= nx < r and 0 <= ny < c and g[nx][ny] == '.' and dist[nx][ny] < 0:\n                dist[nx][ny] = d + 1\n                q.append((nx, ny))\n    print(-1)\n\n\nmain()\n",
+ "brute": "import sys\n\nt = sys.stdin.read().split()\nr, c = int(t[0]), int(t[1])\ng = t[2:2 + r]\ner, ec = int(t[2 + r]), int(t[3 + r])\nINF = 10**9\nd = [[INF] * c for _ in range(r)]\nd[er][ec] = 0\nchanged = True\nwhile changed:\n    changed = False\n    for x in range(r):\n        for y in range(c):\n            if g[x][y] != '.':\n                continue\n            for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):\n                if 0 <= nx < r and 0 <= ny < c and d[nx][ny] + 1 < d[x][y]:\n                    d[x][y] = d[nx][ny] + 1\n                    changed = True\nbest = INF\nfor x in range(r):\n    for y in range(c):\n        if (x, y) != (er, ec) and g[x][y] == '.' and (x == 0 or y == 0 or x == r - 1 or y == c - 1):\n            best = min(best, d[x][y])\nprint(best if best < INF else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(g, er, ec):\n        return f'{len(g)} {len(g[0])}\\n' + '\\n'.join(g) + f'\\n{er} {ec}'\n\n    def border(r, c):\n        return [(x, y) for x in range(r) for y in range(c) if x in (0, r - 1) or y in (0, c - 1)]\n\n    def rand_grid(r, c, p):\n        g = [['+' if rng.random() < p else '.' for _ in range(c)] for _ in range(r)]\n        er, ec = rng.choice(border(r, c))\n        g[er][ec] = '.'\n        return fmt([''.join(row) for row in g], er, ec)\n\n    tests = [fmt(['.'], 0, 0), fmt(['..'], 0, 0), fmt(['.+.'], 0, 0), fmt(['...'], 0, 1 - 1),\n             fmt(['++.++', '.....', '+++++'], 1, 0), fmt(['+++', '.+.', '+++'], 1, 0),\n             fmt(['+.+', '+.+', '+.+'], 0, 1), fmt(['++++', '+..+', '+..+', '+++.'], 3, 3)]\n    for r, c in ((1, 5), (5, 1), (2, 2), (3, 3), (4, 6), (6, 4), (8, 8), (10, 10), (12, 7)):\n        for p in (0.25, 0.45):\n            tests.append(rand_grid(r, c, p))\n    R = C = 500\n    tests.append(rand_grid(R, C, 0.3))\n    # snake corridor through the interior; entrance on the left border, exit on the right border at the end\n    def snake(r, c, open_end):\n        g = [['+'] * c for _ in range(r)]\n        for i in range(1, r - 1, 2):\n            for j in range(1, c - 1):\n                g[i][j] = '.'\n            if i + 2 <= r - 2:\n                j = c - 2 if (i // 2) % 2 == 0 else 1\n                g[i + 1][j] = '.'\n        g[1][0] = '.'\n        last = r - 2 if (r - 2) % 2 == 1 else r - 3\n        if open_end:\n            g[last][c - 1 if (last // 2) % 2 == 0 else 0] = '.'\n        return fmt([''.join(row) for row in g], 1, 0)\n    tests.append(snake(499, 499, True))\n    tests.append(snake(499, 499, False))\n    tests.append(fmt(['.' * 500] * 500, 250, 0))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef nearest_exit(maze: List[str], entrance: List[int]) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    maze = data[2:2 + r]\n    entrance = [int(data[2 + r]), int(data[3 + r])]\n    print(nearest_exit(maze, entrance))\n\n\nmain()\n",
+  "javascript": "function nearestExit(maze, entrance) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst r = Number(t[0]), c = Number(t[1])\nconst maze = t.slice(2, 2 + r)\nconst entrance = [Number(t[2 + r]), Number(t[3 + r])]\nconsole.log(String(nearestExit(maze, entrance)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint nearestExit(vector<string>& maze, vector<int>& entrance) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<string> maze(r);\n    for (int i = 0; i < r; i++) cin >> maze[i];\n    vector<int> entrance(2);\n    cin >> entrance[0] >> entrance[1];\n    cout << nearestExit(maze, entrance) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int nearestExit(String[] maze, int[] entrance) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int r = Integer.parseInt(st.nextToken());\n        int c = Integer.parseInt(st.nextToken());\n        String[] maze = new String[r];\n        for (int i = 0; i < r; i++) maze[i] = st.nextToken();\n        int[] entrance = new int[]{Integer.parseInt(st.nextToken()), Integer.parseInt(st.nextToken())};\n        System.out.println(nearestExit(maze, entrance));\n    }\n}\n"
+ }
+}

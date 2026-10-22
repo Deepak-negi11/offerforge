@@ -1,0 +1,19 @@
+{
+ "qid": "589520dcbd",
+ "question": "Implement JavaScript-style Promises in Java. The interviewer asked for working code first (state handling, `then` chaining, resolving and rejecting) and then for optimisation and improvements afterwards.\n\nThe candidate who reported this in a Rubrik system-coding round did not manage to produce a working version, so a clear, minimal, correct core matters more than extra features.",
+ "lookingFor": [
+  "Do you understand the promise state machine: pending, fulfilled, rejected, settled exactly once?",
+  "Can you design `then` to return a new promise and support chaining and error propagation?",
+  "Can you handle callbacks registered before and after settlement without races?",
+  "Do you pick sensible threading and callback execution (an executor) in Java?",
+  "Do you iterate: working first, then cleaner API, thread-safety and edge cases?"
+ ],
+ "answer": "**Semantics to implement.**\n- States: `PENDING`, `FULFILLED(value)`, `REJECTED(error)`. A promise settles at most once.\n- `then(onFulfilled, onRejected)` returns a **new** promise. Its result is the handler's return value; if the handler throws, the new promise is rejected. If there is no handler for the outcome, the value or error passes through.\n- Handlers registered before settlement are queued; those registered after run right away (on the executor, not inline, to mimic async delivery).\n\n**Sketch:**\n\n```java\nclass Promise<T> {\n  enum State { PENDING, FULFILLED, REJECTED }\n  private State state = State.PENDING;\n  private T value; private Throwable error;\n  private final List<Runnable> callbacks = new ArrayList<>();\n  private final Executor ex;\n\n  Promise(Executor ex, BiConsumer<Consumer<T>, Consumer<Throwable>> executor) {\n    this.ex = ex;\n    try { executor.accept(this::resolve, this::reject); }\n    catch (Throwable t) { reject(t); }\n  }\n  synchronized void resolve(T v) { settle(State.FULFILLED, v, null); }\n  synchronized void reject(Throwable e) { settle(State.REJECTED, null, e); }\n  private void settle(State s, T v, Throwable e) {\n    if (state != State.PENDING) return;      // settle once\n    state = s; value = v; error = e;\n    callbacks.forEach(c -> ex.execute(c)); callbacks.clear();\n  }\n  <R> Promise<R> then(Function<T,R> ok, Function<Throwable,R> fail) {\n    return new Promise<>(ex, (res, rej) -> {\n      Runnable r = () -> { try {\n        if (state == State.FULFILLED) res.accept(ok != null ? ok.apply(value) : (R) value);\n        else if (fail != null) res.accept(fail.apply(error)); else rej.accept(error);\n      } catch (Throwable t) { rej.accept(t); } };\n      synchronized (this) { if (state == State.PENDING) callbacks.add(r); else ex.execute(r); }\n    });\n  }\n}\n```\n\n**Improvements to discuss:** `catch`/`finally`, `Promise.all` (a counter plus a result array), `Promise.race`, adopting a promise returned from a handler (flattening), unhandled-rejection reporting, and the fact that Java already provides `CompletableFuture`, so a real project would use it.",
+ "followUps": [
+  "How is your design different from CompletableFuture?",
+  "How would you implement Promise.all and Promise.race?",
+  "How do you handle a handler that returns another promise?",
+  "Where can races occur, and how does your synchronisation prevent them?",
+  "Why should callbacks run on an executor rather than inline?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "e202a6efb5",
+ "question": "In the technical specialization round (60 minutes) for a Senior Software Engineer (Frontend) role at PayPal, after an easy binary search problem, the interviewer asked React internals questions: the **virtual DOM, the reconciliation process, the diffing algorithm and how React updates the UI efficiently**.\n\nThe candidate was then asked to **write pseudocode for the diffing algorithm** (a function that compares two trees recursively, depth-first, comparing nodes at each level), and finally to **build a currency converter in React** with dynamic conversion driven by the selected currencies (the rest of the requirement list was cut off in the source).",
+ "lookingFor": [
+  "Do you understand why a virtual DOM exists and what reconciliation does?",
+  "Can you state React's diffing heuristics and why they give roughly linear cost?",
+  "Can you express a recursive tree diff clearly in pseudocode?",
+  "Can you build a controlled, clean React component with correct state and effects?",
+  "Do you handle loading, error and edge cases in the UI?"
+ ],
+ "answer": "**Virtual DOM and reconciliation.** The virtual DOM is a lightweight JavaScript description of the UI. On a state change React renders a new tree of elements, **reconciles** (diffs) it against the previous tree, and applies only the minimal set of real DOM changes in a commit phase. A generic tree diff is O(n^3), so React uses two heuristics to get O(n):\n1. Elements of **different types** produce different trees: replace the subtree (unmount the old, mount the new).\n2. Lists use **keys** to identify children across renders, so items can be moved instead of recreated.\n\nSame type means keep the node and update changed props, then recurse into children.\n\n**Diff pseudocode.**\n```\ndiff(oldNode, newNode, patches):\n  if oldNode is null:            patches.add(CREATE newNode); return\n  if newNode is null:            patches.add(REMOVE oldNode); return\n  if oldNode.type != newNode.type:\n                                 patches.add(REPLACE oldNode -> newNode); return\n  if text node and text differs: patches.add(SET_TEXT newNode.text)\n  propChanges = compare(oldNode.props, newNode.props)\n  if propChanges not empty:      patches.add(UPDATE_PROPS oldNode, propChanges)\n  diffChildren(oldNode.children, newNode.children, patches)\n\ndiffChildren(oldKids, newKids, patches):\n  index old kids by key (or position if no key)\n  for each new kid: match old kid by key -> diff(old, new) or CREATE; record MOVE if order changed\n  for each unmatched old kid: REMOVE\n```\n\n**Currency converter.** Hold `amount`, `from` and `to` in state, load rates once (a `useEffect` fetch from a rates API, with loading and error states, and a fallback or static map if the API is unavailable), and compute the result as **derived data** during render, not extra state: `amount * rates[to] / rates[from]`. Use controlled inputs and selects, validate numeric input, add a swap button, format output with `Intl.NumberFormat`, and use `useMemo` only if the computation is costly. Mention debouncing if you fetch per change, and label elements for accessibility.",
+ "followUps": [
+  "Why are array indexes a bad key in a list that can reorder?",
+  "What changed with React Fiber (incremental rendering, priorities)?",
+  "How would you prevent unnecessary re-renders (React.memo, useMemo, useCallback)?",
+  "How would you handle stale rates or race conditions between two fast fetches?"
+ ]
+}

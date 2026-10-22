@@ -1,0 +1,17 @@
+{
+ "qid": "ede4114292",
+ "question": "In an Adobe SDE-4 (8.5 years of experience) HLD round with two questions, the candidate was asked to **design a system that generates monthly statements for millions of users**, like a bank sending statements every month. The same round asked them to **design CRUD APIs for a `course(course_id, course_name, company_id)` table in a multi-tenant application**.",
+ "lookingFor": [
+  "Can you design a large batch pipeline that is parallel, restartable and idempotent?",
+  "Do you handle scale: millions of users, deadlines, retries, skew and backpressure?",
+  "Can you design multi-tenant APIs with isolation and authorization?",
+  "Do you think about delivery, storage, security and cost?"
+ ],
+ "answer": "**Statement generation: requirements and scale**. Say 10 million users per month. If the job runs over about 10 hours, that is roughly 300 statements per second on average, with burst capacity. Output: a PDF (and/or data) per user, stored and delivered by email or in-app. Requirements: correctness, exactly one statement per user per period, auditability, and the ability to re-generate.\n\n**Pipeline**:\n1. A scheduler triggers at month end, takes a consistent snapshot of transactions (a read replica or a data warehouse), and creates a `StatementRun` record.\n2. A **planner** partitions users (by id range or hash) into chunks and puts jobs on a queue (Kafka/SQS).\n3. **Workers** (stateless, auto-scaled) pull a chunk, fetch each user's transactions for the period, compute balances, render a template to PDF, and upload it to object storage (key `tenant/period/userId.pdf`).\n4. Write status per user (`PENDING`, `GENERATED`, `SENT`, `FAILED`) in a table keyed by `(user, period)`. This unique key makes the work **idempotent**: a retry overwrites the same file and does not duplicate.\n5. A **delivery** stage sends emails with a secure link (or notifies in-app), with rate limits to the email provider and retries with a dead-letter queue.\n\n**Key points**: precompute running aggregates during the month so the end-of-month work is mostly formatting; avoid hot-spotting the primary DB; tune chunk sizes to handle skew (heavy users); monitor progress, failure rate and lag; encrypt files, use short-lived signed URLs and verify the user; apply retention rules.\n\n**Multi-tenant CRUD for `course`**: REST endpoints `POST/GET/PUT/DELETE /courses` (and `GET /courses/{id}`), where the `company_id` is **taken from the authenticated token, never from the request body**, and every query filters by it (`WHERE course_id = ? AND company_id = ?`) to prevent cross-tenant access. Add a composite index starting with `company_id`, pagination (cursor-based), validation, optimistic locking with a version column, and consider row-level security.",
+ "followUps": [
+  "How do you make sure a worker crash does not lead to duplicate or missing statements?",
+  "How would you handle one very large customer with millions of transactions?",
+  "How do you prevent one tenant from reading another tenant's courses?",
+  "How would you reduce the time of the month-end run?"
+ ]
+}

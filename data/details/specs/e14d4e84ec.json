@@ -1,0 +1,17 @@
+{
+ "qid": "e14d4e84ec",
+ "question": "Arcesium software developer intern, technical interview round 2. When the candidate named DBMS as their favourite subject, the interviewer asked them to **explain the ACID properties with a focus on durability**: how does a database guarantee that committed data survives a crash?",
+ "lookingFor": [
+  "Correct definitions of Atomicity, Consistency, Isolation, Durability.",
+  "Understands write-ahead logging and the fsync/commit path.",
+  "Can explain crash recovery (redo and undo).",
+  "Knows the practical trade-offs, such as relaxed durability settings."
+ ],
+ "answer": "**ACID in one line each**\n- **Atomicity:** a transaction is all or nothing; a failure midway leaves no partial effects.\n- **Consistency:** a transaction moves the database from one valid state to another, respecting constraints (keys, checks, foreign keys).\n- **Isolation:** concurrent transactions do not see each other's intermediate state; levels range from read uncommitted to serializable.\n- **Durability:** once the database acknowledges a commit, the change persists even after a crash or power loss.\n\n**How durability is achieved**\nMemory is volatile, and writing every changed data page to disk at commit would be slow and random-I/O heavy. Instead databases use **write-ahead logging (WAL)**:\n1. Every change is first described in a sequential **log record** (redo and, in some engines, undo information).\n2. At `COMMIT`, the log records up to the commit record are **flushed to stable storage** (`fsync`). Only after this does the DB tell the client \"committed\".\n3. The modified data pages stay in the buffer pool and are written to disk lazily (background writer, **checkpoints**).\n\nSequential log appends are fast, and the log is enough to rebuild any lost page changes.\n\n**Crash recovery** (ARIES-style): on restart, scan the log from the last checkpoint. **Redo** committed changes whose pages never reached disk; **undo** changes from transactions that had not committed (this also provides atomicity).\n\n**Other measures:** replication to other nodes or synchronous replicas, backups plus archived logs for point-in-time recovery, battery-backed write caches, and checksums to detect torn pages.\n\n**Trade-offs:** settings like `synchronous_commit=off` (PostgreSQL) or `innodb_flush_log_at_trx_commit=2` (MySQL) improve throughput but can lose the last moments of commits on a crash. Group commit batches many transactions into one `fsync`.\n\nAnswering with the WAL flow shows depth beyond definitions.",
+ "followUps": [
+  "Why not just write the data pages to disk at commit time?",
+  "What is a checkpoint and why does it speed recovery?",
+  "How do atomicity and durability both depend on the log?",
+  "What are the differences between physical and logical logging?"
+ ]
+}

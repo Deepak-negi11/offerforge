@@ -1,0 +1,19 @@
+{
+ "qid": "4f56e12e17",
+ "question": "Mastercard on-campus Software Engineer, Technical Interview 2. The interviewer asked a design-style question: **how does a lift (elevator) work?** After the candidate struggled with the open version, it was **simplified to a single user using the lift**, which the candidate solved. Treat it as a low-level design exercise: state, behaviour and a clean model.",
+ "lookingFor": [
+  "Can you simplify an open-ended problem and build up incrementally?",
+  "Do you identify entities, state and transitions (state machine)?",
+  "Is your code structure OOP-sound and extensible?",
+  "Do you handle edge cases such as invalid floors, doors and idle state?",
+  "Can you discuss how the design extends to multiple users and lifts?"
+ ],
+ "answer": "**Clarify scope.** Start with one lift, one user, N floors. The user presses a floor button; the lift goes there, opens the doors, and returns to idle. Ignore weight limits and emergencies initially, but mention them.\n\n**Entities.**\n- `Elevator`: `currentFloor`, `state` (IDLE, MOVING_UP, MOVING_DOWN), `doorState`, `targetFloor`.\n- `Request` (floor number, or an external call with direction).\n- `Controller` (decides where to go); `Door`, `Button` and `Display` as small classes if needed.\n\n**State machine.** IDLE -> (request) -> MOVING_UP/DOWN -> (arrived) -> DOORS_OPEN -> (timeout) -> DOORS_CLOSED -> IDLE. Doors open only when stopped; movement starts only when doors are closed.\n\n**Single-user flow.**\n\n    class Elevator {\n        int current = 0; State state = State.IDLE;\n        void goTo(int floor) {\n            if (floor < 0 || floor >= floors) throw new IllegalArgumentException();\n            if (floor == current) { openDoors(); return; }\n            state = floor > current ? State.UP : State.DOWN;\n            while (current != floor) current += (state == State.UP) ? 1 : -1;\n            state = State.IDLE; openDoors(); closeDoors();\n        }\n    }\n\nThe key idea: direction is derived by comparing current and target floors; the lift moves one floor at a time.\n\n**Extending to many requests (mention it).**\n- Keep a set of pending stops (for example two sorted sets: up stops and down stops).\n- The classic strategy is SCAN / \"elevator algorithm\": keep going in the current direction serving stops on the way, then reverse. This avoids starvation better than first-come-first-served.\n- With several lifts, a dispatcher assigns each hall call to the best lift (nearest, same direction, least loaded).\n- Use the **State pattern** for lift states and the **Strategy pattern** for scheduling; make the controller thread-safe because buttons are pressed concurrently.\n\n**Edge cases.** Same floor as current, invalid floor, overload, door obstruction, emergency stop.",
+ "followUps": [
+  "How would you handle requests from several users at once?",
+  "Which scheduling algorithm would you choose and why?",
+  "How would you assign calls across multiple lifts?",
+  "Which design patterns fit here?",
+  "How would you test the elevator logic?"
+ ]
+}

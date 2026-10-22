@@ -1,0 +1,18 @@
+{
+ "qid": "06b217e87b",
+ "question": "Technical interview for a TCS Prime (NQT) role. The panel grilled the candidate on Java and the collections framework, and one question was: **List some differences between HashMap and ConcurrentHashMap.** The candidate answered that HashMap allows one null key and multiple null values, and that ConcurrentHashMap is similar but synchronized and better with multiple threads.",
+ "lookingFor": [
+  "Knowledge of the Java collections framework and thread safety.",
+  "Precise understanding beyond \"it is synchronized\".",
+  "Awareness of the null-handling difference and the reasons behind it.",
+  "Ability to choose the right map in a given situation."
+ ],
+ "answer": "**Summary.** `HashMap` is **not thread-safe**. `ConcurrentHashMap` is **thread-safe and designed for high concurrency**, without locking the whole map.\n\n| Point | HashMap | ConcurrentHashMap |\n|---|---|---|\n| Thread safety | Not safe; concurrent writes can corrupt it or lose updates | Safe for concurrent reads and writes |\n| Locking | None | Fine-grained: in Java 8+, CAS plus synchronization on individual bins (earlier versions locked segments) |\n| Null key / values | One null key, many null values | **No null keys or null values** (throws `NullPointerException`) |\n| Iteration | Fail-fast: throws `ConcurrentModificationException` if modified during iteration | Weakly consistent: does not throw, may or may not reflect concurrent changes |\n| Performance (single thread) | Slightly faster | Slightly slower |\n| Atomic operations | None | `putIfAbsent`, `compute`, `merge`, `computeIfAbsent` are atomic |\n\n**Why no nulls in ConcurrentHashMap?** If `get(key)` returns null, you cannot tell whether the key is absent or mapped to null, and in a concurrent setting you cannot safely check `containsKey` and then `get`, because another thread may change the map in between.\n\n**Not the same as `Hashtable` or `Collections.synchronizedMap`.** Those lock the whole map for every operation, so threads queue up. `ConcurrentHashMap` lets many readers and writers proceed together, so it scales better.\n\n**Caveat.** Individual operations are atomic, but compound actions such as \"check then put\" written by hand are not. Use `putIfAbsent`, `computeIfAbsent` or `merge` instead.\n\n```java\nMap<String,Integer> counts = new ConcurrentHashMap<>();\ncounts.merge(\"java\", 1, Integer::sum);   // atomic increment\n```\n\n**When to use which.** Use `HashMap` for single-threaded code or when the map is confined to one thread or built once and never changed. Use `ConcurrentHashMap` when multiple threads read and update shared state, for example a cache or counters.\n\nA better answer than \"it is synchronized\" is to say it uses fine-grained locking and atomic compound operations, so concurrency is higher than a fully synchronized map.",
+ "followUps": [
+  "How does HashMap work internally, and what changed in Java 8 for long buckets?",
+  "What happens when two threads call put on a HashMap at the same time?",
+  "How is ConcurrentHashMap different from Hashtable?",
+  "What does fail-fast mean for an iterator?",
+  "How would you build a thread-safe counter map?"
+ ]
+}

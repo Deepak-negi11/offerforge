@@ -1,0 +1,18 @@
+{
+ "qid": "497e3430dd",
+ "question": "In a TCS Prime interview (NQT 2026) the SQL part asked the candidate to write **a query to find the Nth highest salary** and **another query to list employees who joined in the last 6 months.**",
+ "lookingFor": [
+  "Can you write the Nth highest salary with a correct approach that handles duplicates?",
+  "Do you know several methods and their trade-offs (DENSE_RANK, LIMIT/OFFSET, correlated subquery)?",
+  "Can you use date arithmetic for a relative time window and know it varies by database?",
+  "Do you consider edge cases such as N larger than the number of salaries, NULL dates and future dates?",
+  "Do you state your assumptions about the schema?"
+ ],
+ "answer": "**Assume** `employee(id, name, salary, hire_date)`.\n\n**1. Nth highest salary (distinct values).**\n\nWindow function (MySQL 8+, PostgreSQL, SQL Server, Oracle):\n\n```\nSELECT DISTINCT salary\nFROM (\n  SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk\n  FROM employee\n) t\nWHERE rnk = 3;   -- replace 3 with N\n```\n\n`DENSE_RANK` gives tied salaries the same rank with no gaps, so `rnk = N` is the Nth *distinct* salary. If N exceeds the count, no row is returned.\n\nWithout window functions (portable):\n\n```\nSELECT DISTINCT e1.salary\nFROM employee e1\nWHERE 3 - 1 = (SELECT COUNT(DISTINCT e2.salary)\n               FROM employee e2\n               WHERE e2.salary > e1.salary);\n```\n\nThis says \"exactly N-1 distinct salaries are higher than mine\". It is correct but runs a subquery per row, so it is slow on large tables.\n\nMySQL/PostgreSQL shortcut:\n\n```\nSELECT DISTINCT salary FROM employee ORDER BY salary DESC LIMIT 1 OFFSET 2;  -- OFFSET N-1\n```\n\n**2. Employees who joined in the last 6 months.**\n\nMySQL:\n\n```\nSELECT * FROM employee\nWHERE hire_date >= CURDATE() - INTERVAL 6 MONTH;\n```\n\nPostgreSQL:\n\n```\nSELECT * FROM employee\nWHERE hire_date >= CURRENT_DATE - INTERVAL '6 months';\n```\n\nSQL Server:\n\n```\nSELECT * FROM employee\nWHERE hire_date >= DATEADD(MONTH, -6, GETDATE());\n```\n\nOracle: `WHERE hire_date >= ADD_MONTHS(SYSDATE, -6)`.\n\nAdd `AND hire_date <= CURRENT_DATE` if future-dated rows could exist. Keep the column bare on the left side of the comparison so an index on `hire_date` can be used; wrapping it in a function can prevent that.\n\n**Say out loud:** the date syntax differs per database, so ask which one the interviewer uses, and state whether \"Nth highest\" means distinct values.",
+ "followUps": [
+  "What if two employees share the Nth highest salary and you want both?",
+  "Why use DENSE_RANK instead of RANK or ROW_NUMBER here?",
+  "How would you find the Nth highest salary per department?",
+  "How would you speed up the date-range query on a large table?"
+ ]
+}

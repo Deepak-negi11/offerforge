@@ -1,0 +1,47 @@
+{
+ "pid": "sap-labs-path-in-a-binary-matrix-right-down",
+ "title": "Path in a Binary Matrix (Right/Down)",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a binary grid with `r` rows and `c` columns. A cell containing `0` is **blocked**; a cell containing `1` is **open**. You stand on the top-left cell `(0, 0)` and want to reach the bottom-right cell `(r-1, c-1)`. In one move you may go **one cell down** or **one cell right**, and only onto an open cell. The start cell itself must also be open.\n\nDecide whether the bottom-right cell can be reached. If it can, print a path.\n\nMany paths may exist, so print the canonical one: among all valid paths, the one whose sequence of moves is lexicographically smallest when `D` (down) is considered smaller than `R` (right). In other words, at each step go down whenever the bottom-right cell is still reachable from the cell below, otherwise go right.\n\nThe path is printed as the list of visited cells, from start to finish, each written as `row,col` (0-indexed).\n\n**Follow-up:** the interviewer was mostly interested in the approach: model the grid as a graph (how do you number the cells and build adjacency?) and explain the DFS. Can you do it without building an explicit adjacency list?",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains a string of exactly `c` characters, each `0` or `1`, with no spaces.",
+ "output_format": "If the bottom-right cell is unreachable, print `NO`.\nOtherwise print `YES` on the first line and, on the second line, the cells of the canonical path separated by single spaces, each written as `row,col`.",
+ "constraints": [
+  "1 ≤ r, c ≤ 700"
+ ],
+ "examples": [
+  {
+   "input": "3 3\n111\n011\n111",
+   "output": "YES\n0,0 0,1 1,1 2,1 2,2",
+   "explanation": "Going down from (0,0) hits a blocked cell, so the path goes right. From (0,1) it can go down to (1,1), then down to (2,1), and finally right to (2,2). Going right at (1,1) instead would also work, but down is preferred whenever the target stays reachable."
+  },
+  {
+   "input": "2 3\n110\n001",
+   "output": "NO",
+   "explanation": "From (0,0) the only open neighbour is (0,1). From (0,1) the cell below is blocked and (0,2) is blocked, so the frontier dies out before the bottom-right corner."
+  },
+  {
+   "input": "2 2\n10\n11",
+   "output": "YES\n0,0 1,0 1,1",
+   "explanation": "The right neighbour is blocked, so the only route goes down and then right."
+  }
+ ],
+ "complexity": {
+  "time": "O(r * c)",
+  "space": "O(r * c)"
+ },
+ "hints": [
+  "Think of every open cell as a node with at most two outgoing edges (down and right). The graph has no cycles, so you can reason about it with DFS or DP.",
+  "Compute, for every cell, whether the bottom-right cell is reachable from it. Fill the table from the bottom-right corner upwards: a cell is good if it is open and its down or right neighbour is good.",
+  "Once you have that table, rebuilding the canonical path is a simple walk: at each step prefer the down neighbour if it is good, otherwise take the right neighbour."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    g = data[2:2 + r]\n    good = [None] * (r + 1)\n    good[r] = [False] * (c + 1)\n    for i in range(r - 1, -1, -1):\n        row = g[i]\n        below = good[i + 1]\n        cur = [False] * (c + 1)\n        for j in range(c - 1, -1, -1):\n            if row[j] == '1' and ((i == r - 1 and j == c - 1) or below[j] or cur[j + 1]):\n                cur[j] = True\n        good[i] = cur\n    if not good[0][0]:\n        print('NO')\n        return\n    i = j = 0\n    path = ['0,0']\n    while i != r - 1 or j != c - 1:\n        if i + 1 < r and good[i + 1][j]:\n            i += 1\n        else:\n            j += 1\n        path.append('%d,%d' % (i, j))\n    print('YES')\n    print(' '.join(path))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\ng = data[2:2 + r]\npaths = []\n\ndef go(i, j, cells, moves):\n    if g[i][j] != '1':\n        return\n    cells.append('%d,%d' % (i, j))\n    if i == r - 1 and j == c - 1:\n        paths.append((moves, list(cells)))\n    else:\n        if i + 1 < r:\n            go(i + 1, j, cells, moves + 'D')\n        if j + 1 < c:\n            go(i, j + 1, cells, moves + 'R')\n    cells.pop()\n\ngo(0, 0, [], '')\nif not paths:\n    print('NO')\nelse:\n    best = min(paths)\n    print('YES')\n    print(' '.join(best[1]))\n",
+ "generator": "def gen(rng):\n    def fmt(rows):\n        return '%d %d\\n' % (len(rows), len(rows[0])) + '\\n'.join(rows)\n    def rnd(r, c, p):\n        return [''.join('1' if rng.random() < p else '0' for _ in range(c)) for _ in range(r)]\n    tests = [fmt(['1']), fmt(['0']), fmt(['10', '11']), fmt(['11', '01']), fmt(['01', '11']),\n             fmt(['11', '10']), fmt(['1111']), fmt(['1', '1', '1', '1']), fmt(['1011']), fmt(['1', '0', '1'])]\n    for _ in range(40):\n        r = rng.randint(1, 6)\n        c = rng.randint(1, 6)\n        p = rng.choice([0.6, 0.75, 0.85, 0.95])\n        rows = [list(x) for x in rnd(r, c, p)]\n        rows[0][0] = '1'\n        rows[r - 1][c - 1] = '1'\n        tests.append(fmt([''.join(x) for x in rows]))\n    R = C = 700\n    # all open\n    tests.append(fmt(['1' * C for _ in range(R)]))\n    # random dense\n    rows = [list(x) for x in rnd(R, C, 0.9)]\n    rows[0][0] = '1'\n    rows[R - 1][C - 1] = '1'\n    tests.append(fmt([''.join(x) for x in rows]))\n    # one monotone path plus noise: forces a long detour search\n    rows = [['1' if rng.random() < 0.3 else '0' for _ in range(C)] for _ in range(R)]\n    i = j = 0\n    rows[0][0] = '1'\n    while i != R - 1 or j != C - 1:\n        if i == R - 1:\n            j += 1\n        elif j == C - 1:\n            i += 1\n        elif rng.random() < 0.5:\n            i += 1\n        else:\n            j += 1\n        rows[i][j] = '1'\n    tests.append(fmt([''.join(x) for x in rows]))\n    # unreachable: everything open except the anti-diagonal wall one step before the goal\n    rows = [['1'] * C for _ in range(R)]\n    rows[R - 2][C - 1] = '0'\n    rows[R - 1][C - 2] = '0'\n    tests.append(fmt([''.join(x) for x in rows]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Optional\n\n\ndef find_path(grid: List[str]) -> Optional[List[str]]:\n    # Return the canonical path as a list of \"row,col\" strings, or None if unreachable.\n    # Write your solution here\n    return None\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    grid = data[2:2 + r]\n    path = find_path(grid)\n    if path is None:\n        print('NO')\n    else:\n        print('YES')\n        print(' '.join(path))\n\n\nmain()\n",
+  "javascript": "function findPath(grid) {\n  // Return the canonical path as an array of \"row,col\" strings, or null if unreachable.\n  // Write your solution here\n  return null\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst r = Number(t[0]), c = Number(t[1])\nconst grid = t.slice(2, 2 + r)\nconst path = findPath(grid)\nif (path === null) {\n  console.log('NO')\n} else {\n  console.log('YES')\n  console.log(path.join(' '))\n}\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\n// Return the canonical path as \"row,col\" strings; return an empty vector if unreachable.\nvector<string> findPath(vector<string>& grid) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<string> grid(r);\n    for (int i = 0; i < r; i++) cin >> grid[i];\n    vector<string> path = findPath(grid);\n    if (path.empty()) {\n        cout << \"NO\" << endl;\n    } else {\n        cout << \"YES\" << endl;\n        for (size_t i = 0; i < path.size(); i++) cout << path[i] << (i + 1 < path.size() ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    // Return the canonical path as \"row,col\" strings, or null if unreachable.\n    static List<String> findPath(String[] grid) {\n        // Write your solution here\n        return null;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int r = Integer.parseInt(st.nextToken());\n        int c = Integer.parseInt(st.nextToken());\n        String[] grid = new String[r];\n        for (int i = 0; i < r; i++) grid[i] = br.readLine().trim();\n        List<String> path = findPath(grid);\n        if (path == null) {\n            System.out.println(\"NO\");\n        } else {\n            System.out.println(\"YES\");\n            System.out.println(String.join(\" \", path));\n        }\n    }\n}\n"
+ }
+}

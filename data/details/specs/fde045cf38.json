@@ -1,0 +1,18 @@
+{
+ "qid": "fde045cf38",
+ "question": "In the second technical round for a Software Engineer 1 role at PayPal, the interviewer gave the candidate **a table of data and asked them to take it through 1NF, 2NF, 3NF and BCNF**, explaining each step.\n\nThe same round then asked for a **database design from a problem statement**: the tables, the **column types** and the **foreign (reference) keys** between them. The specific table and problem statement were not reported, so prepare for any table with a composite key and a few functional dependencies.",
+ "lookingFor": [
+  "Do you know the definitions of 1NF, 2NF, 3NF and BCNF precisely, not just by name?",
+  "Can you identify functional dependencies and candidate keys from a raw table?",
+  "Can you explain why each decomposition is needed using anomalies (insert, update, delete)?",
+  "Do you understand how BCNF differs from 3NF and what decomposition can cost?",
+  "Can you turn requirements into a sensible schema with proper types, keys and constraints?"
+ ],
+ "answer": "**Method.** First list the functional dependencies (FDs) and find the candidate key. Then check each normal form in order and decompose.\n\n**Worked example.** `R(StudentID, CourseID, StudentName, CourseName, InstructorID, InstructorName, Grade)` with key `(StudentID, CourseID)`. FDs: `StudentID -> StudentName`, `CourseID -> CourseName, InstructorID`, `InstructorID -> InstructorName`, `(StudentID, CourseID) -> Grade`.\n\n- **1NF:** every cell is atomic, no repeating groups or lists in a column, and there is a primary key. If a student's phone numbers sit in one cell, split them into rows.\n- **2NF:** 1NF plus no *partial dependency*, meaning no non-key attribute depends on only part of a composite key. `StudentName` depends only on `StudentID`, and `CourseName` only on `CourseID`. Split into `Student(StudentID, StudentName)`, `Course(CourseID, CourseName, InstructorID, InstructorName)` and `Enrollment(StudentID, CourseID, Grade)`.\n- **3NF:** 2NF plus no *transitive dependency* of a non-key attribute on the key. In `Course`, `CourseID -> InstructorID -> InstructorName`, so move out `Instructor(InstructorID, InstructorName)`.\n- **BCNF:** for every non-trivial FD `X -> Y`, `X` must be a superkey. It differs from 3NF only when a *prime* attribute depends on a non-superkey. Example: `(Student, Subject, Teacher)` where each teacher teaches one subject (`Teacher -> Subject`) and keys are `(Student, Subject)` and `(Student, Teacher)`. This is in 3NF because `Subject` is prime, but not BCNF. Decompose into `(Teacher, Subject)` and `(Student, Teacher)`. Caveat: BCNF decomposition is always lossless but may not preserve every dependency.\n\n**Why:** each step removes update, insert and delete anomalies and duplicated data.\n\n**Schema design steps.** Identify entities and relationships, give each table a primary key, pick types (`INT`/`BIGINT` ids, `VARCHAR(n)` names, `DECIMAL(10,2)` for money, never float, `TIMESTAMP` for times), add `FOREIGN KEY` constraints with `NOT NULL`, `UNIQUE` and `CHECK` where needed, junction tables for many-to-many, and indexes on foreign keys and common filters. Mention that you may deliberately denormalize for read performance after measuring.",
+ "followUps": [
+  "What are insertion, update and deletion anomalies? Show one in your example.",
+  "Can a table be in 3NF but not in BCNF? Give an example.",
+  "What is a lossless join decomposition and dependency preservation?",
+  "When would you denormalize on purpose?"
+ ]
+}

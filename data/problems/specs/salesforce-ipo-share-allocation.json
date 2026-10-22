@@ -1,0 +1,49 @@
+{
+ "pid": "salesforce-ipo-share-allocation",
+ "title": "IPO Share Allocation",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A company is going public and has `S` shares to sell. There are `n` bids, numbered `0` to `n - 1`; bid `i` comes from user `i` and asks for `quantity[i]` shares at a price of `price[i]` per share, placed at time `timestamp[i]`.\n\nShares are allocated as follows:\n\n- Bids with a **higher price** are served first. All bids with the same price form a group, and a group is served only after every group with a higher price has been served.\n- Inside a group, shares are handed out **round-robin**, one share at a time. Order the bids of the group by **earliest timestamp** (ties broken by the smaller user index). Go through that order giving one share to each bid that still wants more, then go through it again, and keep repeating passes until the group's bids are all fully satisfied or no shares remain.\n- A bid never receives more than `quantity[i]` shares. Shares left over after a group are available to the next lower price.\n\nReturn the users who receive **no shares at all**, in increasing order of user index.",
+ "input_format": "The first line contains `n` and `S`.\nEach of the next `n` lines contains three integers `quantity[i]`, `price[i]` and `timestamp[i]` for bid `i`.",
+ "output_format": "Print the indices of the users who receive no shares, space-separated, in increasing order. If every user receives at least one share, print `-1`.",
+ "constraints": [
+  "1 ≤ n ≤ 5·10^4",
+  "0 ≤ S ≤ 10^14",
+  "1 ≤ quantity[i], price[i], timestamp[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "5 6\n3 100 1\n2 100 2\n4 90 3\n1 90 4\n2 80 5",
+   "output": "3 4",
+   "explanation": "Price 100 is served first: users 0 and 1 want 3 + 2 = 5 shares and get them, leaving 1 share. Price 90: users 2 and 3 are ordered by timestamp, so the single remaining share goes to user 2. User 3 gets nothing, and nothing is left for user 4 at price 80."
+  },
+  {
+   "input": "4 2\n5 10 7\n5 10 7\n1 10 3\n1 10 9",
+   "output": "1 3",
+   "explanation": "All bids share one price. The round-robin order is user 2 (time 3), user 0 (time 7), user 1 (time 7, larger index), user 3 (time 9). Only 2 shares exist, so users 2 and 0 each get one in the first pass; users 1 and 3 get none."
+  },
+  {
+   "input": "2 10\n3 5 1\n2 4 2",
+   "output": "-1",
+   "explanation": "There are enough shares for both bids (3 + 2 = 5 ≤ 10), so nobody is left without shares."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Sort the bids by price descending, then by timestamp ascending, then by index, and walk through them group by group.",
+  "Simulating one share at a time is far too slow when S is huge. Think about what a whole group does: if the remaining shares cover its total demand, everyone in it is fully served.",
+  "Otherwise the group uses up every remaining share. Every bid asks for at least 1 share, so a bid is left with nothing only if the remaining shares are fewer than the number of bids in the group and it is not among the first ones in the round-robin order."
+ ],
+ "reference": "import sys\nfrom itertools import groupby\n\ndef main():\n    d = sys.stdin.read().split()\n    n, S = int(d[0]), int(d[1])\n    bids = []\n    for i in range(n):\n        q, p, t = int(d[2 + 3 * i]), int(d[3 + 3 * i]), int(d[4 + 3 * i])\n        bids.append((-p, t, i, q))\n    bids.sort()\n    zero = []\n    for _, grp in groupby(bids, key=lambda b: b[0]):\n        g = list(grp)\n        demand = sum(b[3] for b in g)\n        if S == 0:\n            zero.extend(b[2] for b in g)\n        elif S >= demand:\n            S -= demand\n        elif S >= len(g):\n            S = 0\n        else:\n            zero.extend(b[2] for b in g[S:])\n            S = 0\n    zero.sort()\n    print(' '.join(map(str, zero)) if zero else -1)\n\nmain()\n",
+ "brute": "import sys\n\nd = sys.stdin.read().split()\nn, S = int(d[0]), int(d[1])\nQ = [int(d[2 + 3 * i]) for i in range(n)]\nP = [int(d[3 + 3 * i]) for i in range(n)]\nT = [int(d[4 + 3 * i]) for i in range(n)]\ngot = [0] * n\nfor price in sorted(set(P), reverse=True):\n    order = sorted((i for i in range(n) if P[i] == price), key=lambda i: (T[i], i))\n    progress = True\n    while S > 0 and progress:\n        progress = False\n        for i in order:\n            if S > 0 and got[i] < Q[i]:\n                got[i] += 1\n                S -= 1\n                progress = True\nres = [i for i in range(n) if got[i] == 0]\nprint(' '.join(map(str, res)) if res else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(S, bids):\n        return f\"{len(bids)} {S}\\n\" + '\\n'.join(f\"{q} {p} {t}\" for q, p, t in bids)\n\n    tests = [fmt(0, [(1, 1, 1)]), fmt(5, [(1, 1, 1)]), fmt(1, [(1, 5, 1), (1, 5, 1), (1, 5, 1)]),\n             fmt(100, [(3, 5, 1), (2, 4, 2)]), fmt(3, [(2, 7, 4), (2, 7, 4), (2, 7, 4)]),\n             fmt(6, [(3, 100, 1), (2, 100, 2), (4, 90, 3), (1, 90, 4), (2, 80, 5)])]\n    for _ in range(35):\n        n = rng.randint(1, 8)\n        bids = [(rng.randint(1, 6), rng.randint(1, 4), rng.randint(1, 5)) for _ in range(n)]\n        S = rng.randint(0, sum(b[0] for b in bids) + 2)\n        tests.append(fmt(S, bids))\n    N = 50000\n    M = 10 ** 9\n\n    def big(S_of, pr, qmax=M, tmax=M):\n        bids = [(rng.randint(1, qmax), rng.randint(1, pr), rng.randint(1, tmax)) for _ in range(N)]\n        tot = sum(b[0] for b in bids)\n        return fmt(S_of(tot), bids)\n\n    tests.append(big(lambda t: t // 2, M))\n    tests.append(big(lambda t: 10, M))\n    tests.append(big(lambda t: N // 2, 1))\n    tests.append(big(lambda t: t // 3, 1000))\n    tests.append(big(lambda t: N // 2, 50, 1, 10))\n    tests.append(big(lambda t: 10 ** 14, M))\n    tests.append(big(lambda t: t - 1, 3, M, 5))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef no_share_users(quantity: List[int], price: List[int], timestamp: List[int], shares: int) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, shares = int(data[0]), int(data[1])\n    quantity = [int(data[2 + 3 * i]) for i in range(n)]\n    price = [int(data[3 + 3 * i]) for i in range(n)]\n    timestamp = [int(data[4 + 3 * i]) for i in range(n)]\n    res = no_share_users(quantity, price, timestamp, shares)\n    print(' '.join(map(str, res)) if res else -1)\n\n\nmain()\n",
+  "javascript": "function noShareUsers(quantity, price, timestamp, shares) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], shares = t[1]\nconst quantity = [], price = [], timestamp = []\nfor (let i = 0; i < n; i++) {\n  quantity.push(t[2 + 3 * i])\n  price.push(t[3 + 3 * i])\n  timestamp.push(t[4 + 3 * i])\n}\nconst res = noShareUsers(quantity, price, timestamp, shares)\nconsole.log(res.length ? res.join(' ') : '-1')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> noShareUsers(vector<long long>& quantity, vector<long long>& price, vector<long long>& timestamp, long long shares) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long shares;\n    cin >> n >> shares;\n    vector<long long> quantity(n), price(n), timestamp(n);\n    for (int i = 0; i < n; i++) cin >> quantity[i] >> price[i] >> timestamp[i];\n    vector<int> res = noShareUsers(quantity, price, timestamp, shares);\n    if (res.empty()) { cout << -1 << \"\\n\"; return 0; }\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] noShareUsers(long[] quantity, long[] price, long[] timestamp, long shares) {\n        // Write your solution here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        long shares = (long) in.nval;\n        long[] quantity = new long[n], price = new long[n], timestamp = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); quantity[i] = (long) in.nval;\n            in.nextToken(); price[i] = (long) in.nval;\n            in.nextToken(); timestamp[i] = (long) in.nval;\n        }\n        int[] res = noShareUsers(quantity, price, timestamp, shares);\n        if (res.length == 0) { System.out.println(-1); return; }\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

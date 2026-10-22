@@ -1,0 +1,51 @@
+{
+ "pid": "infosys-modified-minimum-refueling-stops",
+ "title": "Modified Minimum Refueling Stops",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "A car starts at position `0` on a straight road and must reach position `target`. It begins with `startFuel` liters of fuel and uses one liter per unit of distance. The tank has unlimited capacity.\n\nThere are `n` fuel stations, listed in increasing order of position. Station `i` (0-indexed) is at `position[i]` with `0 < position[i] < target` and holds `fuel[i]` liters. When the car reaches a station it may stop there and take **all** of that station's fuel, which counts as one refuel. Reaching a station, or the target, with exactly 0 liters left still counts as reaching it.\n\nThis version has a twist: **if the car refuels at station `i`, it may not refuel at station `i - 1` or station `i + 1`** (the neighbours in the given list). Stations that are not used can be driven past freely.\n\nPrint the minimum number of refuels needed to reach `target`, or `-1` if it is impossible.",
+ "input_format": "The first line contains two integers `target` and `startFuel`.\nThe second line contains an integer `n`.\nEach of the next `n` lines contains two integers `position[i]` and `fuel[i]`.",
+ "output_format": "Print one integer: the minimum number of refuels, or -1 if the target cannot be reached.",
+ "constraints": [
+  "1 ≤ target ≤ 10^9",
+  "1 ≤ startFuel ≤ 10^9",
+  "0 ≤ n ≤ 1000",
+  "0 < position[0] < position[1] < ... < position[n - 1] < target",
+  "1 ≤ fuel[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "100 10\n4\n10 60\n20 30\n30 30\n60 40",
+   "output": "2",
+   "explanation": "Reach station 0 (at 10) with 0 liters left and take 60, so the car can now reach 70. Stations 1 and 0 are neighbours, so skip station 1 and refuel at station 2 (at 30), taking 30 more liters, which reaches 100. Two refuels."
+  },
+  {
+   "input": "100 10\n3\n10 45\n20 45\n30 5",
+   "output": "-1",
+   "explanation": "Without the twist, refuelling at stations 0 and 1 would reach 10 + 45 + 45 = 100. With the twist they cannot both be used. Station 1 alone is out of reach (the car can only get to 10), and stations 0 and 2 give just 10 + 45 + 5 = 60."
+  },
+  {
+   "input": "50 10\n2\n5 3\n10 50",
+   "output": "1",
+   "explanation": "The car can reach station 1 at position 10 with 0 liters left and take 50 liters, reaching 60 >= 50. One refuel is enough."
+  }
+ ],
+ "complexity": {
+  "time": "O(n^2)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "The classic greedy with a max-heap of passed stations no longer works, because using one station blocks both neighbours. Try a DP over stations in order, indexed by the number of refuels so far.",
+  "Let dp[j] be the farthest distance reachable using exactly j refuels among the stations seen so far. A larger reach is never worse, so only the maximum needs to be stored.",
+  "Keep two arrays: reach with the previous station unused, and reach with the previous station used. To use station i you need the 'previous unused' reach to be at least position[i]; then add fuel[i]. The answer is the smallest j whose reach is at least target."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    target, start, n = int(data[0]), int(data[1]), int(data[2])\n    pos = [int(data[3 + 2 * i]) for i in range(n)]\n    fuel = [int(data[4 + 2 * i]) for i in range(n)]\n    # a0[j]: max reach with j refuels, last processed station unused; a1[j]: last processed station used\n    a0 = [-1] * (n + 2)\n    a1 = [-1] * (n + 2)\n    a0[0] = start\n    for i in range(n):\n        p, f = pos[i], fuel[i]\n        b0 = list(map(max, a0, a1))\n        b1 = [-1] + [x + f if x >= p else -1 for x in a0[:-1]]\n        a0, a1 = b0, b1\n    for j in range(n + 1):\n        if max(a0[j], a1[j]) >= target:\n            print(j)\n            return\n    print(-1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\ntarget, start, n = int(data[0]), int(data[1]), int(data[2])\npos = [int(data[3 + 2 * i]) for i in range(n)]\nfuel = [int(data[4 + 2 * i]) for i in range(n)]\nbest = -1\nfor mask in range(1 << n):\n    if mask & (mask >> 1):\n        continue\n    reach = start\n    ok = True\n    for i in range(n):\n        if mask >> i & 1:\n            if reach < pos[i]:\n                ok = False\n                break\n            reach += fuel[i]\n    if ok and reach >= target:\n        c = bin(mask).count(\"1\")\n        if best == -1 or c < best:\n            best = c\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(target, start, st):\n        lines = [\"%d %d\" % (target, start), str(len(st))]\n        lines += [\"%d %d\" % (p, f) for p, f in st]\n        return \"\\n\".join(lines)\n    tests = [fmt(10, 10, []), fmt(10, 3, []), fmt(100, 100, [(50, 10)]), fmt(50, 10, [(5, 3), (10, 50)]),\n             fmt(100, 10, [(10, 45), (20, 45), (30, 5)]), fmt(100, 10, [(10, 60), (20, 30), (30, 30), (60, 40)]),\n             fmt(100, 10, [(10, 20), (20, 30), (30, 50)])]\n    for n in (1, 2, 3, 4, 5, 6, 8, 10, 12):\n        for _ in range(3):\n            target = rng.randint(n + 1, 80)\n            ps = sorted(rng.sample(range(1, target), n))\n            start = rng.randint(max(1, ps[0] - 3), ps[0] + 12)\n            st = [(p, rng.randint(5, 40)) for p in ps]\n            tests.append(fmt(target, start, st))\n    # feasible-by-construction mid cases\n    for n in (6, 9, 12):\n        target = rng.randint(40, 90)\n        ps = sorted(rng.sample(range(1, target), n))\n        st = [(p, rng.randint(15, 40)) for p in ps]\n        tests.append(fmt(target, rng.randint(ps[0], ps[0] + 5), st))\n    n = 1000\n    sp = 999000\n    ps = [(i + 1) * sp for i in range(n)]\n    T = 10**9\n    tests.append(fmt(T, sp + 500000, [(p, rng.randint(1500000, 4000000)) for p in ps]))\n    tests.append(fmt(T, sp, [(p, rng.randint(1200000, 3000000)) for p in ps]))\n    tests.append(fmt(T, 10**9 - 1, [(p, rng.randint(1, 10**9)) for p in ps]))\n    ps2 = sorted(rng.sample(range(1, T), n))\n    tests.append(fmt(T, 9 * 10**6, [(p, rng.randint(3 * 10**6, 9 * 10**6)) for p in ps2]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_refuels(target: int, start_fuel: int, positions: List[int], fuels: List[int]) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    target, start, n = int(data[0]), int(data[1]), int(data[2])\n    positions = [int(data[3 + 2 * i]) for i in range(n)]\n    fuels = [int(data[4 + 2 * i]) for i in range(n)]\n    print(min_refuels(target, start, positions, fuels))\n\n\nmain()\n",
+  "javascript": "function minRefuels(target, startFuel, positions, fuels) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst target = t[0], startFuel = t[1], n = t[2]\nconst positions = [], fuels = []\nfor (let i = 0; i < n; i++) {\n  positions.push(t[3 + 2 * i])\n  fuels.push(t[4 + 2 * i])\n}\nconsole.log(String(minRefuels(target, startFuel, positions, fuels)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minRefuels(long long target, long long startFuel, vector<long long>& positions, vector<long long>& fuels) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    long long target, startFuel;\n    int n;\n    cin >> target >> startFuel >> n;\n    vector<long long> positions(n), fuels(n);\n    for (int i = 0; i < n; i++) cin >> positions[i] >> fuels[i];\n    cout << minRefuels(target, startFuel, positions, fuels) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minRefuels(long target, long startFuel, long[] positions, long[] fuels) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        long target = (long) in.nval;\n        in.nextToken();\n        long startFuel = (long) in.nval;\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] positions = new long[n], fuels = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); positions[i] = (long) in.nval;\n            in.nextToken(); fuels[i] = (long) in.nval;\n        }\n        System.out.println(minRefuels(target, startFuel, positions, fuels));\n    }\n}\n"
+ }
+}

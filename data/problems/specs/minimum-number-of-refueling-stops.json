@@ -1,0 +1,51 @@
+{
+ "pid": "minimum-number-of-refueling-stops",
+ "title": "Minimum Number of Refueling Stops",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "A car drives along a straight road from position `0` to position `target`. It starts with `startFuel` units of fuel and burns exactly one unit per unit of distance. Along the road there are `n` fuel stations: station `i` is at position `positions[i]` and holds `fuel[i]` units of fuel.\n\nThe fuel tank has unlimited capacity. When the car arrives at a station it may stop there and take **all** of that station's fuel (partial refills are not allowed), or it may drive past without stopping. Arriving at a station, or at `target`, with exactly `0` fuel left is allowed, and the car can still refuel at a station it reaches that way.\n\nReturn the minimum number of stops the car must make to reach `target`, or `-1` if it cannot get there. If the starting fuel is already enough, the answer is `0`.\n\nThe stations are listed in strictly increasing order of position, and every position is strictly between `0` and `target`.",
+ "input_format": "The first line contains three integers `target`, `startFuel` and `n`.\nEach of the next `n` lines contains two integers `positions[i]` and `fuel[i]`, in increasing order of position.",
+ "output_format": "Print a single integer: the minimum number of stops, or `-1` if the target cannot be reached.",
+ "constraints": [
+  "0 ≤ n ≤ 10^5",
+  "1 ≤ target ≤ 10^9",
+  "1 ≤ startFuel ≤ 10^9",
+  "0 < positions[0] < positions[1] < ... < positions[n-1] < target",
+  "1 ≤ fuel[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "50 80 0",
+   "output": "0",
+   "explanation": "The starting 80 units are already enough to cover the 50 units of road, so no stop is needed."
+  },
+  {
+   "input": "100 20 2\n10 5\n50 100",
+   "output": "-1",
+   "explanation": "With 20 units the car can reach position 20 at most. Station 1 (position 10) adds only 5 units, so the farthest reachable point is 25, short of station 2 at position 50."
+  },
+  {
+   "input": "100 10 5\n8 40\n20 25\n35 15\n55 60\n70 10",
+   "output": "3",
+   "explanation": "Stop at position 8 (reach becomes 50), then at 20 (reach 75), then at 55 (reach 135 ≥ 100). Two stops are not enough: after stopping at 8 and 20 the car can only reach 75 and cannot finish."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "You do not have to decide at a station whether to refuel. Think of it differently: which stations could you have refueled at, looking back, once you run dry?",
+  "Drive as far as the current fuel allows, collecting the fuel amounts of every station you pass into a max-heap. Only when you cannot go further do you 'go back' and use the best station seen so far.",
+  "Each time the car runs out before target, pop the largest fuel amount from the heap, add it to your reach and count one stop. If the heap is empty, the answer is -1. A DP over (stations used, farthest distance) works too but costs O(n^2)."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.read().split()\n    target, fuel, n = int(data[0]), int(data[1]), int(data[2])\n    st = [(int(data[3 + 2 * i]), int(data[4 + 2 * i])) for i in range(n)]\n    heap, stops, i, reach = [], 0, 0, fuel\n    while reach < target:\n        while i < n and st[i][0] <= reach:\n            heapq.heappush(heap, -st[i][1])\n            i += 1\n        if not heap:\n            print(-1)\n            return\n        reach += -heapq.heappop(heap)\n        stops += 1\n    print(stops)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\ntarget, fuel, n = int(data[0]), int(data[1]), int(data[2])\nst = [(int(data[3 + 2 * i]), int(data[4 + 2 * i])) for i in range(n)]\ndp = [-1] * (n + 1)\ndp[0] = fuel\nfor pos, f in st:\n    for k in range(n - 1, -1, -1):\n        if dp[k] >= pos:\n            dp[k + 1] = max(dp[k + 1], dp[k] + f)\nans = -1\nfor k in range(n + 1):\n    if dp[k] >= target:\n        ans = k\n        break\nprint(ans)\n",
+ "generator": "def gen(rng):\n    def fmt(target, fuel, st):\n        lines = [f'{target} {fuel} {len(st)}'] + [f'{p} {f}' for p, f in st]\n        return '\\n'.join(lines)\n    tests = [fmt(10, 20, []), fmt(10, 5, []), fmt(1, 1, []), fmt(100, 10, [(10, 1)]),\n             fmt(100, 10, [(10, 90)]), fmt(100, 10, [(11, 90)]), fmt(30, 10, [(10, 10), (20, 10)]),\n             fmt(10**9, 10**9, [(5, 5)]), fmt(10**9, 1, [(1, 10**9)])]\n    for _ in range(60):\n        n = rng.randint(1, 10)\n        target = rng.randint(n + 1, 60)\n        fuel = rng.randint(1, 10)\n        pos = sorted(rng.sample(range(1, target), n))\n        st = [(p, rng.randint(1, 15)) for p in pos]\n        tests.append(fmt(target, fuel, st))\n    n = 100000\n    gap = 9000\n    st = [(gap * (i + 1), rng.randint(1, 2 * gap)) for i in range(n)]\n    tests.append(fmt(10**9, gap, st))\n    gap = 5000\n    st = [(gap * (i + 1), gap) for i in range(n)]\n    tests.append(fmt(gap * (n + 1), gap, st))\n    st2 = list(st)\n    st2[-1] = (st2[-1][0], gap - 1)\n    tests.append(fmt(gap * (n + 1), gap, st2))\n    st3 = [(i + 1, 1) for i in range(n)]\n    tests.append(fmt(n + 1, 1, st3))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_refuel_stops(target: int, start_fuel: int, stations: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    target, start_fuel, n = int(data[0]), int(data[1]), int(data[2])\n    stations = [[int(data[3 + 2 * i]), int(data[4 + 2 * i])] for i in range(n)]\n    print(min_refuel_stops(target, start_fuel, stations))\n\n\nmain()\n",
+  "javascript": "function minRefuelStops(target, startFuel, stations) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst target = t[0], startFuel = t[1], n = t[2]\nconst stations = []\nfor (let i = 0; i < n; i++) stations.push([t[3 + 2 * i], t[4 + 2 * i]])\nconsole.log(minRefuelStops(target, startFuel, stations))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minRefuelStops(long long target, long long startFuel, vector<pair<long long, long long>>& stations) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    long long target, startFuel;\n    int n;\n    cin >> target >> startFuel >> n;\n    vector<pair<long long, long long>> stations(n);\n    for (int i = 0; i < n; i++) cin >> stations[i].first >> stations[i].second;\n    cout << minRefuelStops(target, startFuel, stations) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minRefuelStops(long target, long startFuel, long[][] stations) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        long target = (long) in.nval;\n        in.nextToken();\n        long startFuel = (long) in.nval;\n        in.nextToken();\n        int n = (int) in.nval;\n        long[][] stations = new long[n][2];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); stations[i][0] = (long) in.nval;\n            in.nextToken(); stations[i][1] = (long) in.nval;\n        }\n        System.out.println(minRefuelStops(target, startFuel, stations));\n    }\n}\n"
+ }
+}

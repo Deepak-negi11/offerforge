@@ -1,0 +1,18 @@
+{
+ "qid": "c24d6e45de",
+ "question": "D. E. Shaw SMTS (about 3.5 years of experience), screening round. The candidate was asked, entirely verbally and without coding, to describe a **flight booking system**: **what are the major components, how would you determine the cost (fare), and how does the payment gateway integration work**. The candidate felt the question was vague and the interviewer moved on quickly, so state your assumptions up front and keep the answer organised.",
+ "lookingFor": [
+  "Ability to scope a vague problem and state assumptions.",
+  "Sound component decomposition and data flow.",
+  "Understanding of pricing logic, inventory and consistency.",
+  "Payment-flow knowledge: idempotency, failure handling, reconciliation.",
+  "Clear verbal communication of a design."
+ ],
+ "answer": "**Requirements and assumptions.** Search flights, view fares, select seats, book, pay, get a ticket, cancel or refund. Assume flight data comes from airlines or a global distribution system through APIs. Scale: read-heavy (searches far exceed bookings), so search must be fast; booking must be strictly correct.\n\n**Major components**\n- **API gateway and auth** (users, sessions, rate limiting).\n- **Search service:** queries flight schedules and availability, backed by a search index and cache; results can be slightly stale.\n- **Inventory/availability service:** the source of truth for seats per flight and fare class.\n- **Pricing service:** computes fares.\n- **Booking service:** creates a booking through a state machine (CREATED, SEAT_HELD, PAYMENT_PENDING, CONFIRMED, FAILED/CANCELLED).\n- **Payment service:** integrates with the gateway.\n- **Notification service** (email/SMS), **ticketing**, and a database plus message queue for events.\n\n**Fare computation.** Fare is not a single number: base fare by route and fare class, plus taxes and fees, minus discounts, then adjusted by dynamic factors such as days to departure, remaining seats and demand. Implement as a pipeline of pricing rules (strategy pattern), and **re-validate the price at booking time**, since cached search prices can be stale.\n\n**Payment gateway flow**\n1. Hold the seat for a short time (a TTL lock) to avoid overselling.\n2. Create a payment intent and send the customer to the gateway; card data never touches your servers.\n3. The gateway returns a result by redirect and, more reliably, a **webhook**.\n4. Verify the webhook signature, update the booking idempotently, then confirm the seat and issue the ticket.\n5. On failure or timeout, release the hold. Use **idempotency keys** to prevent double charges and a periodic **reconciliation** job to match gateway records with bookings.\n\n**Trade-offs:** strong consistency for inventory versus cache staleness for search; holds versus overbooking (airlines sometimes overbook deliberately).",
+ "followUps": [
+  "How do you avoid two users booking the last seat?",
+  "What happens if payment succeeds but your server crashes before confirming the booking?",
+  "How would you make search fast for popular routes?",
+  "How would you implement refunds and cancellations?"
+ ]
+}

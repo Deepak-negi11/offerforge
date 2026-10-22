@@ -1,0 +1,18 @@
+{
+ "qid": "d68dee5166",
+ "question": "In the LLD round for a Senior Software Engineer (IN4) role at Walmart (virtual), the question was **LFU cache**, the same as the LeetCode problem *LFU Cache*. The candidate discussed the approach and wrote the code, and said it felt more like a DSA round. (The system design round in the same loop was a dynamic pricing system.)\n\nDesign a cache with fixed capacity supporting `get(key)` and `put(key, value)`, evicting the **least frequently used** key when full, and breaking ties by evicting the **least recently used** among those with the lowest frequency. The expected target is **O(1)** per operation.",
+ "lookingFor": [
+  "Can you design a data structure meeting O(1) get and put with a tie-break rule?",
+  "Do you handle the tricky invariants, such as tracking the minimum frequency?",
+  "Can you explain trade-offs against LRU and simpler approaches?",
+  "Is your code clean, correct on edge cases (capacity 0, updating an existing key)?",
+  "Can you discuss thread safety and extensibility to other eviction policies?"
+ ],
+ "answer": "**Idea.** Keep three structures:\n1. `keyToNode`: key to (value, freq) entry.\n2. `freqToList`: frequency to a doubly linked list of keys ordered by recency (most recent at one end). In Java, a `LinkedHashSet` per frequency works and gives O(1) removal and insertion-order iteration.\n3. `minFreq`: the smallest frequency currently present.\n\n**get(key).** If missing, return -1. Otherwise call `touch(key)`: remove it from `freqToList[f]`, add it to `freqToList[f+1]`, and if `freqToList[f]` became empty and `f == minFreq`, increment `minFreq`. Return the value.\n\n**put(key, value).**\n- If capacity is 0, return.\n- If the key exists, update the value and `touch` it.\n- Otherwise, if the cache is full, evict: take the first (oldest) key from `freqToList[minFreq]`, remove it from the list and from `keyToNode`.\n- Insert the new key with frequency 1, add it to `freqToList[1]`, and set `minFreq = 1`.\n\n```java\nvoid touch(int key) {\n  int f = freq.get(key);\n  lists.get(f).remove(key);\n  if (lists.get(f).isEmpty()) { lists.remove(f); if (minFreq == f) minFreq++; }\n  freq.put(key, f + 1);\n  lists.computeIfAbsent(f + 1, x -> new LinkedHashSet<>()).add(key);\n}\n```\n\n**Complexity.** All operations O(1) average; space O(capacity).\n\n**Edge cases.** Capacity 0; updating an existing key must count as a use and must not evict; `minFreq` reset to 1 on every new insert.\n\n**Trade-offs.** LFU resists scan pollution but keeps stale \"once popular\" keys forever, so real systems add aging or decay (as in TinyLFU-style designs). LRU is simpler and adapts faster.\n\n**Thread safety.** Every operation mutates shared structure, so use a single lock or stripe by key-hash only if each stripe has its own capacity and policy.\n\n**Design extension.** Put the policy behind an `EvictionPolicy` interface so LRU, LFU and FIFO can be swapped.",
+ "followUps": [
+  "How does this differ from the LRU cache implementation?",
+  "How would you handle stale high-frequency entries?",
+  "Can you do this with a heap, and what would the complexity be?",
+  "How would you make it thread-safe with low contention?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "0cf7e7513f",
+ "question": "In round 3 of a ServiceNow Associate ML Engineer Intern interview, the candidate was asked to **design and code in Java a flow where a submitted product review is classified as positive or negative**: positive goes to a thank-you page, negative creates a ticket and redirects. Transformer-based embeddings and other ML models were rejected ('No LLMs'), so a **weighted keyword** solution was expected. The round then moved to **sarcasm handling, JVM internals, memory management, String vs StringBuilder, thread safety, JAR files and Spring Boot**.",
+ "lookingFor": [
+  "Can you design a rule-based solution under constraints without reaching for ML?",
+  "Do you write a clean, testable Java implementation with sensible class boundaries?",
+  "Do you recognise the limits (negation, sarcasm, mixed sentiment) and propose improvements?",
+  "Do you know core Java: String immutability, StringBuilder, memory areas, thread safety?",
+  "Can you stay calm and honest when the topic moves outside your experience?"
+ ],
+ "answer": "**Design.** Flow: `ReviewController` receives the review, `SentimentClassifier` returns POSITIVE or NEGATIVE, then a `ReviewRouter` either redirects to the thank-you page or calls a `TicketService` and redirects. Keep the classifier behind an interface (`SentimentClassifier`) so a rule-based version can later be swapped for ML.\n\n**Weighted keyword approach.**\n1. Normalise: lowercase, strip punctuation, tokenize.\n2. Keep a map of word to weight, such as `terrible -3`, `broken -2`, `refund -2`, `love +2`, `great +2`.\n3. Score = sum of weights. Score below a threshold (for example `< 0`) is negative. Ties or zero can be neutral and sent to a safe default (for negative handling, so a customer problem is not missed).\n4. Handle **negation**: if the previous 1 to 2 tokens are \"not\", \"never\", \"no\", flip the sign (`not good` is negative). Handle **intensifiers** (\"very\", \"extremely\") by multiplying the weight.\n\n```java\nint score = 0;\nfor (int i = 0; i < tokens.size(); i++) {\n    int w = weights.getOrDefault(tokens.get(i), 0);\n    if (i > 0 && NEGATIONS.contains(tokens.get(i - 1))) w = -w;\n    score += w;\n}\nreturn score < 0 ? Sentiment.NEGATIVE : Sentiment.POSITIVE;\n```\n\n**Sarcasm.** \"Great, it broke on day one\" has a positive word and a negative event. Mitigations: give strong negative phrases (`broke`, `doesn't work`) more weight than praise words, use a rating (stars) as an extra signal, detect contrast patterns, and route low-confidence reviews to human review. Be honest that rules cannot solve sarcasm reliably, and that a small trained model would be the next step with proper evaluation (precision and recall on labelled reviews).\n\n**Java basics likely asked.** `String` is immutable and stored in the string constant pool, so repeated concatenation in a loop creates many objects, while `StringBuilder` is mutable and not thread-safe (`StringBuffer` is synchronised). Heap holds objects, stack holds frames, and the garbage collector reclaims unreachable objects. Make the shared word map thread-safe by using an immutable map, or `ConcurrentHashMap`.",
+ "followUps": [
+  "How would you evaluate this classifier, and which metric matters more: precision or recall on negative reviews?",
+  "Why is String immutable in Java, and what are the benefits?",
+  "How would you make the classifier thread-safe when weights can be updated at runtime?",
+  "When would you finally switch from keywords to a trained model, and how would you prove it is better?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "a665f2faaa",
+ "question": "In a Salesforce SMTS Problem Solving and LLD round, the candidate was asked for **class diagrams for a Monopoly game**, **best practices when defining an API endpoint**, and then in a separate LLD round to **implement a shopping cart for an e-commerce website** with workable, easy-to-ship code that follows proper design patterns, and to discuss the reasoning behind the implementation.",
+ "lookingFor": [
+  "Can you identify the core entities and rules of a board game and model them cleanly?",
+  "Do you know REST best practices and can you explain them?",
+  "Can you write working, readable, testable code, not just diagrams?",
+  "Do you apply patterns for good reasons (Strategy, Observer, Factory)?",
+  "Can you justify decisions and trade-offs?"
+ ],
+ "answer": "**Monopoly class diagram.**\n- `Game`: players, board, dice, bank, current player, turn loop.\n- `Board`: ordered list of `Square`s (about 40). `Square` is abstract with subclasses `PropertySquare` (street, railroad, utility), `TaxSquare`, `CardSquare` (Chance, Community Chest), `GoSquare`, `JailSquare`, `FreeParking`. Each implements `onLand(Player, Game)` (polymorphism removes `if/else` on type).\n- `Player`: name, cash, position, owned properties, in-jail state.\n- `Property`: price, rent schedule, owner, houses and hotels, mortgage state.\n- `Dice`, `Card` (Command pattern: each card is an action), `Bank`.\n- Patterns: **Strategy** for rent calculation and for player decisions (human or bot), **Command** for cards, **Observer** for game events, **State** for a player's jail state.\n\n**API endpoint best practices.** Resource-oriented nouns (`/carts/{id}/items`), correct HTTP verbs and status codes, idempotent PUT/DELETE, input validation, consistent error format, pagination and filtering, versioning, authentication and authorisation, rate limiting, idempotency keys for POST payments, and documentation (OpenAPI).\n\n**Shopping cart design.**\n- `Cart` (id, userId, items), `CartItem` (productId, quantity, unitPrice snapshot), `Product`, `Inventory` check, `CartService` with `addItem`, `removeItem`, `updateQuantity`, `getTotal`, `checkout`.\n- **Strategy** for pricing: `DiscountStrategy` (percentage, flat, buy-one-get-one), and a tax calculator.\n- **Repository** interface for persistence, so storage can be swapped and tests use an in-memory version.\n- **Factory** for building discount strategies from coupon codes.\n- Validate quantity and stock, keep money in `BigDecimal` or integer cents, make `checkout` transactional, and keep the service small with dependencies injected.\n\nReasoning to explain: single responsibility, open for new discounts without modifying the cart, and testability through interfaces.",
+ "followUps": [
+  "How would you add coupons that stack or exclude each other?",
+  "How would you handle two users buying the last item at the same time?",
+  "How do you implement the rule of three consecutive doubles sending a player to jail?",
+  "Why use BigDecimal or integer cents for money?"
+ ]
+}

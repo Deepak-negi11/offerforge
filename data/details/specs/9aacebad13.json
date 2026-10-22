@@ -1,0 +1,19 @@
+{
+ "qid": "9aacebad13",
+ "question": "A Walmart Senior Software Engineer candidate reported that one system design round asked them to **design an online auction system**, and that another loop asked them to design a **task scheduler**. This write-up covers the auction.\n\nAssume a typical auction: sellers list items with a start price and end time, buyers place bids, the highest valid bid wins when the auction closes, and buyers want to see the current price in near real time.",
+ "lookingFor": [
+  "Can you scope an auction with the right functional requirements and edge cases (ties, bids near the deadline)?",
+  "Do you handle concurrent bids correctly so exactly one highest bid wins?",
+  "Can you close auctions reliably at the deadline using a scheduler or timers?",
+  "Do you design real-time updates for many watchers of a hot auction?",
+  "Do you think about fairness, fraud and failure recovery?"
+ ],
+ "answer": "**Requirements.** Sellers create listings (item, reserve or start price, end time); buyers place bids; the highest bid wins at close; users see the current highest bid live; notifications to outbid users and the winner. Non-functional: correctness of the winning bid above all, plus low latency and availability. Clarify: minimum bid increment, anti-sniping extension, and payment handled by a separate service.\n\n**Entities.** `Auction(id, seller_id, item, start_price, current_price, current_winner_id, end_time, status, version)`, `Bid(id, auction_id, bidder_id, amount, created_at)`, `User`.\n\n**APIs.** `POST /auctions`, `GET /auctions/{id}`, `POST /auctions/{id}/bids`, plus a WebSocket or server-sent events channel for live updates.\n\n**Placing a bid (the critical path).** Concurrent bids on one auction must be serialised. Options:\n- Conditional update in the DB: `UPDATE auctions SET current_price=:amt, current_winner_id=:u, version=version+1 WHERE id=:id AND status='OPEN' AND current_price + min_increment <= :amt AND end_time > now()`. If zero rows change, the bid lost the race and the client is told.\n- Or route all bids for one auction to the same partition of a queue so a single consumer processes them in order, which is a good fit for very hot auctions.\n- Always insert the bid into the bids table (an audit trail), and make requests idempotent with a client-supplied key.\n\n**Closing.** A scheduler (delayed queue or a periodic query on `end_time`) marks the auction closed, picks the winner, and emits an `AuctionClosed` event; downstream services handle payment and notifications. Closing must be idempotent and re-checked, since a bid and a close can race near the deadline. Use the server clock only, never the client's.\n\n**Real-time and scale.** Cache the current price in Redis; publish bid events through pub/sub to WebSocket gateways, which push to watchers; shard auctions by id; serve listing and search from a read replica or search index (Elasticsearch). Hot auctions are the bottleneck: keep the bid path small and offload everything else to async consumers.\n\n**Extras.** Anti-sniping (extend the end time if a bid arrives in the last minute), bidder verification and rate limits against bots.",
+ "followUps": [
+  "How do you guarantee only one of two simultaneous equal bids wins?",
+  "How do you close millions of auctions at the right time?",
+  "How would you push live price updates to 100,000 watchers of one auction?",
+  "What happens if the bid service crashes after writing the bid but before updating the price?",
+  "How would you prevent shill bidding?"
+ ]
+}

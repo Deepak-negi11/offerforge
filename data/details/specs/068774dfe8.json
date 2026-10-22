@@ -1,0 +1,18 @@
+{
+ "qid": "068774dfe8",
+ "question": "Nutanix MTS (2 years of experience), round 1: build a **command-line archive utility like a basic tar**, without any existing archive or compression libraries (no zipfile, zlib, java.util.zip, and only standard libraries). Commands: `create ./my-folder archive1` (archive a folder recursively, preserving structure), `extract archive1 ./restored-folder`, `list archive1`, `extract-file archive1 file.txt ./restored-folder`, plus a `--verbose` flag for detailed logs. **Handle errors gracefully** such as invalid paths and corrupt archives. The round focused on file system traversal, binary file creation and reading, and designing your own archive format.",
+ "lookingFor": [
+  "A well-thought-out, self-describing binary format.",
+  "Correct recursive traversal and path handling, including empty directories.",
+  "Robust error handling and detection of corruption.",
+  "Memory-conscious I/O (streaming rather than loading whole files).",
+  "Clean command parsing and modular, testable structure."
+ ],
+ "answer": "**Format design.** Make the archive self-describing and streamable:\n- *Header*: magic bytes (e.g. `ARCH`), version byte, and entry count (optional).\n- *Per entry*: entry type (file or directory), path length (4 bytes, big-endian), path in UTF-8 using `/` separators relative to the root, file size (8 bytes), and then the raw content. Optionally a CRC32 or SHA-256 per file, which you can implement yourself or compute with a hash function from the standard library (a checksum is not compression).\n- *Footer or trailer*: an index of entry names to offsets enables fast `list` and `extract-file`; without it, scanning headers and skipping content by size also works.\n\n**Operations.**\n- `create`: walk the folder recursively (DFS), write directory entries (so empty directories survive), and for files stream content in chunks, e.g. 64 KB, writing the size first (get it from file metadata, or write a placeholder and seek back).\n- `extract`: validate magic and version, read entries sequentially, create directories, and write files. Reject paths containing `..` or absolute paths (path traversal protection).\n- `list`: read headers only, seeking past data using the size.\n- `extract-file`: use the index or scan headers until the path matches; extract just that entry.\n- `--verbose`: log each entry, size, and result via a logger toggle rather than scattered prints.\n\n**Error handling.** Missing source folder, unreadable files, existing output, and permission problems return clear messages and a non-zero exit code. For corrupt archives: bad magic, truncated reads (fewer bytes than the declared size), unreasonable lengths (refuse huge allocations), and checksum mismatch. Clean up partial outputs.\n\n**Structure.** Separate `ArchiveWriter`, `ArchiveReader`, a filesystem walker, and a thin CLI parser. Test with nested folders, empty files and folders, large files, Unicode names, and deliberately corrupted archives.\n\n**Extras to mention:** preserving file permissions and timestamps, symlink handling, and endianness.",
+ "followUps": [
+  "How would you add compression later without breaking existing archives?",
+  "How do you prevent a malicious archive from writing outside the target folder?",
+  "How would you detect a truncated archive?",
+  "How would you support appending a file to an existing archive?"
+ ]
+}

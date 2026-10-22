@@ -1,0 +1,18 @@
+{
+ "qid": "4cbcc5111c",
+ "question": "In the second round (DSA plus low-level design) for a Senior Software Engineer (Backend Java) role at PayPal, the candidate was given a use case and asked to **write a generic implementation that works across cloud platforms such as AWS and Azure**, to **identify the appropriate design pattern**, and then to write the corresponding code.\n\nThe same round included a modified **LRU cache** problem in which the cache has to **handle key-value pairs as a list** (the values are lists), plus questions on microservices, distributed systems and design patterns. The concrete cloud use case was not reported, so choose a representative one, such as storing objects in S3 or Azure Blob Storage.",
+ "lookingFor": [
+  "Can you decouple business logic from vendor SDKs behind an abstraction?",
+  "Do you pick and justify patterns (Strategy, Adapter, Factory) rather than name-dropping?",
+  "Can you write clean, extensible Java following SOLID (open/closed, dependency inversion)?",
+  "Can you implement an LRU cache with O(1) operations and handle the list-valued twist?",
+  "Do you think about testing, configuration and failure handling?"
+ ],
+ "answer": "**Multi-cloud design.** Define a cloud-neutral interface, implement it once per vendor, and select the implementation by configuration. Patterns: **Strategy** (interchangeable implementations behind one interface), **Adapter** (each class adapts a vendor SDK to your interface) and **Factory** (creates the right one from config). If you need a whole family (storage plus queue plus secrets) per cloud, use **Abstract Factory**.\n\n```java\ninterface ObjectStorage {\n    void put(String key, byte[] data);\n    byte[] get(String key);\n    void delete(String key);\n}\nclass S3Storage implements ObjectStorage {          // wraps AWS SDK\n    public void put(String k, byte[] d) { /* s3Client.putObject(...) */ }\n    public byte[] get(String k) { /* ... */ return null; }\n    public void delete(String k) { /* ... */ }\n}\nclass AzureBlobStorage implements ObjectStorage { /* wraps Azure SDK */ }\n\nfinal class StorageFactory {\n    static ObjectStorage create(String provider) {\n        return switch (provider) {\n            case \"aws\"   -> new S3Storage();\n            case \"azure\" -> new AzureBlobStorage();\n            default -> throw new IllegalArgumentException(provider);\n        };\n    }\n}\n```\nBusiness code depends only on `ObjectStorage` (dependency inversion), and adding GCP means one new class (open/closed). Mention a common error model (translate vendor exceptions into your own), retries, and testing with a fake implementation.\n\n**LRU cache whose values are lists.** Use a `HashMap` plus a doubly linked list for O(1) get and put, or `LinkedHashMap` with access order:\n\n```java\nclass LRU<K, V> extends LinkedHashMap<K, List<V>> {\n    private final int cap;\n    LRU(int cap) { super(16, 0.75f, true); this.cap = cap; }\n    protected boolean removeEldestEntry(Map.Entry<K, List<V>> e) { return size() > cap; }\n    void add(K key, V v) { computeIfAbsent(key, x -> new ArrayList<>()).add(v); }\n}\n```\nClarify the twist: does appending to a key's list count as a \"use\", and does capacity count keys or total elements? Mention thread safety (wrap or lock) and defensive copies of returned lists.",
+ "followUps": [
+  "Why Strategy plus Factory here instead of inheritance?",
+  "How would you add a new cloud without modifying existing code?",
+  "How would you make the LRU cache thread-safe without one global lock?",
+  "How would you test code that calls cloud SDKs?"
+ ]
+}

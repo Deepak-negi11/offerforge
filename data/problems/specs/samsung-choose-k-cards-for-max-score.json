@@ -1,0 +1,44 @@
+{
+ "pid": "samsung-choose-k-cards-for-max-score",
+ "title": "Choose k Cards for Max Score",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "There are `n` cards. Card `i` has a number `numbers[i]` written on it and one of four symbols (the suits of a playing deck), given as an integer `symbols[i]` in `0..3`.\n\nYou must choose exactly `k` cards. The **score** of a choice is\n\n- the sum of the numbers on the chosen cards, plus\n- for each of the four symbols, the **square** of how many chosen cards carry that symbol.\n\nFor example, with numbers `[3, 4, 5, 6, 7, 18]` and symbols `[0, 1, 1, 2, 2, 3]`, choosing the cards numbered `6`, `7` and `18` gives `6 + 7 + 18 = 31` from the numbers; symbol `2` appears twice (`2^2 = 4`) and symbol `3` once (`1^2 = 1`), so the score is `31 + 4 + 1 = 36`.\n\nPrint the maximum score over all ways to choose `k` cards.",
+ "input_format": "The first line contains two integers `n` and `k`.\nThe second line contains `n` integers: `numbers`.\nThe third line contains `n` integers in `0..3`: `symbols`.",
+ "output_format": "Print a single integer: the maximum score.",
+ "constraints": [
+  "1 ≤ k ≤ n ≤ 2000",
+  "1 ≤ numbers[i] ≤ 10^6",
+  "0 ≤ symbols[i] ≤ 3"
+ ],
+ "examples": [
+  {
+   "input": "6 3\n3 4 5 6 7 18\n0 1 1 2 2 3",
+   "output": "36",
+   "explanation": "Taking 6, 7 and 18 gives 31 + 2^2 + 1^2 = 36. Taking 18, 4 and 5 gives 27 + 1^2 + 2^2 = 32, which is worse."
+  },
+  {
+   "input": "5 3\n6 6 5 5 5\n0 1 2 2 2",
+   "output": "24",
+   "explanation": "Taking the two 6s and one 5 gives 17 + 3 = 20. Taking a 6 and two 5s of the same symbol gives 16 + 1 + 4 = 21. Taking all three 5s, which share symbol 2, gives 15 + 3^2 = 24: the square bonus outweighs the two points lost."
+  }
+ ],
+ "complexity": {
+  "time": "O(n · k)",
+  "space": "O(n + k)"
+ },
+ "hints": [
+  "Within one symbol, if you take c cards you should take the c largest numbers. So each symbol contributes prefix_sum[c] + c^2 for some c.",
+  "The choice per symbol is independent except for the total count: you need c0 + c1 + c2 + c3 = k.",
+  "Run a knapsack over the four symbols: dp[j] is the best score using exactly j cards from the symbols processed so far, and for each symbol try every count c."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    nums = [int(x) for x in data[2:2 + n]]\n    suits = [int(x) for x in data[2 + n:2 + 2 * n]]\n    groups = [[] for _ in range(4)]\n    for v, s in zip(nums, suits):\n        groups[s].append(v)\n    NEG = -10 ** 30\n    dp = [NEG] * (k + 1)\n    dp[0] = 0\n    for g in groups:\n        g.sort(reverse=True)\n        top = min(len(g), k)\n        gain = [0] * (top + 1)\n        run = 0\n        for c in range(1, top + 1):\n            run += g[c - 1]\n            gain[c] = run + c * c\n        nd = [NEG] * (k + 1)\n        for j in range(k + 1):\n            best = NEG\n            for c in range(min(top, j) + 1):\n                p = dp[j - c]\n                if p > NEG:\n                    v = p + gain[c]\n                    if v > best:\n                        best = v\n            nd[j] = best\n        dp = nd\n    print(dp[k])\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import combinations\n\ndata = sys.stdin.read().split()\nn, k = int(data[0]), int(data[1])\nnums = [int(x) for x in data[2:2 + n]]\nsuits = [int(x) for x in data[2 + n:2 + 2 * n]]\nbest = None\nfor comb in combinations(range(n), k):\n    cnt = [0, 0, 0, 0]\n    total = 0\n    for i in comb:\n        total += nums[i]\n        cnt[suits[i]] += 1\n    total += sum(c * c for c in cnt)\n    if best is None or total > best:\n        best = total\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(k, nums, suits):\n        return f\"{len(nums)} {k}\\n\" + ' '.join(map(str, nums)) + '\\n' + ' '.join(map(str, suits))\n    tests = [\n        fmt(3, [3, 4, 5, 6, 7, 18], [0, 1, 1, 2, 2, 3]),\n        fmt(1, [5], [2]),\n        fmt(2, [5, 5], [0, 1]),\n        fmt(2, [5, 5], [3, 3]),\n        fmt(4, [1, 1, 1, 1], [0, 1, 2, 3]),\n        fmt(4, [10**6, 1, 1, 1], [0, 1, 1, 1]),\n        fmt(3, [1, 1, 1, 1, 100], [0, 0, 0, 0, 3]),\n        fmt(5, [2, 2, 2, 2, 2, 2], [0, 0, 1, 1, 2, 2]),\n    ]\n    for _ in range(20):\n        n = rng.randint(1, 12)\n        k = rng.randint(1, n)\n        hi = rng.choice([3, 10, 40])\n        s = rng.choice([1, 2, 3, 4])\n        tests.append(fmt(k, [rng.randint(1, hi) for _ in range(n)], [rng.randrange(s) for _ in range(n)]))\n    for _ in range(3):\n        n = rng.randint(40, 80)\n        k = rng.randint(1, n)\n        tests.append(fmt(k, [rng.randint(1, 10**6) for _ in range(n)], [rng.randrange(4) for _ in range(n)]))\n    n = 2000\n    tests.append(fmt(1000, [rng.randint(1, 10**6) for _ in range(n)], [rng.randrange(4) for _ in range(n)]))\n    tests.append(fmt(1000, [rng.randint(1, 50) for _ in range(n)], [rng.randrange(4) for _ in range(n)]))\n    tests.append(fmt(2000, [rng.randint(1, 10**6) for _ in range(n)], [rng.randrange(4) for _ in range(n)]))\n    tests.append(fmt(1200, [rng.randint(1, 10**6) for _ in range(n)], [i // 500 for i in range(n)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_score(k: int, numbers: List[int], symbols: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    numbers = [int(x) for x in data[2:2 + n]]\n    symbols = [int(x) for x in data[2 + n:2 + 2 * n]]\n    print(max_score(k, numbers, symbols))\n\n\nmain()\n",
+  "javascript": "function maxScore(k, numbers, symbols) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst numbers = t.slice(2, 2 + n)\nconst symbols = t.slice(2 + n, 2 + 2 * n)\nconsole.log(String(maxScore(k, numbers, symbols)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxScore(int k, vector<long long>& numbers, vector<int>& symbols) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<long long> numbers(n);\n    vector<int> symbols(n);\n    for (int i = 0; i < n; i++) cin >> numbers[i];\n    for (int i = 0; i < n; i++) cin >> symbols[i];\n    cout << maxScore(k, numbers, symbols) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxScore(int k, long[] numbers, int[] symbols) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        long[] numbers = new long[n];\n        int[] symbols = new int[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); numbers[i] = (long) in.nval; }\n        for (int i = 0; i < n; i++) { in.nextToken(); symbols[i] = (int) in.nval; }\n        System.out.println(maxScore(k, numbers, symbols));\n    }\n}\n"
+ }
+}

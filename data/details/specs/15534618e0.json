@@ -1,0 +1,18 @@
+{
+ "qid": "15534618e0",
+ "question": "JPMorgan Chase, SWE 2 (about 3 years of experience), Technical Interview 3. Kafka questions: **how Kafka brokers work and how they maintain topics**, **how to increase Kafka throughput**, and **dead-letter queues (DLQs)**. These came after Java internals questions, and the candidate said the round was too deep for them.",
+ "lookingFor": [
+  "A correct mental model: topics, partitions, replicas, leaders, offsets.",
+  "Knowing how durability and availability are configured (replication, ISR, acks).",
+  "Practical throughput tuning on producer, broker and consumer sides.",
+  "Error-handling design with retries and DLQs.",
+  "Honest depth: explain what you know and state limits."
+ ],
+ "answer": "**Brokers and topics.** A Kafka cluster is a set of brokers. A **topic** is split into **partitions**; each partition is an ordered, append-only **log** stored on disk as segment files, and each record has an **offset**. Every partition has one **leader** broker that handles reads and writes and **follower** replicas that copy it. The followers that are caught up form the **in-sync replica set (ISR)**. If a leader fails, a new leader is elected from the ISR. A **controller** (a quorum under KRaft in newer versions, ZooKeeper in older ones) tracks cluster metadata and leader assignment. Consumers in a **consumer group** split the partitions between them and commit offsets, so ordering is guaranteed only within a partition. Retention is by time or size, not by consumption.\n\n**Durability settings.** `replication.factor` (commonly 3), producer `acks=all` plus `min.insync.replicas` for no data loss on a broker failure; idempotent producer to avoid duplicates on retry.\n\n**Increasing throughput.**\n- **Partitions:** more partitions allow more parallel consumers and producers, with a cost in metadata, file handles and rebalance time. Consumers in one group cannot exceed the partition count usefully.\n- **Producer:** batching (`batch.size`, `linger.ms`), compression (`lz4`, `zstd`), larger buffers, async sends; relaxing `acks` trades durability for speed.\n- **Consumer:** more instances up to the partition count, larger fetch sizes (`fetch.min.bytes`, `max.poll.records`), process in batches and keep processing fast so polls are not delayed.\n- **Broker:** fast disks, enough page cache, and even partition distribution. Kafka's speed comes from sequential I/O and the OS page cache.\n- Find the real bottleneck first by measuring lag and latency.\n\n**Dead-letter queues.** When a message cannot be processed (bad payload, repeated failure), retry a bounded number of times (possibly via retry topics with delay), then publish it to a **DLQ topic** with the original payload plus metadata (error, topic, partition, offset, attempts). This keeps the main partition moving instead of blocking on a poison message. Monitor and alert on the DLQ, and provide a way to inspect and replay. Frameworks such as Spring Kafka support this directly.",
+ "followUps": [
+  "What happens to ordering when you add partitions to an existing topic?",
+  "What is the difference between at-least-once and exactly-once delivery in Kafka?",
+  "What causes a consumer group rebalance and how do you reduce its impact?",
+  "How do you choose the partition key?"
+ ]
+}

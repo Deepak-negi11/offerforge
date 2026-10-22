@@ -1,0 +1,49 @@
+{
+ "pid": "ibm-top-k-by-gap-between-set-bits",
+ "title": "Top K by Gap Between Set Bits",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an integer array `arr` and an integer `k`.\n\nFor an integer `x`, look at the positions of its set bits (`1` bits) in binary. The **distance** `d(x)` is the **maximum distance between two contiguous (neighbouring) set bits**, measured as the difference of their bit positions. For example, `5` is `101`, whose set bits are at positions 0 and 2, so `d(5) = 2`. For `13 = 1101` the set bits are at positions 0, 2 and 3, the gaps are 2 and 1, so `d(13) = 2`.\n\nIf `x` has only one set bit, `d(x) = -1`. The value `0` has no set bits and also has `d(0) = -1`.\n\nReturn the **top `k` elements** of `arr` ordered by `d` from largest to smallest. If two elements have the same `d`, the one with the larger decimal value comes first (for instance, if `5` and `6` have the same `d`, then `6` is listed before `5`). Every element of `arr` is a separate candidate, even when values repeat.",
+ "input_format": "The first line contains two integers `n` and `k`.\nThe second line contains `n` integers: `arr`.",
+ "output_format": "Print `k` space-separated integers: the chosen elements in the required order.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ k ≤ n",
+  "0 ≤ arr[i] ≤ 10^8"
+ ],
+ "examples": [
+  {
+   "input": "5 3\n5 6 9 8 17",
+   "output": "17 9 5",
+   "explanation": "The distances are d(5) = 2, d(6) = 1 (110), d(9) = 3 (1001), d(8) = -1 (single set bit) and d(17) = 4 (10001). Sorted by distance: 17, 9, 5, 6, 8, so the top 3 are 17 9 5."
+  },
+  {
+   "input": "5 4\n5 3 6 12 10",
+   "output": "10 5 12 6",
+   "explanation": "d(5) = 2, d(3) = 1, d(6) = 1, d(12) = 1, d(10) = 2 (1010). The elements with d = 2 come first, larger value first: 10, 5. Then those with d = 1 by larger value: 12, 6, 3. The top 4 are 10 5 12 6."
+  },
+  {
+   "input": "4 2\n0 1 2 4",
+   "output": "4 2",
+   "explanation": "All four values have d = -1, so they are ordered purely by value, largest first: 4, 2, 1, 0."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "First compute d(x) for every element on its own. Walk the bits of x and remember the position of the previous set bit.",
+  "The required order is a plain sort on the pair (d, value), both descending.",
+  "After sorting, output the first k elements. A heap of size k also works if you want to avoid a full sort."
+ ],
+ "reference": "import sys\n\ndef dist(x):\n    s = bin(x)[2:]\n    pos = [i for i, c in enumerate(s) if c == '1']\n    if len(pos) < 2:\n        return -1\n    return max(pos[i + 1] - pos[i] for i in range(len(pos) - 1))\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    a = [int(v) for v in data[2:2 + n]]\n    a.sort(key=lambda x: (-dist(x), -x))\n    print(' '.join(map(str, a[:k])))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, k = int(data[0]), int(data[1])\na = [int(v) for v in data[2:2 + n]]\n\ndef d(x):\n    prev = -1\n    best = -1\n    for b in range(40):\n        if (x >> b) & 1:\n            if prev != -1:\n                best = max(best, b - prev)\n            prev = b\n    return best\n\npool = list(a)\nres = []\nfor _ in range(k):\n    bi = 0\n    for i in range(1, len(pool)):\n        if (d(pool[i]), pool[i]) > (d(pool[bi]), pool[bi]):\n            bi = i\n    res.append(pool.pop(bi))\nprint(' '.join(map(str, res)))\n",
+ "generator": "def gen(rng):\n    def fmt(k, a):\n        return f'{len(a)} {k}\\n' + ' '.join(map(str, a))\n\n    tests = [\n        fmt(1, [0]), fmt(1, [1]), fmt(1, [10**8]), fmt(2, [0, 1, 2, 4]),\n        fmt(3, [5, 6, 9, 8, 17]), fmt(4, [5, 3, 6, 12, 10]),\n        fmt(3, [7, 7, 7, 7]), fmt(2, [5, 5, 6, 6, 3]),\n        fmt(5, [2 ** 26 + 1, 2 ** 26, 3, 2 ** 25 + 1, 0]),\n    ]\n    for n in (2, 3, 5, 8, 12, 20, 30):\n        for _ in range(3):\n            hi = rng.choice([8, 64, 1000, 10**8])\n            k = rng.randint(1, n)\n            tests.append(fmt(k, [rng.randint(0, hi) for _ in range(n)]))\n    N = 100000\n    tests.append(fmt(50000, [rng.randint(0, 10**8) for _ in range(N)]))\n    tests.append(fmt(N, [rng.randint(0, 10**8) for _ in range(N)]))\n    tests.append(fmt(1, [rng.randint(0, 255) for _ in range(N)]))\n    tests.append(fmt(77777, [rng.choice([0, 1, 2 ** 26 + 1, 2 ** 26 + 2 ** 13, 10**8, 3, 99999999]) for _ in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef top_k(arr: List[int], k: int) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    arr = [int(v) for v in data[2:2 + n]]\n    print(' '.join(map(str, top_k(arr, k))))\n\n\nmain()\n",
+  "javascript": "function topK(arr, k) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst arr = t.slice(2, 2 + n)\nconsole.log(topK(arr, k).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> topK(vector<long long>& arr, int k) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<long long> arr(n);\n    for (int i = 0; i < n; i++) cin >> arr[i];\n    vector<long long> res = topK(arr, k);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] topK(long[] arr, int k) {\n        // Write your solution here\n        return new long[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        long[] arr = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            arr[i] = (long) in.nval;\n        }\n        long[] res = topK(arr, k);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

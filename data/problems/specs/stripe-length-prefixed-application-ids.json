@@ -1,0 +1,50 @@
+{
+ "pid": "stripe-length-prefixed-application-ids",
+ "title": "Length-Prefixed Application IDs",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "A stream of application IDs is encoded in a single string. Every application ID is **prefixed by its length** (the number of characters in the ID, written in decimal without leading zeros), and the whole stream **ends with a `0`**. In other words the string has the form `len1 ID1 len2 ID2 ... lenk IDk 0`.\n\nEvery application ID is at least 1 character long, starts with an uppercase letter and contains only letters and digits. Because an ID always starts with a letter, the length prefix is the maximal run of digits that comes right before it.\n\nFor example, `10A13414124218B124564356434567430` encodes the IDs `A134141242` (length 10) and `B12456435643456743` (length 18), followed by the terminating `0`.\n\nThe program works in one of two modes:\n\n- **Mode 1:** decode the stream and print every application ID in the order it appears.\n- **Mode 2:** you are also given a whitelist of application IDs. Decode the stream and print only the IDs that are in the whitelist, in the order they appear in the stream. An ID that appears several times in the stream is printed once per appearance.\n\nIf there is nothing to print, print the word `EMPTY`.",
+ "input_format": "The first line contains `mode` (`1` or `2`).\nThe second line contains the encoded string.\nIn mode 2, the third line contains `w`, the size of the whitelist, and the fourth line (present only when `w > 0`) contains the `w` whitelisted IDs separated by single spaces.",
+ "output_format": "Print the selected application IDs separated by single spaces on one line, or `EMPTY` if there are none.",
+ "constraints": [
+  "mode ∈ {1, 2}",
+  "The encoded string is valid and has length at most 10^6",
+  "0 ≤ w ≤ 10^5",
+  "Whitelisted IDs are non-empty strings of letters and digits"
+ ],
+ "examples": [
+  {
+   "input": "1\n10A13414124218B124564356434567430",
+   "output": "A134141242 B12456435643456743",
+   "explanation": "Read `10`, take the next 10 characters `A134141242`. Read `18`, take the next 18 characters `B12456435643456743`. The final `0` ends the stream."
+  },
+  {
+   "input": "2\n10A13414124218B124564356434567430\n1\nA134141242",
+   "output": "A134141242",
+   "explanation": "Only `A134141242` is whitelisted, so `B12456435643456743` is dropped."
+  },
+  {
+   "input": "2\n3AB11C3AB10\n2\nAB1 Z",
+   "output": "AB1 AB1",
+   "explanation": "The stream holds `AB1`, `C`, `AB1`. The digit inside `AB1` is part of the ID because exactly 3 characters are taken after the prefix. `AB1` is whitelisted and appears twice, so it is printed twice."
+  }
+ ],
+ "complexity": {
+  "time": "O(|s| + w)",
+  "space": "O(|s| + w)"
+ },
+ "hints": [
+  "Keep an index into the string. Read digits until you reach a non-digit; that number is the length of the next ID.",
+  "Take exactly that many characters as the ID, then move the index past them and repeat. Stop when the length you read is 0.",
+  "For the whitelist, put it into a set so each membership test is O(1) instead of scanning a list."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    data = sys.stdin.read().split()\n    mode = int(data[0])\n    s = data[1]\n    n = len(s)\n    ids = []\n    i = 0\n    while i < n:\n        j = i\n        while j < n and '0' <= s[j] <= '9':\n            j += 1\n        L = int(s[i:j])\n        if L == 0:\n            break\n        ids.append(s[j:j + L])\n        i = j + L\n    if mode == 2:\n        w = int(data[2])\n        allowed = set(data[3:3 + w])\n        ids = [x for x in ids if x in allowed]\n    print(' '.join(ids) if ids else 'EMPTY')\n\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nmode = int(data[0])\ns = data[1]\nids = []\npos = 0\nwhile True:\n    num = 0\n    while s[pos].isdigit():\n        num = num * 10 + int(s[pos])\n        pos += 1\n        if pos == len(s):\n            break\n    if num == 0:\n        break\n    cur = ''\n    for _ in range(num):\n        cur += s[pos]\n        pos += 1\n    ids.append(cur)\n    if pos >= len(s):\n        break\nif mode == 2:\n    w = int(data[2])\n    wl = data[3:3 + w]\n    ids = [x for x in ids if x in wl]\nprint(' '.join(ids) if ids else 'EMPTY')\n",
+ "generator": "def gen(rng):\n    up = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'\n    alnum = up + 'abcdefghijklmnopqrstuvwxyz0123456789'\n\n    def mk(lo, hi):\n        L = rng.randint(lo, hi)\n        return rng.choice(up) + ''.join(rng.choice(alnum) for _ in range(L - 1))\n\n    def stream(ids):\n        return ''.join(str(len(x)) + x for x in ids) + '0'\n\n    def fmt(mode, ids, wl=None):\n        s = stream(ids)\n        if mode == 1:\n            return '1\\n' + s\n        return '2\\n' + s + '\\n' + str(len(wl)) + ('\\n' + ' '.join(wl) if wl else '')\n\n    A, B = 'A134141242', 'B12456435643456743'\n    tests = [\n        fmt(1, [A, B]),\n        fmt(2, [A, B], [A]),\n        fmt(2, ['AB1', 'C', 'AB1'], ['AB1', 'Z']),\n        fmt(1, []),\n        fmt(2, [], ['A']),\n        fmt(2, ['A', 'B'], []),\n        fmt(1, ['Z']),\n        fmt(1, ['A' + '9' * 11, 'B0', 'C00']),\n        fmt(2, ['A' + '9' * 11, 'B0', 'C00', 'B0'], ['B0', 'C00']),\n        fmt(1, ['X' * 100]),\n        fmt(2, ['A1', 'A12', 'A123'], ['A12']),\n    ]\n    for _ in range(40):\n        mode = rng.choice([1, 2])\n        n = rng.randint(0, 8)\n        pool = [mk(1, 12) for _ in range(rng.randint(1, 4))]\n        ids = [rng.choice(pool) if rng.random() < 0.5 else mk(1, 12) for _ in range(n)]\n        wl = None\n        if mode == 2:\n            wl = []\n            for _ in range(rng.randint(0, 4)):\n                wl.append(rng.choice(ids) if ids and rng.random() < 0.6 else mk(1, 12))\n        tests.append(fmt(mode, ids, wl))\n    # large: many ids, large whitelist\n    for mode in (1, 2, 2):\n        ids = []\n        total = 0\n        while total < 900000:\n            x = mk(4, 14)\n            ids.append(x)\n            total += len(x) + 2\n        wl = None\n        if mode == 2:\n            wl = []\n            for _ in range(45000):\n                wl.append(rng.choice(ids) if rng.random() < 0.5 else mk(4, 14))\n        tests.append(fmt(mode, ids, wl))\n    # one very long id\n    big = 'Q' + ''.join(rng.choice(alnum) for _ in range(999000))\n    tests.append(fmt(2, [big], [big]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef decode(s: str) -> List[str]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    mode = int(data[0])\n    ids = decode(data[1])\n    if mode == 2:\n        w = int(data[2])\n        allowed = set(data[3:3 + w])\n        # Write your filtering here\n    print(' '.join(ids) if ids else 'EMPTY')\n\n\nmain()\n",
+  "javascript": "function decode(s) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst mode = Number(t[0])\nlet ids = decode(t[1])\nif (mode === 2) {\n  const w = Number(t[2])\n  const allowed = new Set(t.slice(3, 3 + w))\n  // Write your filtering here\n}\nconsole.log(ids.length ? ids.join(' ') : 'EMPTY')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<string> decode(const string& s) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int mode;\n    string s;\n    cin >> mode >> s;\n    vector<string> ids = decode(s);\n    if (mode == 2) {\n        int w;\n        cin >> w;\n        unordered_set<string> allowed;\n        for (int i = 0; i < w; i++) {\n            string x;\n            cin >> x;\n            allowed.insert(x);\n        }\n        // Write your filtering here\n    }\n    if (ids.empty()) {\n        cout << \"EMPTY\\n\";\n    } else {\n        for (size_t i = 0; i < ids.size(); i++) cout << ids[i] << (i + 1 < ids.size() ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<String> decode(String s) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int mode = Integer.parseInt(st.nextToken());\n        List<String> ids = decode(st.nextToken());\n        if (mode == 2) {\n            int w = Integer.parseInt(st.nextToken());\n            Set<String> allowed = new HashSet<>();\n            for (int i = 0; i < w; i++) allowed.add(st.nextToken());\n            // Write your filtering here\n        }\n        System.out.println(ids.isEmpty() ? \"EMPTY\" : String.join(\" \", ids));\n    }\n}\n"
+ }
+}

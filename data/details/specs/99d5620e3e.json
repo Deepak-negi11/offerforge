@@ -1,0 +1,17 @@
+{
+ "qid": "99d5620e3e",
+ "question": "In an Adobe MTS-2 C++ LLD round, the candidate was asked to design a simplified **Microsoft Word** supporting multiple font types, font styles, font sizes, text formatting (bold/italic), images, and **undo/redo**. The interviewer was particularly interested in how the design could be **extended with additional formatting or features while keeping responsibilities cleanly separated**.",
+ "lookingFor": [
+  "Can you pick a document model that separates content from formatting?",
+  "Do you use Command (undo/redo), Composite, Flyweight, Decorator or Visitor where they fit?",
+  "Do you design for extension without modifying existing classes?",
+  "Do you consider memory use and performance for large documents?"
+ ],
+ "answer": "**Requirements**: type, delete and format text (font family, size, bold, italic), insert images, undo/redo, save/load. Out of scope: collaboration, layout engine details.\n\n**Document model (Composite)**: `Document` contains `Paragraph`s, which contain `Element`s (`TextRun`, `ImageElement`) behind a common `Element` interface. A **TextRun** is a span of characters sharing one `Style`. Formatting a selection splits runs at the selection boundaries and applies the new style to the middle ones, then merges adjacent runs with equal styles.\n\n**Style**: an immutable value object `{ fontFamily, size, bold, italic }`. Share instances through a `StyleFactory` cache (**Flyweight**), because a document has far fewer distinct styles than characters. Alternatively compose formatting as **Decorators**, but a style object is simpler and cheaper.\n\n**Operations as Commands (undo/redo)**: `Command { execute(); undo(); }` with `InsertTextCommand`, `DeleteTextCommand`, `ApplyStyleCommand`, `InsertImageCommand`. A `HistoryManager` has an undo stack and a redo stack: executing a new command pushes to undo and clears redo. Each command stores what it needs to reverse itself (the deleted text and position, or the previous styles of the affected runs). Consider merging consecutive typing into one command.\n\n**Editor**: `Editor` owns the `Document`, current `Selection`/cursor, and `HistoryManager`, and exposes `type`, `delete`, `format`, `undo`, `redo`.\n\n**Extensibility**: new formatting (underline, colour) means adding a field to `Style` and a command variant, not touching other classes. New element types (tables) implement `Element`. Export (HTML, PDF) or spell check can use the **Visitor** pattern over elements.\n\n**Trade-offs**: a flat run list vs a rope/piece table for large text (piece table gives cheap inserts and natural undo); in C++ mind object ownership (`unique_ptr` for children) and copy cost of snapshots, so prefer storing deltas.",
+ "followUps": [
+  "Why does a piece table or rope help for large documents?",
+  "How would you implement 'copy and paste with formatting'?",
+  "How would you add tables or hyperlinks without changing existing classes?",
+  "How do you bound the memory used by the undo history?"
+ ]
+}

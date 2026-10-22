@@ -1,0 +1,19 @@
+{
+ "qid": "033d75d15b",
+ "question": "Netflix software engineer (L4) onsite, system design round (about 1 hour). The candidate was asked to **design a key feature of Netflix's payment system**. It was not a textbook problem but generic enough for a structured approach. The candidate started by clarifying **functional and non-functional requirements**, built a basic design that met the functional needs, then **refined components to meet non-functional requirements** such as reliability and scale. Because the exact feature was not reported, a reasonable choice is subscription billing with renewals, retries and refunds, confirmed with the interviewer.",
+ "lookingFor": [
+  "Structured requirements gathering, functional and non-functional.",
+  "Correctness thinking for money: idempotency, consistency, auditability.",
+  "Reliable integration with external payment providers and handling failures.",
+  "Iterating from a simple design to a scalable, resilient one.",
+  "Clear communication of trade-offs and bottlenecks."
+ ],
+ "answer": "**Clarify and pick scope.** Example feature: monthly subscription billing: charge each member on their renewal date, retry failures, update account status, issue receipts, and support refunds. Non-functional: no double charges, no lost charges, high availability, auditability, global currencies and providers, millions of renewals per day with date-based peaks.\n\n**Basic design.**\n- *Billing scheduler* finds subscriptions due today and enqueues charge jobs.\n- *Payment service* creates a `payment` record in state `PENDING`, calls an external provider (card network, wallet, carrier billing), then records `SUCCEEDED` or `FAILED`.\n- *Subscription service* updates the account on success and sends a receipt through a notification service.\n- Data: `subscription`, `payment_method` (tokenised, never raw card numbers), `payment` (amount in minor units, currency, status, provider reference), and an append-only `ledger` for audit.\n\n**Refinements for non-functional needs.**\n- *Idempotency*: each charge attempt has an idempotency key (subscription and billing period); retries and duplicate queue deliveries cannot charge twice. Pass the key to the provider as well.\n- *Failure handling*: provider timeouts leave the outcome unknown, so reconcile via status query or webhooks before retrying. Use a state machine and a dunning policy (retry with backoff, switch backup method, grace period, then suspend).\n- *Consistency*: update payment and ledger in one database transaction; use an outbox pattern to publish events (receipt, entitlement change) reliably.\n- *Scale*: shard by account ID, spread renewals across the day to avoid spikes, queue-based workers that scale horizontally, per-provider rate limiting and circuit breakers.\n- *Security and compliance*: tokenisation, encryption, least privilege, PCI scope kept small.\n- *Observability*: success rate per provider and region, alerts on drops, daily reconciliation against provider settlement files.\n\n**Trade-offs.** Strong consistency within the payment database vs eventual consistency to downstream services; multi-provider routing improves success rates but adds complexity.",
+ "followUps": [
+  "What do you do if the provider times out and you do not know whether the charge succeeded?",
+  "How do you guarantee a customer is never charged twice?",
+  "How would you design the retry and dunning policy?",
+  "How would you handle multiple currencies and payment providers by region?",
+  "How would you reconcile your records with the provider's?"
+ ]
+}

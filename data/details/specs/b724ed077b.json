@@ -1,0 +1,17 @@
+{
+ "qid": "b724ed077b",
+ "question": "From the first (mathematics-based, phone) interview for an SDE Intern role at Tower Research: **Given two random numbers `x` and `y` drawn uniformly from 0 to 1, describe a method to choose a point in the 2-D plane inside a circle centered at the origin, with every point equally likely.**",
+ "lookingFor": [
+  "Do you understand uniform sampling by area, not by radius?",
+  "Can you give both rejection sampling and an exact transformation?",
+  "Can you derive the sqrt using the CDF (inverse transform) idea?",
+  "Do you analyze efficiency and common mistakes?"
+ ],
+ "answer": "Take the unit circle (scale by the radius for others). \"Uniform\" means probability proportional to **area**.\n\n**Method 1: rejection sampling.**\n1. Map the inputs to a square: `a = 2x - 1`, `b = 2y - 1`, both in [-1, 1].\n2. If `a^2 + b^2 <= 1`, accept the point `(a, b)`. Otherwise reject and draw a new pair.\n\nThe accepted points are uniform because the square is uniform and we keep a subregion. The acceptance probability is `area of circle / area of square = pi / 4`, about 78.5%, so the expected number of tries is `4/pi`, about 1.27. It is simple and needs no trigonometry, but uses a variable number of random draws.\n\n**Method 2: polar coordinates, exact in one step.**\n- Angle: `theta = 2 * pi * x` (uniform in [0, 2 pi)).\n- Radius: `r = sqrt(y)`.\n- Point: `(r cos theta, r sin theta)`.\n\n**Why the square root.** The area element in polar coordinates is `r dr dtheta`, so the density of the radius is proportional to `r`, not constant. The fraction of the disc's area within radius `r` is `r^2`, so the CDF is `F(r) = r^2`. Inverse transform sampling sets `y = F(r) = r^2`, so `r = sqrt(y)`.\n\n**Common mistake.** Choosing `r = y` directly puts too many points near the center (the area of an inner ring is smaller, but you give it the same probability). A quick check is that the probability of landing within radius 0.5 should be `0.25`, which `r = sqrt(y)` gives (`P(r <= 0.5) = P(y <= 0.25)`), whereas `r = y` gives `0.5`.\n\n```python\nimport math\ndef point(x, y):\n    r, t = math.sqrt(y), 2 * math.pi * x\n    return r * math.cos(t), r * math.sin(t)\n```\n\n**Comparison.** Rejection sampling avoids `sqrt`, `sin` and `cos`, and generalizes to awkward shapes. The polar method has a fixed cost and no loops, which suits constant-time or vectorized code.",
+ "followUps": [
+  "How would you sample uniformly from the surface of a sphere?",
+  "How would you sample uniformly from the interior of a sphere?",
+  "Why does rejection sampling become inefficient in high dimensions?",
+  "How would you sample a point uniformly inside a triangle?"
+ ]
+}

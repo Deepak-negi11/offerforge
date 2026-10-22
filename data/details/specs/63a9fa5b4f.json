@@ -1,0 +1,18 @@
+{
+ "qid": "63a9fa5b4f",
+ "question": "You are given two asynchronous functions, `getVideos()` and `getLikes()`. Write a function `showVideosWithLikes()` that calls both and handles errors: if `getVideos` fails, show an error; if `getLikes` fails, still show the videos (without likes).\n\nThe interviewer also asked you to discuss the potential use of `Promise.all` or `Promise.allSettled`. (Frontend Engineer L4/L5 online screening, Netflix; one of three tasks in a 1-hour round.)",
+ "lookingFor": [
+  "Can you write correct async/await code with try/catch and clear error handling?",
+  "Do you understand graceful degradation: partial failure should not kill the whole page?",
+  "Do you know the difference between Promise.all, allSettled, race and any?",
+  "Do you avoid needless sequential awaits when calls are independent?",
+  "Do you think about loading state and cleanup (finally)?"
+ ],
+ "answer": "**Requirements restated.** Videos are essential, likes are optional. Videos failing means show an error. Likes failing means show videos anyway.\n\n**Simple sequential version**\n```js\nasync function showVideosWithLikes() {\n  let videos;\n  try {\n    videos = await getVideos();\n  } catch (err) {\n    showError(\"Could not load videos\");\n    return;\n  }\n  let likes = {};\n  try {\n    likes = await getLikes();\n  } catch (err) {\n    // degrade: render without likes\n  }\n  render(videos, likes);\n}\n```\nThis is correct, but the two calls run one after the other, so total latency is the sum of both.\n\n**Parallel version with `allSettled`**\n```js\nasync function showVideosWithLikes() {\n  const [v, l] = await Promise.allSettled([getVideos(), getLikes()]);\n  if (v.status === \"rejected\") {\n    showError(\"Could not load videos\");\n    return;\n  }\n  const likes = l.status === \"fulfilled\" ? l.value : null;\n  render(v.value, likes);\n}\n```\nBoth requests start immediately, so latency is the slower of the two, and each result is handled independently.\n\n**Why not `Promise.all`?** It rejects as soon as any promise rejects, so a failure in `getLikes` would throw away the successful videos result, which breaks the requirement. You would have to attach a `.catch` to `getLikes()` yourself to get the same behaviour. `Promise.all` is right when all results are required.\n\n**Details worth mentioning:** use `finally` (or a state flag) to hide a loading spinner in all cases; show a placeholder like \"likes unavailable\" instead of a wrong zero; consider timeouts, since a hung `getLikes` would block `allSettled` indefinitely; consider retrying the likes call in the background and updating the UI when it arrives; and in React keep the state as `{videos, likes, error}` and avoid state updates after unmount.\n\n**Edge cases:** empty video list, likes missing for some videos (use a default), and likes returned in a different order (match by id).",
+ "followUps": [
+  "How would you add a timeout so a slow getLikes does not delay rendering videos?",
+  "What do Promise.race and Promise.any do, and when would you use them?",
+  "How would you render videos first and fill in likes when they arrive?",
+  "How would you test this function, including each failure case?"
+ ]
+}

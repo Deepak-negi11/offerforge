@@ -1,0 +1,17 @@
+{
+ "qid": "9329123313",
+ "question": "A real-world multithreading or concurrency scenario was described to you. You were asked to decide whether it results in a **deadlock**, justify your answer with reasoning, and propose a possible resolution strategy.\n\nThe exact scenario was not recorded in the report, so expect something like two or more threads or services that acquire several locks or resources in different orders.",
+ "lookingFor": [
+  "Do you know the four necessary conditions for deadlock?",
+  "Can you trace thread interleavings methodically rather than guess?",
+  "Can you distinguish deadlock from livelock, starvation and plain contention?",
+  "Do you know practical prevention techniques and can you apply one concretely?"
+ ],
+ "answer": "**How to analyse any scenario.** Deadlock needs all four Coffman conditions at once:\n\n1. **Mutual exclusion**: the resource can be held by only one thread.\n2. **Hold and wait**: a thread holds one resource while waiting for another.\n3. **No preemption**: a resource cannot be forcibly taken away.\n4. **Circular wait**: a cycle of threads each waiting for a resource held by the next.\n\nDraw a **wait-for graph** (thread -> thread it waits on). A cycle means deadlock. Then check whether a bad interleaving is actually possible, because a program may be deadlock-prone but not always deadlock.\n\n**Classic example.**\n\n```java\n// Thread A                    // Thread B\nsynchronized (lock1) {         synchronized (lock2) {\n    synchronized (lock2) {         synchronized (lock1) {\n        ...                            ...\n```\n\nA takes lock1, B takes lock2, then each waits for the other forever. Yes, this is a deadlock. If both threads took the locks in the same order, there is no cycle and no deadlock.\n\n**Resolutions.**\n- **Global lock ordering**: always acquire locks in one agreed order (for example by id). This breaks circular wait and is the most common fix.\n- **tryLock with timeout** and back-off: give up and release held locks if the second lock is not acquired in time. This breaks hold-and-wait, but beware livelock, so add random back-off.\n- **Acquire everything atomically** or use one coarser lock.\n- **Reduce lock scope** or avoid nested locking; use lock-free or message-passing designs.\n- **Detection and recovery**: in databases, a deadlock detector aborts one transaction as a victim and the application retries.\n\n**Diagnosing in practice.** Take a thread dump (for example `jstack`), which reports Java-level deadlocks, and look at which threads are BLOCKED and which monitors they hold.\n\n**Be explicit about what you do not know.** If the scenario is ambiguous, state your assumptions about lock order and thread count before concluding.",
+ "followUps": [
+  "What is the difference between deadlock, livelock and starvation?",
+  "How does the database layer detect and handle deadlocks between transactions?",
+  "How would you prevent deadlock when transferring money between two accounts?",
+  "Can a single thread deadlock itself? (Think of non-reentrant locks.)"
+ ]
+}

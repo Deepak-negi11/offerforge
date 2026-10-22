@@ -1,0 +1,18 @@
+{
+ "qid": "0db7d1feaf",
+ "question": "Microsoft SDE-1 high-level design round: **design a TinyURL-style URL shortener** (a high-level design round in a loop that also had algorithm and LLD rounds). The question is also known as *Encode and Decode TinyURL*.",
+ "lookingFor": [
+  "Estimating scale and the read-heavy ratio.",
+  "Generating short, unique keys without collisions.",
+  "Simple, correct APIs and data model.",
+  "Caching, redirects and database scaling.",
+  "Handling expiry, abuse and analytics as extensions."
+ ],
+ "answer": "**Requirements.** `shorten(longUrl)` returns a short link; `GET /{key}` redirects to the original. Optional: custom alias, expiry, analytics. Assume 100M new URLs per month and a read:write ratio of about 100:1, so roughly 40 writes/s and 4,000 reads/s on average (state the assumptions explicitly). Storage is about 500 bytes per record, so around 600 GB over five years.\n\n**API.** `POST /shorten {url, alias?, ttl?}` returns `{shortUrl}`; `GET /{key}` returns HTTP 301 or 302 to the long URL (302 if you want to count every click, since 301 is cached by browsers).\n\n**Key generation.** A 7-character base62 key gives 62^7, about 3.5 trillion combinations.\n- **Counter + base62:** a unique incrementing id encoded in base62. No collisions, but the ids are guessable and the counter needs a distributed ID source (ranges handed out to servers, or a Snowflake-style generator).\n- **Hash (MD5/SHA) of the URL, take the first 7 chars:** may collide, so check the DB and retry with a salt.\n- **Pre-generated key service:** a separate service that stores unused keys and hands them out in batches.\nCounter ranges are a common choice.\n\n**Data model.** `urls(key PK, long_url, user_id, created_at, expires_at)`. A key-value or NoSQL store (DynamoDB, Cassandra) or a sharded SQL database works, partitioned by key. A unique constraint on key guards against collisions.\n\n**Read path.** Check a **cache (Redis, LRU)** first; hot links follow a power-law, so a small cache gives a high hit rate; fall back to the DB, then redirect. Put it behind a load balancer; add a CDN for popular redirects.\n\n**Scaling and extras.** Stateless app servers; DB replicas for reads and sharding for writes; a cleanup job for expired links; rate limiting and URL validation against abuse (malware, spam); an async pipeline (Kafka) for click analytics.\n\n**Trade-offs.** 301 versus 302, predictable versus random keys, and strong consistency for key allocation versus availability.",
+ "followUps": [
+  "How would you avoid collisions when many servers generate keys?",
+  "301 vs 302 redirect: which and why?",
+  "How would you support custom aliases and link expiry?",
+  "How would you track click analytics at scale?"
+ ]
+}

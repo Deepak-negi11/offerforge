@@ -1,0 +1,19 @@
+{
+ "qid": "9b6dde7f06",
+ "question": "Flipkart SDE-2 design round (60 minutes, two interviewers): **design a Jukebox / Spotify**. The candidate listed **eight features**, confirmed them, then asked for **non-functional requirements**. The discussion then covered **API design, schema design, schema relations, database choice and indexing**, in a conversational style.",
+ "lookingFor": [
+  "Prioritising features and defining non-functional requirements.",
+  "Clean API and schema design for a media catalogue.",
+  "Database selection with reasons (SQL vs NoSQL, search, cache).",
+  "Indexing and query patterns for lookups and playlists.",
+  "Thinking about streaming, CDN and scale at a high level."
+ ],
+ "answer": "**Features to propose (confirm with the interviewer).** Search songs/artists/albums; play/pause/seek streaming; create and edit playlists; like/save songs; recently played; recommendations (optional); user accounts and premium vs free. Pick the core, defer the rest.\n\n**Non-functional.** Low-latency start (under a second or two), high availability, global reach, scale (assume tens of millions of users and a catalogue of tens of millions of tracks), read-heavy, eventual consistency acceptable for plays and likes.\n\n**APIs (REST).** `GET /search?q=&type=`, `GET /tracks/{id}`, `GET /tracks/{id}/stream` (returns a signed CDN URL or manifest), `POST /playlists`, `POST /playlists/{id}/tracks`, `GET /me/recently-played`, `PUT /me/likes/{trackId}`.\n\n**Schema.** `user(id, ...)`, `artist`, `album(artist_id)`, `track(id, album_id, title, duration, audio_url)`, `track_artist(track_id, artist_id)` (many-to-many), `playlist(id, owner_id, name)`, `playlist_track(playlist_id, track_id, position)`, `user_like(user_id, track_id)`, `play_history(user_id, track_id, played_at)`.\n\n**Database choice.** A relational database for users, catalogue and playlists (strong relations, transactions); a wide-column or key-value store (Cassandra/DynamoDB) for high-volume play history and likes, partitioned by user; **Elasticsearch/OpenSearch** for search; Redis for hot metadata and sessions. Justify each by access pattern.\n\n**Indexing.** Primary keys; `playlist_track(playlist_id, position)`; `album(artist_id)`; `play_history(user_id, played_at DESC)`; a full-text index for titles. Avoid over-indexing write-heavy tables.\n\n**Streaming.** Audio files in object storage, chunked and encoded in several bitrates, served through a CDN with signed URLs; the client buffers adaptively.\n\n**Scale/bottlenecks.** CDN caching of popular tracks, cache metadata, shard play history by user, generate recommendations offline.",
+ "followUps": [
+  "Why would you not store play history in the same relational database?",
+  "How do you deliver audio with low start-up latency worldwide?",
+  "How would you design search with typo tolerance and autocomplete?",
+  "How would you keep playlist ordering consistent when users reorder tracks?",
+  "How would you enforce free vs premium limits?"
+ ]
+}

@@ -1,0 +1,49 @@
+{
+ "pid": "min-cost-to-connect-all-points",
+ "title": "Min Cost to Connect All Points",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given `n` distinct points on a 2D plane, the `i`-th at integer coordinates `(x[i], y[i])`. You may connect any two points with a cable. The cost of a cable between points `i` and `j` is their Manhattan distance, `|x[i] - x[j]| + |y[i] - y[j]|`.\n\nFind the minimum total cost of cables so that every point can reach every other point, directly or through other points.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains two integers `x[i]` and `y[i]`.",
+ "output_format": "Print a single integer: the minimum total cable cost.",
+ "constraints": [
+  "1 ≤ n ≤ 1000",
+  "-10^6 ≤ x[i], y[i] ≤ 10^6",
+  "All points are distinct"
+ ],
+ "examples": [
+  {
+   "input": "4\n0 0\n0 3\n4 0\n4 3",
+   "output": "10",
+   "explanation": "The corners of a 4 by 3 rectangle. Connect (0,0)-(0,3) for 3, (0,0)-(4,0) for 4 and (4,0)-(4,3) for 3. Total 10."
+  },
+  {
+   "input": "3\n1 1\n2 3\n5 2",
+   "output": "7",
+   "explanation": "Distances are 3 between the first two points, 4 between the last two and 5 between the first and last. The two cheapest cables connect everything: 3 + 4 = 7."
+  },
+  {
+   "input": "1\n9 -9",
+   "output": "0",
+   "explanation": "A single point needs no cable."
+  }
+ ],
+ "complexity": {
+  "time": "O(n^2)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Think of the points as the vertices of a complete graph whose edge weights are Manhattan distances. You need the cheapest set of edges that connects all vertices.",
+  "That is a minimum spanning tree. Kruskal's algorithm with union-find, or Prim's algorithm, both work.",
+  "The graph is dense (about n^2 / 2 edges), so Prim's algorithm with a simple array of best-known distances runs in O(n^2) without any heap."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    xs = [int(data[1 + 2 * i]) for i in range(n)]\n    ys = [int(data[2 + 2 * i]) for i in range(n)]\n    INF = float('inf')\n    best = [INF] * n\n    used = [False] * n\n    best[0] = 0\n    total = 0\n    for _ in range(n):\n        u = -1\n        bu = INF\n        for v in range(n):\n            if not used[v] and best[v] < bu:\n                bu = best[v]\n                u = v\n        used[u] = True\n        total += bu\n        xu, yu = xs[u], ys[u]\n        for v in range(n):\n            if not used[v]:\n                d = abs(xu - xs[v]) + abs(yu - ys[v])\n                if d < best[v]:\n                    best[v] = d\n    print(total)\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import combinations\n\ndata = sys.stdin.read().split()\nn = int(data[0])\npts = [(int(data[1 + 2 * i]), int(data[2 + 2 * i])) for i in range(n)]\nedges = []\nfor i in range(n):\n    for j in range(i + 1, n):\n        edges.append((abs(pts[i][0] - pts[j][0]) + abs(pts[i][1] - pts[j][1]), i, j))\nbest = None\nfor sub in combinations(edges, n - 1):\n    comp = list(range(n))\n    def find(a):\n        while comp[a] != a:\n            a = comp[a]\n        return a\n    ok = True\n    for w, i, j in sub:\n        a, b = find(i), find(j)\n        if a == b:\n            ok = False\n            break\n        comp[a] = b\n    if ok:\n        c = sum(e[0] for e in sub)\n        if best is None or c < best:\n            best = c\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(pts):\n        return str(len(pts)) + '\\n' + '\\n'.join(f'{x} {y}' for x, y in pts)\n    def distinct(n, lo, hi):\n        s = set()\n        while len(s) < n:\n            s.add((rng.randint(lo, hi), rng.randint(lo, hi)))\n        l = sorted(s)\n        rng.shuffle(l)\n        return l\n    tests = [fmt([(0, 0)]), fmt([(0, 0), (10**6, -10**6)]), fmt([(-10**6, -10**6), (10**6, 10**6), (-10**6, 10**6), (10**6, -10**6)]),\n             fmt([(i, 0) for i in range(6)]), fmt([(0, 0), (0, 1), (1, 0), (1, 1), (2, 2)])]\n    for n in (2, 3, 4, 5, 6):\n        for hi in (2, 5, 20, 10**6):\n            for _ in range(2):\n                if (2 * hi + 1) ** 2 >= n:\n                    tests.append(fmt(distinct(n, -hi, hi)))\n    N = 1000\n    tests.append(fmt(distinct(N, -10**6, 10**6)))\n    tests.append(fmt(distinct(N, -40, 40)))\n    cl = set()\n    while len(cl) < N:\n        cx, cy = rng.choice([-10**6, 10**6]), rng.choice([-10**6, 10**6])\n        dx, dy = rng.randint(0, 300), rng.randint(0, 300)\n        cl.add((cx - dx if cx > 0 else cx + dx, cy - dy if cy > 0 else cy + dy))\n    cl = sorted(cl)\n    rng.shuffle(cl)\n    tests.append(fmt(cl))\n    tests.append(fmt([(i * 1000 - 500000, 0) for i in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_cost(points: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    points = [[int(data[1 + 2 * i]), int(data[2 + 2 * i])] for i in range(n)]\n    print(min_cost(points))\n\n\nmain()\n",
+  "javascript": "function minCost(points) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst points = []\nfor (let i = 0; i < n; i++) points.push([t[1 + 2 * i], t[2 + 2 * i]])\nconsole.log(String(minCost(points)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minCost(vector<pair<long long, long long>>& points) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<pair<long long, long long>> points(n);\n    for (int i = 0; i < n; i++) cin >> points[i].first >> points[i].second;\n    cout << minCost(points) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minCost(long[][] points) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[][] points = new long[n][2];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); points[i][0] = (long) in.nval;\n            in.nextToken(); points[i][1] = (long) in.nval;\n        }\n        System.out.println(minCost(points));\n    }\n}\n"
+ }
+}

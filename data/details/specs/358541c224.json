@@ -1,0 +1,18 @@
+{
+ "qid": "358541c224",
+ "question": "Flipkart GRiD 8.0, Round 2 online assessment (SQL, 2 DSA, and one DataFrame question worth 15 marks). Reported DataFrame task: a **Pandas-style customer risk analysis pipeline**. Combine several datasets, validate records, compute several business metrics, compute segment-level statistics, assign customer risk scores, then sort and format the output. The exact dataset and scoring rules were not reported.",
+ "lookingFor": [
+  "Fluency with Pandas: merge, groupby, vectorised operations, apply.",
+  "Careful data validation (nulls, duplicates, bad types, orphan keys).",
+  "Turning a business description into correct metric definitions.",
+  "Producing deterministic, correctly formatted output (sorting, rounding, tie-breaks).",
+  "Time management on a large implementation task."
+ ],
+ "answer": "The exact rules were not reported, so this is a general template that fits that kind of task. The sequence is the point.\n\n**1. Load and inspect.** Read each dataset (`pd.read_csv` or the provided frames), check `dtypes`, `isna().sum()`, duplicates and key uniqueness. Never assume the data is clean.\n\n**2. Validate records.** Drop or flag rows that violate stated rules: missing ids, negative amounts, invalid dates, duplicate transactions, orphan foreign keys. Use boolean masks and `pd.to_numeric(errors=\"coerce\")` / `pd.to_datetime(errors=\"coerce\")`, then filter. Read the statement for whether invalid rows are removed or counted separately.\n\n**3. Combine.** `customers.merge(txns, on=\"customer_id\", how=\"left\")`. Choose `how` deliberately: a customer with no transactions may still need a row. Check row counts before and after a merge to catch accidental many-to-many duplication.\n\n**4. Compute metrics per customer.** `groupby(\"customer_id\").agg(total=(\"amount\",\"sum\"), n=(\"id\",\"count\"), late=(\"is_late\",\"sum\"))`, then derived ratios such as `late_rate = late / n` (guard division by zero).\n\n**5. Segment-level statistics.** `groupby(\"segment\")` mean and std of a metric, merged back via `transform` so each customer can be compared with their segment (for example a z-score or percentile).\n\n**6. Risk score.** Implement exactly the formula or thresholds given, vectorised with `np.select` or `pd.cut`; avoid row-by-row `apply` unless unavoidable.\n\n**7. Sort and format.** `sort_values([\"risk_score\",\"customer_id\"], ascending=[False, True])` for a deterministic tie-break, round as specified, and print or return in the required column order and string format.\n\nPractical strategy: write each step as a small function, test on a tiny example by hand, and get partial credit by finishing the pipeline up to the score even if the final formatting is unfinished.",
+ "followUps": [
+  "How do you detect and avoid accidental row duplication after a merge?",
+  "Why prefer vectorised operations over `apply` in Pandas?",
+  "What is the difference between `agg` and `transform` in `groupby`?",
+  "How would you do the same computation in SQL?"
+ ]
+}

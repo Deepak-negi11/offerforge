@@ -1,0 +1,18 @@
+{
+ "qid": "e187008ec5",
+ "question": "Swiggy Associate SDE online assessment, SQL section. Using the `UNION` operator, return in **one list** all customers who have **no invoice** and all products that were **never sold**.\n\nFor each customer without an invoice return the string `customer`, the customer `id` and the `customer_name`. For each product that was not sold return the string `product`, the product `id` and the `product_name`. Columns must be in that order (type, id, name); row order does not matter.\n\nThe tables given include `customer` (id, customer_name, city_id, customer_address, contact_person, email, phone) and `product` (id, sku, product_name, product_description, ...), plus the invoice tables. The passage shown does not include the invoice table definitions, so their names are not reproduced here.",
+ "lookingFor": [
+  "Can you express an anti-join (rows with no match) and combine two unrelated result sets with UNION?",
+  "Do you know why the column count, order and compatible types must match across the UNION branches?",
+  "Do you pick NOT EXISTS or LEFT JOIN ... IS NULL safely, and know the NOT IN trap with NULLs?",
+  "UNION vs UNION ALL: duplicate removal and its cost.",
+  "Can you read an unfamiliar schema and infer the join keys?"
+ ],
+ "answer": "**Approach.** Each half is an *anti-join*: keep the rows of one table that have no matching row in another. Then `UNION` stacks the two result sets, which only works because both select three columns in the same order with compatible types.\n\nAssumed schema (the invoice tables are not shown in the source, so adjust names to the actual ones): `invoice(id, customer_id, ...)` and `invoice_item(invoice_id, product_id, ...)`, where a product is \"sold\" if it appears in an invoice item.\n\n```sql\nSELECT 'customer' AS type, c.id, c.customer_name AS name\nFROM customer c\nWHERE NOT EXISTS (SELECT 1 FROM invoice i WHERE i.customer_id = c.id)\nUNION\nSELECT 'product', p.id, p.product_name\nFROM product p\nWHERE NOT EXISTS (SELECT 1 FROM invoice_item ii WHERE ii.product_id = p.id);\n```\n\n**Why it works.**\n- The first branch returns customers for whom no invoice row references their id.\n- The second returns products that never appear on any invoice line.\n- The literal strings `'customer'` and `'product'` tag each row, and the column names come from the first `SELECT`.\n- Types line up: a string, an int id and a varchar name in both branches.\n\n**Equivalent forms.** `LEFT JOIN invoice i ON i.customer_id = c.id WHERE i.id IS NULL` gives the same rows. Avoid `NOT IN (SELECT customer_id ...)` unless you filter NULLs: if the subquery returns a single NULL, `NOT IN` evaluates to unknown and returns no rows at all.\n\n**UNION vs UNION ALL.** `UNION` removes duplicate rows, which costs a sort or hash. Here the type tag makes rows from the two branches distinct, and ids are unique within each table, so `UNION ALL` would return the same rows faster. The task said to use UNION, so use it, but mention this.\n\n**Performance.** Index `invoice(customer_id)` and `invoice_item(product_id)` so each `NOT EXISTS` is an index probe rather than a scan per row.\n\n**Edge cases to state.** A customer with only cancelled or zero-value invoices still counts as having an invoice unless the question says otherwise; a product with zero stock but past sales is \"sold\".",
+ "followUps": [
+  "Rewrite the customer branch with LEFT JOIN and compare the plans.",
+  "What happens with NOT IN if the subquery contains NULL?",
+  "When would UNION and UNION ALL give different results?",
+  "How would you also return the count of each type?"
+ ]
+}

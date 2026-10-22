@@ -1,0 +1,17 @@
+{
+ "qid": "0c6c0f0294",
+ "question": "Adobe MTS-1 on-campus, round 3, after a discussion of the candidate's internship project. Questions: **what happens when we often allocate and deallocate memory?** (a long discussion on how the OS allocates memory, **fragmentation** and how to avoid it with **compaction**), **how does compaction work** (the interviewer wanted the algorithm), and **how does deallocation occur and what should be taken care of**, including **realloc**.",
+ "lookingFor": [
+  "Understanding of internal and external fragmentation and what causes them.",
+  "Ability to describe compaction as a concrete algorithm.",
+  "Knowing allocator behavior and safe deallocation practice.",
+  "Correct use and pitfalls of realloc."
+ ],
+ "answer": "**What happens.** Repeated allocate/free of varied sizes leaves memory **fragmented**: plenty of total free memory but split into small non-contiguous holes. Allocation can then fail or slow down even though the total free space is sufficient.\n- **External fragmentation**: free holes between allocated blocks too small to use.\n- **Internal fragmentation**: space wasted inside an allocated block (rounding to block or page size).\nPlacement policies (first fit, best fit, worst fit) change the pattern but do not remove it.\n\n**Avoiding it.**\n- **Paging** removes external fragmentation for processes (fixed-size frames).\n- **Compaction** moves allocated blocks together so the free space merges into one big hole.\n- **Allocator techniques**: size-class free lists, slab and pool allocators, and **coalescing** of adjacent free blocks on `free`.\n- Reduce churn: reuse objects or buffers, allocate in bulk.\n\n**Compaction algorithm.** Represent memory as blocks, each used or free. Scan with two pointers, like partitioning:\n1. `write = 0`. For `read` from 0 to end: if block `read` is allocated, copy it to position `write` and increment `write`.\n2. After the scan, mark everything from `write` to the end as one free block.\nFor a linked list of blocks: unlink free nodes and append one merged free node at the tail. It is O(n) time, O(1) extra space. **Cost**: copying data, and every pointer or address referring to a moved block must be updated, so it needs **relocatable** (base-register or handle-based) addressing. It is impractical for C programs with raw pointers, which is why general-purpose `malloc` does not compact, while managed runtimes with moving GC do.\n\n**Deallocation care.** `free` only pointers returned by `malloc`, free exactly once (no double free), do not use after free (set to NULL), and avoid leaks. The allocator should coalesce neighbors.\n\n**realloc.** `realloc(p, n)` resizes a block, extending in place if possible, otherwise allocating a new block, copying and freeing the old one. It may return a different address, so never write `p = realloc(p, n)` without checking, since a NULL return would leak the original. Use a temporary pointer.",
+ "followUps": [
+  "What is the difference between internal and external fragmentation, with an example of each?",
+  "Compare first fit, best fit and worst fit.",
+  "Why can't malloc compact the heap in C?",
+  "What does the buddy allocator do?"
+ ]
+}

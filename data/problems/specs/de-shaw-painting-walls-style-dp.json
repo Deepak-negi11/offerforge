@@ -1,0 +1,49 @@
+{
+ "pid": "de-shaw-painting-walls-style-dp",
+ "title": "Painting Walls Style DP",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "There are `n` walls to paint, numbered `0` to `n - 1`. Two painters are available:\n\n- A **paid painter** paints wall `i` in `time[i]` units of time and charges `cost[i]` for it. The paid painter works on one wall at a time.\n- A **free painter** paints any wall in exactly `1` unit of time at no cost, but can only work while the paid painter is busy painting a wall.\n\nBoth painters can work at the same time, and each wall is painted by exactly one of them. Return the minimum total cost needed to paint all `n` walls.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` integers `cost[0..n-1]`.\nThe third line contains `n` integers `time[0..n-1]`.",
+ "output_format": "Print a single integer: the minimum total cost.",
+ "constraints": [
+  "1 ≤ n ≤ 1000",
+  "1 ≤ cost[i] ≤ 10^6",
+  "1 ≤ time[i] ≤ 10^4"
+ ],
+ "examples": [
+  {
+   "input": "5\n4 1 9 2 6\n3 1 1 1 2",
+   "output": "5",
+   "explanation": "Hire the paid painter for walls 0 and 1 (cost 4 + 1 = 5). He is busy for 3 + 1 = 4 units, so the free painter can paint up to 4 walls, and only walls 2, 3 and 4 remain. Nothing cheaper works: for example walls 1 and 3 cost 3 but keep the paid painter busy for only 2 units, so at most 2 + 2 = 4 of the 5 walls get painted."
+  },
+  {
+   "input": "2\n10 3\n1 1",
+   "output": "3",
+   "explanation": "The paid painter paints wall 1 for 3 in one unit of time. During that time the free painter paints wall 0."
+  },
+  {
+   "input": "3\n5 5 5\n1 1 1",
+   "output": "10",
+   "explanation": "Each paid wall keeps the paid painter busy for 1 unit, giving the free painter 1 wall. One paid wall covers 2 walls in total, so two paid walls are needed: cost 10."
+  }
+ ],
+ "complexity": {
+  "time": "O(n^2)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "If the paid painter paints a set of walls S, the free painter has `sum(time[i] for i in S)` units of working time. When is that enough for the remaining walls?",
+  "Each wall you give to the paid painter finishes itself plus up to `time[i]` other walls. So choosing wall `i` 'covers' `time[i] + 1` walls at cost `cost[i]`. You need to cover at least `n` walls.",
+  "That is a 0/1 knapsack: let `dp[j]` be the minimum cost to cover `j` walls, capping `j` at `n`. Process walls one at a time, iterating `j` downwards."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    cost = [int(x) for x in data[1:1 + n]]\n    time = [int(x) for x in data[1 + n:1 + 2 * n]]\n    INF = float('inf')\n    dp = [INF] * (n + 1)\n    dp[0] = 0\n    for i in range(n):\n        c = cost[i]\n        w = time[i] + 1\n        for j in range(n, -1, -1):\n            if dp[j] != INF:\n                t = j + w\n                if t > n:\n                    t = n\n                v = dp[j] + c\n                if v < dp[t]:\n                    dp[t] = v\n    print(dp[n])\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\ncost = [int(x) for x in data[1:1 + n]]\ntime = [int(x) for x in data[1 + n:1 + 2 * n]]\nbest = None\nfor mask in range(1, 1 << n):\n    paid = [i for i in range(n) if mask >> i & 1]\n    T = sum(time[i] for i in paid)\n    if n - len(paid) <= T:\n        c = sum(cost[i] for i in paid)\n        if best is None or c < best:\n            best = c\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(c, t):\n        return f\"{len(c)}\\n\" + \" \".join(map(str, c)) + \"\\n\" + \" \".join(map(str, t))\n\n    tests = [\n        \"5\\n4 1 9 2 6\\n3 1 1 1 2\",\n        \"2\\n10 3\\n1 1\",\n        \"3\\n5 5 5\\n1 1 1\",\n        \"1\\n7\\n1\",\n        \"1\\n1000000\\n10000\",\n        fmt([1, 1, 1, 1], [100, 1, 1, 1]),\n        fmt([1000000, 1, 1000000], [1, 1, 1]),\n    ]\n    for n in (2, 3, 4, 5, 6, 8, 10, 12, 14):\n        for _ in range(2):\n            cm = rng.choice([5, 100, 10**6])\n            tm = rng.choice([1, 2, 4, 15])\n            tests.append(fmt([rng.randint(1, cm) for _ in range(n)], [rng.randint(1, tm) for _ in range(n)]))\n    n = 1000\n    tests.append(fmt([rng.randint(1, 10**6) for _ in range(n)], [rng.randint(1, 3) for _ in range(n)]))\n    tests.append(fmt([rng.randint(1, 10**6) for _ in range(n)], [rng.randint(1, 1000) for _ in range(n)]))\n    tests.append(fmt([rng.randint(1, 10**6) for _ in range(n)], [rng.randint(1, 10**4) for _ in range(n)]))\n    tests.append(fmt([rng.randint(900000, 10**6) for _ in range(n)], [rng.choice([1, 1, 1, 50]) for _ in range(n)]))\n    tests.append(fmt([10**6] * n, [1] * n))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_cost(cost: List[int], time: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    cost = [int(x) for x in data[1:1 + n]]\n    time = [int(x) for x in data[1 + n:1 + 2 * n]]\n    print(min_cost(cost, time))\n\n\nmain()\n",
+  "javascript": "function minCost(cost, time) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst cost = t.slice(1, 1 + n)\nconst time = t.slice(1 + n, 1 + 2 * n)\nconsole.log(String(minCost(cost, time)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minCost(vector<long long>& cost, vector<long long>& time) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> cost(n), time(n);\n    for (int i = 0; i < n; i++) cin >> cost[i];\n    for (int i = 0; i < n; i++) cin >> time[i];\n    cout << minCost(cost, time) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minCost(long[] cost, long[] time) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] cost = new long[n], time = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            cost[i] = (long) in.nval;\n        }\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            time[i] = (long) in.nval;\n        }\n        System.out.println(minCost(cost, time));\n    }\n}\n"
+ }
+}

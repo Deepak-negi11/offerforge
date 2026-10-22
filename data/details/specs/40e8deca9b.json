@@ -1,0 +1,18 @@
+{
+ "qid": "40e8deca9b",
+ "question": "In a Walmart SE-III round for a React + Kotlin Spring Boot role, the interviewer asked about authorization in the application: what the authorization methods are (the candidate named JWT, sessions and OAuth). Then: how do you handle local and global exceptions in your application, and write code to catch them (controller throwing exceptions, controller advice, exception handlers, custom exceptions)? Follow-up on custom exceptions (RuntimeException vs Exception): how do you always ensure that every exception returns a standard error code and message, for example code 123 meaning \"user not found\"?",
+ "lookingFor": [
+  "Layered exception handling in Spring: local handlers and global advice",
+  "A systematic design where an error code is part of the exception contract",
+  "Safe fallback so unexpected exceptions never leak stack traces",
+  "Understanding of checked vs unchecked exceptions",
+  "Distinguishing authentication from authorization and comparing JWT, sessions, OAuth"
+ ],
+ "answer": "**Local vs global handling.** A controller can define `@ExceptionHandler` methods that apply only to that controller. A class annotated `@RestControllerAdvice` applies to all controllers and is the standard place for a consistent error format.\n\n**Guaranteeing a standard code and message.**\n1. Define an `enum ErrorCode(val code: Int, val message: String, val status: HttpStatus)` such as `USER_NOT_FOUND(123, \"User not found\", NOT_FOUND)`.\n2. Create one base exception that requires an error code, and have every domain exception extend it, so you cannot throw a business exception without a code.\n3. Write one global handler for the base type that builds a standard `ErrorResponse(code, message, traceId)`.\n4. Add a catch-all `@ExceptionHandler(Exception::class)` returning a generic 500 code with a safe message and logging the details, so unexpected exceptions still follow the contract and never leak internals.\n5. Extend `ResponseEntityExceptionHandler` to map framework exceptions (validation errors, malformed JSON, 405) into the same format.\n6. Add tests that fail if an exception type lacks a mapping.\n\n    open class AppException(val error: ErrorCode) : RuntimeException(error.message)\n    class UserNotFound : AppException(ErrorCode.USER_NOT_FOUND)\n\n    @RestControllerAdvice\n    class GlobalHandler {\n      @ExceptionHandler(AppException::class)\n      fun app(e: AppException) = ResponseEntity.status(e.error.status).body(ErrorResponse(e.error.code, e.error.message))\n      @ExceptionHandler(Exception::class)\n      fun other(e: Exception) = ResponseEntity.status(500).body(ErrorResponse(500, \"Internal error\"))\n    }\n\n**RuntimeException vs Exception.** Checked exceptions (extend `Exception`) must be declared or caught; Spring rolls back transactions on unchecked exceptions by default, so business exceptions are usually unchecked. Kotlin has no checked exceptions at all.\n\n**Authorization methods.** Authentication proves who you are; authorization decides what you may do. Sessions: server-side state plus a cookie, easy to revoke. JWT: signed stateless token, scales across services, harder to revoke. OAuth 2.0: delegated authorization through tokens issued by an authorization server. Role or permission checks use `@PreAuthorize`.",
+ "followUps": [
+  "Why does Spring roll back on RuntimeException but not on checked exceptions by default?",
+  "How would you propagate error codes across microservices?",
+  "How do you revoke a JWT before it expires?",
+  "What should an error response never contain?"
+ ]
+}

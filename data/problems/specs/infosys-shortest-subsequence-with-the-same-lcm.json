@@ -1,0 +1,49 @@
+{
+ "pid": "infosys-shortest-subsequence-with-the-same-lcm",
+ "title": "Shortest Subsequence With the Same LCM",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `A` of `n` positive integers. Let `L` be the **least common multiple (LCM)** of all elements of `A`.\n\nA subsequence is any non-empty selection of elements of `A` (the chosen positions need not be contiguous). Find the **minimum length** of a subsequence whose LCM is also exactly `L`, and print that length.\n\nThe whole array is always a valid choice, so an answer always exists. It is guaranteed that `L ≤ 10^12`. A subsequence may consist of a single element.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` space-separated integers `A[0], A[1], ..., A[n-1]`.",
+ "output_format": "Print a single integer: the minimum length of a subsequence whose LCM equals the LCM of the whole array.",
+ "constraints": [
+  "1 ≤ n ≤ 50",
+  "1 ≤ A[i] ≤ 10^12",
+  "The LCM L of the whole array satisfies L ≤ 10^12"
+ ],
+ "examples": [
+  {
+   "input": "5\n4 6 10 15 3",
+   "output": "2",
+   "explanation": "The LCM of the whole array is 60 = 2^2 · 3 · 5. Only 4 reaches the factor 2^2, and 15 supplies both 3 and 5, so {4, 15} has LCM 60. No single element equals 60, so the answer is 2."
+  },
+  {
+   "input": "4\n2 3 5 7",
+   "output": "4",
+   "explanation": "The LCM is 210. Each element is the only one carrying its prime, so all four are needed."
+  },
+  {
+   "input": "6\n8 12 18 9 2 3",
+   "output": "2",
+   "explanation": "The LCM is 72 = 2^3 · 3^2. Only 8 reaches 2^3, and 18 (or 9) reaches 3^2. The pair {8, 9} has LCM 72, and no single element does."
+  }
+ ],
+ "complexity": {
+  "time": "O(sqrt(L) + n · 2^k), where k ≤ 11 is the number of distinct primes of L",
+  "space": "O(2^k)"
+ },
+ "hints": [
+  "A subsequence has the same LCM as the whole array exactly when, for every prime p dividing L, some chosen element has p raised to the same power as in L.",
+  "Because L ≤ 10^12, L has at most 11 distinct prime factors. Factor L by trial division and describe each element by a bitmask: which primes does it supply at full strength?",
+  "Now it is a shortest-cover problem over at most 2^11 states: dp[mask] is the fewest elements whose masks OR to `mask`. Take the answer for the full mask (at least 1)."
+ ],
+ "reference": "import sys\nfrom math import gcd\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    L = 1\n    for x in a:\n        L = L // gcd(L, x) * x\n    pp = []\n    m = L\n    p = 2\n    while p * p <= m:\n        if m % p == 0:\n            q = 1\n            while m % p == 0:\n                m //= p\n                q *= p\n            pp.append(q)\n        p += 1 if p == 2 else 2\n    if m > 1:\n        pp.append(m)\n    k = len(pp)\n    full = (1 << k) - 1\n    masks = set()\n    for x in a:\n        mk = 0\n        for j, q in enumerate(pp):\n            if x % q == 0:\n                mk |= 1 << j\n        masks.add(mk)\n    INF = 10 ** 9\n    dp = [INF] * (1 << k)\n    dp[0] = 0\n    for mk in masks:\n        for s in range(1 << k):\n            if dp[s] < INF:\n                t = s | mk\n                if dp[s] + 1 < dp[t]:\n                    dp[t] = dp[s] + 1\n    print(max(1, dp[full]))\n\nmain()\n",
+ "brute": "import sys\nfrom math import gcd\nfrom itertools import combinations\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + n]]\n\ndef lcm_all(xs):\n    r = 1\n    for x in xs:\n        r = r // gcd(r, x) * x\n    return r\n\nL = lcm_all(a)\ndone = False\nfor size in range(1, n + 1):\n    for c in combinations(a, size):\n        if lcm_all(c) == L:\n            print(size)\n            done = True\n            break\n    if done:\n        break\n",
+ "generator": "def gen(rng):\n    primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31]\n\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n\n    def make(n, k, exps, cover_lo, cover_hi):\n        # base L = prod p_j^e_j over the first k primes; each element supplies a random set of\n        # primes at full strength and lower powers of the others\n        ps = primes[:k]\n        a = []\n        for _ in range(n):\n            c = rng.randint(cover_lo, cover_hi)\n            chosen = set(rng.sample(range(k), min(c, k)))\n            v = 1\n            for j in range(k):\n                e = exps[j]\n                if j in chosen:\n                    v *= ps[j] ** e\n                else:\n                    v *= ps[j] ** rng.randint(0, e - 1)\n            a.append(v)\n        return a\n\n    tests = [\n        fmt([1]),\n        fmt([1, 1, 1]),\n        fmt([7]),\n        fmt([5, 5, 5]),\n        fmt([2, 3, 5, 7]),\n        fmt([4, 6, 10, 15, 3]),\n        fmt([8, 12, 18, 9, 2, 3]),\n        fmt([6, 10, 15]),\n        fmt([12, 1, 12]),\n        fmt([999999999989, 1, 1]),\n        fmt([999983 * 999979, 999983, 999979]),\n        fmt([999983, 999979]),\n        fmt([10**12, 10**12 // 2, 10**12 // 5, 1]),\n        fmt([2 ** 38, 3, 2 ** 20, 2]),\n    ]\n    for _ in range(30):\n        n = rng.randint(2, 11)\n        k = rng.randint(1, 5)\n        exps = [rng.randint(1, 3) for _ in range(k)]\n        tests.append(fmt(make(n, k, exps, 0, k)))\n    # medium and large cases with many primes\n    big_exps = [2] + [1] * 10\n    tests.append(fmt(make(20, 11, big_exps, 1, 4)))\n    tests.append(fmt(make(30, 11, big_exps, 2, 5)))\n    tests.append(fmt(make(40, 11, big_exps, 2, 5)))\n    tests.append(fmt(make(50, 11, big_exps, 1, 3)))\n    tests.append(fmt(make(50, 11, big_exps, 3, 6)))\n    tests.append(fmt(make(50, 11, big_exps, 4, 6)))\n    tests.append(fmt(make(50, 10, [1] * 10, 1, 3)))\n    tests.append(fmt(make(50, 9, [2, 1, 1, 1, 1, 1, 1, 1, 1], 2, 4)))\n    # primes only: every element is needed\n    tests.append(fmt([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31] * 4 + [1, 1, 1, 1, 1, 1]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef shortest_lcm_subsequence(a: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    print(shortest_lcm_subsequence(a))\n\n\nmain()\n",
+  "javascript": "function shortestLcmSubsequence(a) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst a = t.slice(1, 1 + n)\nconsole.log(shortestLcmSubsequence(a))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint shortestLcmSubsequence(vector<long long>& a) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    cout << shortestLcmSubsequence(a) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int shortestLcmSubsequence(long[] a) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int n = Integer.parseInt(st.nextToken());\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) a[i] = Long.parseLong(st.nextToken());\n        System.out.println(shortestLcmSubsequence(a));\n    }\n}\n"
+ }
+}

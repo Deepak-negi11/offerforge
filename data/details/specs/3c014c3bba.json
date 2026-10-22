@@ -1,0 +1,18 @@
+{
+ "qid": "3c014c3bba",
+ "question": "Technical interview for a TCS Prime (NQT) role, during the Java collections questions: **List differences between Comparator and Comparable.** The candidate said they knew Comparator but only that Comparable was similar, and could say nothing more.",
+ "lookingFor": [
+  "Understanding of how Java sorts custom objects.",
+  "Clear distinction between natural ordering and custom ordering.",
+  "Ability to write a short example of each.",
+  "Knowledge of modern Java idioms such as `Comparator.comparing`."
+ ],
+ "answer": "**Core difference.** `Comparable` defines the **natural ordering** of a class *inside the class itself*. `Comparator` defines an **external, custom ordering** in a separate object, so one class can have many orderings.\n\n| Point | Comparable | Comparator |\n|---|---|---|\n| Package | `java.lang` | `java.util` |\n| Method | `int compareTo(T other)` | `int compare(T a, T b)` |\n| Where defined | In the class being sorted | In a separate class, lambda or method reference |\n| Number of orderings | One (natural) | Many |\n| Need to modify class | Yes | No (works on classes you cannot edit) |\n| Used by | `Collections.sort(list)`, `TreeSet`, `TreeMap` by default | `Collections.sort(list, cmp)`, `list.sort(cmp)`, `TreeSet(cmp)`, `PriorityQueue(cmp)` |\n\n**Return value.** Both return a negative number, zero or a positive number when the first element is less than, equal to or greater than the second. Keep them consistent with `equals` where possible, especially in sorted sets and maps, which use compare results instead of `equals`.\n\n```java\nclass Student implements Comparable<Student> {\n    int roll; String name; double gpa;\n    public int compareTo(Student o) { return Integer.compare(roll, o.roll); } // natural order\n}\n\n// Custom orderings without touching Student\nComparator<Student> byName = Comparator.comparing(s -> s.name);\nComparator<Student> byGpaDesc = Comparator.comparingDouble((Student s) -> s.gpa).reversed();\n\nlist.sort(byGpaDesc.thenComparing(byName));   // GPA descending, ties by name\n```\n\n**When to use which.** Use `Comparable` when there is one obvious default order (ids, dates, strings). Use `Comparator` when you need several orderings, when you do not own the class, or when the order depends on context.\n\n**Pitfalls.**\n- Avoid `a - b` in comparisons because integer overflow can give wrong results; use `Integer.compare`.\n- A `TreeSet` treats two elements as duplicates if the comparison returns 0, even if `equals` is false.\n- Null handling: use `Comparator.nullsFirst` or `nullsLast`.",
+ "followUps": [
+  "Can a class implement both Comparable and Comparator?",
+  "How would you sort a list by two fields?",
+  "Why can `a - b` be a bug in a compare method?",
+  "What happens if you add a non-Comparable object to a TreeSet?",
+  "Is Comparator a functional interface?"
+ ]
+}

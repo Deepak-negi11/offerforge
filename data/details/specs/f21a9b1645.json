@@ -1,0 +1,18 @@
+{
+ "qid": "f21a9b1645",
+ "question": "In a second round for a Myntra SDE intern role (via the HackerRamp programme), the candidate was asked to explain the **data structure behind a hash map** (an array of linked lists) and which **data structure is used for search suggestions** like Google search (a **trie**). They were also asked DSA problems (triplets with a given sum, frequency of the most frequent element).",
+ "lookingFor": [
+  "Accurate internal picture of a hash table: hash, index, buckets, collisions",
+  "Complexity analysis with load factor and resizing",
+  "Knowing collision strategies and Java's treeification",
+  "Understanding why a trie suits prefix search",
+  "Ability to explain trade-offs between the structures"
+ ],
+ "answer": "**Hash map internals.** A hash map stores key-value pairs in an **array of buckets**. To insert or look up a key: compute `hash(key)`, reduce it to an index (`hash & (n - 1)` or `hash % n`), then go to that bucket. Different keys can land in the same bucket (a **collision**), so each bucket holds a linked list of entries, and the lookup walks the list comparing keys with `equals`. That is separate chaining. The alternative is **open addressing** (linear probing, quadratic probing, double hashing), where a collision is resolved by finding another slot in the array.\n\n**Complexity.** With a good hash function and a bounded load factor (entries / buckets), the average cost of `get`, `put` and `remove` is O(1). The worst case is O(n) if everything collides (O(log n) in Java 8+ because long chains turn into balanced trees). When the load factor passes a threshold (0.75 in Java's `HashMap`), the table **resizes** (typically doubles) and rehashes entries, an O(n) operation that is amortised over many inserts.\n\n**Requirements on keys.** If `a.equals(b)` then `a.hashCode() == b.hashCode()`. Mutable keys that change their hash after insertion get lost in the map. Iteration order is not guaranteed (use `LinkedHashMap` or `TreeMap` for ordering).\n\n**Search suggestions: the trie.** A trie (prefix tree) stores strings character by character, with each edge a character and each node marking whether a word ends there. To suggest completions for a prefix, walk the prefix in O(L) (L = prefix length) and then collect the words beneath that node (DFS). To rank suggestions, store a frequency or the top-k completions at each node, so a query is answered without scanning the subtree. A hash map can check whether a whole word exists but cannot efficiently answer \"all words starting with `sho`\". The costs of a trie are higher memory (compress with radix trees or store children in a map rather than an array of 26).\n\nAt web scale, suggestions also use query logs, popularity ranking, caching of popular prefixes and personalisation, but the core structure is a trie or similar prefix index.",
+ "followUps": [
+  "What happens when two keys have the same hash code?",
+  "Why does a HashMap resize, and what does resizing cost?",
+  "How would you return the top 5 most popular suggestions for a prefix?",
+  "When would you pick a TreeMap over a HashMap?"
+ ]
+}

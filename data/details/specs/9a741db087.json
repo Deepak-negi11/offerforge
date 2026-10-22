@@ -1,0 +1,18 @@
+{
+ "qid": "9a741db087",
+ "question": "Design a **config manager service** that is called by both internal and external services and serves custom configuration for a given user (for example per-user overrides on top of defaults).\n\nPresent a high-level design. After the main discussion, the interviewer moved on to **logging and monitoring**: what you would log, what you would measure and how you would alert on it.\n\nThe source does not give scale numbers, so state your own assumptions and confirm them with the interviewer.",
+ "lookingFor": [
+  "Clarifying requirements and stating scale assumptions (read-heavy, low latency, who the callers are)",
+  "Sensible data model for defaults, overrides and precedence",
+  "Caching and invalidation so reads stay fast and changes propagate quickly",
+  "Separating internal and external access (authn/authz, rate limits, tenancy)",
+  "Operational thinking: logs, metrics, tracing, alerts, audit trail"
+ ],
+ "answer": "**Requirements and assumptions.** Read-heavy (say 50k reads/s, a few writes/s), p99 read under 20 ms, config changes visible within seconds, per-user overrides on top of global and tenant defaults. Ask: are values typed? Do we need versioning and rollback? Is it consistent or eventually consistent?\n\n**API.** `GET /v1/config?keys=a,b&userId=u` returns the resolved values; `PUT /v1/config/{key}` with scope (global, tenant, user) for admins; `GET /v1/config/{key}/history`. Internal services use mTLS or service tokens; external callers use OAuth/API keys with per-client rate limits and scoped read access.\n\n**Data model.** `config_key(key, type, default, schema)` and `config_value(key, scope_type, scope_id, value, version, updated_by, updated_at)`. Resolution order: user, then tenant, then global, then default. Store in a relational DB (or a KV store) with an append-only history table for audit and rollback.\n\n**Read path.** Client SDK or service -> API layer -> local in-process cache (short TTL) -> Redis -> DB. Resolve at read time and cache per (key, scope). Hot globals are cached everywhere; per-user entries rely on Redis with a TTL.\n\n**Invalidation.** On write, commit to the DB then publish an event (Kafka or Redis pub/sub) so instances evict affected keys. TTL is the safety net if an event is lost. Add a version number so stale writes are rejected.\n\n**Scaling.** Stateless API behind a load balancer, read replicas for the DB, shard overrides by user id if they grow large. Protect the DB from stampedes with request coalescing.\n\n**Logging and monitoring.** Structured logs with request id, caller id, key and scope (never log secret values). Metrics: request rate, latency percentiles, cache hit ratio, DB latency, propagation delay after a write, error rate per caller. Distributed tracing across services. Alerts on p99, error budget burn and a falling hit ratio. Audit log for every change.\n\n**Trade-offs.** Short TTL gives fresher data but more load. Fail-open (serve last known value) versus fail-closed depends on the key, so let callers receive defaults when the service is down.",
+ "followUps": [
+  "How do you roll out a config change gradually and roll it back safely?",
+  "What happens to callers when the config service is down?",
+  "How would you keep secrets out of normal config values?",
+  "How do you guarantee a change reaches all cache layers within a bound?"
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "qid": "9c143b9c6b",
+ "question": "In a loop round with a senior engineer for a PMTS role on Oracle Health (10+ years of experience), the candidate walked through a project and then did **API design for a scenario-based question**, followed by depth questions on Spring and databases:\n\n- **Two-phase commit (2PC) versus the Saga pattern**, and why one is chosen over the other\n- **How do you maintain concurrency in a distributed environment?**\n- **How do you handle batch processing together with concurrency?**\n- Smaller items: **Spring Security**, and how to implement **custom pagination outside the database** (which class is used).",
+ "lookingFor": [
+  "Do you understand distributed transactions and why 2PC is rarely used across microservices?",
+  "Can you explain Saga (choreography versus orchestration) with compensation and its limits?",
+  "Do you know concurrency control in distributed systems: optimistic versus pessimistic locking, distributed locks, idempotency?",
+  "Can you design batch jobs that are restartable, chunked and safe under concurrent runs?",
+  "Do you have working Spring knowledge: security filter chain, Pageable and Page?"
+ ],
+ "answer": "**2PC vs Saga**\n- **Two-phase commit:** a coordinator asks all participants to *prepare* (vote), then tells them all to *commit* or *abort*. It gives atomicity across databases, but it is **blocking** (a crashed coordinator leaves participants holding locks), slow, and couples services to a common protocol, so it scales poorly and is a bad fit for independent microservices and many NoSQL stores.\n- **Saga:** a business transaction split into **local transactions**, each with a **compensating action** (for example refund payment, release stock). If a step fails, earlier steps are compensated. Two styles: **choreography** (services react to events) and **orchestration** (a coordinator drives the steps). It gives **eventual consistency**, not isolation, so you need idempotent steps, retries, and semantic locks or status flags (`PENDING`) to handle intermediate states. Use the outbox pattern to publish events reliably.\n- Choose 2PC only for few, tightly controlled resources needing strict atomicity; choose Saga for long-running, cross-service flows.\n\n**Concurrency in a distributed environment**\n- **Optimistic locking** with a version column (`UPDATE ... WHERE version = ?`), best when conflicts are rare; **pessimistic locking** (`SELECT ... FOR UPDATE`) when contention is high.\n- **Idempotency keys** so retries do not repeat effects; unique constraints as the final guard.\n- **Distributed locks** (Redis with expiry, ZooKeeper) used sparingly, because of lease expiry and clock issues; prefer partitioning work so one worker owns a key (for example Kafka partitions).\n\n**Batch processing with concurrency.** Process in **chunks** with commits per chunk, make jobs **restartable** (store a checkpoint or status), partition the data ranges across workers, and prevent two runs overlapping (a lock row or scheduler guarantee). Spring Batch provides chunks, retry and skip policies.\n\n**Spring items.** Spring Security is a **filter chain**: authentication (for example JWT or OAuth2) sets the security context, authorisation via roles or `@PreAuthorize`. For pagination over in-memory data, build a `PageImpl` from a sublist using a `Pageable`, with total count supplied.",
+ "followUps": [
+  "Why can 2PC block, and what does a participant do if the coordinator crashes after the prepare phase?",
+  "How do you design compensation for a step that cannot be undone, such as sending an email?",
+  "Optimistic versus pessimistic locking: how do you choose?",
+  "How do you make a message consumer idempotent?",
+  "How would you stop two instances of the same scheduled batch job from running together?"
+ ]
+}

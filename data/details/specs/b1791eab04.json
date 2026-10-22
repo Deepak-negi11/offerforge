@@ -1,0 +1,19 @@
+{
+ "qid": "b1791eab04",
+ "question": "Cleartrip (Flipkart) SDE-1 backend, machine-coding discussion round (30 minutes). It followed a 90-minute round to build a **Restaurant Ordering System** (restaurant, menu, order creation, order status) in Java. In the discussion you explain your **design approach, class structure and relationships between entities**, then answer follow-ups based on your code: **add a new feature**, **handle a race condition**, and questions on **SOLID principles and design patterns** and how they applied to your implementation. The candidate reported getting stuck on the new-feature part.",
+ "lookingFor": [
+  "Whether you understand your own design well enough to extend it.",
+  "Practical application of SOLID, not memorised definitions.",
+  "Awareness of race conditions in shared state.",
+  "Clear communication of class relationships.",
+  "Adaptability when requirements change."
+ ],
+ "answer": "**Prepare a 2-minute walkthrough.** Problem and assumptions, then entities (`Restaurant`, `MenuItem`, `Order`, `OrderItem`, `Customer`), services (`OrderService`, `RestaurantService`), and the flow create order -> validate items -> compute total -> status transitions (PLACED, CONFIRMED, PREPARING, DELIVERED, CANCELLED). Say whether each relationship is composition (order owns its items) or association (order refers to a restaurant).\n\n**Adding a new feature.** A strong way to handle it: (1) ask one clarifying question; (2) find the extension point; (3) change as little as possible. Examples: *discounts/coupons* means a `DiscountStrategy` interface injected into `OrderService`, with no edits to existing strategies (open/closed); *new order status* means extending the status enum and the transition rules in one place; *delivery partner* means a new class plus an `Observer` listening to status changes. If your first design does not allow this cleanly, say honestly what you would refactor. Being stuck usually comes from a god class: keep services small and depend on interfaces.\n\n**Race condition.** The classic one: two customers ordering the last item, or two threads updating the same order status. Check-then-act on stock without a lock oversells. Fixes: lock per menu item (or `synchronized` on the item), `AtomicInteger` with CAS, or `ConcurrentHashMap.compute`; for status, validate transitions inside a lock or use compare-and-set on the status. In a database, use a conditional update or optimistic version.\n\n**SOLID, with your examples.**\n- Single responsibility: pricing separate from ordering.\n- Open/closed: strategies for discounts.\n- Liskov: any `PaymentMethod` can replace another.\n- Interface segregation: small interfaces.\n- Dependency inversion: services depend on repository interfaces.\n\n**Mistakes:** naming patterns you did not use, or overstating.",
+ "followUps": [
+  "How would you add coupon codes with percentage and flat discounts?",
+  "Show how your code behaves when two users order the last portion simultaneously.",
+  "Which SOLID principle does your design satisfy best, and where does it fall short?",
+  "Which design patterns did you use and why?",
+  "How would you model order status transitions so invalid ones are impossible?"
+ ]
+}

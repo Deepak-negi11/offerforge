@@ -1,0 +1,17 @@
+{
+ "qid": "be214dfe22",
+ "question": "CRED SDE-2 Backend, hiring manager round, second part (about 30 minutes, fundamentals deep dive). After the candidate mentioned **database indexing**, the interviewer went into **LSM trees**; after the candidate mentioned **BigTable**, he asked about **SSTables**. He then asked about AI fundamentals: **have you read \"Attention Is All You Need\", what is attention and why does it matter**, and how the candidate keeps up with research and learns how AI systems work internally. Questions were chained, each going deeper from the previous answer.",
+ "lookingFor": [
+  "Depth in storage engine internals, beyond naming technologies.",
+  "Honesty about knowledge limits plus the ability to reason.",
+  "Understanding of the attention mechanism at a conceptual level.",
+  "Habit of continuous learning and reading primary sources."
+ ],
+ "answer": "**SSTable (Sorted String Table).** An immutable file of key-value pairs sorted by key, usually with a sparse index and a Bloom filter. Sorted order makes range scans and merging cheap. BigTable and its descendants (HBase, Cassandra, LevelDB, RocksDB) store data this way.\n\n**LSM tree (Log-Structured Merge tree).** A write-optimised storage structure.\n1. A write is appended to a **write-ahead log** (durability) and inserted into an in-memory sorted structure, the **memtable**.\n2. When the memtable is full it is flushed to disk as a new immutable **SSTable** (level 0).\n3. A read checks the memtable, then SSTables from newest to oldest; **Bloom filters** skip files that cannot contain the key, and the sparse index narrows the search within a file.\n4. **Compaction** merges SSTables in the background, dropping overwritten values and tombstones (deletes) and keeping the number of files bounded.\n\n**Trade-offs versus a B-tree.** LSM gives high write throughput (sequential disk writes), good compression, and lower write amplification for random writes. Costs: reads may touch several files (read amplification), compaction uses I/O and causes write amplification, and space amplification until compaction finishes. B-trees give predictable reads with in-place updates and are better for read-heavy, update-in-place workloads.\n\n**Attention.** In a transformer, each token creates a query, key and value vector. Attention scores are computed as `softmax(QK^T / sqrt(d_k)) V`: each token takes a weighted sum of all tokens' values, with weights saying which tokens are relevant. It lets the model relate distant tokens directly, in parallel, instead of sequentially like RNNs, which is why transformers train faster and capture long-range context. Multi-head attention runs several of these in parallel. The cost is O(n^2) in sequence length.\n\n**Learning approach.** Honest, concrete answer: read the original papers (the transformer paper, GPT and scaling-law papers), use official blogs and documentation, implement small versions (a minimal transformer or an LSM key-value store), and follow a few trusted sources, not just social media summaries. Only claim what you have actually read.\n\nIf you are unsure in an interview, say what you know, reason out loud and admit gaps rather than bluffing.",
+ "followUps": [
+  "Why are Bloom filters useful in an LSM tree?",
+  "What is write amplification and how do leveled and size-tiered compaction differ?",
+  "Why divide by sqrt(d_k) in scaled dot-product attention?",
+  "How do you handle deletes in an LSM tree?"
+ ]
+}

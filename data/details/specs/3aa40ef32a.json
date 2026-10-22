@@ -1,0 +1,17 @@
+{
+ "qid": "3aa40ef32a",
+ "question": "Asked in an on-campus SDE-1 technical interview: explain Saga transactions in distributed systems and the difference between choreography and orchestration.",
+ "lookingFor": [
+  "Understanding of why distributed ACID transactions are hard",
+  "Compensating actions and failure handling",
+  "Trade-offs between choreography and orchestration",
+  "Awareness of idempotency and eventual consistency"
+ ],
+ "answer": "**Problem.** In a microservice system each service owns its database, so a business operation (place an order, charge payment, reserve stock) spans several local transactions. A single ACID transaction across them (two-phase commit) is usually avoided because it is slow, blocks resources and couples services.\n\n**Saga.** A saga is a sequence of **local transactions**, one per service. Each step commits on its own and then triggers the next. If a step fails, the saga runs **compensating transactions** for the steps already completed, in reverse order, to semantically undo them (for example, \"refund payment\", \"release stock\"). The result is **eventual consistency**: the system may be temporarily inconsistent mid-saga, but it ends in a consistent state.\n\n**Example (order).** Create order (pending), reserve inventory, charge payment, confirm order. If payment fails: release inventory, cancel order.\n\n**Choreography.** No central controller. Services publish events and react to events from others: Order Service emits `OrderCreated`, Inventory listens and emits `StockReserved`, Payment listens and emits `PaymentFailed`, and Inventory reacts by releasing the stock.\n\n- Pros: loose coupling, no single point of failure, simple for 2 to 3 steps.\n- Cons: the flow is implicit and spread across services, hard to follow and debug, risk of cyclic dependencies, and hard to add steps.\n\n**Orchestration.** A central **orchestrator** (a saga coordinator or a workflow engine such as Temporal or Camunda) tells each service what to do, tracks the state and triggers compensation on failure.\n\n- Pros: the flow is explicit in one place, easier to monitor, test and change, and it handles complex branching.\n- Cons: the orchestrator is another component to build and run, and a risk of too much logic in it.\n\n**Rules of thumb:** choreography for short, simple flows; orchestration for longer flows with many participants.\n\n**Design requirements.** Every step and compensation must be **idempotent** (messages can be delivered twice), use a unique saga or transaction id, use the transactional outbox pattern so the local commit and the event publish are atomic, handle timeouts, and accept that compensation can itself fail (retry, then alert). Isolation is weak, so use semantic locks or pending states to avoid reading half-finished data.",
+ "followUps": [
+  "Why not use two-phase commit across microservices?",
+  "What if a compensating transaction fails?",
+  "What is the transactional outbox pattern and why is it needed?",
+  "How do you handle a saga that spans services where one step cannot be undone, such as sending an email?"
+ ]
+}

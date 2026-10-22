@@ -1,0 +1,18 @@
+{
+ "qid": "526f2817e4",
+ "question": "Zoho Low Level Design round (fresher off-campus 2025): **design a Task Manager application**, delivered in about **8 progressive steps**. You start from the basic model (create and manage tasks), then add **persistence using local file storage**, and then keep handling **multiple edge cases** and improving functionality step by step. Reported as the hardest round for several candidates, with only a small fraction moving on to the face-to-face technical interview, and with the advice to focus on conceptual clarity and edge-case handling. The exact feature list of each step was not published.",
+ "lookingFor": [
+  "Clean OOP model that survives requirements being added at each step.",
+  "Practical file persistence (serialisation, loading, recovery).",
+  "Edge-case thinking: invalid input, duplicates, missing files, corrupt data.",
+  "Working incrementally and keeping earlier steps working.",
+  "Clear console interaction and sensible naming."
+ ],
+ "answer": "Because the interviewer reveals requirements step by step, design for change and keep each step runnable.\n\n**Core model.**\n- `Task`: id, title, description, status (TODO, IN_PROGRESS, DONE), priority, due date, created time.\n- `TaskManager`: add, update, delete, list/filter, mark complete. Keep tasks in a map by id (O(1) lookup) and generate ids from a counter.\n- Likely extensions to anticipate: priorities, due dates, tags/categories, search and sort, subtasks, reminders, users and assignment, undo.\n\n**Persistence step.** Put storage behind a `TaskRepository` interface with a `FileTaskRepository` implementation (JSON or CSV). Rules worth stating:\n- Load on startup; if the file is missing, start empty; if it is corrupt, report it and do not overwrite blindly (keep a backup).\n- Save after each mutation, or on exit plus after each change. Write to a temp file and rename for atomicity.\n- Persist the next-id counter so ids are not reused.\n\n**Edge cases to list proactively.** Empty or very long titles, non-existent ids, invalid status transitions, duplicate tasks, past due dates, invalid input types, concurrent runs of the program writing the same file, and special characters (commas, newlines) in CSV.\n\n**Design for extension.** Use strategies for sorting/filtering (`Comparator`, predicates), keep the console layer thin, and keep validation in one place. Add the feature of each new step in a new class or method rather than modifying everything.\n\n**Process.** Finish a minimal working step, demonstrate it, then move on. A smaller working design beats an elaborate unfinished one.\n\n**Pitfalls.** Mixing I/O with the domain classes, saving only at exit (data loss on crash), and not handling the first-run case with no file.",
+ "followUps": [
+  "How would you add undo/redo for task changes?",
+  "How would you switch from file storage to a database without changing TaskManager?",
+  "How would you add recurring tasks and reminders?",
+  "How would you test the persistence layer?"
+ ]
+}

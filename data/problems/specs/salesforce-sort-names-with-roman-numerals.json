@@ -1,0 +1,49 @@
+{
+ "pid": "salesforce-sort-names-with-roman-numerals",
+ "title": "Sort Names With Roman Numerals",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "You are given a list of `n` entries. Each entry is a **name** followed by a **Roman numeral** (for example `Louis XIV`). Sort the list first by name, and entries with the same name by the **decimal value** of the numeral, both in ascending order.\n\nNames are compared lexicographically by character code (so every uppercase letter comes before every lowercase letter, and a name that is a prefix of another comes first).\n\nThe Roman numerals use the standard rules, and every value is between 1 and 49:\n\n- The letters are `I` = 1, `V` = 5, `X` = 10 and `L` = 50.\n- A symbol is not repeated more than three times in a row.\n- When a smaller value precedes a larger value, it is subtracted (`IV` = 4, `IX` = 9, `XL` = 40).\n- Otherwise symbols are added. For a two-digit number below 50, write the tens first and then the units: for example 43 is 40 plus 3, so `XL` followed by `III`, i.e. `XLIII`.\n\nPrint the sorted entries, one per line, exactly as given (name, a space, numeral).",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains a name and a Roman numeral separated by a single space.",
+ "output_format": "Print `n` lines: the entries in sorted order, each as `<name> <numeral>`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "Each name consists of 1 to 8 English letters (a-z, A-Z)",
+  "Each numeral is a valid Roman numeral for an integer from 1 to 49, written in the standard form described above"
+ ],
+ "examples": [
+  {
+   "input": "4\nLouis XVI\nLouis IX\nAnne II\nLouis XIV",
+   "output": "Anne II\nLouis IX\nLouis XIV\nLouis XVI",
+   "explanation": "`Anne` sorts before `Louis`. Among the three Louis entries the values are IX = 9, XIV = 14 and XVI = 16. Note that sorting the numerals as text would be wrong in general: `XL` (40) sorts before `XXX` (30) as a string."
+  },
+  {
+   "input": "5\nbob XLIX\nBob IV\nbob XL\nBo XXXIX\nbob IX",
+   "output": "Bo XXXIX\nBob IV\nbob IX\nbob XL\nbob XLIX",
+   "explanation": "Uppercase `B` sorts before lowercase `b`, and `Bo` is a prefix of `Bob` so it comes first. The three `bob` entries have values 9, 40 and 49."
+  },
+  {
+   "input": "2\nZed III\nZed II",
+   "output": "Zed II\nZed III",
+   "explanation": "Same name, so 2 comes before 3."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "First write a function that converts a Roman numeral to an integer: scan left to right and subtract a symbol's value when the next symbol is larger, otherwise add it.",
+  "Build a sort key for each entry: the pair (name, numeric value).",
+  "Sort by that pair and print the original strings. Do not sort the numerals as strings, since `IX` and `XIV` do not compare by value."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    val = {'I': 1, 'V': 5, 'X': 10, 'L': 50}\n    entries = []\n    for i in range(n):\n        name = data[1 + 2 * i]\n        num = data[2 + 2 * i]\n        total = 0\n        for idx, ch in enumerate(num):\n            v = val[ch]\n            if idx + 1 < len(num) and val[num[idx + 1]] > v:\n                total -= v\n            else:\n                total += v\n        entries.append((name, total, num))\n    entries.sort(key=lambda e: (e[0], e[1]))\n    print('\\n'.join(e[0] + ' ' + e[2] for e in entries))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\ntens = ['', 'X', 'XX', 'XXX', 'XL']\nones = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']\nvalue = {}\nfor t in range(5):\n    for o in range(10):\n        if t * 10 + o > 0:\n            value[tens[t] + ones[o]] = t * 10 + o\nitems = [(data[1 + 2 * i], value[data[2 + 2 * i]], data[2 + 2 * i]) for i in range(n)]\nfor i in range(n):\n    for j in range(n - 1 - i):\n        a, b = items[j], items[j + 1]\n        if (a[0], a[1]) > (b[0], b[1]):\n            items[j], items[j + 1] = b, a\nfor name, v, num in items:\n    print(name + ' ' + num)\n",
+ "generator": "def gen(rng):\n    tens = ['', 'X', 'XX', 'XXX', 'XL']\n    ones = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']\n    def roman(v):\n        return tens[v // 10] + ones[v % 10]\n    letters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'\n    def fmt(es):\n        return str(len(es)) + '\\n' + '\\n'.join(f\"{a} {roman(v)}\" for a, v in es)\n    tests = [fmt([('A', 1)]), fmt([('A', 49), ('A', 1)]), fmt([('A', 4), ('A', 4)]), fmt([('Louis', 16), ('Louis', 9), ('Anne', 2), ('Louis', 14)]),\n             fmt([('bob', 49), ('Bob', 4), ('bob', 40), ('Bo', 39), ('bob', 9)]), fmt([('I', 1), ('V', 5), ('X', 10), ('L', 49), ('IV', 4)])]\n    names_small = ['a', 'ab', 'abc', 'B', 'Ab', 'b', 'bA']\n    for n in (2, 3, 5, 8, 12, 20, 30):\n        for _ in range(3):\n            if rng.random() < 0.6:\n                es = [(rng.choice(names_small), rng.randint(1, 49)) for _ in range(n)]\n            else:\n                es = [(''.join(rng.choice(letters) for _ in range(rng.randint(1, 3))), rng.randint(1, 49)) for _ in range(n)]\n            tests.append(fmt(es))\n    n = 100000\n    pool = [''.join(rng.choice(letters) for _ in range(rng.randint(1, 8))) for _ in range(300)]\n    tests.append(fmt([(rng.choice(pool), rng.randint(1, 49)) for _ in range(n)]))\n    tests.append(fmt([('Z', rng.randint(1, 49)) for _ in range(n)]))\n    tests.append(fmt([(''.join(rng.choice('abAB') for _ in range(rng.randint(1, 4))), rng.randint(1, 49)) for _ in range(n)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef sort_entries(names: List[str], numerals: List[str]) -> List[str]:\n    # Write your solution here\n    return [a + ' ' + b for a, b in zip(names, numerals)]\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    names = [data[1 + 2 * i] for i in range(n)]\n    numerals = [data[2 + 2 * i] for i in range(n)]\n    print('\\n'.join(sort_entries(names, numerals)))\n\n\nmain()\n",
+  "javascript": "function sortEntries(names, numerals) {\n  // Write your solution here\n  return names.map((a, i) => a + ' ' + numerals[i])\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0])\nconst names = [], numerals = []\nfor (let i = 0; i < n; i++) {\n  names.push(t[1 + 2 * i])\n  numerals.push(t[2 + 2 * i])\n}\nconsole.log(sortEntries(names, numerals).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<string> sortEntries(vector<string>& names, vector<string>& numerals) {\n    // Write your solution here\n    vector<string> res;\n    for (size_t i = 0; i < names.size(); i++) res.push_back(names[i] + \" \" + numerals[i]);\n    return res;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<string> names(n), numerals(n);\n    for (int i = 0; i < n; i++) cin >> names[i] >> numerals[i];\n    vector<string> res = sortEntries(names, numerals);\n    for (auto& s : res) cout << s << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String[] sortEntries(String[] names, String[] numerals) {\n        // Write your solution here\n        String[] res = new String[names.length];\n        for (int i = 0; i < names.length; i++) res[i] = names[i] + \" \" + numerals[i];\n        return res;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder sb0 = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) sb0.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(sb0.toString());\n        int n = Integer.parseInt(st.nextToken());\n        String[] names = new String[n], numerals = new String[n];\n        for (int i = 0; i < n; i++) {\n            names[i] = st.nextToken();\n            numerals[i] = st.nextToken();\n        }\n        String[] res = sortEntries(names, numerals);\n        StringBuilder sb = new StringBuilder();\n        for (String s : res) sb.append(s).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

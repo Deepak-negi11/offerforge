@@ -1,0 +1,17 @@
+{
+ "qid": "b4d3b11099",
+ "question": "IBM India on-campus technical interview (Software Developer, September 2025 drive). The C++ and OOP questions were:\n\n- What is shallow copy and deep copy?\n- What is the `virtual` keyword?\n- What is a v-table?\n- For runtime polymorphism, what else is necessary other than the function being virtual?\n\nThe same round included SOLID principles and two coding problems.",
+ "lookingFor": [
+  "Understanding of object copying and resource ownership in C++.",
+  "How virtual dispatch really works under the hood.",
+  "Precise conditions for runtime polymorphism.",
+  "Ability to illustrate with a short code example."
+ ],
+ "answer": "**Shallow vs deep copy**\n\nA **shallow copy** copies member values bit by bit. If a member is a raw pointer, both objects then point to the same memory. When one is destroyed or changed, the other is affected, and the memory may be freed twice (double free). A **deep copy** allocates new memory and copies the pointed-to data, so each object owns its resource.\n\n```cpp\nclass Buf {\n    int* p; size_t n;\npublic:\n    Buf(const Buf& o) : p(new int[o.n]), n(o.n) { std::copy(o.p, o.p + n, p); }\n    Buf& operator=(Buf o) { std::swap(p, o.p); std::swap(n, o.n); return *this; }\n    ~Buf() { delete[] p; }\n};\n```\n\nThe compiler-generated copy constructor is shallow for pointers. Follow the rule of three/five, or avoid the problem with `std::vector` and smart pointers.\n\n**`virtual` keyword**\n\nMarks a member function so that the call is resolved at runtime from the object's dynamic type, not the pointer's static type. Without `virtual`, the function is chosen at compile time (static binding).\n\n**v-table**\n\nFor each class with virtual functions, the compiler builds a **vtable**: an array of pointers to that class's virtual function implementations. Each object holds a hidden **vptr** pointing to its class's vtable, set during construction. A virtual call becomes: load the vptr, index the table, call the pointer. A derived class's vtable replaces the entries for the functions it overrides. The cost is one pointer per object and one extra indirection per call.\n\n**What else is needed for runtime polymorphism**\n\nBesides a virtual function in the base class, you need:\n1. **Inheritance** with a derived class that **overrides** it with the same signature (use `override` to catch mistakes).\n2. The call must go through a **base class pointer or reference**. Calling on an object by value (`Base b = derived;`) causes **object slicing**, and the base version runs.\n3. The function must be accessible, and the call must not use the qualified form (`Base::f()`), which disables virtual dispatch.\n\nAlso give the base class a virtual destructor.",
+ "followUps": [
+  "What is object slicing?",
+  "Can you call a virtual function inside a constructor? What happens?",
+  "What is the rule of three, five and zero?",
+  "What is the cost of virtual functions and how can you avoid it?"
+ ]
+}

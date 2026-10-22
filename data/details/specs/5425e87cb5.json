@@ -1,0 +1,18 @@
+{
+ "qid": "5425e87cb5",
+ "question": "In the LLD round for a Software Engineer III role at Walmart (about 35 minutes), the question was to **design a digital wallet**.\n\nUsers should be able to **create an account, manage personal info, and have different payment methods**. **Funds can be transferred between wallets and to/from banks**, and users should be able to **see transaction history**. The same round then moved on to Java questions: **garbage collection, multithreading concepts, thread pool and string pool**.",
+ "lookingFor": [
+  "Can you model accounts, payment methods and transactions with clear responsibilities?",
+  "Do you guarantee correctness of money movement (atomicity, no negative balance, no double spend)?",
+  "Do you use extensible abstractions for payment methods and transfer types?",
+  "Do you handle concurrency such as two simultaneous transfers touching one wallet?",
+  "Do you have solid Java fundamentals (GC, threads, thread pool, string pool)?"
+ ],
+ "answer": "**Requirements.** Create account, update profile, add or remove payment methods (card, bank account), top up wallet, transfer wallet to wallet, withdraw to bank, view transaction history.\n\n**Entities.**\n- `User(id, name, email, phone)`, `Wallet(id, userId, balance, currency)`.\n- `PaymentMethod` interface with `CardMethod` and `BankAccountMethod` (Strategy), each with `debit` / `credit` or `verify`.\n- `Transaction(id, type, fromWalletId, toWalletId, amount, status, createdAt, idempotencyKey)`.\n- Services: `WalletService`, `TransferService`, `TransactionHistoryService`, `UserService`.\n\n**Money handling rules.**\n- Use `BigDecimal` or integer minor units (paise), never `double`.\n- A transfer is **atomic**: debit one wallet and credit the other in a single transaction, or neither. Prefer a double-entry ledger: each transfer writes two ledger entries, and balance is derived or checked against them.\n- Reject if the balance is insufficient. Enforce in the database as well (`CHECK balance >= 0`).\n- **Concurrency**: lock wallets in a fixed order (by id) to avoid deadlock, or use optimistic locking with a version column and retry.\n- **Idempotency key** so a retried request does not repeat the transfer.\n- Transaction states: `PENDING -> SUCCESS / FAILED`. For bank transfers the external call is asynchronous, so keep PENDING until the bank confirms and then settle or reverse.\n\n**History.** Query by wallet with pagination, ordered by time, index on `(wallet_id, created_at)`.\n\n**Schema sketch.** `users`, `wallets`, `payment_methods(id, user_id, type, token, ...)` (store tokens, not raw card numbers), `transactions`, `ledger_entries`.\n\n**Java follow-ups (short answers).**\n- **GC**: automatic reclaiming of unreachable objects; generational heap (young, old); minor and major collections; collectors such as G1.\n- **Thread pool**: reuses a fixed set of threads fed by a queue, avoiding creation cost.\n- **String pool**: interned string literals stored once and shared; `new String` creates a separate object, and `intern()` returns the pooled one.",
+ "followUps": [
+  "How do you prevent two concurrent transfers from overdrawing a wallet?",
+  "Why use a double-entry ledger rather than only updating a balance field?",
+  "How would you handle a bank transfer that fails after the wallet was debited?",
+  "Why are Strings immutable in Java and how does that relate to the string pool?"
+ ]
+}

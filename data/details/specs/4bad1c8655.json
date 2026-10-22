@@ -1,0 +1,18 @@
+{
+ "qid": "4bad1c8655",
+ "question": "Two nodes, one in the **USA** and one in **Europe**, each hold a roughly **32 GB hash map** in memory. Keys are unique strings; each value has `Data` (string) and `Version` (integer, higher means newer). **At most 5%** of key-value pairs differ, and all keys exist on both nodes.\n\nSynchronise them so they become replicas: if versions differ keep the higher version; if versions are equal but data differs, the **USA node is the source of truth**. Transfer between nodes is **extremely expensive**, local computation is extremely cheap (strong CPU, 128 GB RAM, 4 TB+ NVMe), and the job runs offline within a few hours. Multiprocessing can be ignored. Minimise data transferred while efficiently identifying the differences.",
+ "lookingFor": [
+  "Treating network transfer as the dominant cost and computing locally instead",
+  "Using fingerprints or set reconciliation rather than shipping whole values",
+  "Correct conflict resolution rules including the tie-break",
+  "Reasoning about hash collisions, consistency during the sync, and verification",
+  "Quantifying the data moved with back-of-envelope numbers"
+ ],
+ "answer": "**Insight.** Shipping 32 GB is the thing to avoid. Local CPU and disk are cheap, so compute compact fingerprints locally and exchange only those, then move only the differing values.\n\n**Naive approaches and why they lose.** Sending the whole map costs 32 GB. A Merkle tree over buckets helps only if most buckets match; with 5% of keys differing, a bucket with s keys is fully clean with probability about 0.95^s, so buckets must be tiny (s around 1 to 4), and the tree degenerates to per-key hashes.\n\n**Plan (two phases).**\n1. **Fingerprint exchange.** EU computes, for each key, a small record: a 64-bit hash of the key, the `version` (4 bytes) and a 64-bit hash of the data, about 20 bytes per key. If entries average a few hundred bytes (state this assumption), fingerprints are well under 10% of the data, and you can shrink them further by sorting by key hash and delta-encoding. Send them to the USA node.\n2. **Local diff on USA.** USA computes the same fingerprints for its own map, joins on key hash, and finds mismatches. For each mismatched key it decides the winner: higher version wins; equal versions with different data means USA wins.\n3. **Move only the differing values.** Where USA wins, USA sends the value to EU. Where EU wins, USA sends EU the list of those keys and EU sends back just those values. Total value traffic is at most about 5% of the data (roughly 1.6 GB worst case) plus the fingerprints.\n\n**Even cheaper: set reconciliation.** Use an invertible Bloom lookup table (IBLT) or an approximate-set-difference scheme: each side builds a sketch sized to about 1.5 to 2 times the expected differences (5% of keys); subtracting the sketches yields the differing keys, so exchanged metadata is proportional to the number of differences, not total keys. Mention it as the optimal direction.\n\n**Correctness details.** Take snapshots (or freeze writes) so the maps do not change during sync; use 128-bit hashes or verify with a key check to make collisions negligible; run a final verification pass comparing a global digest.",
+ "followUps": [
+  "What if the discrepancy percentage were unknown or much higher?",
+  "How would you handle keys being updated while the sync runs?",
+  "How do you prove the maps are identical at the end?",
+  "How would this change for three or more regions?"
+ ]
+}

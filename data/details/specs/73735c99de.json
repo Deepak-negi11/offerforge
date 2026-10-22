@@ -1,0 +1,18 @@
+{
+ "qid": "73735c99de",
+ "question": "Goldman Sachs Analyst (Software Engineer) Hiring Manager round, query-optimisation questions: what is the **N+1 query problem**, what does **EXPLAIN ANALYZE** do in PostgreSQL, **indexing and joins** questions, and the tricky one: if there is a separate index on `email` and another on `phone`, and you query `WHERE phone = x AND email = y`, **will the indexes still be used**?",
+ "lookingFor": [
+  "Practical knowledge of diagnosing slow queries.",
+  "Understanding of how indexes are chosen and combined by the planner.",
+  "Awareness of ORM pitfalls (N+1) and fixes.",
+  "Ability to reason about composite indexes and selectivity."
+ ],
+ "answer": "**N+1 problem.** The code runs 1 query to fetch N parent rows, then N more queries (one per parent) to fetch related rows, usually through lazy loading in an ORM: for example load 100 orders, then query each order's customer inside a loop, giving 101 round trips. Fixes: fetch with a **join** or `fetch join` / eager loading, batch with `WHERE id IN (...)` (one extra query instead of N), use a dataloader pattern, or cache. Detect it by counting queries per request or using query logs and APM.\n\n**EXPLAIN ANALYZE (PostgreSQL).** `EXPLAIN` shows the planner's chosen execution plan with estimated costs and row counts; `EXPLAIN ANALYZE` actually **runs** the query and adds real timings and row counts per node, so you can compare estimates with reality. Look for sequential scans on large tables, row-count estimate errors (stale statistics, run `ANALYZE`), expensive sorts, nested loops over large sets, and buffers read (`BUFFERS`). Because it executes the query, wrap data-changing statements in a transaction and roll back.\n\n**Joins and indexes.** Index foreign keys and join columns, and filter columns. The planner picks nested loop (small or indexed inner side), hash join (large unsorted sets) or merge join (sorted inputs). Join order and selective filters matter.\n\n**Separate indexes on `email` and `phone` with `phone = x AND email = y`.** Yes, an index can still be used, but not as one combined index lookup. PostgreSQL will typically either use the **more selective** index (probably email) and filter the remaining rows by phone, or perform a **bitmap index scan on both indexes** and combine them (BitmapAnd). It works, but a **composite index** `(email, phone)` is usually better for this exact query: one lookup, no combining. The composite index also serves queries on `email` alone (leftmost prefix) but not on `phone` alone. If both columns are unique-ish, a single index on the most selective column may already be enough. Always confirm with `EXPLAIN ANALYZE`, and remember that every extra index slows writes and uses space.",
+ "followUps": [
+  "How does a composite index on (a, b, c) behave for a query on b and c only?",
+  "What is a covering index and when does it help?",
+  "How would you fix N+1 in Hibernate or JPA specifically?",
+  "Why might PostgreSQL ignore an index and do a sequential scan?",
+  "What does a Bitmap Heap Scan mean in a plan?"
+ ]
+}

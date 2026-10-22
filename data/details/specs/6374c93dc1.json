@@ -1,0 +1,19 @@
+{
+ "qid": "6374c93dc1",
+ "question": "Goldman Sachs Software Design and Architecture round (Associate). **Design a ride booking system like Uber.** The candidate listed functional and non-functional requirements, gave a rough capacity estimate and walked through the booking flow (rider side) and the acceptance flow (driver side), mentioning Kafka, Redis and WebSockets.\n\nThe interviewer kept probing: how Kafka works in your flow; the in-depth flow when a rider books; how to ensure a **1:1 mapping between rider and driver** when several drivers respond; how **surge pricing** is handled; riders with a short versus a long trip; how to scale; and **what consistent hashing is and why it was invented**.",
+ "lookingFor": [
+  "Breaking a large product into a clear request flow with justified components.",
+  "Concurrency control: one ride, one driver, no double assignment.",
+  "Right use of Redis (geo and locks), Kafka (events) and WebSockets (live updates).",
+  "Knowing fundamentals such as consistent hashing, not just naming it.",
+  "Handling follow-ups calmly and discussing trade-offs."
+ ],
+ "answer": "**Requirements:** riders request a ride, nearby drivers are notified, one driver accepts, live tracking, pricing and payment. Non-functional: low latency matching, high availability, consistent assignment. Assume e.g. a few million daily rides and a location update from each active driver every few seconds.\n\n**Components:** API gateway; ride service; location service; matching service; pricing service; notification/real-time gateway; trip and payment services.\n\n**Location:** drivers send GPS updates over WebSockets. Store the latest position in Redis using geospatial indexes (or geohash/H3 cells) with a short TTL. Do not write every ping to the main DB.\n\n**Booking flow:** rider requests -> ride service creates a ride in state `REQUESTED` -> publishes an event to Kafka -> matching service queries nearby available drivers from Redis, ranks them (distance, ETA, rating) and offers the ride to one or a few -> driver accepts -> ride is `ACCEPTED`, rider notified via WebSocket.\n\n**One driver per rider (and one rider per driver):** make assignment atomic. Use a conditional update on the ride row (`UPDATE rides SET driver_id=? WHERE id=? AND status='REQUESTED'`) or a Redis lock/`SET NX` on the driver with a TTL for the offer. Only the first accept wins; the rest get \"ride already taken\". Mark the driver unavailable atomically so they cannot get two rides.\n\n**Kafka's role:** durable, decoupled event stream (ride requested, accepted, location updates for analytics); partition by ride id or city to keep per-ride ordering; consumers in groups scale out.\n\n**Surge:** aggregate supply and demand per geohash cell over a sliding window (streaming job), compute a multiplier, cache it in Redis, and quote it to the rider with an expiry time.\n\n**Scaling:** shard by city or geo cell; stateless services behind load balancers; WebSocket gateways scale horizontally.\n\n**Consistent hashing:** places servers and keys on a hash ring so adding or removing a node moves only about K/N keys instead of reshuffling nearly everything as `hash mod N` does. It was designed for distributed caches, and is useful for routing drivers or sessions to nodes. Virtual nodes smooth the load.",
+ "followUps": [
+  "What happens if the driver accepts but the network drops before the rider is told?",
+  "How do you match riders and drivers efficiently in a dense city?",
+  "How would you design surge so it does not oscillate wildly?",
+  "Why use virtual nodes in consistent hashing?",
+  "How do you keep location data fresh without overloading the system?"
+ ]
+}

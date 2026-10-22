@@ -1,0 +1,19 @@
+{
+ "qid": "3b1e6f139e",
+ "question": "Design an e-commerce **checkout service** that survives a Black Friday-style sale. The flow reported in the Walmart Global Tech Senior SWE HLD round was:\n\n1. Fetch user details, including saved payment types.\n2. Check stock in inventory.\n3. After the address is selected, check inventory again based on that address.\n4. Take payment.\n5. Place the order.\n6. Send success or failure to the user.\n\nExpect follow-up questions on trade-offs. The candidate noted the interviewer wanted the components drawn first, before walking through the flow.",
+ "lookingFor": [
+  "Can you start from requirements and a component diagram before walking through the flow?",
+  "Do you understand inventory correctness under heavy contention (overselling, reservations)?",
+  "Do you know how to make payments safe: idempotency, retries, and consistency across services?",
+  "Can you use queues and sagas to decouple steps and handle partial failure?",
+  "Do you plan for peak-load behaviour: caching, rate limiting, queueing and graceful degradation?"
+ ],
+ "answer": "**Requirements.** Functional: view cart, select address and payment, reserve stock, pay, create an order, notify. Non-functional: high availability, no overselling, no double charge, low latency at peak. Assume a sale where reads are 100x normal and checkout attempts arrive in bursts.\n\n**Components.** API gateway (auth, rate limiting) -> Checkout orchestrator -> User/Profile service, Inventory service, Payment service (calls an external gateway), Order service, Notification service, with Kafka (or similar) between services for events. Datastores: relational DB for orders and payments, Redis for hot stock counters and sessions.\n\n**Flow.**\n1. Start a checkout session with a generated idempotency key; read user profile and saved payment methods (cacheable).\n2. Reserve inventory per SKU and fulfilment location, based on the chosen address. A reservation is an atomic decrement (a conditional update in the DB, or a Lua script in Redis) with a TTL (for example 10 minutes), so abandoned carts release stock.\n3. Payment: call the gateway with the idempotency key, so a retry never charges twice. Treat the gateway response as the source of truth and use webhooks for reconciliation.\n4. On success, create the order, convert the reservation into a committed deduction, and publish an `OrderPlaced` event.\n5. Notification consumes the event and sends the success or failure message.\n\n**Consistency.** Use a saga: each step has a compensating action (release reservation, refund, cancel order). Persist saga state so a crashed orchestrator can resume. Use the outbox pattern so the DB write and event publish do not diverge.\n\n**Black Friday handling.** CDN and cached product pages; a waiting room or queue in front of checkout; rate limit per user; hot-SKU contention handled by sharding stock counters or serialising through a queue; scale stateless services horizontally; degrade non-essentials (recommendations); pre-warm and load-test.\n\n**Trade-offs.** Reserving early reduces payment failures for sold-out items but locks stock for people who abandon; reserving late is fairer but disappoints users at the last step. Strong consistency on inventory costs throughput; a small safety margin or accepted overselling with backorders is a business decision.",
+ "followUps": [
+  "How do you prevent overselling a hot item with thousands of concurrent buyers?",
+  "What happens if payment succeeds but order creation fails?",
+  "How would you make the payment step idempotent?",
+  "Why use an orchestrator saga rather than a distributed transaction?",
+  "How would you test the system before the sale?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "196d95a290",
+ "question": "Uber SDE-1 low-level-design / machine-coding round (about 45 minutes, working code expected). **Design and implement an in-memory file system that mimics Linux directory operations.** APIs: `mkdir(dirname)` creates a directory inside the current working directory; `pwd()` returns the absolute path of the current directory; `cd(path)` changes directory. If a path starts with `/` it is absolute from the root; otherwise it is relative to the current directory. The path may contain a wildcard `*` which can match `.` (current), `..` (parent) or **any child directory**. Other 2025-26 posts report mkdir, cd, ls and pwd variants of this machine-coding question. The round evaluates class design, modular code, API design and error handling.",
+ "lookingFor": [
+  "A tree of directories with parent pointers, modelled in clean classes.",
+  "Correct path parsing for absolute, relative, `.` and `..` segments.",
+  "A sound way to handle a wildcard that expands to several candidates.",
+  "Error handling (nonexistent directory, duplicate mkdir, `..` at root).",
+  "Clarifying ambiguities with the interviewer instead of guessing."
+ ],
+ "answer": "**Clarify first** (the wildcard rule is ambiguous, so ask): if `*` matches several children, does `cd` succeed when *any* expansion leads to a valid directory, and which one wins (first in sorted order)? Should `*` also match files, or only directories? Does `*` match `.` and `..` as stated? Fix a deterministic policy, say it aloud and write it down.\n\n**Entities**\n- `Directory(name, parent, children: dict[str, Directory])`.\n- `FileSystem(root, cwd)` with `mkdir`, `pwd`, `cd`.\n\n**Operations**\n- `mkdir(name)`: reject names containing `/` or equal to `.`, `..`, `*`; fail if it already exists; otherwise add to `cwd.children`. O(1).\n- `pwd()`: walk `parent` pointers to the root and join names; `/` for the root. O(depth).\n- `cd(path)`: pick the start (root if the path begins with `/`, else `cwd`), split on `/`, drop empty segments, and resolve segment by segment:\n  - `.` stays; `..` goes to the parent (stay at root if there is none);\n  - a name moves to that child or fails;\n  - `*` expands to the set `{current, parent, every child}`.\n\n**Handling `*` correctly.** Because a wildcard creates several candidate directories, resolve with a set of current nodes (a BFS over segments) or with DFS and backtracking.\n\n```python\ndef resolve(self, start, segs):\n    cur = {start}\n    for s in segs:\n        nxt = set()\n        for d in cur:\n            if s == \".\": nxt.add(d)\n            elif s == \"..\": nxt.add(d.parent or d)\n            elif s == \"*\":\n                nxt |= {d, d.parent or d, *d.children.values()}\n            elif s in d.children: nxt.add(d.children[s])\n        if not nxt: return None\n        cur = nxt\n    return cur\n```\nThen choose the target by your stated policy (for example the lexicographically smallest absolute path) and set `cwd` only after success, so a failed `cd` leaves state unchanged.\n\n**Complexity.** Without wildcards, O(segments). With wildcards the candidate set can grow with the branching factor at each level, so state the worst case.\n\n**Extensions**: `ls`, `rm`, files, `cd -`, symbolic links (cycle detection), and concurrency with a lock per directory.",
+ "followUps": [
+  "How would you add `ls` and make its output sorted?",
+  "How would you support files as well as directories?",
+  "How would you detect and handle cycles if you added symbolic links?",
+  "How would you test `cd` with wildcards, and which cases are the riskiest?"
+ ]
+}

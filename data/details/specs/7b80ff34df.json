@@ -1,0 +1,18 @@
+{
+ "qid": "7b80ff34df",
+ "question": "In round 4 of a **Platform Engineer** interview at NVIDIA (senior, about 10 years of experience), GitOps and platform scenarios were discussed: **managing many clusters, Argo CD versus Flux, configuration drift, Helm, developer self-service and platform standards**. Follow-ups asked *why this design?*, *what if it fails?* and *how would you scale it?*",
+ "lookingFor": [
+  "Do you understand GitOps principles and pull-based reconciliation?",
+  "Can you design multi-cluster delivery with controlled blast radius?",
+  "Do you know how to compare Argo CD and Flux honestly?",
+  "Do you think about developer experience and guardrails, not just tooling?"
+ ],
+ "answer": "**GitOps principles.** Desired state is declarative, versioned in Git, pulled and continuously reconciled by an agent in the cluster, with changes made only via pull requests (review, audit, easy rollback by revert).\n\n**Managing many clusters.**\n- *Structure repos* as base config plus environment/region overlays (Kustomize overlays or Helm values per cluster), and separate app config from platform add-ons.\n- *Argo CD:* a hub (or a few regional hubs) with `ApplicationSet` generators (cluster, git directory) to stamp out apps per cluster; app-of-apps for bootstrap. Alternative: one Argo per cluster for isolation, which scales better and removes a central point of failure at the cost of more operations.\n- *Flux:* each cluster runs its own controllers pulling from Git (`GitRepository`, `Kustomization`, `HelmRelease`), so it is naturally decentralised.\n- *Comparison:* Argo CD has a rich UI, multi-cluster view and RBAC/SSO; Flux is lighter, composable and more Kubernetes-native. Both work; choose on team workflow and scale.\n- *Rollouts:* promote through rings (dev, staging, canary clusters, then the rest) through PRs or sync waves, never to all clusters at once.\n\n**Configuration drift.** Detect by diffing live and desired state; enable automated sync with **self-heal** and pruning for platform-owned resources, but alert and require review where manual hotfixes are expected. Control who can write to clusters (read-only for humans), and use admission policy so only GitOps controllers modify protected namespaces.\n\n**Helm.** Use for third-party and reusable packages; pin chart versions; render and diff in CI. Keep values small, avoid templating complexity, and consider Kustomize for simple overlays.\n\n**Secrets.** Never plain in Git; use External Secrets, Sealed Secrets or SOPS.\n\n**Developer self-service and standards.** Golden-path templates (service skeleton with CI, manifests, dashboards), namespace-as-a-service with default quotas and network policies, a portal such as Backstage as an example, and policy as code (Kyverno or OPA) for guardrails (required labels, resource limits, no privileged pods). Give teams freedom inside guardrails.\n\n**Failure modes.** Git or the hub being down (clusters keep running; no new changes), a bad commit (staged rollout limits blast radius, revert), controller overload at scale (shard controllers).",
+ "followUps": [
+  "What happens to running workloads if the Argo CD hub or Git is unavailable?",
+  "How do you roll out a risky platform change across 100 clusters?",
+  "How do you handle an emergency hotfix applied manually with kubectl?",
+  "Hub-and-spoke versus per-cluster GitOps: how would you choose?",
+  "How would you manage secrets in a GitOps workflow?"
+ ]
+}

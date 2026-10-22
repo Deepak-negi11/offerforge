@@ -1,0 +1,18 @@
+{
+ "qid": "e7a92b0e27",
+ "question": "Intel Software Engineer (on-campus) technical interview. Reported questions: **explain heap versus stack memory, what a memory leak is, and how to declare a dynamic array.** Other reported items in the same interview included mutex versus semaphore, the critical section problem, the `static` keyword, and designing an LRU cache.",
+ "lookingFor": [
+  "Clear comparison of stack and heap on allocation, lifetime and speed.",
+  "Definition of memory leak and how to avoid or detect it.",
+  "Correct dynamic array syntax in C and C++.",
+  "Awareness of undefined behaviour and ownership.",
+  "Modern C++ alternatives such as `std::vector` and smart pointers."
+ ],
+ "answer": "**Stack vs heap.**\n\n| | Stack | Heap |\n|---|---|---|\n| Used for | Local variables, parameters, return addresses | Dynamically allocated objects |\n| Allocation | Automatic, by moving the stack pointer | Explicit (`malloc`/`new`), by the allocator |\n| Lifetime | Until the function returns | Until freed |\n| Speed | Very fast, cache-friendly | Slower, may fragment |\n| Size | Small, fixed (often a few MB); overflow causes stack overflow | Large, limited by system memory |\n| Management | Automatic | Programmer (or GC/RAII) |\n\n**Memory leak.** Heap memory that was allocated but never freed and can no longer be reached, so the program's memory use grows until it slows down or crashes.\n\n```c\nvoid f(void) {\n    int *p = malloc(100 * sizeof *p);\n    if (error) return;   // leak: p is never freed\n    free(p);\n}\n```\n\nCommon causes: early returns or exceptions skipping `free`, overwriting a pointer before freeing it, and forgetting to free in destructors. Prevention: free on every path, use RAII and smart pointers in C++, and keep clear ownership rules. Detection: Valgrind, AddressSanitizer (`-fsanitize=address`), and heap profilers.\n\n**Declaring a dynamic array.**\n\n```c\nint n = 10;\nint *arr = (int*) malloc(n * sizeof(int));   // C\nif (!arr) { /* handle failure */ }\n/* use arr[i] */\nfree(arr);\n```\n\n```cpp\nint* arr = new int[n]();      // C++ raw\ndelete[] arr;\n\nstd::vector<int> v(n);        // preferred: automatic memory management, resizable\nauto p = std::make_unique<int[]>(n);\n```\n\nA variable-length array (`int a[n];`) is allocated on the stack in C99 and is not standard C++, so a large `n` risks stack overflow. Dynamic arrays are fixed once allocated; to grow, `realloc` in C or use `std::vector`, which doubles capacity for amortized O(1) appends.",
+ "followUps": [
+  "How does a vector grow, and what is its amortized cost?",
+  "What causes a stack overflow, and how can recursion trigger it?",
+  "What is the difference between a memory leak and a dangling pointer?",
+  "How would you design an LRU cache?"
+ ]
+}

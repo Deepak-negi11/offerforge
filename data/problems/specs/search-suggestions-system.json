@@ -1,0 +1,50 @@
+{
+ "pid": "search-suggestions-system",
+ "title": "Search Suggestions System",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "An online shop has a catalogue of `n` **distinct** product names made of lowercase letters. A customer types a search word one character at a time. After each typed character, the shop shows suggestions for the prefix typed so far.\n\nFor each prefix of the search word (length 1, 2, ..., `|word|`), suggest the products that start with that prefix, in **lexicographic (dictionary) order**, and show **at most three**: the three lexicographically smallest matches, or all of them if fewer than three match. A product equal to the prefix itself also matches.\n\nPrint one line per prefix. If no product matches a prefix, print `-` for that line.\n\n**Follow-up:** a variant of this question asks for the products matching a single search key (all of them, in lexicographic order, or the first three) using a trie. Think about when a trie, a sorted array with binary search, or a heap per node is the better trade-off.",
+ "input_format": "The first line contains `n`. The second line contains the `n` product names separated by spaces. The third line contains the search word.",
+ "output_format": "Print `|word|` lines. Line `i` holds the suggestions for the first `i` characters of the word, separated by single spaces, or `-` if there are none.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ length of each product and of the search word ≤ 20",
+  "all characters are lowercase English letters",
+  "product names are pairwise distinct"
+ ],
+ "examples": [
+  {
+   "input": "6\ncable charger cap camera case cat\ncam",
+   "output": "cable camera cap\ncable camera cap\ncamera",
+   "explanation": "For `c` all six products match; the three smallest are cable, camera, cap. For `ca` the matches are cable, camera, cap, case, cat, again the first three. For `cam` only camera matches."
+  },
+  {
+   "input": "3\nbag bat ball\nbax",
+   "output": "bag ball bat\nbag ball bat\n-",
+   "explanation": "`b` and `ba` match all three products, whose smallest-first order is bag, ball, bat. No product starts with `bax`, so the last line is a dash."
+  },
+  {
+   "input": "5\nzz zy zx zw zv\nzz",
+   "output": "zv zw zx\nzz",
+   "explanation": "After typing `z` the smallest three of the five are zv, zw, zx. After `zz` only zz itself matches."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n + L · (log n + 3L))",
+  "space": "O(n)"
+ },
+ "hints": [
+  "The matches for a prefix always form one contiguous block once the products are sorted.",
+  "After sorting, binary search for the first product that is not smaller than the prefix, then read at most three consecutive products while they still start with the prefix.",
+  "Alternatively insert all products into a trie where each node remembers its three smallest products; typing the word just walks down the trie."
+ ],
+ "reference": "\nimport sys, bisect\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    prods = sorted(data[1:1 + n])\n    word = data[1 + n]\n    out = []\n    for l in range(1, len(word) + 1):\n        pre = word[:l]\n        i = bisect.bisect_left(prods, pre)\n        row = []\n        while i < n and len(row) < 3 and prods[i].startswith(pre):\n            row.append(prods[i]); i += 1\n        out.append(' '.join(row) if row else '-')\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "\nimport sys\ndata = sys.stdin.read().split()\nn = int(data[0])\nprods = data[1:1 + n]\nword = data[1 + n]\nfor l in range(1, len(word) + 1):\n    m = sorted(p for p in prods if p[:l] == word[:l])[:3]\n    print(' '.join(m) if m else '-')\n",
+ "generator": "\ndef words(rng, n, alpha, maxlen):\n    s = set()\n    tries = 0\n    while len(s) < n and tries < n * 20:\n        tries += 1\n        s.add(''.join(rng.choice(alpha) for _ in range(rng.randint(1, maxlen))))\n    return list(s)\n\ndef fmt(ws, w):\n    return str(len(ws)) + '\\n' + ' '.join(ws) + '\\n' + w\n\ndef gen(rng):\n    t = [fmt(['a'], 'a'), fmt(['a'], 'b'), fmt(['abc'], 'abcd'), fmt(['b', 'a', 'ab', 'abc', 'abcd'], 'abcd'),\n         fmt(['cable', 'charger', 'cap', 'camera', 'case', 'cat'], 'cam'),\n         fmt(['zz', 'zy', 'zx', 'zw', 'zv'], 'zz')]\n    for n in (2, 3, 5, 8, 12, 20, 30):\n        for _ in range(3):\n            alpha = rng.choice(['ab', 'abc', 'abcd'])\n            ws = words(rng, n, alpha, 5)\n            w = ''.join(rng.choice(alpha) for _ in range(rng.randint(1, 6)))\n            if rng.random() < 0.5:\n                w = rng.choice(ws)[:rng.randint(1, 5)] + w[:2]\n            t.append(fmt(ws, w))\n    ws = words(rng, 100000, 'ab', 20)\n    t.append(fmt(ws, 'a' * 10 + 'b' * 10))\n    t.append(fmt(ws, 'ab' * 10))\n    ws = words(rng, 100000, 'abcdefghijklmnopqrstuvwxyz', 20)\n    t.append(fmt(ws, rng.choice(ws)))\n    ws = ['a' * i for i in range(1, 21)] + ['a' * i + 'b' for i in range(0, 20)]\n    t.append(fmt(ws, 'a' * 20))\n    return t\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef suggested_products(products: List[str], word: str) -> List[List[str]]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    products = data[1:1 + n]\n    word = data[1 + n]\n    for row in suggested_products(products, word):\n        print(' '.join(row) if row else '-')\n\n\nmain()\n",
+  "javascript": "function suggestedProducts(products, word) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = Number(t[0])\nconst products = t.slice(1, 1 + n)\nconst word = t[1 + n]\nconst res = suggestedProducts(products, word)\nconsole.log(res.map(row => (row.length ? row.join(' ') : '-')).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<vector<string>> suggestedProducts(vector<string>& products, string word) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<string> products(n);\n    for (int i = 0; i < n; i++) cin >> products[i];\n    string word;\n    cin >> word;\n    vector<vector<string>> res = suggestedProducts(products, word);\n    for (auto& row : res) {\n        if (row.empty()) {\n            cout << \"-\";\n        }\n        for (size_t j = 0; j < row.size(); j++) cout << row[j] << (j + 1 < row.size() ? \" \" : \"\");\n        cout << \"\\n\";\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<List<String>> suggestedProducts(String[] products, String word) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int n = Integer.parseInt(st.nextToken());\n        String[] products = new String[n];\n        for (int i = 0; i < n; i++) products[i] = st.nextToken();\n        String word = st.nextToken();\n        StringBuilder sb = new StringBuilder();\n        for (List<String> row : suggestedProducts(products, word)) {\n            sb.append(row.isEmpty() ? \"-\" : String.join(\" \", row)).append(\"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

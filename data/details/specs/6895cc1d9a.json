@@ -1,0 +1,18 @@
+{
+ "qid": "6895cc1d9a",
+ "question": "Qualcomm software engineer, first technical interview (embedded-systems interviewer). **Where and how is the `volatile` keyword in C useful, in both a \"read\" scenario (hardware changing a value) and a \"write\" scenario (shared variables with threads)? Write code.** The candidate in the report described reading a hardware-interrupt flag and using mutexes and threads for the write scenario.",
+ "lookingFor": [
+  "Precise knowledge of what volatile does: it prevents the compiler from caching or optimising away accesses.",
+  "Awareness of its legitimate uses: memory-mapped I/O, ISR flags, signal handlers.",
+  "Knowing that volatile does not give atomicity or memory ordering and is not a substitute for mutexes or atomics.",
+  "Ability to write small, correct embedded-style code.",
+  "Understanding of compiler optimisation and hardware interaction."
+ ],
+ "answer": "**What it means.** `volatile` tells the compiler that a value may change outside the visible program flow, so every read and write in the source must actually happen, in order, relative to other volatile accesses. It stops optimisations such as keeping the value in a register or removing a \"useless\" loop.\n\n**Read scenario: hardware or interrupt changes the value.**\n\n```c\nvolatile int data_ready = 0;          // set by an ISR\n\nvoid ISR(void) { data_ready = 1; }\n\nint main(void) {\n    while (!data_ready) { }           // without volatile the compiler may read once and loop forever\n    process();\n}\n```\n\nMemory-mapped registers follow the same idea:\n\n```c\n#define STATUS (*(volatile uint32_t *)0x40021000u)\nwhile ((STATUS & 0x1u) == 0) { }      // poll a status bit set by hardware\n```\n\n**Write scenario.** Writes to a hardware register must not be removed or merged, e.g. writing `1` then `0` to toggle a pin, or writing a command twice. `volatile` guarantees those stores are emitted.\n\n**Signal handlers.** The portable type is `volatile sig_atomic_t flag` for a flag set in a handler.\n\n**What volatile does NOT do (important).**\n- It is **not atomic**: `volatile int counter; counter++` from two threads is still a data race (read, add, write).\n- It does **not** provide memory barriers or ordering between threads or CPU cores.\n- So for threads, use a **mutex** or C11 `_Atomic` (`stdatomic.h`). In the reported answer, mutexes are what make the shared-variable case correct, not `volatile`. Say this directly.\n\n```c\npthread_mutex_lock(&m);\nshared++;\npthread_mutex_unlock(&m);\n```\n\n**Other points.** `volatile` can combine with `const` (a read-only hardware status register: `const volatile`). `volatile` pointers have two forms: pointer to volatile data vs a volatile pointer. In C++ it has the same limits. Overusing it hurts performance because it blocks optimisations.",
+ "followUps": [
+  "Can a variable be both const and volatile? Give an example.",
+  "Why is volatile not enough for thread synchronisation? What would you use?",
+  "What is sig_atomic_t and why is it used with signal handlers?",
+  "What is the difference between a volatile pointer and a pointer to volatile?"
+ ]
+}

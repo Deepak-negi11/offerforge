@@ -1,0 +1,18 @@
+{
+ "qid": "6d21aee472",
+ "question": "In a phone screen for a **Graphics Software Engineer** role at NVIDIA, four short fundamentals questions were asked: **write-back versus write-through caches**, **global versus static variables in C**, **kernel mode versus user mode**, and **how `malloc` works**.\n\nNo further detail was reported; each is a typical systems-fundamentals question expecting a concise, correct explanation.",
+ "lookingFor": [
+  "Do you understand cache write policies and their performance and coherence trade-offs?",
+  "Do you know C storage duration, scope and linkage precisely?",
+  "Do you understand privilege separation and how system calls cross it?",
+  "Do you know how a heap allocator works and its failure modes?"
+ ],
+ "answer": "**Write-through vs write-back.**\n- *Write-through:* every store updates the cache and the next level (memory) immediately. Simple, memory is always up to date (easy coherence, good for I/O), but more write traffic and slower stores unless a write buffer hides it.\n- *Write-back:* a store updates only the cache and sets a **dirty bit**; the block is written to memory only on eviction. Far less memory traffic and faster, but more complex: memory can be stale, and multi-core systems need a coherence protocol (such as MESI). Paired usually with **write-allocate** (load the block on a write miss); write-through is often paired with no-write-allocate.\n\n**Global vs static in C.**\n- A *global* (file-scope) variable has static storage duration and **external linkage**: visible to other files via `extern`.\n- A file-scope `static` variable has **internal linkage**: visible only in that translation unit, avoiding name clashes.\n- A `static` *local* variable keeps its value across calls and is initialised once, but is visible only inside the function.\nAll live in the data segment (`.data` if initialised, `.bss` if zero-initialised), not on the stack.\n\n**Kernel vs user mode.** The CPU has privilege levels. Kernel mode can execute privileged instructions, access all memory and hardware; user mode cannot. Applications request services through **system calls** (a trap instruction switches to kernel mode, runs the handler, and returns). Faults and interrupts also enter the kernel. This isolates processes and protects the system from buggy programs.\n\n**How malloc works.** `malloc` manages the heap in user space. It keeps free lists (bins by size) of chunks, each with a small header storing size. A request is served from a suitable free chunk (splitting if larger); if none exists it asks the OS for more memory with `brk/sbrk`, or `mmap` for large requests. `free` marks the chunk free and **coalesces** adjacent free chunks to limit fragmentation. Problems: fragmentation, leaks, double free, use-after-free, and heap overflows corrupting metadata. Modern allocators use per-thread arenas or caches to reduce lock contention.",
+ "followUps": [
+  "When would you choose write-through over write-back?",
+  "What is a dirty bit and what happens on eviction of a dirty line?",
+  "What happens on a system call, step by step?",
+  "What is false sharing and how does it relate to caches?",
+  "How would you implement a simple malloc?"
+ ]
+}

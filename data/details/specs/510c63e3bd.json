@@ -1,0 +1,17 @@
+{
+ "qid": "510c63e3bd",
+ "question": "Juspay SDE Intern (Intern + PPO), final on-site hiring-manager round. Reported: **design a data structure that stores key-value pairs where each entry expires automatically after its TTL (time to live).** No further constraints were reported, so clarify them (operations, scale, concurrency, accuracy of expiry) before designing.",
+ "lookingFor": [
+  "Clarifying requirements before designing.",
+  "Combining a hash map for lookup with a structure ordered by expiry time.",
+  "Lazy versus active expiration, and complexity of each operation.",
+  "Concurrency, memory and clock considerations; scaling beyond one machine."
+ ],
+ "answer": "**Requirements to clarify.** Operations: `put(key, value, ttl)`, `get(key)` (return nothing after expiry), `delete(key)`. Can a put overwrite and reset the TTL? Is expiry needed to the exact millisecond, or can it be a bit late? Expected size and throughput? Single process or distributed? Multithreaded?\n\n**Core design.**\n- A **hash map** `key -> (value, expiresAt)` gives O(1) average `get`, `put` and `delete`.\n- A **min-heap (priority queue)** of `(expiresAt, key)` gives the next entry to expire at the top.\n\n**Expiry strategies (combine them).**\n1. *Lazy expiry:* on `get`, if `now >= expiresAt`, delete the entry and report a miss. This is always correct for reads, even if nothing else runs.\n2. *Active expiry:* a background thread (or a check on each operation) pops from the heap while the top's `expiresAt <= now` and removes those keys, so memory is reclaimed even if nobody reads them. Sleep until the next expiry time or wake on new earlier entries.\n\n**Overwrites.** When a key is updated, the older heap entry becomes stale. When popping, compare the heap entry's `expiresAt` with the map's current value, and skip it if they differ. This keeps `put` at O(log n) without removing from the middle of the heap.\n\n**Complexity.** `get`: O(1) average. `put`: O(1) for the map plus O(log n) for the heap. Expire one entry: O(log n).\n\n**Alternatives and trade-offs.**\n- If every key has the **same TTL**, expiry order equals insertion order, so a queue or linked list is enough (O(1)).\n- A **timing wheel** (buckets per time tick) gives O(1) insert and expiry with coarse time resolution, which suits very large numbers of timers.\n- A balanced tree or ordered set supports deleting an arbitrary entry in O(log n), avoiding stale heap entries.\n- Redis uses lazy expiry plus periodic random sampling to avoid scanning everything.\n\n**Other concerns.** Use a monotonic clock, not wall time, so clock changes do not break TTLs; protect the structures with a lock (or shard the map to reduce contention); consider a memory cap with eviction (LRU); for scale, partition keys across nodes with consistent hashing and replicate.",
+ "followUps": [
+  "How would you make this thread-safe without a single global lock?",
+  "What would you change if there are millions of keys with very short TTLs?",
+  "How would you add a maximum capacity with LRU eviction in addition to TTL?",
+  "How would you distribute this across several machines?"
+ ]
+}

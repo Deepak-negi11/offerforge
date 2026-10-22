@@ -1,0 +1,19 @@
+{
+ "qid": "b629ae1ba0",
+ "question": "Razorpay Lead Backend Engineer, Round 1: a 90-minute machine coding round that is AI-integrated. You may use AI tools, and the interviewer judges AI usage, LLD logic and code quality.\n\nYour organization has started a new tech blog, and you must design and implement an in-memory search engine for its content. Requirements:\n\n- Create a dataset in the search engine.\n- Insert and delete documents in a given dataset; each document is simply a piece of text.\n- Search the documents of a dataset for a search pattern.\n- Order the search results.\n\nThe candidate in the report clarified requirements and coded a solution, but a bug in the delete-document logic surfaced during testing and the round ran over time.",
+ "lookingFor": [
+  "Clarifying vague requirements before coding (pattern semantics, ordering, ids)",
+  "Clean decomposition: dataset, document, search and ordering as separate concerns",
+  "Choosing a search structure and defending its complexity",
+  "Correctness under deletes and updates, including keeping the index consistent",
+  "Time management and testing as you go"
+ ],
+ "answer": "**Clarify first (3 to 5 minutes).** Is the pattern a substring, a word, or a regex? Case-sensitive? How are results ordered (frequency, id, insertion time) and is order ascending or descending? Are document ids supplied by the caller or generated? What happens when a dataset or document does not exist? Write the answers down as assumptions.\n\n**Entities.** `Document{id, text}`, `Dataset{name, documents: Map<id, Document>, index}`, `SearchEngine{datasets: Map<name, Dataset>}`, `SearchResult{docId, score}`, `SortOrder` or a `Comparator` strategy.\n\n**API.** `createDataset(name)`, `insert(dataset, docId, text)`, `delete(dataset, docId)`, `search(dataset, pattern, order)`.\n\n**Two implementations, in order.**\n1. Simple and correct: a linear scan per dataset, count occurrences of the pattern in each document, filter out zero counts, sort. O(total text length) per search. Code this first so you have something working.\n2. Faster: an inverted index from token to the set of document ids (and term frequencies). Insert tokenizes the text and updates postings; delete must use the document's stored tokens to remove each posting, otherwise stale entries remain. Multi-word patterns intersect posting lists. For substring or prefix search, mention a trie or n-gram index.\n\n**Ordering as a strategy.** Define `interface ResultOrdering { Comparator<SearchResult> comparator(); }` with implementations such as by frequency, by id and by insertion time. Always add a deterministic tie-breaker (for example doc id).\n\n**Where bugs hide.** Delete not removing index entries, duplicate inserts of the same id (decide: overwrite and re-index), a dataset deleted while searching, and mutating a collection while iterating. Write a small test for each as you go rather than at the end.\n\n**Concurrency note.** Mention a read-write lock per dataset if threads are expected, without building it unless asked.\n\n**AI use.** Draft the class skeleton and tests with the assistant, but keep the design decisions yours, read every generated line, and explain it when asked.",
+ "followUps": [
+  "How would you rank results by relevance (TF-IDF or BM25) instead of raw count?",
+  "How would you support prefix and fuzzy matching efficiently?",
+  "What breaks when documents are updated, and how do you keep the index consistent?",
+  "How would you make it thread-safe without a single global lock?",
+  "How would this change if the data no longer fit in memory?"
+ ]
+}

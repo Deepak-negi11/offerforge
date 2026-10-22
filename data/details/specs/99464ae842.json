@@ -1,0 +1,18 @@
+{
+ "qid": "99464ae842",
+ "question": "**Design a system for high concurrency and heavy traffic.** Topics discussed: **load balancing, caching, database sharding, distributed systems / microservices, and fault tolerance.** The candidate was given scenarios about scaling under heavy traffic and had to choose appropriate technologies and design patterns. (System design round for an early-career Software Engineer, Netflix.)",
+ "lookingFor": [
+  "Do you know the standard building blocks for scaling a web system?",
+  "Can you reason from measured bottlenecks, not buzzwords?",
+  "Do you understand caching, sharding and their trade-offs (invalidation, hot keys, resharding)?",
+  "Do you design for failure: timeouts, retries, circuit breakers, redundancy?",
+  "Can you pick technologies and justify them for a given scenario?"
+ ],
+ "answer": "**Approach.** Ask what the system does and the traffic profile (read versus write, peak requests per second, latency target, consistency needs). Then scale step by step, fixing the observed bottleneck each time.\n\n**1. Load balancing and stateless servers.** Put a load balancer (L4/L7) in front of many identical, stateless application servers, with health checks and autoscaling. Keep session state in a shared store or in tokens so any server can serve any request. Algorithms: round robin, least connections, consistent hashing when affinity helps.\n\n**2. Caching.** Cache at several layers: CDN for static content, an in-memory cache (Redis or Memcached) for hot data, and local caches for tiny hot sets. Choose a pattern: *cache-aside* for reads, *write-through* when consistency matters. Define TTLs and invalidation. Beware of cache stampedes (use request coalescing or jittered TTLs) and hot keys.\n\n**3. Database scaling.** First add indexes and read replicas (replication lag means replicas serve eventually consistent reads). When one primary cannot handle writes, **shard** by a key with even distribution (for example user id) using hash or range sharding. Costs: cross-shard queries and transactions are hard, resharding is painful, hot shards occur. Consider the right store for each workload (relational for transactions, key-value or wide-column for scale).\n\n**4. Asynchronous processing.** Move slow or non-critical work (emails, analytics, video processing) to a message queue and workers, which smooths spikes and protects the core path.\n\n**5. Microservices.** Split by business capability so teams and scaling are independent. They add network failure, tracing and data consistency challenges, so do not split without need.\n\n**6. Fault tolerance.** Redundancy across zones, timeouts on every remote call, retries with exponential backoff and jitter (only for idempotent operations), **circuit breakers** to stop cascading failure, bulkheads to isolate resources, rate limiting and load shedding, graceful degradation (serve cached or partial data), and monitoring with alerts.\n\n**Trade-offs.** Consistency versus availability under partitions, complexity versus scale, and cost.",
+ "followUps": [
+  "What is a cache stampede and how do you prevent it?",
+  "How do you pick a shard key, and what goes wrong with a bad choice?",
+  "When would you not use microservices?",
+  "How do retries cause a retry storm, and how do circuit breakers help?"
+ ]
+}

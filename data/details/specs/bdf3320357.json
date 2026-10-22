@@ -1,0 +1,19 @@
+{
+ "qid": "bdf3320357",
+ "question": "Design a **notification service** (high-level design, Salesforce, ~7 YOE Senior Software Engineer). The service has **high and low priority** notifications, **templates**, **user preferences** and **user do-not-disturb (DND)**. The discussion covered **scalability, resilience and availability**, and went deep on **Kafka**.\n\nAnother SMTS candidate reported a harder, Klaviyo-style variant: ingest events from client systems (e-commerce or food-delivery type), process and filter them, and keep the design extensible. That version was described as ambiguous, so clarifying scope first was important.",
+ "lookingFor": [
+  "Structured requirements and back-of-envelope scale numbers",
+  "Decoupling with queues and priority handling",
+  "Respecting preferences, DND and rate limits correctly",
+  "Depth on Kafka: partitions, consumer groups, delivery guarantees",
+  "Resilience: retries, dead-letter queues, idempotency, provider failover"
+ ],
+ "answer": "**Requirements.** Send email, SMS and push; high priority (OTP, security alerts) delivered in seconds, low priority (marketing) can be delayed or batched. Per-user channel preferences and DND windows. Templates with variables. Assume 100M users and about 10M notifications a day, with peaks of a few thousand per second.\n\n**API.** `POST /notifications {userId, type, templateId, params, priority, idempotencyKey}`; `GET /notifications/{id}` for status; preferences CRUD.\n\n**Flow.**\n1. API service validates, dedupes on the idempotency key, and writes the notification as PENDING.\n2. It publishes to Kafka, with separate **topics per priority** so a marketing burst cannot starve OTPs.\n3. A router worker loads preferences, checks opt-out and DND (low priority is deferred to a delay or scheduled queue; critical ones may bypass DND by policy), and renders the template.\n4. Channel workers (email, SMS, push) call providers such as SES, Twilio, FCM or APNs.\n5. Status updates (SENT, DELIVERED, FAILED) go to a store, and provider webhooks update delivery.\n\n**Kafka deep dive.** Partition by `userId` to keep per-user ordering and spread load. Consumers in a consumer group scale by adding instances up to the partition count. Delivery is at-least-once (commit offsets after processing), so workers must be idempotent. Use retry topics with backoff, then a dead-letter topic. Replication factor 3 and `acks=all` for durability. Monitor consumer lag.\n\n**Data model.** Preferences in a key-value store with a cache. Notifications in a wide-column or sharded SQL store keyed by user and time. Templates in a DB with a versioned cache.\n\n**Resilience.** Per-provider circuit breakers and fallback providers, rate limiting per user and per provider, and a graceful shed of low priority under load. Multi-AZ deployment.\n\n**Klaviyo variant.** Add an event-ingestion API, an event stream, a rules or segment engine that filters events into triggers, then reuse the same send pipeline. Define triggers via configuration so new event types need no code.",
+ "followUps": [
+  "How do you guarantee an OTP is not delayed behind a million marketing messages?",
+  "How do you avoid sending the same notification twice when a consumer retries?",
+  "What happens when the SMS provider is down for 10 minutes?",
+  "How would you support scheduled and recurring notifications?",
+  "How would you implement per-user rate limiting and frequency capping?"
+ ]
+}

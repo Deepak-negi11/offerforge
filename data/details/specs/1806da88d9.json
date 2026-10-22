@@ -1,0 +1,17 @@
+{
+ "qid": "1806da88d9",
+ "question": "System design round for an experienced (3+ years) D. E. Shaw SMTS candidate: **design browser history** (visit a page, go back, go forward), with a discussion that lasted about 40 minutes before moving on to another problem. The reported scope was only the feature name and the ~40 minute discussion, so the answer starts from the core data structure and extends to realistic concerns.",
+ "lookingFor": [
+  "Choosing the right data structure for back/forward with efficient operations.",
+  "Handling the rule that a new visit clears forward history.",
+  "Scaling the design: tabs, persistence, search, sync, privacy.",
+  "Trade-offs and edge cases."
+ ],
+ "answer": "**Requirements.** `visit(url)`, `back(steps)`, `forward(steps)`, current page. Extensions: multiple tabs, history list and search, clear history, persistence, sync across devices.\n\n**Core data structure (single tab)**\n- **Two stacks:** `back` and `forward`, plus `current`. `visit(url)`: push `current` to `back`, set `current = url`, **clear `forward`**. `back`: push `current` to `forward`, pop from `back`. `forward` is symmetric. Each step is O(1), a `k`-step move is O(k).\n- **Array with a pointer (LeetCode-style):** a dynamic array of URLs and an index `cur`. `visit` truncates everything after `cur` and appends; `back(k)` sets `cur = max(0, cur - k)` and `forward(k)` sets `cur = min(last, cur + k)`, so a k-step move is **O(1)**. This is usually the best choice.\n- Doubly linked list: also O(k) for moves; no benefit over the array here.\n\n**Scaling the system (the 40-minute part)**\n- **Tabs:** one history stack per tab, held by a `Tab` object inside a `Session`/`Browser` class.\n- **Global history (all visits):** an append-only store of `(url, title, timestamp, visitCount)` kept per user; the in-memory stacks are only the navigation state.\n- **Persistence:** local database such as SQLite with an index on `url` and `timestamp`; write asynchronously in batches.\n- **Search and autocomplete:** a trie or full-text index over URLs and titles; rank by frecency (frequency plus recency).\n- **Limits:** cap the history length, evict the oldest, and de-duplicate by URL.\n- **Sync across devices:** per-device logs merged on the server, by timestamp or version vector, with a \"last write wins\" or union policy, and encryption.\n- **Privacy:** incognito mode keeps history only in memory; support \"clear last hour\".\n- **Edge cases:** redirects (record the final URL), reloads (don't add entries), same-page anchors, and very long histories.\n\n**Interfaces:** `Browser`, `Tab`, `HistoryStore` (interface), `NavigationHistory`.",
+ "followUps": [
+  "Why does a new visit clear the forward history?",
+  "How would you support history search with prefix matching efficiently?",
+  "How would you keep history in sync across a user's phone and laptop?",
+  "How would you implement an LRU limit on the history size?"
+ ]
+}

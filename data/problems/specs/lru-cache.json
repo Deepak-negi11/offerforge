@@ -1,0 +1,49 @@
+{
+ "pid": "lru-cache",
+ "title": "LRU Cache (with Thread Safety)",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "Design a cache with a fixed `capacity` that evicts the **least recently used** entry when it overflows.\n\nThe cache maps integer keys to integer values and supports two operations:\n\n- `get key`: if `key` is in the cache, return its value and mark `key` as the **most recently used**; otherwise return `-1`.\n- `put key value`: store the pair, or overwrite the value if `key` is already present. Either way, `key` becomes the most recently used. If the cache now holds more than `capacity` keys, evict the least recently used key.\n\nA cache with capacity `0` never stores anything, so every `get` on it returns `-1`. Both operations must run in **O(1)** average time.\n\nOperations are applied one at a time, in the given order. Interviewers usually follow this problem with a question about concurrency: how would you make the cache safe when many threads call `get` and `put` at once (a single lock, a read-write lock, finer-grained locking)? The tests only check the sequential behaviour above, but keep the follow-up in mind when you design your data structure.\n\nGiven the capacity and the sequence of operations, print the result of every `get`.",
+ "input_format": "The first line contains two integers `capacity` and `q`.\nEach of the next `q` lines is either `get key` or `put key value`.\nThere is at least one `get` operation.",
+ "output_format": "For every `get` operation, in order, print its result on its own line.",
+ "constraints": [
+  "0 ≤ capacity ≤ 20000",
+  "1 ≤ q ≤ 40000",
+  "0 ≤ key, value ≤ 10^5"
+ ],
+ "examples": [
+  {
+   "input": "2 7\nput 1 10\nput 2 20\nget 1\nput 3 30\nget 2\nget 3\nget 1",
+   "output": "10\n-1\n30\n10",
+   "explanation": "After the two puts, key 2 is more recent than key 1. `get 1` returns 10 and makes key 1 the most recent, so key 2 is now the least recently used. `put 3 30` overflows the cache and evicts key 2, so `get 2` is -1. Keys 3 and 1 are still present."
+  },
+  {
+   "input": "1 5\nput 5 1\nput 5 2\nget 5\nput 6 3\nget 5",
+   "output": "2\n-1",
+   "explanation": "The second put overwrites the value of key 5 without growing the cache, so `get 5` returns 2. Storing key 6 exceeds capacity 1 and evicts key 5."
+  },
+  {
+   "input": "0 3\nput 1 1\nget 1\nget 2",
+   "output": "-1\n-1",
+   "explanation": "With capacity 0 nothing can be stored, so both lookups miss."
+  }
+ ],
+ "complexity": {
+  "time": "O(1) per operation",
+  "space": "O(capacity)"
+ },
+ "hints": [
+  "A hash map gives O(1) lookup, but you also need to know which key is the least recently used without scanning.",
+  "Keep the keys in a doubly linked list ordered by recency, and let the map point at the list nodes so you can move a node to the front in O(1).",
+  "Remember the edge cases: overwriting an existing key must refresh its recency and must not trigger an eviction, and capacity 0 stores nothing."
+ ],
+ "reference": "import sys\nfrom collections import OrderedDict\n\ndef main():\n    data = sys.stdin.read().split()\n    cap, q = int(data[0]), int(data[1])\n    p = 2\n    d = OrderedDict()\n    out = []\n    for _ in range(q):\n        if data[p] == 'get':\n            k = int(data[p + 1])\n            p += 2\n            if k in d:\n                d.move_to_end(k)\n                out.append(d[k])\n            else:\n                out.append(-1)\n        else:\n            k, v = int(data[p + 1]), int(data[p + 2])\n            p += 3\n            if cap == 0:\n                continue\n            d[k] = v\n            d.move_to_end(k)\n            if len(d) > cap:\n                d.popitem(last=False)\n    print('\\n'.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\ncap, q = int(data[0]), int(data[1])\np = 2\nitems = []  # [key, value], least recently used first\nout = []\nfor _ in range(q):\n    if data[p] == 'get':\n        k = int(data[p + 1])\n        p += 2\n        res = -1\n        for i in range(len(items)):\n            if items[i][0] == k:\n                it = items.pop(i)\n                items.append(it)\n                res = it[1]\n                break\n        out.append(res)\n    else:\n        k, v = int(data[p + 1]), int(data[p + 2])\n        p += 3\n        for i in range(len(items)):\n            if items[i][0] == k:\n                items.pop(i)\n                break\n        items.append([k, v])\n        while len(items) > cap:\n            items.pop(0)\nprint('\\n'.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def fmt(cap, ops):\n        return str(cap) + ' ' + str(len(ops)) + '\\n' + '\\n'.join(ops)\n\n    def rand_ops(q, keys, vmax, pget=0.5):\n        ops = []\n        for _ in range(q):\n            if rng.random() < pget:\n                ops.append('get ' + str(rng.randint(0, keys)))\n            else:\n                ops.append('put ' + str(rng.randint(0, keys)) + ' ' + str(rng.randint(0, vmax)))\n        ops.append('get ' + str(rng.randint(0, keys)))\n        return ops\n\n    tests = [\n        fmt(0, ['put 1 1', 'get 1', 'put 2 2', 'get 2']),\n        fmt(1, ['put 1 1', 'get 1', 'put 2 2', 'get 1', 'get 2']),\n        fmt(2, ['put 1 1', 'put 2 2', 'put 1 5', 'put 3 3', 'get 1', 'get 2', 'get 3']),\n        fmt(3, ['get 7']),\n        fmt(2, ['put 1 1', 'put 2 2', 'get 1', 'put 3 3', 'get 2', 'put 4 4', 'get 1', 'get 3', 'get 4']),\n        fmt(2, ['put 0 0', 'get 0', 'put 5 0', 'put 6 0', 'get 0', 'get 5', 'get 6']),\n    ]\n    for cap, q, keys in [(1, 10, 3), (2, 12, 4), (3, 15, 6), (4, 20, 6), (2, 20, 10), (5, 25, 8), (3, 25, 5), (0, 10, 3), (1, 25, 2), (6, 25, 9)]:\n        tests.append(fmt(cap, rand_ops(q, keys, 99)))\n    big_start = len(tests)\n    tests.append(fmt(20000, rand_ops(40000, 30000, 10**5)))\n    tests.append(fmt(5000, rand_ops(40000, 10**5, 10**5, 0.4)))\n    ops = []\n    for i in range(40000):\n        if i % 2 == 0:\n            ops.append('put ' + str(i // 2 % 1001) + ' ' + str(i))\n        else:\n            ops.append('get ' + str((i // 2 + 1) % 1001))\n    tests.append(fmt(1000, ops))\n    tests.append(fmt(0, rand_ops(30000, 10**5, 10**5)))\n    return tests[:6] + tests[big_start:] + tests[6:big_start]\n",
+ "starters": {
+  "python": "import sys\n\n\nclass LRUCache:\n    def __init__(self, capacity: int):\n        # Write your solution here\n        pass\n\n    def get(self, key: int) -> int:\n        # Write your solution here\n        return -1\n\n    def put(self, key: int, value: int) -> None:\n        # Write your solution here\n        pass\n\n\ndef main():\n    data = sys.stdin.read().split()\n    capacity, q = int(data[0]), int(data[1])\n    cache = LRUCache(capacity)\n    out = []\n    p = 2\n    for _ in range(q):\n        if data[p] == 'get':\n            out.append(cache.get(int(data[p + 1])))\n            p += 2\n        else:\n            cache.put(int(data[p + 1]), int(data[p + 2]))\n            p += 3\n    print('\\n'.join(map(str, out)))\n\n\nmain()\n",
+  "javascript": "class LRUCache {\n  constructor(capacity) {\n    // Write your solution here\n  }\n\n  get(key) {\n    // Write your solution here\n    return -1\n  }\n\n  put(key, value) {\n    // Write your solution here\n  }\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst capacity = Number(t[0]), q = Number(t[1])\nconst cache = new LRUCache(capacity)\nconst out = []\nlet p = 2\nfor (let i = 0; i < q; i++) {\n  if (t[p] === 'get') {\n    out.push(cache.get(Number(t[p + 1])))\n    p += 2\n  } else {\n    cache.put(Number(t[p + 1]), Number(t[p + 2]))\n    p += 3\n  }\n}\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nclass LRUCache {\npublic:\n    LRUCache(int capacity) {\n        // Write your solution here\n    }\n\n    int get(int key) {\n        // Write your solution here\n        return -1;\n    }\n\n    void put(int key, int value) {\n        // Write your solution here\n    }\n};\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int capacity, q;\n    cin >> capacity >> q;\n    LRUCache cache(capacity);\n    string op;\n    while (q--) {\n        cin >> op;\n        if (op == \"get\") {\n            int key;\n            cin >> key;\n            cout << cache.get(key) << \"\\n\";\n        } else {\n            int key, value;\n            cin >> key >> value;\n            cache.put(key, value);\n        }\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static class LRUCache {\n        LRUCache(int capacity) {\n            // Write your solution here\n        }\n\n        int get(int key) {\n            // Write your solution here\n            return -1;\n        }\n\n        void put(int key, int value) {\n            // Write your solution here\n        }\n    }\n\n    public static void main(String[] args) throws IOException {\n        StringTokenizer st = new StringTokenizer(new String(System.in.readAllBytes()));\n        int capacity = Integer.parseInt(st.nextToken());\n        int q = Integer.parseInt(st.nextToken());\n        LRUCache cache = new LRUCache(capacity);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < q; i++) {\n            String op = st.nextToken();\n            if (op.equals(\"get\")) {\n                sb.append(cache.get(Integer.parseInt(st.nextToken()))).append(\"\\n\");\n            } else {\n                int key = Integer.parseInt(st.nextToken());\n                int value = Integer.parseInt(st.nextToken());\n                cache.put(key, value);\n            }\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

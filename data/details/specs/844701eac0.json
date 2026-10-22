@@ -1,0 +1,19 @@
+{
+ "qid": "844701eac0",
+ "question": "A new-grad Software Engineer candidate at Oracle was asked in a technical interview: **how would you rank incoming questions submitted as requests to an LLM?**\n\nNo further detail was reported, so the question is ambiguous. Ask what \"rank\" is for: most likely **ordering requests in a queue** for an LLM service (who gets served first), but it could also mean ranking questions by importance, relevance or quality. State your interpretation and proceed.",
+ "lookingFor": [
+  "Do you clarify an ambiguous question and define the goal before designing?",
+  "Can you identify the factors that affect priority: latency target, user tier, cost, request size, fairness?",
+  "Do you avoid starvation and consider fairness across users?",
+  "Do you know LLM serving constraints (token cost, batching, GPU capacity)?",
+  "Can you describe how you would measure whether the ranking works?"
+ ],
+ "answer": "**Clarify.** Assume a shared LLM service receiving many requests, with limited GPU capacity. Goal: serve requests in an order that meets latency targets, uses capacity well, and is fair. Define success: p95 latency per tier, throughput, fraction of deadline misses, and no starvation.\n\n**Signals for ranking**\n- **Priority class or tier:** interactive chat versus background or batch jobs; paid versus free; internal critical systems.\n- **Deadline or waiting time:** how long the request has already waited.\n- **Estimated cost:** prompt length is known, and output length can be estimated (or capped with `max_tokens`). Serving short jobs first lowers average waiting time (shortest-job-first idea).\n- **Fairness:** per-user or per-tenant quotas so one heavy user cannot hog the system.\n- **Duplicates and cacheability:** identical or semantically similar questions can be answered from a cache without calling the model.\n- **Safety and validity:** reject or deprioritise malformed or abusive requests early.\n\n**Design**\n1. An API layer authenticates, validates, applies **rate limits and admission control** (shed load when overloaded and return 429 with retry-after).\n2. A **priority queue** (or separate queues per tier) where the score combines the factors, for example `score = tierWeight + waitTime * agingFactor - estimatedTokens * costFactor`.\n3. **Aging:** the score rises as a request waits, so low-priority requests are not starved.\n4. A scheduler feeds the model servers, using **continuous batching** (adding new requests to a running batch) to keep GPUs busy; reserve capacity for high-priority traffic and allow preemption or timeouts.\n5. Observability: queue length, wait time, tokens/sec, timeouts, dropped requests, per tier.\n\n**Trade-offs.** Strict priority gives the best latency to top tiers but can starve others; shortest-job-first needs an output-length estimate that can be wrong; and a more complex score is harder to explain, so start simple (tiers plus FIFO plus aging) and measure.\n\nIf the intent is instead ranking questions by relevance or importance, you would use features such as similarity to a topic and a learned scoring model, and evaluate it with a labelled sample.",
+ "followUps": [
+  "How would you prevent a single user from flooding the queue?",
+  "How do you estimate the output length of a request before running the model?",
+  "What is continuous batching, and why does it help throughput?",
+  "How would you handle requests that time out in the queue?",
+  "How would you evaluate whether your ranking is better than first-come-first-served?"
+ ]
+}

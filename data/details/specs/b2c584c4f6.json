@@ -1,0 +1,19 @@
+{
+ "qid": "b2c584c4f6",
+ "question": "In a Samsung SRI-B internship technical round, the interviewer asked the candidate to **design Git**, a version control system, as a roughly 10-minute discussion with no coding. The candidate used a **graph-based approach**. The interviewer said the round was meant to test thinking ability.",
+ "lookingFor": [
+  "Can you identify the core abstractions of a version control system?",
+  "Do you model history as a graph (a DAG of commits) and justify it?",
+  "Do you understand content-addressable storage, branching and merging?",
+  "Can you discuss efficiency: storing snapshots without copying everything?",
+  "Do you handle conflicts and distributed operation?"
+ ],
+ "answer": "**Requirements.** Track the history of a set of files, let many people work in parallel via branches, merge their work, restore any past version, and work offline (distributed). Assume small to large repositories with thousands of files and long histories.\n\n**Core objects (content-addressable store).** Everything is stored by the hash of its content (for example SHA-1 or SHA-256), so identical content is stored once and corruption is detectable.\n\n- **Blob:** the contents of one file version.\n- **Tree:** a directory listing mapping names to blobs or sub-trees.\n- **Commit:** points to a root tree (a snapshot), has zero or more **parent commits**, plus author, timestamp and message.\n- **Ref:** a movable name (branch, tag) pointing to a commit. `HEAD` points to the current branch.\n\n**The graph.** Commits form a **directed acyclic graph**: each commit points to its parents, a normal commit has one parent and a merge commit has two or more. A branch is just a pointer, so creating one is O(1).\n\n**Operations and algorithms.**\n\n- **commit:** hash the files into blobs and trees (reusing unchanged ones), create the commit object with the current head as parent, and move the branch pointer.\n- **log:** walk parents from the head.\n- **diff:** compare two trees; for file contents, use a line diff such as the longest common subsequence or Myers algorithm.\n- **checkout:** rebuild the working directory from a commit's tree.\n- **merge:** find the **lowest common ancestor** of the two branch heads in the DAG, do a three-way merge of base, ours and theirs, and report conflicts where both changed the same region. A fast-forward merge just moves the pointer.\n- **push/pull:** exchange commits the other side lacks by comparing reachable commit hashes.\n\n**Trade-offs and scaling.** Storing snapshots (not diffs) makes checkout fast and history simple, but would be large, so use **packfiles with delta compression** and zlib. Large binary files do not delta well (hence extensions like Git LFS). Garbage-collect unreachable objects. Huge repositories need shallow or partial clones and indexes of commits.",
+ "followUps": [
+  "How do you find the common ancestor of two branches efficiently?",
+  "How does a three-way merge detect conflicts?",
+  "Why store snapshots rather than diffs?",
+  "How would you design the staging area (index)?",
+  "How is rebase different from merge in terms of the graph?"
+ ]
+}

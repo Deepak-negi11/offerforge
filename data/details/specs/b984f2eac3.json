@@ -1,0 +1,18 @@
+{
+ "qid": "b984f2eac3",
+ "question": "Flipkart SDE-2, machine-coding round for a **wallet system**: write demonstrable code in 90 minutes (any language, no external database, so in-memory is fine) and submit it, followed by a **30-minute review** where a reviewer asks about coding patterns, tries their own inputs, and asks about function and variable names and modularity. The exact feature list was shown as an image and was not captured.",
+ "lookingFor": [
+  "Clean separation of concerns and loose coupling.",
+  "Correct money operations and validations.",
+  "Readable naming and modular structure.",
+  "Handling of the reviewer's own test inputs and edge cases.",
+  "Ability to explain and justify design choices."
+ ],
+ "answer": "Because the feature list was not captured, assume a typical wallet: create user wallets, add money, transfer between wallets, check balance, and view transaction history; confirm the real list at the start.\n\n**Entities.**\n\n- `User(id, name)`, `Wallet(id, userId, balance)`, `Transaction(id, fromWalletId, toWalletId, amount, type, status, timestamp)`; type CREDIT, DEBIT or TRANSFER.\n\n**Layers.**\n\n- `WalletRepository` and `TransactionRepository` interfaces backed by `HashMap` (swappable later).\n- `WalletService`: `createWallet`, `addMoney`, `withdraw`, `transfer`, `getBalance`, `getStatement`.\n- A thin command or CLI driver that reads inputs and prints outputs, kept separate from the logic.\n\n**Rules and edge cases.**\n\n- Validate amount greater than zero, wallet exists, sufficient balance, sender differs from receiver.\n- A transfer debits and credits as one unit: either both happen or neither. Lock the two wallets in a consistent order (by id) to avoid deadlock, or synchronise on the service for the in-memory version.\n- Use `BigDecimal` or integer minor units, never `double`.\n- Record every change as an immutable transaction so the balance can be reconstructed; make operations idempotent with a transaction id if the problem mentions retries.\n- Failed operations should return clear errors, not exceptions that crash the demo.\n\n**For the review round.** Choose names that say what they mean (`debit`, `insufficientBalance`), keep methods short, avoid duplicated logic, and be ready for \"what if\" questions: a new transaction type, wallet limits, daily caps, or a database. A strategy or validator list for rules (maximum balance, daily limit) shows extensibility.\n\nPrepare a small set of sample inputs with expected outputs, including failure cases, and run them before submitting. The reviewer will try their own inputs, so test negatives, zero, and the same-user transfer.",
+ "followUps": [
+  "How would you make a transfer atomic and deadlock-free under concurrency?",
+  "How would you add a daily transfer limit without changing the core service?",
+  "How would you design it with a real database and ensure consistency?",
+  "Why avoid `double` for money?"
+ ]
+}

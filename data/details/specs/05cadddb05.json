@@ -1,0 +1,18 @@
+{
+ "qid": "05cadddb05",
+ "question": "MakeMyTrip SSE-2 / SDE-2 Backend, system design round, often with a director. The prompt was **design IRCTC (train booking)**: train search, route and seat availability, and booking. The interviewer focused on the **database schema, which query each API runs, caching for search, how to compute availability between intermediate stations, and what happens when 100 users race for the same seat** (concurrency handling).",
+ "lookingFor": [
+  "A sound relational schema that models trains, routes, stops and seat inventory.",
+  "Understanding that availability depends on a segment of the route, not the whole train.",
+  "Concurrency control that prevents double booking.",
+  "Sensible caching with clear staleness rules.",
+  "Awareness of traffic spikes and fairness in a flash-sale-like scenario."
+ ],
+ "answer": "**Requirements and scale.** Search trains between two stations on a date, show seat availability, book tickets, pay, cancel. Read-heavy (search) with extreme write spikes at opening time (e.g. peak-hour quota openings). Correctness first: never sell a seat twice. Assume millions of searches per hour and many thousands of bookings per minute at peak.\n\n**Schema (relational, because booking needs strong consistency)**\n- `station(id, name, code)`; `train(id, name, number)`.\n- `train_stop(train_id, station_id, stop_seq, arrival, departure, distance)`: the route.\n- `train_run(id, train_id, run_date)`: one scheduled run per day.\n- `seat_inventory`: per run, coach and seat, and which route segments are booked. A good model is one row per `(run_id, seat_id, segment)` where a segment is the hop between consecutive stops, so a seat is free for A to D only if segments A-B, B-C and C-D are all free.\n- `booking(id, user_id, run_id, from_stop, to_stop, status, pnr)` and `passenger`, `payment`.\n\n**APIs and queries**\n- **Search**: find trains whose stops include source and destination with `source.stop_seq < dest.stop_seq` (join `train_stop` twice), then filter by running day. Index on `station_id`.\n- **Availability**: for a run and a from-to pair, count seats where all segments in `[from_seq, to_seq)` are free (min over segments, per class). Pre-compute per-segment counts to avoid scanning.\n- **Book**: reserve and confirm inside one transaction.\n\n**Race for one seat.** Do not read-then-write. Options:\n- Atomic conditional update: `UPDATE seat_segment SET status='HELD', hold_id=? WHERE run_id=? AND seat_id=? AND segment IN (...) AND status='FREE'` and check the affected row count equals the number of segments; only one of 100 requests wins.\n- Or `SELECT ... FOR UPDATE` on those rows, with a fixed lock ordering to avoid deadlocks.\n- Use a **hold with expiry** (e.g. 5-10 minutes) while payment happens, then confirm or release. Losers are shown the next seat or waitlist.\n- Make booking idempotent with an idempotency key.\n\n**Caching.** Cache static data (stations, schedules) heavily and search results briefly (seconds to a minute) keyed by source, destination and date. Availability may be slightly stale; always re-verify in the DB at booking time.\n\n**Scaling.** Shard by train or run date, use read replicas for search, a queue or waiting room at peak, and rate-limit bots.",
+ "followUps": [
+  "How do you handle the waitlist and RAC promotion when a ticket is cancelled?",
+  "How would you search routes that need a change of train (connecting journeys)?",
+  "What if payment succeeds but the confirmation fails?",
+  "Optimistic vs pessimistic locking here: which would you pick and why?"
+ ]
+}

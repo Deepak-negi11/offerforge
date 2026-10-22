@@ -1,0 +1,19 @@
+{
+ "qid": "23f2f1c04e",
+ "question": "Technical screen for a Principal MTS role at Oracle OCI. The problem:\n\n**Design a thread-safe, Redis-inspired data structure that is accessed over the network** and stays correct and performant under concurrent operations from multiple threads. Required methods:\n\n- `set(key, value)`: sets a string value; calls on different keys proceed independently, same-key updates must be safe.\n- `listPush(key, value)`: creates a list at `key` if none exists, otherwise pushes the value onto the head of the list.\n- `get(key)`: returns an `Entry` that abstracts over value types, or null if absent; multiple threads may read concurrently.\n- `expire(key, time)`: the key expires (reads return null) after `time` seconds from the call; later calls override earlier ones; a negative time cancels a previous expire; mutating the key in any way cancels previous expire calls; expiry happens asynchronously so reads and writes continue without delay.",
+ "lookingFor": [
+  "Can you design clean abstractions (Entry types, store, expiry manager)?",
+  "Do you choose a concurrency strategy that allows parallelism across keys?",
+  "Can you get the expiry semantics right (override, cancel, mutation cancels)?",
+  "Do you understand lazy plus active expiry and race conditions between them?",
+  "Do you consider the network layer, testing and extensions?"
+ ],
+ "answer": "**Data model.** An abstract `Entry` with subtypes `StringEntry(String)` and `ListEntry(Deque<String>)`. Each stored item is a `Slot { Entry value; long expireAtNanos or 0; long version }`. Storage: a `ConcurrentHashMap<String, Slot>`.\n\n**Concurrency per method.**\n- `set`: `map.compute(key, (k, old) -> new Slot(new StringEntry(v)))`. Compute is atomic per key, so different keys proceed in parallel and a replacement drops the old slot, which **cancels any previous expiry** (mutation cancels expire).\n- `listPush`: `compute` that creates a new list slot if absent, otherwise pushes to the head of the existing list (guard against a non-list value, which is an error). Pushing is a mutation, so keep the same slot but clear its expiry.\n- `get`: `map.get(key)`, then **lazy expiry**: if `expireAt != 0 && now >= expireAt`, treat as absent and remove it (use `map.remove(key, slot)` so a concurrent new value is not removed). Reads need no global lock. Return a defensive copy or immutable view of lists.\n- `expire(key, t)`: inside `compute`, if the key is absent return false. If `t < 0`, clear the expiry (cancel); otherwise set `expireAt = now + t seconds` and bump a version. Later calls overwrite earlier ones.\n\n**Asynchronous expiry.** Lazy expiry alone leaks memory for keys never read again, so add an active mechanism: a `DelayQueue` or `ScheduledExecutorService` holding `(key, version, deadline)` tasks, with a background thread. When a task fires, call `map.computeIfPresent(key, ...)` and delete only if the slot's current version and expiry match the task. A stale task (key mutated, re-expired or cancelled) then does nothing. Alternatively, a hashed timer wheel scales better to millions of keys.\n\n**Network layer.** A simple text protocol (RESP-like) over TCP with a thread pool or NIO event loop; each request calls the store. Concurrency lives in the store, not the server.\n\n**Trade-offs.** Per-key atomicity via `compute` versus a global lock; version tokens to avoid expiring a replaced value; monotonic time for deadlines; memory growth of pending timers; persistence and replication as extensions.",
+ "followUps": [
+  "How do you avoid the expiry thread deleting a key that was just overwritten?",
+  "Lazy versus active expiry: why do real systems use both?",
+  "How would you scale the expiry timers to millions of keys?",
+  "How would you add multi-key atomic operations or transactions?",
+  "How would you handle type errors, such as listPush on a key holding a string?"
+ ]
+}

@@ -1,0 +1,48 @@
+{
+ "pid": "meesho-count-distinct-xor-of-triplets",
+ "title": "Count Distinct XOR of Triplets",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "A data-encryption tool builds ciphertexts by XOR-ing three elements of a dataset. You are given an array `data` of `n` non-negative integers.\n\nConsider every triple of indices `(i, j, k)` with `i ≤ j ≤ k` (0-indexed). Indices **may repeat**: for example `i = j` is allowed, in which case `data[i] ^ data[j]` cancels and the value equals `data[k]`, and `i = j = k` gives `data[i]`.\n\nCount the number of **distinct** values of `data[i] ^ data[j] ^ data[k]` over all such triples. Here `^` is bitwise XOR.\n\nA solution that precomputes all pairs and then combines them with every element takes `O(n^2)` time and is too slow for `n` up to `2 * 10^5`; use the fact that the values are small.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` integers: the elements of `data`.",
+ "output_format": "Print a single integer: the number of distinct triplet XOR values.",
+ "constraints": [
+  "1 ≤ n ≤ 2 * 10^5",
+  "0 ≤ data[i] ≤ 32767"
+ ],
+ "examples": [
+  {
+   "input": "3\n9 10 11",
+   "output": "4",
+   "explanation": "The values are `9^10^11 = 8`, `9^10^10 = 9`, `9^9^10 = 10` and `9^9^11 = 11` (the last three just reproduce the elements). No other triple gives a new value, so the answer is 4."
+  },
+  {
+   "input": "4\n1 2 4 8",
+   "output": "8",
+   "explanation": "The four single elements give 1, 2, 4, 8. Three different elements give `1^2^4 = 7`, `1^2^8 = 11`, `1^4^8 = 13` and `2^4^8 = 14`. That is 8 distinct values."
+  },
+  {
+   "input": "3\n5 5 5",
+   "output": "1",
+   "explanation": "Every triple is `5 ^ 5 ^ 5 = 5`, so there is exactly one distinct value."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + V log V), where V = 32768 is the value range",
+  "space": "O(V)"
+ },
+ "hints": [
+  "Allowing repeated indices makes the order irrelevant: the answer is the set of `x ^ y ^ z` where `x`, `y`, `z` are any elements of `data`, picked independently. Only the set of distinct values matters, and there are at most 32768 of them.",
+  "Let `f[v] = 1` if `v` occurs. You need the set of values reachable as `x ^ y ^ z`: this is an XOR convolution of `f` with itself, three times.",
+  "The Walsh-Hadamard transform turns XOR convolution into pointwise multiplication. Transform `f`, cube each entry, transform back, and count the non-zero entries. Because `f` is 0/1, the intermediate numbers stay below about 10^18; they fit in 64-bit integers."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    arr = [int(x) for x in data[1:1 + n]]\n    V = 1\n    while V <= max(arr):\n        V *= 2\n    f = [0] * V\n    for x in arr:\n        f[x] = 1\n\n    def wht(a):\n        h = 1\n        while h < V:\n            for i in range(0, V, h * 2):\n                for j in range(i, i + h):\n                    x = a[j]\n                    y = a[j + h]\n                    a[j] = x + y\n                    a[j + h] = x - y\n            h *= 2\n\n    wht(f)\n    f = [v * v * v for v in f]\n    wht(f)\n    print(sum(1 for v in f if v != 0))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + n]]\nseen = set()\nfor i in range(n):\n    for j in range(i, n):\n        for k in range(j, n):\n            seen.add(a[i] ^ a[j] ^ a[k])\nprint(len(seen))\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n    tests = [fmt([0]), fmt([5]), fmt([9, 10, 11]), fmt([1, 2]), fmt([5, 5, 5]), fmt([1, 2, 4, 8]), fmt([0, 0, 1]),\n             fmt([32767, 0]), fmt([1, 2, 4, 8, 16, 32767])]\n    for n in (2, 3, 4, 6, 8, 10, 12):\n        for hi in (3, 15, 100):\n            tests.append(fmt([rng.randint(0, hi) for _ in range(n)]))\n    V = 32767\n    tests.append(fmt([rng.randint(0, V) for _ in range(200000)]))\n    tests.append(fmt([rng.randint(0, V) for _ in range(200000)]))\n    tests.append(fmt([rng.choice([1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32767]) for _ in range(200000)]))\n    tests.append(fmt([rng.randint(0, 8191) for _ in range(150000)]))\n    tests.append(fmt([rng.randint(0, 1) * 32767 for _ in range(100000)]))\n    tests.append(fmt([rng.randint(0, V) for _ in range(40)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_distinct_xor(data: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    tokens = sys.stdin.read().split()\n    n = int(tokens[0])\n    data = [int(x) for x in tokens[1:1 + n]]\n    print(count_distinct_xor(data))\n\n\nmain()\n",
+  "javascript": "function countDistinctXor(data) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst data = t.slice(1, 1 + n)\nconsole.log(String(countDistinctXor(data)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countDistinctXor(vector<int>& data) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> data(n);\n    for (int i = 0; i < n; i++) cin >> data[i];\n    cout << countDistinctXor(data) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countDistinctXor(int[] data) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] data = new int[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); data[i] = (int) in.nval; }\n        System.out.println(countDistinctXor(data));\n    }\n}\n"
+ }
+}

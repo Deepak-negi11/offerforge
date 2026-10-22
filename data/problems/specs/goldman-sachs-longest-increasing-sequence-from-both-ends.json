@@ -1,0 +1,48 @@
+{
+ "pid": "goldman-sachs-longest-increasing-sequence-from-both-ends",
+ "title": "Longest Increasing Sequence From Both Ends",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `heights` with the heights of `n` dwarfs standing in a row. You build a new line one dwarf at a time: at every step you take either the **leftmost** or the **rightmost** dwarf still in the row and append him to the end of your line. You may stop whenever you like, and you do not have to take every dwarf.\n\nThe line you build must be **strictly increasing** in height from first to last. Find the largest possible number of dwarfs in such a line.\n\nFor example, from `1 3 4 5 6 3 2` you can build the line `1 2 3 4 5 6` of six dwarfs: take `1` from the left, `2` from the right, then `3, 4, 5, 6` from the left.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` integers `heights[0] ... heights[n-1]`.",
+ "output_format": "Print a single integer: the maximum length of a strictly increasing line that can be built.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ heights[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "7\n1 3 4 5 6 3 2",
+   "output": "6",
+   "explanation": "Take 1 from the left and 2 from the right. The row is now `3 4 5 6 3`; take 3, 4, 5, 6 from the left. The line is 1, 2, 3, 4, 5, 6 and the last 3 is never used."
+  },
+  {
+   "input": "7\n2 3 4 9 1 8 2",
+   "output": "4",
+   "explanation": "Both ends are 2, so whichever one you take, the other end can never be taken afterwards (it is not larger). Taking from the left gives 2, 3, 4, 9 (four dwarfs); taking from the right gives only 2, 8."
+  },
+  {
+   "input": "5\n7 7 7 7 7",
+   "output": "1",
+   "explanation": "All heights are equal, so a strictly increasing line can contain only one dwarf."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "At each step only two dwarfs are candidates: the two ends of the remaining row. Which of them are taller than the last dwarf you took?",
+  "If both ends are taller than the last one taken, taking the shorter one never hurts: the taller one is still available later.",
+  "The only delicate case is when both ends are equal and usable. After taking one of them, the other can never be taken, so just compare how far a strictly increasing run goes from each side."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = list(map(int, data[1:1 + n]))\n    l, r, last, cnt = 0, n - 1, 0, 0\n    while l <= r:\n        x, y = a[l], a[r]\n        if l == r:\n            if x > last:\n                cnt += 1\n            break\n        if x > last and y > last:\n            if x < y:\n                last = x\n                l += 1\n                cnt += 1\n            elif y < x:\n                last = y\n                r -= 1\n                cnt += 1\n            else:\n                lc = 1\n                i = l\n                while i + 1 < r and a[i + 1] > a[i]:\n                    i += 1\n                    lc += 1\n                rc = 1\n                j = r\n                while j - 1 > l and a[j - 1] > a[j]:\n                    j -= 1\n                    rc += 1\n                cnt += max(lc, rc)\n                break\n        elif x > last:\n            last = x\n            l += 1\n            cnt += 1\n        elif y > last:\n            last = y\n            r -= 1\n            cnt += 1\n        else:\n            break\n    print(cnt)\n\nmain()\n",
+ "brute": "import sys\nfrom functools import lru_cache\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = list(map(int, data[1:1 + n]))\n\n@lru_cache(maxsize=None)\ndef f(l, r, last):\n    if l > r:\n        return 0\n    best = 0\n    if a[l] > last:\n        best = max(best, 1 + f(l + 1, r, a[l]))\n    if a[r] > last:\n        best = max(best, 1 + f(l, r - 1, a[r]))\n    return best\n\nprint(f(0, n - 1, 0))\n",
+ "generator": "import collections\n\ndef gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n\n    def valley(n, hi, distinct):\n        if distinct:\n            vals = sorted(rng.sample(range(1, hi + 1), n))\n        else:\n            vals = sorted(rng.randint(1, hi) for _ in range(n))\n        d = collections.deque([vals[-1]])\n        for v in reversed(vals[:-1]):\n            if rng.random() < 0.5:\n                d.appendleft(v)\n            else:\n                d.append(v)\n        return list(d)\n\n    tests = [fmt([1]), fmt([5, 5]), fmt([1, 2, 3, 4]), fmt([4, 3, 2, 1]), fmt([2, 2, 2, 2, 2]),\n             fmt([1, 3, 4, 5, 6, 3, 2]), fmt([2, 3, 4, 9, 1, 8, 2]), fmt([3, 1, 4, 2, 3]),\n             fmt([1, 5, 1]), fmt([1, 2, 1, 2]), fmt([10**9, 1]), fmt([7, 7, 7, 7, 7])]\n    for n in range(2, 13):\n        for _ in range(3):\n            tests.append(fmt([rng.randint(1, 6) for _ in range(n)]))\n        tests.append(fmt([rng.randint(1, 30) for _ in range(n)]))\n        tests.append(fmt(valley(n, 40, False)))\n    for n in (5, 9, 14, 20, 30):\n        tests.append(fmt(valley(n, 10**9, True)))\n    tests.append(fmt([1] + list(range(2, 50001)) + [1]))\n    tests.append(fmt(valley(100000, 10**9, True)))\n    tests.append(fmt(valley(100000, 100000, False)))\n    tests.append(fmt([rng.randint(1, 10**9) for _ in range(100000)]))\n    tests.append(fmt(list(range(1, 100001))))\n    tests.append(fmt(list(range(100000, 0, -1))))\n    tests.append(fmt([42] * 100000))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef longest_sequence(heights: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    heights = [int(x) for x in data[1:1 + n]]\n    print(longest_sequence(heights))\n\n\nmain()\n",
+  "javascript": "function longestSequence(heights) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst heights = t.slice(1, 1 + n)\nconsole.log(longestSequence(heights))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint longestSequence(vector<long long>& heights) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> heights(n);\n    for (int i = 0; i < n; i++) cin >> heights[i];\n    cout << longestSequence(heights) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int longestSequence(long[] heights) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] heights = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            heights[i] = (long) in.nval;\n        }\n        System.out.println(longestSequence(heights));\n    }\n}\n"
+ }
+}

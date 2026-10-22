@@ -1,0 +1,17 @@
+{
+ "qid": "f604d3342a",
+ "question": "Apple Senior Software Engineer (ICT3), coding round, SQL portion. **Write a query for the employees with the highest salary in each department.** The reported question says only that; assume tables `Employee(id, name, salary, department_id)` and `Department(id, name)`, and state your assumptions.",
+ "lookingFor": [
+  "Correct grouping logic and handling of ties.",
+  "Knowing more than one approach (join with aggregate, window function, correlated subquery).",
+  "Explaining why the naive GROUP BY query is wrong.",
+  "Awareness of NULLs, empty departments and performance."
+ ],
+ "answer": "**Assumptions:** `Employee(id, name, salary, department_id)` and `Department(id, name)`. \"Highest-paid employee(s)\" means all employees tied for the maximum salary within a department.\n\n**Approach 1: join to a per-department maximum.**\n```sql\nSELECT d.name AS department, e.name AS employee, e.salary\nFROM Employee e\nJOIN Department d ON d.id = e.department_id\nJOIN (\n    SELECT department_id, MAX(salary) AS max_salary\n    FROM Employee\n    GROUP BY department_id\n) m ON m.department_id = e.department_id AND m.max_salary = e.salary;\n```\nThe subquery computes one row per department with the top salary. Joining back on both department and salary returns every employee who matches it, so ties are kept.\n\n**Approach 2: window function.**\n```sql\nSELECT department, employee, salary\nFROM (\n    SELECT d.name AS department, e.name AS employee, e.salary,\n           DENSE_RANK() OVER (PARTITION BY e.department_id ORDER BY e.salary DESC) AS rnk\n    FROM Employee e\n    JOIN Department d ON d.id = e.department_id\n) t\nWHERE rnk = 1;\n```\n`PARTITION BY` restarts ranking in each department. `DENSE_RANK` (or `RANK`) gives rank 1 to all tied top earners; `ROW_NUMBER` would arbitrarily return only one, which is right only if the interviewer wants exactly one person.\n\n**Why not the obvious query?** `SELECT name, MAX(salary) ... GROUP BY department_id` is invalid in standard SQL, because `name` is neither grouped nor aggregated; some engines allow it and return an arbitrary name, which is a bug.\n\n**Edge cases.** NULL salaries are ignored by `MAX`; employees with a NULL department are dropped by the inner join (use a LEFT JOIN if they matter); a department with no employees has no row.\n\n**Performance.** An index on `(department_id, salary)` lets the engine find each department's maximum without scanning the whole table. Both approaches are one pass plus a join or sort; the window version is usually the more readable one.",
+ "followUps": [
+  "How would you return the second-highest salary in each department?",
+  "How would the query change if you needed exactly one employee per department?",
+  "How do you include departments that have no employees?",
+  "What index would you add and why?"
+ ]
+}

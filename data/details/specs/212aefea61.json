@@ -1,0 +1,17 @@
+{
+ "qid": "212aefea61",
+ "question": "Reported from a Paytm Technical Interview 3: a discussion about **microservices and distributed systems**, **SQL versus NoSQL**, and **data sharding**. The same round included a coding question, **add two numbers represented by linked lists**.",
+ "lookingFor": [
+  "Do you choose SQL or NoSQL based on data shape and access patterns, not fashion?",
+  "Do you understand sharding strategies, their costs (cross-shard queries, rebalancing, hot spots)?",
+  "Can you explain when microservices help and what they cost?",
+  "Can you code the linked-list addition cleanly, with carry and unequal lengths handled?"
+ ],
+ "answer": "**SQL versus NoSQL.**\n- **SQL (relational: MySQL, PostgreSQL):** fixed schema, joins, strong ACID transactions, flexible ad-hoc queries. Best when data is relational and correctness matters (payments, orders, inventory). Scales reads easily with replicas; scaling writes needs sharding or a distributed SQL database.\n- **NoSQL:** several families. Key-value (Redis, DynamoDB), document (MongoDB), wide-column (Cassandra), graph (Neo4j). They trade some of joins and transactions for horizontal scalability, flexible schema and simple access by key. Best for very high write volume, known access patterns, and loosely structured data.\n- Choose by **access pattern, consistency need, scale, and team experience**. Many systems use both. \"NoSQL scales, SQL does not\" is a myth: relational databases scale a long way before it matters.\n\n**Sharding (horizontal partitioning).** Splitting rows across multiple database nodes so each holds a subset.\n- **Range-based** (by id range or date): simple range queries, but hot spots (latest range gets all writes).\n- **Hash-based** (hash of key modulo N): even distribution, poor range queries, and resharding is painful unless you use **consistent hashing**.\n- **Directory/lookup-based:** a mapping service decides the shard; flexible but another component to keep available.\n- Costs: cross-shard joins and transactions are hard (use sagas or avoid), choosing a good shard key is critical (high cardinality, matches the main query), rebalancing and hot keys. Try replication, caching and vertical scaling first.\n\n**Microservices and distributed systems.** Benefits: independent deployment and scaling, team ownership, fault isolation. Costs: network latency and failure, distributed transactions (saga pattern), data consistency across services, observability (tracing), and operational overhead. Each service should own its database. Start with a modular monolith unless there is a clear reason.\n\n**Coding: add two numbers as linked lists** (digits stored in reverse order, as in the LeetCode version). Walk both lists with a `carry`:\n\n```\ncarry = 0; dummy = Node(0); cur = dummy\nwhile l1 or l2 or carry:\n    s = carry + (l1.val if l1 else 0) + (l2.val if l2 else 0)\n    carry = s // 10\n    cur.next = Node(s % 10); cur = cur.next\n    l1 = l1.next if l1 else None\n    l2 = l2.next if l2 else None\nreturn dummy.next\n```\n\nO(max(m, n)) time. Remember the final carry, and that lists may have different lengths. If digits are stored in forward order, reverse the lists first or use stacks.",
+ "followUps": [
+  "How would you reshard a hash-sharded database from 4 to 8 shards with minimal downtime?",
+  "How do you do a transaction that spans two services without a distributed lock?",
+  "What makes a bad shard key? Give an example.",
+  "How would you add two linked-list numbers stored in most-significant-digit-first order?"
+ ]
+}

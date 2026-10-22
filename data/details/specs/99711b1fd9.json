@@ -1,0 +1,18 @@
+{
+ "qid": "99711b1fd9",
+ "question": "Reported as a Salesforce LLD question: **design the inventory service for a Blinkit (quick-commerce) store**. It must support `checkAvailability(productId, qty)`, `reserve(productId, qty, orderId)` as a **temporary hold**, `confirm(orderId)` when the order is placed, and `release(orderId)` when payment fails. A candidate posted a first design (inventory map, reserved-items map, a lock, and an expiry handler) for review.",
+ "lookingFor": [
+  "Can you model stock, reservations and their lifecycle clearly?",
+  "Do you prevent overselling under concurrent requests?",
+  "Do you handle reservation expiry and idempotent confirm and release?",
+  "Do you handle multi-product orders atomically?",
+  "Do you think about scaling beyond one process?"
+ ],
+ "answer": "**Model.** Track per product: `available` (can be sold) and holds. A reservation is `Reservation(orderId, items{productId: qty}, expiresAt, status)` with status `HELD`, `CONFIRMED`, `RELEASED` or `EXPIRED`. Invariant: `onHand = available + held + sold` and `available` never goes below 0.\n\n**Operations**\n- `checkAvailability(p, q)`: `available[p] >= q` (advisory only; it can be stale a moment later).\n- `reserve(p, q, orderId)`: atomically check and decrement `available`, then record a hold with an expiry (for example 5 to 10 minutes). Check-then-act must be a **single atomic step**, otherwise two orders both pass the check and oversell.\n- `confirm(orderId)`: HELD to CONFIRMED; the stock stays removed. Reject if the reservation expired.\n- `release(orderId)`: if HELD, add quantities back and mark RELEASED.\n- **Expiry:** a background sweeper (or a priority queue or delay queue keyed by `expiresAt`) releases expired holds. It must be safe against a concurrent `confirm`, so use the same state check.\n\n**Concurrency.** One process: a lock per product (`ConcurrentHashMap<productId, Lock>`, or `AtomicInteger`/compare-and-set). For multi-item orders, lock products in sorted id order to avoid deadlock, check all items, then decrement all, or roll back. Distributed: use a database row with a conditional update (`UPDATE stock SET available = available - ? WHERE id = ? AND available >= ?`), or Redis Lua scripts for an atomic check-and-decrement.\n\n**Idempotency.** `reserve`, `confirm` and `release` should be safe to repeat for the same `orderId` (payment callbacks retry). Return the existing outcome.\n\n**Gaps to avoid in a first-draft design:** `confirm` and `release` that take no lock, an expiry sweep that iterates the reservations without synchronisation, and no reservation state to stop a confirmed order from being released.\n\n**Scaling.** Partition inventory by store and product; each dark store has its own stock.",
+ "followUps": [
+  "How do you stop the expiry sweeper from releasing a reservation that is being confirmed?",
+  "How would you handle an order of 10 products where one is out of stock?",
+  "How would you implement this with Redis or a SQL database?",
+  "How would you support overselling a little deliberately, for example for fresh items?"
+ ]
+}

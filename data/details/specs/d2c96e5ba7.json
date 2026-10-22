@@ -1,0 +1,18 @@
+{
+ "qid": "d2c96e5ba7",
+ "question": "Goldman Sachs Superday round 2 (Java Associate, concurrency and LLD-ish). The candidate was asked what **concurrency** is and how it works, the **ways to create threads**, and then to **print the numbers 1 to 100 using two threads**. Follow-up: one thread prints the **even** numbers and the other the **odd** numbers, and the output must still appear **in sequence**.",
+ "lookingFor": [
+  "Clear difference between concurrency and parallelism.",
+  "Knowing the ways to create threads in Java and their trade-offs.",
+  "Correct inter-thread coordination: wait/notify, locks or semaphores.",
+  "Avoiding busy waiting, lost wakeups and deadlock.",
+  "Clean, working code with termination handled."
+ ],
+ "answer": "**Concurrency.** Structuring a program so multiple tasks make progress in overlapping time periods (on one or many cores); *parallelism* is tasks actually running at the same instant on multiple cores. The OS scheduler time-slices threads. Challenges: race conditions, visibility, deadlock, which is why we use synchronisation.\n\n**Ways to create threads in Java:**\n1. Extend `Thread` and override `run()` (uses up your single inheritance).\n2. Implement `Runnable` and pass it to a `Thread`; preferred over extending.\n3. Implement `Callable<V>` and submit to an `ExecutorService`, getting a `Future` (can return a value and throw checked exceptions).\n4. Use `ExecutorService`/thread pools or `CompletableFuture`, which are preferred in production. Calling `start()` creates a new thread; calling `run()` directly does not.\n\n**Odd/even in order with wait/notify:**\n```java\nclass OddEven {\n  private final Object lock = new Object();\n  private int n = 1;\n  private static final int MAX = 100;\n\n  void print(boolean odd) throws InterruptedException {\n    synchronized (lock) {\n      while (n <= MAX) {\n        if ((n % 2 == 1) == odd) {\n          System.out.println(Thread.currentThread().getName() + \": \" + n++);\n          lock.notifyAll();\n        } else {\n          lock.wait();\n        }\n      }\n      lock.notifyAll();   // wake the other thread so it can exit\n    }\n  }\n}\n// new Thread(() -> o.print(true)).start(); new Thread(() -> o.print(false)).start();\n```\nWhy it works: the shared counter `n` is guarded by a lock; a thread whose turn it is prints and increments, then wakes the other; the other waits in a `while` loop (never `if`, to guard against spurious wakeups). The final `notifyAll` prevents the other thread from waiting forever once 100 is printed.\n\n**Alternatives:** two `Semaphore`s (odd starts with 1 permit, even with 0, each releases the other's), or `ReentrantLock` with two `Condition`s. For the first part (just print 1 to 100 using two threads) you could simply let them take turns or have each handle half, but ordering needs coordination like the above.",
+ "followUps": [
+  "Why must wait() be called inside a while loop rather than an if?",
+  "Implement the same using two Semaphores.",
+  "What is the difference between wait() and sleep()?",
+  "How would you extend this to three threads printing in rotation?"
+ ]
+}

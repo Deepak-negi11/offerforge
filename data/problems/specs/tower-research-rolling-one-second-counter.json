@@ -1,0 +1,44 @@
+{
+ "pid": "tower-research-rolling-one-second-counter",
+ "title": "Rolling One-Second Counter",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "Design a counter that receives a very large stream of increment events (think of millions of users all over the world) and can tell, at any moment, how many increments happened during the **last rolling second**.\n\nYou are given a sequence of operations. Every operation carries a timestamp `t` in milliseconds, and timestamps never decrease from one operation to the next.\n\n- `inc t`: one increment happens at time `t`.\n- `query t`: report how many increments happened in the window `(t - 1000, t]`, i.e. with timestamp `s` such that `t - 1000 < s ≤ t`. An increment exactly 1000 ms old is no longer counted; an increment at time `t` itself is.\n\nFor every `query` print its answer on its own line, in order.\n\n**Follow-up:** the real system receives increments from many machines, possibly slightly out of order, and must keep memory bounded no matter how many increments arrive (hint: think of a fixed number of time buckets). Describe how you would adapt the design.",
+ "input_format": "The first line contains an integer `q`, the number of operations.\nEach of the next `q` lines is either `inc t` or `query t`.",
+ "output_format": "For each `query` operation, print one line with its answer, in order.",
+ "constraints": [
+  "1 ≤ q ≤ 10^5",
+  "0 ≤ t ≤ 10^9, and t is non-decreasing across the operations",
+  "At least one operation is a query"
+ ],
+ "examples": [
+  {
+   "input": "6\ninc 1\ninc 500\nquery 900\ninc 1200\nquery 1400\nquery 2500",
+   "output": "2\n2\n0",
+   "explanation": "At time 900 the window is (-100, 900], which holds the increments at 1 and 500, so 2. At time 1400 the window is (400, 1400], which holds 500 and 1200, so 2. At 2500 the window is (1500, 2500] and is empty, so 0."
+  },
+  {
+   "input": "5\ninc 1000\nquery 1999\nquery 2000\ninc 2000\nquery 2000",
+   "output": "1\n0\n1",
+   "explanation": "At 1999 the window (999, 1999] still contains the increment at 1000. At 2000 the window is (1000, 2000], which no longer contains it (it is exactly 1000 ms old), so 0. After a new increment at 2000, the same query returns 1."
+  }
+ ],
+ "complexity": {
+  "time": "O(1) amortised per operation",
+  "space": "O(number of increments in the last second)"
+ },
+ "hints": [
+  "A query only ever needs increments from the last 1000 ms, and time never goes backwards, so old increments can be discarded for good.",
+  "Keep the timestamps of recent increments in a queue (oldest at the front) together with their count.",
+  "Before answering a query, pop timestamps from the front while they are `≤ t - 1000`; the answer is the queue size. Every timestamp is pushed and popped at most once."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    dq = deque()\n    out = []\n    p = 1\n    for _ in range(q):\n        op = data[p]\n        t = int(data[p + 1])\n        p += 2\n        if op == 'inc':\n            dq.append(t)\n        else:\n            while dq and dq[0] <= t - 1000:\n                dq.popleft()\n            out.append(len(dq))\n    print('\\n'.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nq = int(data[0])\nevents = []\nout = []\np = 1\nfor _ in range(q):\n    op = data[p]\n    t = int(data[p + 1])\n    p += 2\n    if op == 'inc':\n        events.append(t)\n    else:\n        out.append(sum(1 for s in events if t - 1000 < s <= t))\nprint('\\n'.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def fmt(ops):\n        return str(len(ops)) + '\\n' + '\\n'.join(f'{o} {t}' for o, t in ops)\n\n    def rand_ops(q, maxdt, pinc):\n        t = rng.randint(0, 50)\n        ops = []\n        for _ in range(q - 1):\n            t += rng.randint(0, maxdt)\n            ops.append(('inc' if rng.random() < pinc else 'query', t))\n        t += rng.randint(0, maxdt)\n        ops.append(('query', t))\n        return ops\n\n    tests = [fmt([('query', 0)]), fmt([('inc', 0), ('query', 0)]), fmt([('inc', 0), ('query', 999), ('query', 1000)]),\n             fmt([('inc', 5), ('inc', 5), ('inc', 5), ('query', 5), ('query', 1004), ('query', 1005)]),\n             fmt([('inc', 10**9), ('query', 10**9)])]\n    for q in (3, 5, 8, 12, 20, 30):\n        for maxdt in (1, 50, 400, 1500):\n            tests.append(fmt(rand_ops(q, maxdt, rng.choice([0.4, 0.6, 0.8]))))\n    Q = 10**5\n    # everything inside one window: a naive rescan of all increments per query is far too slow\n    tests.append(fmt([('inc', 1000000)] * (Q // 2) + [('query', 1000000 + rng.randint(0, 900)) for _ in range(Q // 2)]))\n    ops = [('inc', 5)] * (Q // 2)\n    qs = sorted(rng.randint(0, 999) for _ in range(Q // 2))\n    tests.append(fmt(ops + [('query', 5 + v) for v in qs]))\n    tests.append(fmt(rand_ops(Q, 1, 0.5)))\n    tests.append(fmt(rand_ops(Q, 30, 0.7)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\nclass RollingCounter:\n    def __init__(self):\n        # Write your solution here\n        pass\n\n    def increment(self, t: int) -> None:\n        # Record one increment at time t\n        pass\n\n    def query(self, t: int) -> int:\n        # Number of increments with t - 1000 < timestamp <= t\n        return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    counter = RollingCounter()\n    out = []\n    p = 1\n    for _ in range(q):\n        op = data[p]\n        t = int(data[p + 1])\n        p += 2\n        if op == 'inc':\n            counter.increment(t)\n        else:\n            out.append(counter.query(t))\n    print('\\n'.join(map(str, out)))\n\n\nmain()\n",
+  "javascript": "class RollingCounter {\n  constructor() {\n    // Write your solution here\n  }\n\n  increment(t) {\n    // Record one increment at time t\n  }\n\n  query(t) {\n    // Number of increments with t - 1000 < timestamp <= t\n    return 0\n  }\n}\n\nconst tok = input.split(/\\s+/).filter(Boolean)\nconst q = Number(tok[0])\nconst counter = new RollingCounter()\nconst out = []\nlet p = 1\nfor (let i = 0; i < q; i++) {\n  const op = tok[p]\n  const t = Number(tok[p + 1])\n  p += 2\n  if (op === 'inc') counter.increment(t)\n  else out.push(counter.query(t))\n}\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nclass RollingCounter {\npublic:\n    RollingCounter() {\n        // Write your solution here\n    }\n\n    void increment(long long t) {\n        // Record one increment at time t\n    }\n\n    long long query(long long t) {\n        // Number of increments with t - 1000 < timestamp <= t\n        return 0;\n    }\n};\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int q;\n    cin >> q;\n    RollingCounter counter;\n    for (int i = 0; i < q; i++) {\n        string op;\n        long long t;\n        cin >> op >> t;\n        if (op == \"inc\") counter.increment(t);\n        else cout << counter.query(t) << \"\\n\";\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static class RollingCounter {\n        RollingCounter() {\n            // Write your solution here\n        }\n\n        void increment(long t) {\n            // Record one increment at time t\n        }\n\n        long query(long t) {\n            // Number of increments with t - 1000 < timestamp <= t\n            return 0;\n        }\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int q = Integer.parseInt(st.nextToken());\n        RollingCounter counter = new RollingCounter();\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < q; i++) {\n            st = new StringTokenizer(br.readLine());\n            String op = st.nextToken();\n            long t = Long.parseLong(st.nextToken());\n            if (op.equals(\"inc\")) counter.increment(t);\n            else sb.append(counter.query(t)).append(\"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

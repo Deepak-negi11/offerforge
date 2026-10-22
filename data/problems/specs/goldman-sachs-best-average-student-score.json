@@ -1,0 +1,49 @@
+{
+ "pid": "goldman-sachs-best-average-student-score",
+ "title": "Best Average Student Score",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "A teacher keeps a list of `n` mark records. Each record has a student's **name** and an integer **score**. A student can appear in many records, and scores may be negative or repeat.\n\nThe **average score** of a student is the sum of all of that student's scores divided by the number of records for that student. This is the exact mathematical average, not a rounded one.\n\nPrint the **name** of the student with the **highest average score**. If two or more students have exactly the same highest average, print the name that is smallest in alphabetical (ASCII) order. Names are case-sensitive.\n\nAverages are not always whole numbers, so compare them exactly rather than by rounding. For example, an average of `10/3` is larger than an average of `3`.\n\n**Follow-up:** can you answer in one pass over the records, with memory proportional to the number of distinct students?",
+ "input_format": "The first line contains `n`.\nEach of the next `n` lines contains a student name (a single word without spaces) and an integer score, separated by a space.",
+ "output_format": "Print the name of the student with the highest average score.",
+ "constraints": [
+  "1 ≤ n ≤ 20000",
+  "Names have 1 to 8 letters (a-z, A-Z) and contain no spaces",
+  "-10^6 ≤ score ≤ 10^6"
+ ],
+ "examples": [
+  {
+   "input": "4\nJethiya 20\nBida 50\nIyerIdli 99\nJethiya 25",
+   "output": "IyerIdli",
+   "explanation": "Jethiya has scores 20 and 25 (average 22.5), Bida has 50 and IyerIdli has 99. The highest average is 99."
+  },
+  {
+   "input": "5\nA -5\nB -3\nA -1\nB -9\nC -4",
+   "output": "A",
+   "explanation": "The averages are A = (-5 + -1) / 2 = -3, B = (-3 + -9) / 2 = -6 and C = -4. The largest is -3, so A wins."
+  },
+  {
+   "input": "4\nzed 10\namy 5\namy 15\nbob 10",
+   "output": "amy",
+   "explanation": "Averages: zed = 10, amy = (5 + 15) / 2 = 10, bob = 10. All three tie, and `amy` is alphabetically first."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Keep, for every student, the running sum of the scores and the number of records, for example in a hash map.",
+  "Do not divide: to compare averages sumA/cntA and sumB/cntB, compare sumA * cntB with sumB * cntA (counts are positive, so the inequality direction is preserved).",
+  "Scan all students, keeping the best so far; on an exact tie keep the alphabetically smaller name."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    tot = {}\n    cnt = {}\n    for i in range(n):\n        nm = data[1 + 2 * i]\n        sc = int(data[2 + 2 * i])\n        tot[nm] = tot.get(nm, 0) + sc\n        cnt[nm] = cnt.get(nm, 0) + 1\n    best = None\n    for nm in tot:\n        if best is None:\n            best = nm\n            continue\n        l = tot[nm] * cnt[best]\n        r = tot[best] * cnt[nm]\n        if l > r or (l == r and nm < best):\n            best = nm\n    print(best)\n\nmain()\n",
+ "brute": "import sys\nfrom fractions import Fraction\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nrecs = [(data[1 + 2 * i], int(data[2 + 2 * i])) for i in range(n)]\nnames = sorted(set(nm for nm, _ in recs))\nbest_name, best_avg = None, None\nfor nm in names:\n    scores = [sc for x, sc in recs if x == nm]\n    avg = Fraction(sum(scores), len(scores))\n    if best_avg is None or avg > best_avg:\n        best_name, best_avg = nm, avg\nprint(best_name)\n",
+ "generator": "def gen(rng):\n    def fmt(recs):\n        return str(len(recs)) + '\\n' + '\\n'.join(f'{a} {b}' for a, b in recs)\n    tests = [fmt([('a', 5)]), fmt([('a', -5)]), fmt([('Jethiya', 20), ('Bida', 50), ('IyerIdli', 99), ('Jethiya', 25)]),\n             fmt([('zed', 10), ('amy', 5), ('amy', 15), ('bob', 10)]), fmt([('A', -5), ('B', -3), ('A', -1), ('B', -9), ('C', -4)]),\n             fmt([('x', 1), ('x', 1), ('x', 2), ('y', 4), ('y', 0), ('y', 0)]), fmt([('Zed', 3), ('zed', 3), ('Abe', 3)]),\n             fmt([('p', 10), ('q', 7), ('q', 7), ('q', 7), ('p', 10), ('r', 21), ('r', -7), ('r', 7)])]\n    pools = [['a', 'b', 'c'], ['a', 'B', 'c', 'D', 'e'], ['u', 'v']]\n    for _ in range(26):\n        pool = rng.choice(pools)\n        n = rng.randint(1, 9)\n        hi = rng.choice([3, 10, 100])\n        tests.append(fmt([(rng.choice(pool), rng.randint(-hi, hi)) for _ in range(n)]))\n    def nm():\n        return ''.join(rng.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ') for _ in range(rng.randint(3, 8)))\n    n = 20000\n    names = list({nm() for _ in range(3000)})\n    tests.append(fmt([(rng.choice(names), rng.randint(-10**6, 10**6)) for _ in range(n)]))\n    few = names[:3]\n    tests.append(fmt([(rng.choice(few), rng.randint(-10**6, 10**6)) for _ in range(n)]))\n    tests.append(fmt([(rng.choice(names[:2000]), rng.choice([-10**6, 10**6])) for _ in range(n)]))\n    tests.append(fmt([(names[i % 1000], 10**6) for i in range(n)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef best_average(names: List[str], scores: List[int]) -> str:\n    # Write your solution here\n    return \"\"\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    names = [data[1 + 2 * i] for i in range(n)]\n    scores = [int(data[2 + 2 * i]) for i in range(n)]\n    print(best_average(names, scores))\n\n\nmain()\n",
+  "javascript": "function bestAverage(names, scores) {\n  // Write your solution here\n  return ''\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = Number(t[0])\nconst names = [], scores = []\nfor (let i = 0; i < n; i++) {\n  names.push(t[1 + 2 * i])\n  scores.push(Number(t[2 + 2 * i]))\n}\nconsole.log(bestAverage(names, scores))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring bestAverage(vector<string>& names, vector<long long>& scores) {\n    // Write your solution here\n    return \"\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<string> names(n);\n    vector<long long> scores(n);\n    for (int i = 0; i < n; i++) cin >> names[i] >> scores[i];\n    cout << bestAverage(names, scores) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String bestAverage(String[] names, long[] scores) {\n        // Write your solution here\n        return \"\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int n = Integer.parseInt(st.nextToken());\n        String[] names = new String[n];\n        long[] scores = new long[n];\n        for (int i = 0; i < n; i++) {\n            names[i] = st.nextToken();\n            scores[i] = Long.parseLong(st.nextToken());\n        }\n        System.out.println(bestAverage(names, scores));\n    }\n}\n"
+ }
+}

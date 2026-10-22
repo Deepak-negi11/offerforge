@@ -1,0 +1,18 @@
+{
+ "qid": "e8bf5a6589",
+ "question": "Netflix senior software engineer (L5, Ads) data modeling round. The candidate reported being asked: **which data models does an advertiser need to start a campaign and show ads to users**, then **how do you model targeting**, **how do you model frequency capping settings**, and **how do you capture revenue numbers**. The candidate said the round was about naming the right ads entities and using correct domain terminology rather than generic schema tricks.",
+ "lookingFor": [
+  "Knowledge of ads domain entities and correct terminology.",
+  "Clean relational modeling: keys, relationships, and cardinality.",
+  "Separating configuration data from high-volume event data.",
+  "Flexible modeling of targeting rules without schema explosion.",
+  "Thinking about how revenue is recorded, reconciled and reported."
+ ],
+ "answer": "**Core entities (configuration side).**\n- `advertiser` (account, billing info, currency) owns many `campaign`s.\n- `campaign`: objective, start/end dates, budget, status. It owns many `line_item`s (also called ad groups or orders).\n- `line_item`: the unit that actually bids and delivers: pricing model (CPM, CPC), bid/rate, daily and total budget, schedule, priority, targeting and cap settings.\n- `creative`: the ad asset (video, image, duration, click-through URL), linked many-to-many to line items through an `ad` or assignment table.\n\n**Targeting.** Avoid one wide table with a column per attribute. Use a `targeting_rule` table (`line_item_id`, `dimension`, `operator` include/exclude, `value`) or a `targeting_criterion` table per dimension (geo, device, language, content genre, audience segment, daypart). It is flexible, supports include and exclude, and is easy to evaluate at serve time. For speed, compile rules into a denormalised or cached structure for the ad server. Audience segments are separate entities with membership stored outside the transactional database.\n\n**Frequency capping.** A `frequency_cap` row: `scope` (line item, campaign, or category/advertiser), `max_impressions`, `window_unit` and `window_length` (e.g. 5 per 1 day, 10 per 14 days). A line item can have several caps, so keep it one-to-many. Enforcement counts live in a fast counter store keyed by user and scope; the table only holds the settings.\n\n**Revenue and events.** Record immutable events (`impression`, `click`, `completion`) with ad request ID, line item, creative, user or device pseudonym, timestamp and price charged. Revenue = aggregation of billable events using the line item's pricing model, kept in daily rollup tables per line item (impressions, clicks, spend). Store money as integer minor units with currency, and keep an adjustment/reconciliation record for fraud filtering and billing corrections.\n\n**Trade-offs.** Normalised configuration for integrity vs denormalised serving views for latency; event data in an append-only warehouse rather than the OLTP database; late-arriving and duplicate events need idempotent IDs.\n\nUse correct vocabulary (impression, line item, creative, pacing, flight dates) since terminology was reportedly part of the evaluation.",
+ "followUps": [
+  "How would you model exclusion targeting and audience segments with millions of members?",
+  "How do you make sure double-counted or late impression events do not inflate revenue?",
+  "How would you model pacing so a daily budget is not spent in the first hour?",
+  "Why keep events outside the transactional database?"
+ ]
+}

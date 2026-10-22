@@ -1,0 +1,44 @@
+{
+ "pid": "first-unique-number",
+ "title": "First Unique Number",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A stream of customer visits arrives one at a time. Each customer has a positive integer id. A customer is a **one-time visitor** if they have visited exactly **once** so far.\n\nSupport two operations:\n\n- `post x`: record a visit by customer `x`.\n- `query`: report the one-time visitor whose **first visit came earliest**. If nobody is currently a one-time visitor, report `-1`.\n\nA customer who has visited two or more times is never a one-time visitor again, even if later visits stop. Operations are processed in the order given; for each `query` print one line with its answer.\n\n**Follow-up:** make both `post` and `query` run in `O(1)` (amortized is acceptable for a queue that prunes duplicates lazily; a hash map plus a doubly linked list gives worst-case `O(1)`). Discuss the trade-off between the two designs.",
+ "input_format": "The first line contains an integer `q`, the number of operations.\nEach of the next `q` lines is either `post x` or `query`.",
+ "output_format": "For every `query`, print one line with its answer. Print the answers in the order the queries appear.",
+ "constraints": [
+  "1 ≤ q ≤ 50000",
+  "1 ≤ x ≤ 10^9",
+  "The input contains at least one `query`"
+ ],
+ "examples": [
+  {
+   "input": "9\npost 2\npost 5\npost 2\npost 3\nquery\npost 2\npost 4\npost 5\nquery",
+   "explanation": "After posts 2, 5, 2, 3 customer 2 has visited twice, while 5 and 3 once each, and 5 came first. After posts 2, 4, 5, customers 2 and 5 are duplicates; customers 3 and 4 are one-time visitors and 3 came first.",
+   "output": "5\n3"
+  },
+  {
+   "input": "6\nquery\npost 8\nquery\npost 8\nquery\nquery",
+   "explanation": "With no visits the answer is -1. After one visit by 8 it is 8. A second visit by 8 removes it, so the answer returns to -1 for the last two queries.",
+   "output": "-1\n8\n-1\n-1"
+  }
+ ],
+ "complexity": {
+  "time": "O(1) amortized per operation",
+  "space": "O(q)"
+ },
+ "hints": [
+  "A hash map from id to visit count tells you instantly whether an id is a one-time visitor. The remaining question is how to find the earliest one quickly.",
+  "Keep a queue of ids in order of their first visit. When a query arrives, look at the front: if its count is above 1 it can never be a one-time visitor again, so pop it and look at the next.",
+  "Each id enters the queue once and leaves it at most once, so the total pruning work across all queries is O(q). A doubly linked list with a hash map of nodes lets you delete a duplicate the moment its second visit arrives instead."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    k = 1\n    cnt = {}\n    dq = deque()\n    out = []\n    for _ in range(q):\n        op = data[k]\n        k += 1\n        if op == 'post':\n            x = int(data[k])\n            k += 1\n            c = cnt.get(x, 0) + 1\n            cnt[x] = c\n            if c == 1:\n                dq.append(x)\n        else:\n            while dq and cnt[dq[0]] > 1:\n                dq.popleft()\n            out.append(dq[0] if dq else -1)\n    print('\\n'.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nq = int(data[0])\nk = 1\norder = []\ncnt = {}\nout = []\nfor _ in range(q):\n    op = data[k]\n    k += 1\n    if op == 'post':\n        x = int(data[k])\n        k += 1\n        if x not in cnt:\n            cnt[x] = 0\n            order.append(x)\n        cnt[x] += 1\n    else:\n        ans = -1\n        for x in order:\n            if cnt[x] == 1:\n                ans = x\n                break\n        out.append(ans)\nprint('\\n'.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def fmt(ops):\n        return str(len(ops)) + '\\n' + '\\n'.join(ops)\n    P = lambda x: 'post ' + str(x)\n    Q = 'query'\n    tests = [fmt([Q]), fmt([P(1), Q]), fmt([P(1), P(1), Q]), fmt([P(7), P(8), P(7), Q, P(8), Q, P(9), Q]),\n             fmt([P(10**9), Q, P(10**9), Q, P(1), Q]), fmt([Q, P(3), Q, Q, P(3), Q])]\n    for _ in range(24):\n        n = rng.randint(1, 30)\n        hi = rng.choice([2, 3, 5, 8])\n        ops = [Q if rng.random() < 0.3 else P(rng.randint(1, hi)) for _ in range(n)]\n        ops.append(Q)\n        tests.append(fmt(ops))\n    ops = [P(i) for i in range(1, 16001)] + [P(i) for i in range(1, 16000)] + [Q] * 18000\n    tests.append(fmt(ops))\n    ops = []\n    for i in range(1, 12001):\n        ops.append(P(i))\n        ops.append(P(i))\n        ops.append(Q)\n        ops.append(P(i + 12000))\n        ops.append(Q)\n    tests.append(fmt(ops))\n    ops = []\n    for _ in range(50000):\n        ops.append(Q if rng.random() < 0.4 else P(rng.randint(1, 20000)))\n    tests.append(fmt(ops))\n    ops = []\n    for _ in range(50000):\n        ops.append(Q if rng.random() < 0.3 else P(rng.randint(1, 10**9)))\n    tests.append(fmt(ops))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\nclass FirstUnique:\n    def __init__(self):\n        # Write your solution here\n        pass\n\n    def post(self, customer_id: int) -> None:\n        # Write your solution here\n        pass\n\n    def get_first_unique(self) -> int:\n        # Write your solution here\n        return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    k = 1\n    fu = FirstUnique()\n    out = []\n    for _ in range(q):\n        op = data[k]\n        k += 1\n        if op == 'post':\n            fu.post(int(data[k]))\n            k += 1\n        else:\n            out.append(fu.get_first_unique())\n    print('\\n'.join(map(str, out)))\n\n\nmain()\n",
+  "javascript": "class FirstUnique {\n  constructor() {\n    // Write your solution here\n  }\n\n  post(customerId) {\n    // Write your solution here\n  }\n\n  getFirstUnique() {\n    // Write your solution here\n    return -1\n  }\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst q = Number(t[0])\nlet k = 1\nconst fu = new FirstUnique()\nconst out = []\nfor (let i = 0; i < q; i++) {\n  const op = t[k++]\n  if (op === 'post') fu.post(Number(t[k++]))\n  else out.push(fu.getFirstUnique())\n}\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nclass FirstUnique {\npublic:\n    FirstUnique() {\n        // Write your solution here\n    }\n\n    void post(long long customerId) {\n        // Write your solution here\n    }\n\n    long long getFirstUnique() {\n        // Write your solution here\n        return -1;\n    }\n};\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int q;\n    cin >> q;\n    FirstUnique fu;\n    string op;\n    while (q--) {\n        cin >> op;\n        if (op == \"post\") {\n            long long x;\n            cin >> x;\n            fu.post(x);\n        } else {\n            cout << fu.getFirstUnique() << \"\\n\";\n        }\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static class FirstUnique {\n        FirstUnique() {\n            // Write your solution here\n        }\n\n        void post(long customerId) {\n            // Write your solution here\n        }\n\n        long getFirstUnique() {\n            // Write your solution here\n            return -1;\n        }\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        int q = Integer.parseInt(br.readLine().trim());\n        FirstUnique fu = new FirstUnique();\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < q; i++) {\n            StringTokenizer st = new StringTokenizer(br.readLine());\n            String op = st.nextToken();\n            if (op.equals(\"post\")) fu.post(Long.parseLong(st.nextToken()));\n            else sb.append(fu.getFirstUnique()).append(\"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

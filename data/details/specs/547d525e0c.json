@@ -1,0 +1,17 @@
+{
+ "qid": "547d525e0c",
+ "question": "Qualcomm Software Engineering Intern, technical interview (reported alongside questions on linked lists, mutex vs semaphore, processes vs threads, deadlock conditions and fragmentation). Coding questions asked: **write your own `memcpy()`**, and **write a code snippet that uses function pointers**.",
+ "lookingFor": [
+  "Comfort with raw pointers and byte-level operations in C.",
+  "Handling edge cases: null pointers, overlapping regions, alignment.",
+  "Knowing the memcpy vs memmove distinction.",
+  "Using function pointers for callbacks or dispatch tables."
+ ],
+ "answer": "**memcpy.** Signature: `void *memcpy(void *dest, const void *src, size_t n)`. It copies n bytes and returns dest. Work on `unsigned char*` because `void*` cannot be dereferenced or incremented.\n```\nvoid *my_memcpy(void *dest, const void *src, size_t n) {\n    if (!dest || !src) return dest;      // or assert\n    unsigned char *d = dest;\n    const unsigned char *s = src;\n    while (n--) *d++ = *s++;\n    return dest;\n}\n```\nPoints to mention:\n- memcpy has *undefined behaviour if the regions overlap*. `memmove` handles overlap: if `dest > src` and the regions overlap, copy backwards from the end; otherwise copy forwards.\n- Optimised versions copy word-sized chunks (4 or 8 bytes) after aligning the pointers, then finish the tail bytewise. Real libc versions use SIMD.\n- Complexity is O(n) time and O(1) space.\n\n**Function pointers.** A function pointer stores the address of a function with a given signature. A typical demo is a callback or a dispatch table:\n```\nint add(int a, int b) { return a + b; }\nint sub(int a, int b) { return a - b; }\n\nint apply(int (*op)(int, int), int x, int y) { return op(x, y); }\n\nint main(void) {\n    int (*ops[])(int, int) = { add, sub };\n    printf(\"%d %d\n\", apply(add, 5, 3), ops[1](5, 3));   // 8 2\n    return 0;\n}\n```\nUses: callbacks (`qsort` comparator), state machines, interrupt vector tables and driver operation tables in embedded code. A `typedef` makes the declaration readable: `typedef int (*binop)(int, int);`.",
+ "followUps": [
+  "How would you make your memcpy faster for large buffers?",
+  "What changes if the source and destination overlap?",
+  "How does qsort use a function pointer, and how is that different from C++ templates?",
+  "What is the difference between a function pointer and a pointer to a member function?"
+ ]
+}

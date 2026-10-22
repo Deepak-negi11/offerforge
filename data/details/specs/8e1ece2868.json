@@ -1,0 +1,18 @@
+{
+ "qid": "8e1ece2868",
+ "question": "Apple, Full Stack Developer interview. **Give a high-level design of Spotify**, a music streaming service. Only the one-line prompt was reported, so state your own scope: playback, catalog, search, playlists, recommendations, and scale.",
+ "lookingFor": [
+  "Scoping a huge product into a few core flows.",
+  "How audio is stored, encoded and delivered (CDN, adaptive bitrate, chunking).",
+  "Separating metadata, user data and media paths.",
+  "Search and recommendation at a high level, without overreaching.",
+  "Handling scale, offline mode, and licensing/royalty tracking."
+ ],
+ "answer": "**Scope and requirements.** Core: browse and search the catalog, stream a track with minimal start delay, create and share playlists, like/follow, offline downloads. Non-functional: start playback in under about 2 seconds, high availability, global audience. Assume 500M users, 100M concurrent at peak, a catalog of ~100M tracks of ~3-5 MB per encoded version.\n\n**Playback path.**\n- Artists/labels upload masters through an **ingestion pipeline**: validate, transcode into multiple bitrates and codecs (e.g. low/normal/high quality), split into small chunks, and store in **object storage**. Metadata goes to the catalog.\n- Clients request a track; the **playback service** checks licensing and subscription/region rights and returns a signed URL for chunks. Audio is served from a **CDN** with edge caching, since popular songs dominate traffic (a hot-head, long-tail pattern). Clients prefetch the next track and buffer, and can switch bitrate adaptively.\n- DRM and encryption protect content; offline downloads store encrypted chunks with a licence that expires.\n\n**Metadata and user data.** Catalog (artists, albums, tracks) is read-heavy, replicated and heavily cached. User data (profiles, playlists, library, listening history) lives in a sharded database keyed by user id. Playlists are ordered lists with collaborative editing handled by versioned updates.\n\n**Search.** An inverted-index search engine over tracks, artists and playlists, with typeahead, typo tolerance and popularity-based ranking.\n\n**Recommendations (high level).** Log play events through a streaming pipeline (Kafka-like) to a data platform. Offline jobs compute collaborative filtering and content-based features; a serving layer returns precomputed recommendation lists (e.g. Discover-style playlists) per user.\n\n**Other services.** Play-count and royalty accounting needs reliable, deduplicated event counting (an exactly-once-oriented pipeline, audited); social features; payments and subscriptions.\n\n**Trade-offs.** Cache aggressively at the edge; accept eventual consistency for counts and recommendations but strong consistency for subscriptions and rights.",
+ "followUps": [
+  "How do you make a track start playing within two seconds worldwide?",
+  "How would you count plays accurately for royalty payments?",
+  "How would you design collaborative playlists?",
+  "How would you build the 'Discover Weekly'-style recommendation at a high level?"
+ ]
+}

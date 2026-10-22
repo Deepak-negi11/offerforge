@@ -1,0 +1,17 @@
+{
+ "qid": "e093e02e69",
+ "question": "NVIDIA System Software Engineer Internship (on-campus), online interview with three interviewers over a shared HackerRank link. Two of the questions: what is the difference between a `struct` and a `class`, and implement the `memcpy` function in C.",
+ "lookingFor": [
+  "Knowing the exact language-level difference rather than folklore",
+  "Correct, safe low-level pointer code",
+  "Awareness of the overlap case and why memmove exists",
+  "Edge-case handling and attention to types"
+ ],
+ "answer": "**struct vs class.**\n\nIn C++ they are almost identical. The only language-level differences: default member access is `public` for `struct` and `private` for `class`, and default inheritance is public for `struct` and private for `class`. Both can have constructors, methods, inheritance and virtual functions. By convention, `struct` is used for plain data aggregates and `class` for types with invariants and encapsulation.\n\nIn C, a `struct` is only a data aggregate: no member functions, no access control, and `class` does not exist. If the interviewer is asking in a C context, say that too.\n\n**memcpy.** Copies `n` bytes from `src` to `dest`; behaviour is undefined if the regions overlap.\n\n```c\n#include <stddef.h>\n\nvoid *my_memcpy(void *restrict dest, const void *restrict src, size_t n) {\n    unsigned char *d = dest;\n    const unsigned char *s = src;\n    while (n--) *d++ = *s++;\n    return dest;\n}\n```\n\nPoints to state:\n\n- Use `void *` parameters and return `dest` to match the standard signature.\n- Cast to `unsigned char *` because arithmetic on `void *` is not standard C.\n- `restrict` documents the non-overlap contract.\n- Handle `n == 0` (the loop naturally does nothing). Passing NULL is undefined even for n = 0.\n- `memmove` handles overlap by copying backwards when `dest > src` and the regions overlap.\n- Optimised versions copy word-sized chunks (after aligning) or use SIMD, and fall back to bytes for the head and tail; real libc implementations do this.\n\nA byte loop is O(n); the speed difference is the constant factor from fewer memory operations.",
+ "followUps": [
+  "How would you speed memcpy up using 8-byte words and what alignment problems appear?",
+  "Implement memmove. Which direction do you copy and when?",
+  "Why is `memcpy` on overlapping buffers undefined, and what can go wrong in practice?",
+  "Can a struct have a virtual function? Does it change its size?"
+ ]
+}

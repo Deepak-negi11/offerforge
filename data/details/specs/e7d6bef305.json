@@ -1,0 +1,18 @@
+{
+ "qid": "e7d6bef305",
+ "question": "Apple Software Engineer (IS&T) Technical Interview 2, Java coding round. You are given two collections of employees and asked to **merge them into a single data structure without duplicates**. Which data structure would you use and why? Explain how `equals()` and `hashCode()` make a `HashSet` identify unique elements. The candidate also mentioned the interviewer's hint that `addAll` could replace a manual loop, and a discussion of passing a comparator when building the set.",
+ "lookingFor": [
+  "Choosing a data structure by its guarantees (uniqueness, lookup cost) rather than by habit.",
+  "Understanding how HashSet works internally (HashMap, buckets, hash then equals).",
+  "Knowing the equals/hashCode contract and what breaks if it is violated.",
+  "Awareness of the standard library (addAll, TreeSet with Comparator, streams).",
+  "Choosing sensible identity for an Employee (e.g. an id, not every field)."
+ ],
+ "answer": "**Choice: a `Set<Employee>`.** A set guarantees uniqueness by definition, and `HashSet` gives average O(1) `add` and `contains`. Merging n + m employees is O(n + m) on average. If I also need sorted output, use `TreeSet` with a `Comparator`; it is O(log n) per add and defines \"duplicate\" by the comparator returning 0 instead of by `equals`/`hashCode`. If insertion order matters, use `LinkedHashSet`.\n\n**How HashSet works.** `HashSet` is backed by a `HashMap` where the element is the key. On `add(e)`:\n1. Compute `e.hashCode()`, spread the bits, and pick a bucket index.\n2. If the bucket is empty, insert.\n3. Otherwise compare against entries in that bucket: same hash AND (`==` or `equals()` true) means duplicate, so the add returns false.\n\nSo both methods matter. `hashCode` narrows the search to one bucket; `equals` decides true equality inside it.\n\n**The contract.** Equal objects must have equal hash codes. If I override `equals` (say, two employees are equal when `id` matches) but not `hashCode`, two equal employees usually land in different buckets and both stay in the set. Unequal objects may share a hash code (collisions), this only costs performance. Use the same fields in both, ideally an immutable id: `Objects.equals(id, other.id)` and `Objects.hash(id)`. Mutating a field used in `hashCode` after insertion makes the element unreachable.\n\n**Merging.**\n```java\nSet<Employee> merged = new HashSet<>(first);\nmerged.addAll(second);\n```\n`addAll` is just a loop over `add`, so it is cleaner but not faster. The first occurrence wins; if the later record should win (fresher data), use a `Map<Id, Employee>` and `put` or `merge` instead.\n\n**Mistakes to avoid:** overriding only one of the two methods, using mutable fields, using `==` on strings in `equals`, and forgetting `getClass`/`instanceof` handling and null checks. Records give correct `equals`/`hashCode` for free.",
+ "followUps": [
+  "What happens if two unequal employees have the same hashCode?",
+  "How does HashMap handle heavy collisions in Java 8+ (treeified bins)?",
+  "How would you merge when duplicates carry different data and you must pick the latest?",
+  "When would TreeSet with a Comparator treat two employees as duplicates even though equals says they differ?"
+ ]
+}

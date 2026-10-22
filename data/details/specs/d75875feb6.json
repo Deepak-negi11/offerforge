@@ -1,0 +1,18 @@
+{
+ "qid": "d75875feb6",
+ "question": "In a TCS Prime (NQT 2026) technical round, after OOP and polymorphism questions and a statement that you practise DSA on LeetCode daily, the panel asked: **do you know any practical implementation of a linked list?** The reported answer was an LRU cache, explaining how a linked list and a hash map work together.",
+ "lookingFor": [
+  "Can you tie a data structure to a real system rather than only reciting its definition?",
+  "Can you design an LRU cache with O(1) get and put and justify each component?",
+  "Do you understand why a doubly linked list (not a singly linked one) and why a hash map are both needed?",
+  "Can you list other practical uses of linked lists?",
+  "Can you handle follow-ups on eviction, capacity, and concurrency?"
+ ],
+ "answer": "**LRU (Least Recently Used) cache.** A cache of fixed capacity that evicts the entry unused for the longest time. We want `get(key)` and `put(key, value)` in **O(1)**.\n\n**Why two structures.**\n\n- A **hash map** (`key -> node`) gives O(1) lookup, but no ordering by recency.\n- A **doubly linked list** keeps entries ordered from most recently used (head) to least recently used (tail). Moving a node to the head or removing the tail is O(1) *if you already hold the node*, which the hash map provides. A doubly linked list is needed because removing an arbitrary node requires its predecessor (the `prev` pointer); in a singly linked list it would need an O(n) scan.\n\n```python\nclass Node:\n    def __init__(self, k=0, v=0): self.k, self.v, self.prev, self.next = k, v, None, None\n\nclass LRU:\n    def __init__(self, cap):\n        self.cap, self.map = cap, {}\n        self.head, self.tail = Node(), Node()          # sentinels\n        self.head.next, self.tail.prev = self.tail, self.head\n    def _remove(self, n): n.prev.next, n.next.prev = n.next, n.prev\n    def _front(self, n):\n        n.next, n.prev = self.head.next, self.head\n        self.head.next.prev = n; self.head.next = n\n    def get(self, k):\n        if k not in self.map: return -1\n        n = self.map[k]; self._remove(n); self._front(n); return n.v\n    def put(self, k, v):\n        if k in self.map: self._remove(self.map[k])\n        n = self.map[k] = Node(k, v); self._front(n)\n        if len(self.map) > self.cap:\n            lru = self.tail.prev; self._remove(lru); del self.map[lru.k]\n```\nSentinel head and tail nodes remove null checks. `get` and `put` are O(1); space O(capacity). The node stores its key so the map entry can be deleted on eviction.\n\n**Other practical uses of linked lists:** browser history and tab navigation (doubly linked), undo/redo, music playlists, chaining in hash tables, adjacency lists for graphs, memory allocators' free lists, OS task and process queues (Linux kernel lists), and implementations of stacks and queues.\n\n**Production note:** for concurrency add a lock or use sharded caches. Python's `OrderedDict` and Java's `LinkedHashMap` (access-order mode) implement the same idea.",
+ "followUps": [
+  "Why can't you use a singly linked list for the LRU cache?",
+  "How would you make the cache thread-safe without a single global lock?",
+  "How would you add per-entry time-to-live expiry?",
+  "How does LFU differ from LRU and how would you implement it in O(1)?"
+ ]
+}

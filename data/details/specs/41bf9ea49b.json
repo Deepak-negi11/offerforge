@@ -1,0 +1,19 @@
+{
+ "qid": "41bf9ea49b",
+ "question": "Mastercard SDE-II (L8, about 3.4 years of experience), Superday bar-raiser round, a code-pairing exercise with two developers. **Given a log file in a specified format that contains logs of all levels along with the name of the file each log came from, read it and print the file names and their number of ERROR entries in reverse sorted order (highest count first).** The exact log format was given in the interview and is not in the report, so state the format you assume. The reported attempt had bugs but about 90% correct logic, and the candidate had to explain it.",
+ "lookingFor": [
+  "Can you parse input robustly and stream it instead of loading everything?",
+  "Do you pick the right data structures (hash map, then sort)?",
+  "Do you define tie-breaking and malformed-line behaviour explicitly?",
+  "Can you write clean, runnable code and explain and debug it while pairing?",
+  "Do you test with small cases and discuss complexity?"
+ ],
+ "answer": "**Clarify and assume.** Suppose each line looks like `2024-05-01T10:15:30 ERROR OrderService.java Payment failed`, that is `timestamp LEVEL sourceFile message`. Ask: Is the level always the second token? Can messages contain spaces (yes, so split with a limit)? What about malformed lines (skip and count them)? Tie order (alphabetical by file name is a good deterministic default)? Does the file fit in memory? (A stream works either way; the map holds only distinct files.)\n\n**Approach.**\n1. Read line by line (streaming).\n2. Parse the level and file name; if level is `ERROR`, increment `counts[file]` in a hash map.\n3. Sort the entries by count descending, then by name.\n4. Print.\n\n    import sys\n    from collections import Counter\n\n    def error_counts(lines):\n        counts = Counter()\n        for line in lines:\n            parts = line.split(None, 3)       # timestamp, level, file, message\n            if len(parts) < 3:\n                continue                       # malformed line\n            _, level, file = parts[0], parts[1], parts[2]\n            if level == \"ERROR\":\n                counts[file] += 1\n        return counts\n\n    if __name__ == \"__main__\":\n        with open(sys.argv[1]) as f:\n            counts = error_counts(f)\n        for file, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])):\n            print(f\"{file} {n}\")\n\n**Complexity.** Time O(n) for reading plus O(k log k) for sorting k distinct files; space O(k).\n\n**Things interviewers watch.**\n- Match `ERROR` exactly, not by substring (a message could contain the word \"ERROR\" inside an INFO line).\n- Use a case-sensitive or case-insensitive match deliberately.\n- Do not call `.split()` without a limit if the message is not needed.\n- Test: no errors (print nothing), one file, ties, lines with extra spaces, an empty file.\n- Narrate while coding and fix bugs calmly when pointed out; the process matters as much as the result.\n- Extension: if the log is huge, process shards in parallel and merge the counters, or use a min-heap for the top N only.",
+ "followUps": [
+  "How would you return only the top N files?",
+  "What if the log file is hundreds of gigabytes?",
+  "How would you handle multiline entries such as stack traces?",
+  "How would you extend this to count by level and by hour?",
+  "How would you unit test this function?"
+ ]
+}

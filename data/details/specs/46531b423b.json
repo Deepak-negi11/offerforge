@@ -1,0 +1,17 @@
+{
+ "qid": "46531b423b",
+ "question": "In a campus technical round for a Software Engineer (New Grad) role at NVIDIA, the candidate was asked to **write a custom `free()` in C++ that fills the memory with zeros instead of releasing it**.\n\nThe candidate clarified constraints before coding, such as how the size of the block is known, and then coded it.",
+ "lookingFor": [
+  "Do you clarify requirements (size of the block, ownership, alignment, what zero means) before coding?",
+  "Do you understand how allocators track block sizes and what `free(void*)` actually knows?",
+  "Can you write correct, safe pointer code, including null checks and types?",
+  "Do you know the compiler pitfall around dead-store elimination for memset?"
+ ],
+ "answer": "**Clarify first.**\n\n- `free(void* p)` receives only a pointer. The standard C/C++ API does not tell us the size. So either (a) the caller passes the size, or (b) our own allocator stores it, typically in a header just before the block.\n- Do we also release the memory afterwards? The problem says zero it \"instead of releasing\", so the block stays owned by the allocator.\n\n**Option A, the size is passed in:**\n\n```cpp\n#include <cstddef>\nvoid zero_free(void* p, std::size_t n) {\n    if (!p) return;                       // same as free(nullptr)\n    volatile unsigned char* b = static_cast<volatile unsigned char*>(p);\n    for (std::size_t i = 0; i < n; ++i) b[i] = 0;\n}\n```\n\n**Option B, our own allocator stores the size:**\n\n```cpp\nstruct alignas(std::max_align_t) Header { std::size_t size; };\n\nvoid* my_alloc(std::size_t n) {\n    auto* h = static_cast<Header*>(std::malloc(sizeof(Header) + n));\n    if (!h) return nullptr;\n    h->size = n;\n    return h + 1;                         // user memory starts after the header\n}\n\nvoid my_free(void* p) {\n    if (!p) return;\n    Header* h = static_cast<Header*>(p) - 1;\n    std::memset(p, 0, h->size);           // zero user bytes\n    // std::free(h);  // optional: only if we also want to release it\n}\n```\n\n**Points to mention:**\n\n- Null check, and never touch memory outside the block.\n- The header is aligned with `max_align_t` so the user pointer stays suitably aligned.\n- If the goal is to scrub secrets before a real `free`, a plain `memset` followed by `free` can be removed by the optimiser as a dead store. Use `volatile` writes, `explicit_bzero`, or `memset_s` instead.\n- Double free: after zeroing, the header still exists, so a second call would zero again. A magic number or a free flag in the header can detect misuse.\n- Cost is O(n) in the block size. For a pooled allocator the size is fixed per pool.\n- In C++ you would normally use RAII or a custom deleter rather than a raw function.",
+ "followUps": [
+  "How does the real free() know the size of the block?",
+  "Why can the compiler remove a memset before free, and how do you stop it?",
+  "How would you make this allocator thread-safe?",
+  "How would you detect a double free or a use-after-free?"
+ ]
+}

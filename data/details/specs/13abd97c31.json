@@ -1,0 +1,19 @@
+{
+ "qid": "13abd97c31",
+ "question": "In the Razorpay PSE Intern technical round the discussion was project-driven. The candidate was asked why they built their MERN stack projects and what problems they solved, then questions on API design, backend architecture and the database schema of those projects.\n\nThe interviewer then moved to Node.js: how asynchronous programming works, what non-blocking I/O means, why Node.js is called single-threaded, what callback functions are, and what callback hell is and how to avoid it.",
+ "lookingFor": [
+  "Depth of understanding of your own project: design choices, not just features",
+  "Correct mental model of the Node.js event loop and non-blocking I/O",
+  "Ability to explain why a single thread can still serve many requests",
+  "Knowledge of async patterns: callbacks, promises, async/await",
+  "Awareness of Node.js limits, such as CPU-bound work blocking the loop"
+ ],
+ "answer": "**Project walk-through.** Be ready to explain the problem, the users, the REST endpoints (resources, verbs, status codes, validation, auth), the layering (routes, controllers, services, models), and the schema (collections or tables, relations, indexes, why you embedded or referenced). Mention one thing you would change and why.\n\n**Single-threaded but concurrent.** Node runs your JavaScript on one thread driven by an event loop. When code starts an I/O operation (database query, file read, HTTP call), Node hands it to the operating system or to libuv's thread pool and keeps running other code. When the I/O finishes, a callback is queued and the event loop runs it. So one thread can handle thousands of concurrent connections, because it is almost always waiting on I/O rather than computing.\n\n**Blocking vs non-blocking.** `fs.readFileSync` blocks the whole process until done; `fs.readFile` returns immediately and calls you back later. Rule: never block the event loop in a server. CPU-heavy work (large JSON parsing, image processing, crypto loops) blocks every other request; move it to worker threads, child processes or a separate service.\n\n**Event loop order (simplified).** Timers, pending callbacks, poll (I/O), check (`setImmediate`), close callbacks. Between steps, microtasks run: `process.nextTick` first, then promise callbacks.\n\n**Callbacks and callback hell.** A callback is a function passed to be called when an async operation completes (error-first convention: `(err, data)`). Nesting many dependent callbacks makes code a deep pyramid that is hard to read, handle errors in, and test. Fixes: named functions, promises (`.then` chains), and `async/await` with `try/catch`, plus `Promise.all` for independent operations running in parallel.\n\n**Example.** Replace `getUser(id, (e,u) => getOrders(u, (e,o) => ...))` with `const user = await getUser(id); const orders = await getOrders(user);`.",
+ "followUps": [
+  "What is the difference between process.nextTick, setImmediate and setTimeout(fn, 0)?",
+  "How would you handle a CPU-intensive task in a Node.js API without blocking other requests?",
+  "How does Node.js scale across multiple CPU cores (cluster module, worker threads, PM2, load balancer)?",
+  "How do you handle errors in async/await and avoid unhandled promise rejections?",
+  "How did you design the schema for your project and which indexes did you add?"
+ ]
+}

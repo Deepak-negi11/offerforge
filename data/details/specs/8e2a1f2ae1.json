@@ -1,0 +1,18 @@
+{
+ "qid": "8e2a1f2ae1",
+ "question": "Hiring Manager round, Adobe Computer Scientist 1 (about 5.8 years of experience). **Design YouTube.** After a project deep dive, the interviewer, who had a multimedia background, went deep on the hard parts: **encoding/transcoding, adaptive bitrate streaming, CDN usage, buffering optimisation, video compression and handling huge video traffic**. Roughly 30 minutes were spent on it.",
+ "lookingFor": [
+  "Prioritising the hard parts: the media pipeline, not just CRUD.",
+  "Understanding of transcoding, ABR (HLS/DASH) and CDN caching.",
+  "Capacity estimation and storage/bandwidth trade-offs.",
+  "Scalable upload path and metadata design.",
+  "Failure handling and cost awareness."
+ ],
+ "answer": "**Requirements and scale.** Upload, watch, search, with low startup delay and little buffering. Assume e.g. 1B daily views and about 500K uploads a day. Estimate storage (many renditions per video) and egress bandwidth, which is the dominant cost.\n\n**Upload path.** The client gets a pre-signed URL and uploads in chunks (resumable) straight to object storage (e.g. S3-like). An upload-complete event goes onto a queue.\n\n**Transcoding pipeline.** Workers split the source into segments, transcode each in parallel into multiple resolutions and bitrates (e.g. 240p to 4K) and codecs (H.264, VP9/AV1 for popular videos), and generate thumbnails. A DAG/workflow engine orchestrates the steps, with retries and idempotent tasks. Popular videos justify costly better compression (AV1); long-tail videos get cheap encodes.\n\n**Adaptive bitrate streaming.** Output is cut into 2-10 second segments with a manifest (HLS or MPEG-DASH). The player measures throughput and buffer level and switches renditions per segment. This reduces buffering and handles varying networks. Start with a low rendition for fast startup.\n\n**Delivery and CDN.** Segments are static, so they cache very well on edge nodes. Push popular content to the edge; pull on miss from regional caches, then origin. Use cache hierarchy to protect origin, and consistent hashing inside the CDN.\n\n**Metadata.** Video id, owner, title, status, renditions in a relational or wide-column store; counters (views/likes) via async aggregation; search via an inverted index (Elasticsearch-like). Cache hot metadata in Redis.\n\n**Bottlenecks and trade-offs:** transcoding compute cost, egress cost, hot-video spikes (pre-warm CDN), storage tiering for cold videos, and DRM/security (signed URLs).",
+ "followUps": [
+  "How does the player choose a bitrate, and what goes wrong if it switches too aggressively?",
+  "Why split a video into segments for transcoding?",
+  "How would you handle a video that suddenly goes viral?",
+  "How would you reduce storage cost for rarely watched videos?"
+ ]
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "afae2cb6e5",
+ "question": "In an Adobe MTS-1 hiring manager discussion, the candidate was asked about **multithreading in Java/C++ versus async/await in JavaScript's single-threaded event loop**, the **producer-consumer problem**, and **REST API design, HTTPS requests and API contracts**.",
+ "lookingFor": [
+  "Do you understand concurrency (threads, locks) vs asynchronous I/O (event loop) and when each fits?",
+  "Can you solve and explain producer-consumer with proper synchronisation?",
+  "Do you know REST principles and good API design (resources, verbs, status codes, versioning)?",
+  "Do you understand what HTTPS adds and what an API contract means in practice?"
+ ],
+ "answer": "**Threads (Java/C++)**: the OS schedules several threads that can run truly in parallel on multiple cores and share memory. This helps CPU-bound work but brings race conditions, deadlocks and the need for locks, atomics and careful design. Each thread has stack memory and context switch cost.\n\n**JavaScript async/await**: JS runs your code on one thread with an **event loop**. A call stack executes synchronous code; async work (timers, network, file I/O) is handed to the runtime and, when done, its callback or promise continuation is queued (microtask queue for promises, task queue for timers/events). `await` pauses the async function without blocking the thread. This is excellent for I/O-bound workloads with many concurrent waits, and avoids data races on shared memory, but one long CPU-bound task blocks everything (use Web Workers or worker threads). Concurrency here is interleaving, not parallelism.\n\n**Producer-consumer**: producers add items to a bounded buffer; consumers remove them. Needs: mutual exclusion on the buffer, producers wait when it is full, consumers wait when it is empty. In Java: a `BlockingQueue` (`ArrayBlockingQueue`) handles it, or `wait/notifyAll` with a `while` loop around the condition check; in C++ a mutex plus two condition variables; classically two counting semaphores (`empty`, `full`) and a mutex. Use a loop for the condition (spurious wakeups) and decide on a shutdown signal.\n\n**REST design**: resources as nouns (`/users/42/orders`), HTTP methods with semantics (`GET` safe, `PUT` and `DELETE` idempotent, `POST` creates), proper status codes (200, 201, 400, 401, 403, 404, 409, 429, 5xx), stateless requests, pagination, filtering, versioning (`/v1`) and consistent error bodies.\n\n**HTTPS**: HTTP over TLS: the client verifies the server's certificate, a key exchange sets up a shared session key, and traffic is encrypted and integrity-protected, preventing eavesdropping and tampering.\n\n**API contract**: the agreed request/response shapes, types, errors and behaviour (documented with OpenAPI). Changes must stay backward compatible, or be versioned, with contract tests so clients and servers do not break each other.",
+ "followUps": [
+  "When would you choose threads over an event loop, and vice versa?",
+  "What is the difference between the microtask queue and the task queue in JavaScript?",
+  "What is idempotency and why does it matter for retries in APIs?",
+  "How do you evolve an API without breaking existing clients?"
+ ]
+}

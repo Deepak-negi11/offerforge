@@ -1,0 +1,19 @@
+{
+ "qid": "58a03be22b",
+ "question": "**Create a database schema for a restaurant and its menu.** This was asked in the hiring manager round of a PhonePe campus interview, alongside questions on the candidate's internship and web-app project.",
+ "lookingFor": [
+  "Can you identify entities, relationships and cardinalities from a loosely worded prompt?",
+  "Do you choose sensible keys, data types (money as integer minor units or DECIMAL) and constraints?",
+  "Do you normalise sensibly and explain where you would denormalise?",
+  "Do you think beyond the first draft: variants, availability, price history, multiple restaurants?",
+  "Can you write queries against your own schema (menu of a restaurant, top items)?"
+ ],
+ "answer": "**Clarify.** Is it one restaurant or a platform with many (the second is more general and costs little extra)? Do items have sizes or add-ons? Are prices ever changed over time? Are orders in scope? Assume a multi-restaurant platform and menu only, then mention orders as an extension.\n\n**Entities and relationships.**\n- A `restaurant` has many `menu_category` rows (Starters, Mains) and each category has many `menu_item` rows.\n- An item can have several `item_variant` rows (Small/Large) with their own price.\n- Optionally a `menu` table so a restaurant can have breakfast, lunch and dinner menus.\n\n**Schema (SQL).**\n\n```\nCREATE TABLE restaurant (\n  id          BIGINT PRIMARY KEY,\n  name        VARCHAR(120) NOT NULL,\n  address     TEXT,\n  phone       VARCHAR(20),\n  is_active   BOOLEAN NOT NULL DEFAULT TRUE\n);\n\nCREATE TABLE menu_category (\n  id            BIGINT PRIMARY KEY,\n  restaurant_id BIGINT NOT NULL REFERENCES restaurant(id),\n  name          VARCHAR(80) NOT NULL,\n  sort_order    INT NOT NULL DEFAULT 0,\n  UNIQUE (restaurant_id, name)\n);\n\nCREATE TABLE menu_item (\n  id           BIGINT PRIMARY KEY,\n  category_id  BIGINT NOT NULL REFERENCES menu_category(id),\n  name         VARCHAR(120) NOT NULL,\n  description  TEXT,\n  is_veg       BOOLEAN NOT NULL,\n  is_available BOOLEAN NOT NULL DEFAULT TRUE\n);\n\nCREATE TABLE item_variant (\n  id          BIGINT PRIMARY KEY,\n  item_id     BIGINT NOT NULL REFERENCES menu_item(id),\n  label       VARCHAR(40) NOT NULL,      -- 'Regular', 'Large'\n  price_paise INT NOT NULL CHECK (price_paise >= 0)\n);\n\nCREATE INDEX idx_item_category ON menu_item(category_id);\n```\n\n**Design choices.** Money is stored as an integer in the smallest unit (paise) to avoid floating-point errors. Foreign keys with indexes keep joins fast and data consistent. `is_available` lets staff hide an item without deleting history. The unique constraint stops duplicate category names within a restaurant.\n\n**Query example.** Full menu of one restaurant: join `menu_category` to `menu_item` to `item_variant` filtered on `restaurant_id` and `is_available`, ordered by `sort_order`.\n\n**Extensions.** Tags and allergens as a many-to-many table, add-ons (`addon_group`), a price-history table when prices change and old orders must keep the price they were bought at, and `orders`/`order_item` copying the price at order time.",
+ "followUps": [
+  "Why store the price in the order item instead of joining to the menu price?",
+  "How would you model add-ons such as extra cheese, with a maximum number selectable?",
+  "How would you support multiple menus per restaurant (breakfast, dinner) and time-based availability?",
+  "Which indexes would you add for the menu page and why?",
+  "When would you denormalise this schema?"
+ ]
+}

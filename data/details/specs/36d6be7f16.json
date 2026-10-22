@@ -1,0 +1,17 @@
+{
+ "qid": "36d6be7f16",
+ "question": "In a campus technical round for a Software Engineer (New Grad) role at NVIDIA, the candidate was asked: **why does global (or heap) memory allow much larger allocations than the stack?**\n\nFollow-up questions covered **thrashing** and **static versus dynamic linking**.",
+ "lookingFor": [
+  "Do you know the process memory layout (text, data, bss, heap, stack) and how virtual memory backs it?",
+  "Can you explain why the stack is small and fixed while the heap is flexible?",
+  "Do you know practical consequences: stack overflow, large local arrays, recursion depth?",
+  "Can you answer the OS follow-ups clearly: thrashing and linking?"
+ ],
+ "answer": "**Why the stack is small.**\n\n- Each thread's stack is a contiguous region whose maximum size is fixed when the thread or process is created. A common default for the main thread on Linux is 8 MB (`ulimit -s`), and about 1 MB on Windows. The OS reserves address space and grows it on demand up to that limit, with a guard page to detect overflow.\n- The stack stores call frames (locals, return addresses, saved registers). It must be contiguous so that allocation is just moving the stack pointer. Contiguity and one-per-thread (many threads, each needing space) are why the limit is kept modest.\n- Exceeding it (a huge local array, deep recursion) causes a stack overflow or a segmentation fault.\n\n**Why the heap and globals can be larger.**\n\n- The heap is managed by the allocator (`malloc` and `new`) on top of `brk` or `mmap`. It does not have to be contiguous with anything else, and it can grow while the process runs, limited by virtual address space, available RAM plus swap, per-process limits and overcommit policy.\n- Global and static data live in the data and bss segments, whose size is fixed at link and load time. They are mapped into virtual memory, so large arrays there are possible (large bss costs nothing until touched).\n- It is virtual memory that makes this work: pages are only backed by physical frames when used.\n\n**Trade-off.** The stack is fast (no allocator call), automatically freed and cache friendly. The heap is flexible but slower, can fragment and needs explicit lifetime management.\n\n**Thrashing.** When the combined working sets of running processes exceed physical memory, the system spends most of its time paging in and out instead of doing useful work, and throughput collapses. Fixes: reduce the working set, add RAM, lower the degree of multiprogramming.\n\n**Static versus dynamic linking.** Static linking copies library code into the executable: larger binary, no runtime dependency, no sharing between processes. Dynamic linking resolves libraries at load or run time (shared objects): smaller binaries, shared pages across processes, library updates without relinking, but dependency and version problems and a small start-up cost.",
+ "followUps": [
+  "How would you change the stack size of a thread?",
+  "How does the OS detect a stack overflow?",
+  "What is the working-set model, and how does it relate to thrashing?",
+  "What is position-independent code and why do shared libraries need it?"
+ ]
+}

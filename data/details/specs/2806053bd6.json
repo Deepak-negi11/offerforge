@@ -1,0 +1,17 @@
+{
+ "qid": "2806053bd6",
+ "question": "In a technical interview for a Software Intern role at NVIDIA, the interviewer asked two scheduling questions as part of a long operating-systems discussion: what is Multilevel Queue Scheduling and how does it differ from Priority Scheduling, and, given the arrival times and burst times of a set of processes, draw the Gantt chart under **preemptive SJF** (shortest job first, also called SRTF).\n\nThe specific process table was not reported, so practise with your own table and show waiting and turnaround times.",
+ "lookingFor": [
+  "Clear definitions of scheduling policies and the difference in how they pick the next process",
+  "Ability to simulate preemption step by step without skipping arrival events",
+  "Correct waiting time and turnaround time formulas",
+  "Awareness of starvation and how it is mitigated (aging, feedback queues)"
+ ],
+ "answer": "**Multilevel queue vs priority scheduling**\n\n- Priority scheduling keeps one ready queue and always runs the process with the best priority. It can be preemptive or not, and low-priority processes can starve (fix: aging).\n- Multilevel queue (MLQ) splits processes permanently into separate queues (e.g. system, interactive, batch). Each queue has its own algorithm (say Round Robin for interactive, FCFS for batch) and the queues are scheduled against each other, by fixed priority or by time slices (say 80% / 20% of CPU). A process never moves between queues; multilevel *feedback* queue relaxes that.\n\n**Preemptive SJF (SRTF) worked example** (illustrative table)\n\n| Process | Arrival | Burst |\n|---|---|---|\n| P1 | 0 | 8 |\n| P2 | 1 | 4 |\n| P3 | 2 | 9 |\n| P4 | 3 | 5 |\n\nMethod: at every arrival and every completion, compare the *remaining* time of the running process with the ready ones and run the smallest.\n\n- t=0: only P1 runs.\n- t=1: P2 arrives with 4 < P1's remaining 7, so P1 is preempted and P2 runs.\n- t=2, 3: P3 (9) and P4 (5) arrive; P2 has 3 then 2 left, so P2 keeps running until t=5.\n- t=5: remaining are P1=7, P3=9, P4=5, so P4 runs 5 to 10.\n- t=10: P1 runs 10 to 17. Then P3 runs 17 to 26.\n\nGantt chart: `| P1 | P2 | P4 | P1 | P3 |` with boundaries `0, 1, 5, 10, 17, 26`.\n\nTurnaround = completion - arrival: P1 17, P2 4, P3 24, P4 7 (average 13). Waiting = turnaround - burst: P1 9, P2 0, P3 15, P4 2 (average 6.5).\n\nSRTF gives the minimum average waiting time among these policies but needs burst estimates (usually exponential averaging of past bursts), causes more context switches, and starves long jobs.\n\nCommon mistakes: comparing the *original* burst instead of remaining time, forgetting a process that arrives while another runs, and breaking ties inconsistently (state your rule, usually earlier arrival).",
+ "followUps": [
+  "Why does SJF minimise average waiting time (exchange argument)?",
+  "How would you predict the next CPU burst in a real OS?",
+  "What is a multilevel feedback queue and how does it avoid starvation?",
+  "Redo the chart for non-preemptive SJF and compare average waiting times."
+ ]
+}

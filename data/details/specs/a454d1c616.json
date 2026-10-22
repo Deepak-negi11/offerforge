@@ -1,0 +1,17 @@
+{
+ "qid": "a454d1c616",
+ "question": "Atlassian software engineer intern, coding interview done locally on the candidate's own laptop and editor. Build a class that tracks the **popularity of content** on a fictional platform with these operations: `increasePopularity(contentId)`, `decreasePopularity(contentId)` and `mostPopular()` which returns the content with the highest popularity. (This is the same shape as the LeetCode problem All O`one Data Structure.) Other reports of this problem mention follow-ups such as changing popularity by `x` instead of 1 and tie-breaking rules.",
+ "lookingFor": [
+  "Choosing a data structure that supports fast updates and fast max queries.",
+  "Awareness of the O(1) design (hash map plus ordered buckets) versus heap with lazy deletion.",
+  "Clean class design, naming and edge cases.",
+  "Talking through the trade-offs while coding out loud."
+ ],
+ "answer": "**Clarify.** What should `mostPopular()` return when empty, or on a tie? Can popularity go below zero? Are ids unbounded? Assume popularity never goes below 0 and an item at 0 is removed.\n\n**Option A: map plus max-heap with lazy deletion (simple, O(log n)).**\n- `count: dict id -> int`.\n- A max-heap of `(-count, id)` entries. On every change, update `count[id]` and push a new entry.\n- `mostPopular()`: look at the heap top; while the entry's count does not equal `count[id]` (stale), pop it. Return the top id.\n- Update is O(log n), `mostPopular` amortised O(log n). Heap grows with the number of updates, so rebuild occasionally.\n\n**Option B: O(1) with a doubly linked list of buckets (the 'All O`one' design).**\n- Each bucket node holds a popularity value and the set of ids with that value. Buckets are linked in increasing order of value.\n- `map: id -> bucket node`.\n- `increase(id)`: find its bucket with value `v`; move the id to the bucket with value `v + 1`, which is the next node if its value matches, otherwise insert a new node after the current one. Remove the old bucket if empty.\n- `decrease(id)` is symmetric, moving to `v - 1` (or removing the id at 0).\n- `mostPopular()`: any id from the tail bucket. All operations are O(1) when changing by 1.\n- Changing by `x` breaks O(1) adjacency (the target bucket may be far away), so use a sorted structure (balanced tree or sorted map from value to set of ids) with O(log n), or the heap approach.\n\n**Tie-breakers.** Make the order explicit: for example highest count, then most recently updated, or smallest id. With a heap, encode it in the key tuple; with buckets, keep ids in insertion order (an ordered set).\n\n**Testing.** Empty structure, single item, ties, increase then decrease back to zero, repeated ids.\n\n**Mention** thread-safety (lock or concurrent structures) as an extension.",
+ "followUps": [
+  "How would you support increasing by an arbitrary x efficiently?",
+  "How would you return the top K most popular items?",
+  "How do you handle concurrent updates?",
+  "Which option would you choose in production and why?"
+ ]
+}

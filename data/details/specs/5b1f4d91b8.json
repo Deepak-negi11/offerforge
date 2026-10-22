@@ -1,0 +1,18 @@
+{
+ "qid": "5b1f4d91b8",
+ "question": "The interviewer picked a system from the candidate's past work, a **contract management system**, and asked you to design it: **functional and non-functional requirements, traffic and scale estimation, a microservice architecture, inter-service communication, schema design and entity relationships**, covering both **HLD and LLD**. If you have not built one, prepare to design a simple version from scratch.",
+ "lookingFor": [
+  "Can you structure a design: requirements, estimates, architecture, data, trade-offs?",
+  "Can you justify microservices (or not) and the communication style between them?",
+  "Can you design a coherent schema with versioning and state?",
+  "Do you show real ownership of your past work and its decisions?",
+  "Can you move from HLD to LLD with a concrete class or API view?"
+ ],
+ "answer": "**Pick the domain model.** A contract management system manages contracts from creation to expiry: templates, drafts, review and approval, e-signature, storage, renewal reminders and audit.\n\n**Requirements.**\n- Functional: create from templates, edit with versions, route for approval, collect signatures, store documents, search, reminders for renewal and expiry, role-based access.\n- Non-functional: strong consistency and auditability of state, durable document storage, security and access control, availability, searchability.\n\n**Estimates (state assumptions).** For example 10,000 companies, 1 million contracts, 10 versions each, files of 1 MB: roughly 10 TB of documents, a few thousand writes per hour, read-heavy. This is a low-QPS, high-value system, so say that scale is not the main challenge; correctness is.\n\n**HLD.**\n- **Contract service**: CRUD, state machine (`DRAFT -> IN_REVIEW -> APPROVED -> SIGNED -> ACTIVE -> EXPIRED/TERMINATED`).\n- **Workflow/approval service**, **Document service** (object storage plus metadata), **Signature service** (integrating an e-sign provider), **Notification/reminder service**, **Search service** (an index of metadata and text), **Auth/RBAC**, and an **audit log**.\n- **Communication**: synchronous REST/gRPC for requests needing answers; events through a broker (for example `ContractApproved`) for decoupled steps such as notifications and indexing. Mention the outbox pattern for consistency.\n\n**Schema.** `contract(id, tenant_id, template_id, status, current_version_id, counterparty_id, start_date, end_date)`, `contract_version(id, contract_id, version_no, document_url, created_by, created_at)`, `approval(id, contract_id, approver_id, status, decided_at)`, `party`, `signature`, `audit_event`. Index on `(tenant_id, status, end_date)` for expiry scans.\n\n**LLD.** Show the contract state machine class, a repository interface, and the API for transitions with validation and idempotency.\n\n**Trade-offs.** A modular monolith may beat microservices at this scale; say when you would split.",
+ "followUps": [
+  "Why microservices here, and why not a modular monolith?",
+  "How do you guarantee an audit trail that cannot be altered?",
+  "How would you implement renewal reminders reliably?",
+  "How would you support multiple tenants securely?"
+ ]
+}

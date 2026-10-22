@@ -1,0 +1,18 @@
+{
+ "qid": "df8681aba7",
+ "question": "Apple Software Engineer, technical interview. Concurrency fundamentals reported: **what async/await actually does under the hood, threads versus async execution, blocking versus non-blocking calls, and how resource contention is handled.** The candidate stressed that conceptual clarity mattered more than framework-specific answers.",
+ "lookingFor": [
+  "Accurate mental model of the event loop, state machines and threads.",
+  "Clear distinction between concurrency and parallelism, and I/O-bound versus CPU-bound work.",
+  "Understanding of blocking calls and why they stall an event loop.",
+  "Knowledge of synchronization tools and contention problems.",
+  "Language-agnostic reasoning."
+ ],
+ "answer": "**What async/await does.** `async` marks a function that can suspend. `await` says: start this operation, and if it is not finished, give control back to the caller instead of blocking. The compiler or runtime turns the function into a **state machine**: local variables are saved, the function returns a promise/future/task, and when the awaited operation completes, an **event loop** (or scheduler) resumes the function at the saved point. One thread can therefore interleave thousands of waiting tasks, since an I/O wait costs memory for a small state object, not a thread.\n\n**Threads versus async.**\n- **Threads** are scheduled preemptively by the OS. They can run in parallel on multiple cores, but each has a stack (about 1 MB reserved by default on many systems), context switches cost time, and shared data needs locks.\n- **Async tasks** are scheduled cooperatively: a task only yields at `await`. Good for many concurrent I/O-bound operations (network, disk). A CPU-bound task without awaits blocks everything else on that loop, so CPU work goes to a thread or process pool.\n- Concurrency is about dealing with many things at once; parallelism is doing many at once. Async is concurrency; threads and multiple processes can add parallelism.\n\n**Blocking versus non-blocking.** A blocking call (a synchronous read, `sleep`, a lock wait) holds its thread until it finishes. A non-blocking call returns immediately, and completion is signalled later via callback, future, or readiness events (`epoll`/`kqueue`). Calling a blocking function inside an async handler is a classic bug: it freezes the loop, so use the async variant or offload it to an executor.\n\n**Resource contention.** When tasks or threads share mutable state you get races. Tools: mutexes and read-write locks, atomics, semaphores to bound access (for example a connection pool), message passing or queues, and immutable data. Hazards: deadlock (consistent lock ordering avoids it), starvation, priority inversion, and lock convoys. In async code, shared state between awaits can still interleave, so use async locks or keep critical sections await-free.\n\n**Pick:** I/O-bound with many connections, use async; CPU-bound, use threads or processes; mix both deliberately.",
+ "followUps": [
+  "What is the difference between concurrency and parallelism?",
+  "What happens if you call a blocking function inside an async handler?",
+  "How would you bound the number of concurrent requests to a downstream service?",
+  "What is a race condition and how can it appear in single-threaded async code?"
+ ]
+}

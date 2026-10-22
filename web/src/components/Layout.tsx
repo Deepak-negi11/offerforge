@@ -12,7 +12,6 @@ const NAV = [
   { to: '/', label: 'Companies', end: true },
   { to: '/questions', label: 'Questions' },
   { to: '/topics', label: 'Topics' },
-  { to: '/about', label: 'Sources' },
 ]
 
 export function Layout() {

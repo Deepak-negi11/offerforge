@@ -1,0 +1,50 @@
+{
+ "pid": "walmart-global-tech-min-cost-package-distribution",
+ "title": "Min-Cost Package Distribution",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "There are `n` houses numbered `0` to `n - 1`. Delivering a package directly to house `i` costs `cost[i]`. Some pairs of houses are **connected**. When a package is delivered to a house, every house connected to it, directly or through a chain of connected houses, also receives the package at no extra cost.\n\nFind the minimum total cost of deliveries so that **every** house receives a package.\n\nThe list of connections may contain duplicates and self-connections (a house connected to itself); these have no special meaning.",
+ "input_format": "The first line contains two integers `n` and `m`.\nThe second line contains `n` integers `cost[0..n-1]`.\nEach of the next `m` lines contains two integers `a` and `b` (0-indexed): houses `a` and `b` are connected.",
+ "output_format": "Print one integer: the minimum total delivery cost.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ m ≤ 2 · 10^5",
+  "1 ≤ cost[i] ≤ 10^9",
+  "0 ≤ a, b < n"
+ ],
+ "examples": [
+  {
+   "input": "6 3\n8 3 5 2 9 4\n0 1\n1 2\n3 4",
+   "output": "9",
+   "explanation": "Houses {0, 1, 2} form one group (cheapest house costs 3), houses {3, 4} form another (cheapest costs 2) and house 5 is alone (cost 4). Total 3 + 2 + 4 = 9."
+  },
+  {
+   "input": "4 0\n7 7 1 5",
+   "output": "20",
+   "explanation": "No houses are connected, so every house needs its own delivery: 7 + 7 + 1 + 5 = 20."
+  },
+  {
+   "input": "5 4\n10 20 30 40 50\n0 1\n1 2\n2 3\n3 4",
+   "output": "10",
+   "explanation": "All houses form a single chain, so one delivery to the cheapest house (cost 10) reaches everyone."
+  }
+ ],
+ "complexity": {
+  "time": "O((n + m) α(n))",
+  "space": "O(n)"
+ },
+ "hints": [
+  "A package reaches exactly the houses in the same connected component as the house it is delivered to.",
+  "Group the houses into connected components, for example with a disjoint-set union (union-find) over the connections.",
+  "Within a component you only need one delivery, so pick its cheapest house; then sum the minimum of each component."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    cost = [int(x) for x in data[2:2 + n]]\n    p = list(range(n))\n    def find(x):\n        while p[x] != x:\n            p[x] = p[p[x]]\n            x = p[x]\n        return x\n    pos = 2 + n\n    for _ in range(m):\n        a = find(int(data[pos])); b = find(int(data[pos + 1]))\n        pos += 2\n        if a != b:\n            p[a] = b\n    best = {}\n    for i in range(n):\n        r = find(i)\n        if r not in best or cost[i] < best[r]:\n            best[r] = cost[i]\n    print(sum(best.values()))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\ncost = [int(x) for x in data[2:2 + n]]\nadj = [[] for _ in range(n)]\nfor i in range(m):\n    a, b = int(data[2 + n + 2 * i]), int(data[3 + n + 2 * i])\n    adj[a].append(b)\n    adj[b].append(a)\nseen = [False] * n\ntotal = 0\nfor s in range(n):\n    if seen[s]:\n        continue\n    seen[s] = True\n    stack = [s]\n    comp = []\n    while stack:\n        u = stack.pop()\n        comp.append(u)\n        for v in adj[u]:\n            if not seen[v]:\n                seen[v] = True\n                stack.append(v)\n    total += min(cost[u] for u in comp)\nprint(total)\n",
+ "generator": "def gen(rng):\n    def fmt(n, cost, edges):\n        return f\"{n} {len(edges)}\\n\" + ' '.join(map(str, cost)) + ('\\n' if edges else '') + '\\n'.join(f'{a} {b}' for a, b in edges)\n    tests = [fmt(1, [5], []), fmt(2, [3, 4], []), fmt(2, [3, 4], [(0, 1)]), fmt(3, [9, 1, 9], [(0, 1), (1, 2), (0, 2)]),\n             fmt(4, [4, 3, 2, 1], [(0, 0), (1, 1)]), fmt(5, [5, 4, 3, 2, 1], [(0, 1), (0, 1), (1, 0)])]\n    for n in (3, 5, 8, 12, 20, 30):\n        for _ in range(3):\n            m = rng.randint(0, n)\n            edges = [(rng.randrange(n), rng.randrange(n)) for _ in range(m)]\n            tests.append(fmt(n, [rng.randint(1, 50) for _ in range(n)], edges))\n    n = 100000\n    tests.append(fmt(n, [rng.randint(1, 10**9) for _ in range(n)], []))\n    tests.append(fmt(n, [rng.randint(1, 10**9) for _ in range(n)], [(i, i + 1) for i in range(n - 1)]))\n    tests.append(fmt(n, [rng.randint(1, 10**9) for _ in range(n)], [(rng.randrange(n), rng.randrange(n)) for _ in range(60000)]))\n    tests.append(fmt(n, [rng.randint(1, 10**9) for _ in range(n)], [(rng.randrange(n), rng.randrange(n)) for _ in range(200000)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_cost(n: int, cost: List[int], edges: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    cost = [int(x) for x in data[2:2 + n]]\n    edges = [[int(data[2 + n + 2 * i]), int(data[3 + n + 2 * i])] for i in range(m)]\n    print(min_cost(n, cost, edges))\n\n\nmain()\n",
+  "javascript": "function minCost(n, cost, edges) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst cost = []\nfor (let i = 0; i < n; i++) cost.push(t[2 + i])\nconst edges = []\nfor (let i = 0; i < m; i++) edges.push([t[2 + n + 2 * i], t[3 + n + 2 * i]])\nconsole.log(String(minCost(n, cost, edges)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minCost(int n, vector<long long>& cost, vector<pair<int,int>>& edges) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<long long> cost(n);\n    for (int i = 0; i < n; i++) cin >> cost[i];\n    vector<pair<int,int>> edges(m);\n    for (int i = 0; i < m; i++) cin >> edges[i].first >> edges[i].second;\n    cout << minCost(n, cost, edges) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minCost(int n, long[] cost, int[][] edges) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        long[] cost = new long[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); cost[i] = (long) in.nval; }\n        int[][] edges = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); edges[i][0] = (int) in.nval;\n            in.nextToken(); edges[i][1] = (int) in.nval;\n        }\n        System.out.println(minCost(n, cost, edges));\n    }\n}\n"
+ }
+}

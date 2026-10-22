@@ -1,0 +1,17 @@
+{
+ "qid": "1a81aa2582",
+ "question": "Tower Research Capital, Core Intern (6-month), Technical Interview 3, low-level design. After a discussion of JWT authentication, the candidate was asked to **make a simple online book publishing system**: design the **database schemas**, **repository classes** and **service classes with relevant endpoints**. The candidate's version had Users and Books tables (books with an author, content and a published flag).",
+ "lookingFor": [
+  "Sound relational schema design with keys and constraints.",
+  "Layered structure: controller, service, repository.",
+  "Sensible REST endpoints and authorisation rules.",
+  "Awareness of security basics (hashed passwords, ownership checks) and scaling."
+ ],
+ "answer": "**Requirements.** Users register and log in; authors create, edit, publish and unpublish books; anyone can browse and read published books; only the author can modify a book. Assume modest scale first.\n\n**Schema (relational).**\n- `users(id PK, name, email UNIQUE, password_hash, role, created_at)`: store only a salted hash (bcrypt or argon2).\n- `books(id PK, author_id FK -> users.id, title, content or content_ref, status ENUM('DRAFT','PUBLISHED'), created_at, published_at)`.\n- Indexes: `books(author_id)`, and `books(status, published_at)` for the public listing. Add a full-text index on `title` if search is needed.\n- Optional: `book_versions` for edit history, `tags`, and a many-to-many `book_tags`. Large contents could live in object storage with the DB holding a reference.\n\n**Layers.**\n- **Repository:** `UserRepository.findByEmail()`, `BookRepository.findByAuthorId()`, `findPublished(page, size)`, `save()`, `deleteById()`.\n- **Service:** `BookService.createDraft(userId, dto)`, `update(userId, bookId, dto)`, `publish(userId, bookId)`, `getPublished(page)`. The service enforces **ownership**: load the book and reject if `book.authorId != userId`.\n- **Controller (REST):**\n  - `POST /auth/register`, `POST /auth/login` (returns a JWT)\n  - `GET /books?page=` (published only), `GET /books/{id}`\n  - `POST /books`, `PUT /books/{id}`, `DELETE /books/{id}`\n  - `POST /books/{id}/publish`\n  - `GET /users/me/books`\n\n**Cross-cutting.** Validate input with DTOs; return proper status codes (401, 403, 404); paginate lists; use transactions where several writes occur; keep entities separate from API objects.\n\n**Scaling.** Add read replicas and a cache for popular books; put content or media in object storage and a CDN; stateless services behind a load balancer; consider sharding by author or book ID only when a single database becomes the bottleneck.",
+ "followUps": [
+  "How would you add search for books?",
+  "How would you support editing history and drafts?",
+  "How does a JWT's signature prove the token is genuine?",
+  "How would you handle many readers hitting a viral book?"
+ ]
+}

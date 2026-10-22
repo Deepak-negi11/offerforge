@@ -1,0 +1,19 @@
+{
+ "qid": "0490d2688b",
+ "question": "In an SDE-3 interview at JPMorgan, a **code snippet** was given in the first round for feedback and improvements. In a **later round the interviewer brought back the same snippet** and asked further questions about **concurrency and thread safety**. The code itself was not reported, so prepare to analyse typical Java snippets for thread-safety issues.",
+ "lookingFor": [
+  "Identifying shared mutable state and race conditions",
+  "Knowing Java's concurrency tools and their trade-offs",
+  "Visibility, atomicity and ordering concepts (the Java Memory Model)",
+  "Practical fixes rather than just naming problems",
+  "Ability to reason about a snippet you have seen before"
+ ],
+ "answer": "**How to analyse.** Ask: what state is shared between threads, and is it mutated? If a class has mutable fields reachable by multiple threads (singletons, Spring beans, static fields, caches, request handlers), check three things: atomicity, visibility and ordering.\n\n**Common problems to look for.**\n- **Check-then-act / read-modify-write races:** `if (map.get(k) == null) map.put(k, v)` or `count++`. `count++` is three steps (read, add, write), so concurrent updates are lost.\n- **Visibility:** without synchronisation or `volatile`, one thread may never see another's write (for example a stop flag in a loop).\n- **Unsafe lazy initialisation:** a singleton with unsynchronised `if (instance == null)`; use an enum, holder idiom, or double-checked locking with `volatile`.\n- **Non-thread-safe classes:** `HashMap`, `ArrayList`, `SimpleDateFormat` shared across threads.\n- **Compound operations on thread-safe collections** that are still not atomic as a whole.\n- **Deadlock risk:** nested locks taken in inconsistent order; **lock held while calling out** to unknown code.\n- **Publishing `this`** from a constructor, and returning internal mutable collections.\n\n**Fixes and tools.**\n- Prefer **immutability** and confinement (no shared state, `ThreadLocal`, stateless services).\n- `synchronized` blocks or `ReentrantLock` for compound invariants; keep them small.\n- `AtomicInteger`/`AtomicReference` or `LongAdder` for counters; `volatile` for a simple flag (visibility only, not atomicity).\n- `ConcurrentHashMap` with `computeIfAbsent`, `merge` or `compute` for atomic map updates.\n- Thread pools via `ExecutorService`, `CompletableFuture`, and `BlockingQueue` for hand-off.\n- For a Balance or counter style service, use database-level atomic updates or optimistic locking as multiple instances need more than JVM locks.\n\n**Explain trade-offs.** Coarse locks are simple but limit throughput; fine-grained locks risk deadlocks; lock-free atomics scale but only cover single-variable invariants.\n\n**Approach in the interview.** Say you will reason about shared state first, point at the exact line, demonstrate a plausible interleaving, then fix and justify.",
+ "followUps": [
+  "What is the difference between `volatile` and `synchronized`?",
+  "Why is `i++` not thread-safe even on a `volatile` int?",
+  "How does `ConcurrentHashMap` achieve thread safety?",
+  "How can two threads deadlock and how do you prevent it?",
+  "Is a Spring singleton bean thread-safe?"
+ ]
+}

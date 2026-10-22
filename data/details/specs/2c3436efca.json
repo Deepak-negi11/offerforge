@@ -1,0 +1,18 @@
+{
+ "qid": "2c3436efca",
+ "question": "Apple, Senior Software Engineer (ICT3), systems design round. Design a system for **managing asset prices**: when the price of one asset (e.g. Asset-A) changes, related assets (e.g. Asset-B, Asset-C) change according to predefined relationships. The relationships are modelled as a **directed acyclic graph with weighted edges** representing the price-change dependencies. Updates must propagate efficiently while maintaining **low latency and consistency**, similar to stock trading platforms.",
+ "lookingFor": [
+  "Modelling dependencies as a DAG and propagating in topological order.",
+  "Defining what the edge weight means (e.g. derived = base times weight) and handling diamonds.",
+  "Consistency story: atomic, versioned updates so readers never see a half-propagated state.",
+  "Latency techniques: in-memory graph, incremental recomputation, batching.",
+  "Scaling and failure handling: partitioning the graph, ordering, recovery."
+ ],
+ "answer": "**Clarify.** Define the semantics: for an edge A to B with weight w, B's price is a function of A (for example `B = f(A, w)` or `delta(B) = w * delta(A)`). Asked scale: number of assets, fan-out per asset, and update rate. Is a reader allowed to see intermediate states? Assume reads must be consistent.\n\n**Data model.** Store the graph as adjacency lists (asset id to list of `(dependent, weight)`), plus current prices with a version number. A DAG guarantees no cycles; validate on insertion (reject an edge that would create a cycle).\n\n**Propagation algorithm.** On an update to A, compute the set of affected nodes (everything reachable from A) and process it in **topological order**, so a node with several parents (a diamond: A to B, A to C, B and C to D) is computed once, after all its inputs are final. This avoids both duplicate work and transient wrong values. Precompute and cache topological ranks, and only recompute ranks when edges change. For delta-based rules, accumulate contributions from each parent; for general functions, recompute the node from its parents' current values.\n\n**Architecture.**\n- Input updates go into a partitioned log/queue so they are processed in order.\n- A **propagation service** keeps the graph and hot prices in memory (rebuilt from a database or snapshot at startup) and applies each update as one batch.\n- Results are written as one atomic, versioned snapshot (or with a transaction) to a store; consumers read a consistent version, and changes are published to subscribers (streaming).\n\n**Consistency vs latency.** A single-writer-per-connected-component design gives strict ordering without distributed locks. Disjoint components can be processed in parallel. If the graph is too large for one node, partition by component; cross-partition edges need a coordinating step or eventual consistency with version stamps.\n\n**Bottlenecks.** Very high fan-out nodes (touching millions) call for batching, coalescing multiple updates to the same asset, and bounded staleness. Recovery: replay the log from the last snapshot.",
+ "followUps": [
+  "How do you handle two updates arriving for the same asset in quick succession?",
+  "What changes if the graph can contain cycles?",
+  "How would you propagate when an edge weight changes?",
+  "How would you scale beyond one machine's memory?"
+ ]
+}

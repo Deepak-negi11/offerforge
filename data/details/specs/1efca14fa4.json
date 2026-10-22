@@ -1,0 +1,17 @@
+{
+ "qid": "1efca14fa4",
+ "question": "Dream11 SDE-2, round 2 (database-focused, 60 minutes). The question: **how would you migrate a live database from one SQL vendor to another?** The candidate answered with parallel writes and distributed transactions, and the follow-up was: **is two-phase commit really practical, and how would you handle coordinator failure?**",
+ "lookingFor": [
+  "Zero-downtime migration planning.",
+  "Understanding of dual writes, consistency and verification.",
+  "Honest knowledge of 2PC limitations.",
+  "Awareness of alternatives such as sagas and outbox/CDC."
+ ],
+ "answer": "**Migration plan (online, minimal downtime)**\n1. **Assess.** Schema differences (types, auto-increment vs sequences, constraints, stored procedures, SQL dialect), data volume, downtime tolerance. Use a compatibility layer or ORM where possible.\n2. **Build target schema** and convert code and queries. Test in staging.\n3. **Initial bulk load** from a consistent snapshot, recording the log position.\n4. **Continuous sync** with CDC from the source's log (for example Debezium) so the target catches up. This is generally safer than application dual writes.\n5. **Verify.** Row counts, checksums on sampled or chunked data, and shadow reads comparing results of the same queries.\n6. **Cut over** gradually: read from the new DB for a small share of traffic, then all reads, then flip writes (short write freeze, drain lag to zero). Keep the old DB in sync in reverse for a **rollback** window.\n7. Decommission after stability.\n\n**Dual writes problem.** Writing to two databases from the app can diverge if one write fails. Options: make one the source of truth and replicate to the other, use an outbox, or use distributed transactions.\n\n**Is 2PC practical?** It guarantees atomicity across participants (prepare, then commit), but:\n- It is **blocking**: after a participant votes yes, it holds locks until it hears the decision.\n- The **coordinator is a single point of failure.** If it crashes after prepare, participants are in doubt and stuck until recovery.\n- Higher latency and lower throughput, and cross-vendor XA support is uneven.\n\n**Handling coordinator failure.** Persist the decision in a durable log before sending it; on restart, replay the log and resend commit or abort. Replicate the coordinator (Raft or Paxos) and use timeouts with participant-driven recovery or a termination protocol. 3PC reduces blocking but is rarely used.\n\n**Conclusion.** For migrations prefer snapshot plus CDC with verification and rollback; use 2PC only where truly necessary, or sagas with compensating actions.",
+ "followUps": [
+  "How do you verify that the two databases are consistent?",
+  "How do you roll back after cutover?",
+  "What is the difference between 2PC and a saga?",
+  "How would you handle writes that arrive during the final cutover?"
+ ]
+}

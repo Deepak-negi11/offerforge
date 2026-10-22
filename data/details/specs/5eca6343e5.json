@@ -1,0 +1,19 @@
+{
+ "qid": "5eca6343e5",
+ "question": "Design a system for a **single lift (elevator) in a 1000-floor building**. Then **extend the design to 3 lifts** and explain which **data structures and classes** you would use. In the reported interview the candidate described two approaches, one using a map with a separate class per lift, and another using virtual (abstract) classes together with maps.",
+ "lookingFor": [
+  "Can you turn a vague prompt into requirements and ask about hall calls versus in-car buttons?",
+  "Do you choose a sensible scheduling policy (SCAN/LOOK) rather than first-come-first-served?",
+  "Is your class design clean: single responsibility, abstractions, and a pluggable dispatch strategy?",
+  "Do you pick data structures for the operations you need (next stop up, next stop down)?",
+  "Can you extend from one lift to many without rewriting the lift itself?"
+ ],
+ "answer": "**Clarify first.** Two kinds of requests: **hall calls** (a person on floor F pressing up or down) and **car calls** (a passenger inside choosing a destination). Ask about capacity limits, doors, emergency stop, and whether we optimise for wait time or throughput.\n\n**Single lift: scheduling.** Use the LOOK/SCAN idea: keep moving in the current direction, serve every requested stop on the way, reverse only when nothing is left ahead. Compared with serving requests in arrival order, this avoids zig-zagging across 1000 floors.\n\n**Data structures for one lift.**\n- `TreeSet<Integer> upStops` (ordered) for stops above while moving up; `TreeSet<Integer> downStops` for stops below while moving down.\n- Next stop going up is `upStops.ceiling(currentFloor)`, going down is `downStops.floor(currentFloor)`. Insert and lookup are O(log n), and a set de-duplicates repeated presses. Two heaps (min-heap for up, max-heap for down) work too.\n- A request for a floor behind the current direction goes into the opposite set to be served on the return trip.\n\n**Classes.**\n- `Elevator`: `id`, `currentFloor`, `direction` (UP, DOWN, IDLE), `state`, the two stop sets, and `step()`/`addStop()`.\n- `Request` (floor, direction, type), `Direction` enum, and optional `Door` and `Display` collaborators.\n- `ElevatorController`: receives requests and owns the lifts.\n- `DispatchStrategy` interface with `selectElevator(request, lifts)`, so policies can be swapped (Strategy pattern).\n\n**Extending to 3 lifts.** `ElevatorController` holds `Map<Integer, Elevator>` (id to lift). Car calls go straight to that lift. Hall calls go through the strategy. A good default scores each lift: prefer one **already moving toward the caller in the same direction**, else the **nearest idle** one, else the one with the **fewest pending stops**. Each lift keeps its own stop sets, so the lift class is unchanged. Use an abstract `Elevator` or interface if lifts differ (express lifts that skip floors, service lift).\n\n**Concurrency and failure.** Requests arrive concurrently, so guard each lift's sets with a lock or give each lift a single-thread event loop. Handle a lift going out of service by redistributing its pending hall calls.\n\n**Further scaling.** For 1000 floors, zone the building (express lifts serving floor ranges) to cut travel time.",
+ "followUps": [
+  "Why is LOOK better than serving requests in the order they arrive? Can it starve a request?",
+  "How would you handle a hall call when two lifts are equally close?",
+  "How would you add express lifts or lifts that only serve certain floor ranges?",
+  "How would you make the controller thread-safe?",
+  "How would you test the scheduling logic?"
+ ]
+}

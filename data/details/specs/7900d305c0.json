@@ -1,0 +1,18 @@
+{
+ "qid": "7900d305c0",
+ "question": "HCLTech Graduate Engineer Trainee technical interview. Reported question: **how do you connect a Java application to a database?** Which interface and which classes are used? Write the **full JDBC connection code step by step**.",
+ "lookingFor": [
+  "Knowledge of the JDBC API and its core types.",
+  "Ability to write correct code, including resource handling.",
+  "Awareness of SQL injection and PreparedStatement.",
+  "Understanding of drivers and connection URLs.",
+  "Good practice: closing resources and handling exceptions."
+ ],
+ "answer": "Java connects to relational databases through **JDBC** (Java Database Connectivity), the `java.sql` API. Your code uses interfaces; a vendor **JDBC driver** (for example MySQL Connector/J) implements them.\n\n**Main types.**\n- `DriverManager` (class): obtains a connection with `getConnection(url, user, password)`.\n- `Connection` (interface): a session with the database.\n- `Statement` / `PreparedStatement` (interfaces): run SQL; `PreparedStatement` takes parameters safely.\n- `ResultSet` (interface): iterates over query results.\n- `SQLException`: error type.\n\n**Steps.**\n1. Add the driver JAR (or Maven dependency) to the classpath.\n2. Load the driver. `Class.forName(\"com.mysql.cj.jdbc.Driver\")` was required in the past; since JDBC 4 the driver is auto-discovered, so it is optional.\n3. Open a connection with the JDBC URL.\n4. Create a statement.\n5. Execute the SQL.\n6. Process the `ResultSet`.\n7. Close the resources.\n\n```java\nimport java.sql.*;\n\npublic class DbDemo {\n    public static void main(String[] args) {\n        String url = \"jdbc:mysql://localhost:3306/college\";\n        String user = \"root\";\n        String pass = System.getenv(\"DB_PASS\");   // do not hard-code secrets\n        String sql = \"SELECT id, name FROM student WHERE dept = ?\";\n\n        try (Connection con = DriverManager.getConnection(url, user, pass);\n             PreparedStatement ps = con.prepareStatement(sql)) {\n            ps.setString(1, \"CSE\");\n            try (ResultSet rs = ps.executeQuery()) {\n                while (rs.next()) {\n                    System.out.println(rs.getInt(\"id\") + \" \" + rs.getString(\"name\"));\n                }\n            }\n        } catch (SQLException e) {\n            e.printStackTrace();\n        }\n    }\n}\n```\n\n**Notes.** try-with-resources closes the `ResultSet`, statement and connection automatically, even on error. Use `executeUpdate` for INSERT, UPDATE and DELETE. `PreparedStatement` prevents **SQL injection** and can be reused with different parameters. In real applications use a connection pool (for example HikariCP) instead of opening a connection per request.",
+ "followUps": [
+  "What is the difference between Statement and PreparedStatement?",
+  "What is a connection pool and why is it used?",
+  "How do you run several updates as one transaction in JDBC?",
+  "What is the difference between executeQuery, executeUpdate and execute?"
+ ]
+}

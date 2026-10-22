@@ -1,0 +1,17 @@
+{
+ "qid": "de2383b11d",
+ "question": "Zoho L3 coding round, June 2024 (about 3 hours, moderate to hard). **Design a Snake game** for a device whose screen is `height x width` as specified by the user.\n\n- The snake starts at the top-left corner `(0, 0)` with length 1.\n- You are given an array `food` where `food[i] = (ri, ci)` is a food position. Eating food grows the snake and increases the score by 1.\n- Food appears **one piece at a time**: the next piece appears only after the current one is eaten. Food never appears on a cell occupied by the snake.\n- The game ends if the snake hits a wall or its head collides with its own body.\n\nImplement the game from these rules.",
+ "lookingFor": [
+  "Can you pick a deque for the body and a hash set for O(1) collision checks?",
+  "Do you handle the subtle tail-moves-first case so the head may enter the cell the tail just left?",
+  "Is your design clean (Game, Snake, Board, Direction) and testable?",
+  "Do you handle the end of the food list, invalid moves and a full board?"
+ ],
+ "answer": "**Data structures.** Keep the snake body in a `Deque<Cell>` (head at the front, tail at the back) and the same cells in a `HashSet<Cell>` (or an encoded `r * width + c` set) for O(1) self-collision checks. Keep an index `foodIdx` into the food array and a `score`.\n\n**Move(direction)** runs in O(1):\n\n1. Compute the new head from the current head and direction (`U, D, L, R` mean row/column deltas).\n2. If it is outside `[0,height) x [0,width)`, the game is over (wall).\n3. If the new head equals the current food, grow: add the head, do not remove the tail, increment `score` and advance `foodIdx`.\n4. Otherwise the snake moves: remove the tail from both the deque and the set *first*, then check whether the new head is in the set. Removing the tail first matters because the head is allowed to move into the cell the tail is vacating.\n5. If the new head is in the set, game over; else add it to the deque front and set.\n6. Return the score, or -1 if the game is over.\n\n**Class design.** `Position(r, c)` with `equals/hashCode`; `Direction` enum with `dr, dc`; `Snake` (deque, set, `moveTo`, `grow`); `Board` (size, food queue); `Game` (state, score, `move`). `Main` reads input and prints the board. Separate rendering from rules.\n\n**Edge cases.** Food list exhausted (no more food appears), immediate reversal (decide whether to ignore or treat as collision; with length 1 it is allowed), a snake filling the whole board (win), invalid direction characters.\n\n**Complexity.** Each move O(1) time; space O(snake length). Printing the board costs O(height x width).\n\n**Pitfall.** Using a list for the body makes the collision check O(n) per move.",
+ "followUps": [
+  "Why remove the tail before the collision check when not eating?",
+  "How would you generate random food positions that never land on the snake efficiently?",
+  "How would you add obstacles or multiple food items on the board?",
+  "How would you test this class without a console?"
+ ]
+}

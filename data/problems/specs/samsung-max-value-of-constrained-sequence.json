@@ -1,0 +1,50 @@
+{
+ "pid": "samsung-max-value-of-constrained-sequence",
+ "title": "Max Value of Constrained Sequence",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "Build a sequence of `N` integers `a[0], a[1], ..., a[N-1]` that satisfies all of these rules:\n\n- `a[0] = 0`.\n- Every value is `≥ 0`.\n- Consecutive values differ by at most one: `|a[i] - a[i+1]| ≤ 1`.\n- You are given `M` limits `(x, y)`, each meaning that the value at index `x` must satisfy `a[x] ≤ y`.\n\nMany sequences can satisfy the rules. Among all of them, find the largest value that can appear anywhere in a sequence, and print it.\n\nThe limits are given in increasing order of `x`, all `x` are distinct, and `1 ≤ x ≤ N - 1`. The all-zero sequence always satisfies the rules, so an answer always exists.\n\n**Follow-up:** A DP over `(index, value)` runs out of memory for `N` up to `10^6`. Aim for a solution that uses `O(N)` time and memory.",
+ "input_format": "The first line contains two integers `N` and `M`.\nEach of the next `M` lines contains two integers `x` and `y`.",
+ "output_format": "Print a single integer: the maximum value that any valid sequence can contain.",
+ "constraints": [
+  "2 ≤ N ≤ 10^6",
+  "1 ≤ M ≤ min(N - 1, 10^5)",
+  "1 ≤ x ≤ N - 1, with the x values strictly increasing",
+  "0 ≤ y ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "10 2\n2 1\n7 1",
+   "output": "3",
+   "explanation": "One valid sequence is 0 1 1 2 3 3 2 1 2 3, whose maximum is 3. Since a[2] ≤ 1 and a[7] ≤ 1, the values in between can climb from 1 at index 2 up to 3 at index 4 or 5 and still come back down to 1 at index 7."
+  },
+  {
+   "input": "5 4\n1 0\n2 0\n3 0\n4 0",
+   "output": "0",
+   "explanation": "Every index except 0 is forced to be at most 0, so the only valid sequence is all zeros."
+  },
+  {
+   "input": "10 1\n3 1",
+   "output": "7",
+   "explanation": "a[3] ≤ 1 and the sequence can then climb by one each step until the end: 0 1 2 1 2 3 4 5 6 7, whose maximum is 7."
+  }
+ ],
+ "complexity": {
+  "time": "O(N + M)",
+  "space": "O(N)"
+ },
+ "hints": [
+  "Without any limits, the largest possible value at index i is i, since the sequence can rise by at most 1 per step. Start from that upper bound and only lower it.",
+  "A limit at one index also restricts its neighbours: a[i] ≤ a[i-1] + 1 and a[i] ≤ a[i+1] + 1. Propagate the bounds with a left-to-right pass and then a right-to-left pass.",
+  "After both passes, the resulting bound array is itself a valid sequence, so each index reaches its bound at the same time. The answer is the largest bound."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.buffer.read().split()\n    n, m = int(data[0]), int(data[1])\n    cap = list(range(n))\n    for i in range(m):\n        x = int(data[2 + 2 * i])\n        y = int(data[3 + 2 * i])\n        if y < cap[x]:\n            cap[x] = y\n    for i in range(1, n):\n        if cap[i - 1] + 1 < cap[i]:\n            cap[i] = cap[i - 1] + 1\n    for i in range(n - 2, -1, -1):\n        if cap[i + 1] + 1 < cap[i]:\n            cap[i] = cap[i + 1] + 1\n    print(max(cap))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nlim = {}\nfor i in range(m):\n    lim[int(data[2 + 2 * i])] = int(data[3 + 2 * i])\nF = [{0}]\nfor i in range(1, n):\n    new = set()\n    for v in F[-1]:\n        for d in (-1, 0, 1):\n            w = v + d\n            if w >= 0 and w <= lim.get(i, 10 ** 9):\n                new.add(w)\n    F.append(new)\nG = [None] * n\nG[n - 1] = F[n - 1]\nfor i in range(n - 2, -1, -1):\n    G[i] = {v for v in F[i] if any(v + d in G[i + 1] for d in (-1, 0, 1))}\nprint(max(max(g) for g in G))\n",
+ "generator": "def gen(rng):\n    def fmt(n, pairs):\n        return f\"{n} {len(pairs)}\\n\" + \"\\n\".join(f\"{x} {y}\" for x, y in pairs)\n    tests = [\n        fmt(2, [(1, 0)]), fmt(2, [(1, 5)]), fmt(10, [(2, 1), (7, 1)]),\n        fmt(5, [(1, 0), (2, 0), (3, 0), (4, 0)]), fmt(10, [(3, 1)]),\n        fmt(10, [(1, 3), (2, 9), (4, 6), (7, 4), (9, 5)]),\n        fmt(5, [(1, 0), (4, 0)]), fmt(6, [(5, 0)]), fmt(7, [(3, 10 ** 9)]),\n    ]\n    for _ in range(16):\n        n = rng.randint(2, 30)\n        m = rng.randint(1, n - 1)\n        xs = sorted(rng.sample(range(1, n), m))\n        hi = rng.choice([2, 5, n])\n        tests.append(fmt(n, [(x, rng.randint(0, hi)) for x in xs]))\n    N = 10 ** 6\n    tests.append(fmt(N, [(1000 * i + 1, 10 ** 9 - i) for i in range(100)]))\n    tests.append(fmt(N, [(500000, 0)] + [(500000 + 1000 * i + 1, 10 ** 9) for i in range(100)]))\n    xs = sorted(rng.sample(range(1, N), 10 ** 5))\n    tests.append(fmt(N, [(x, rng.randint(0, 300)) for x in xs]))\n    xs = sorted(rng.sample(range(1, N), 10 ** 5))\n    tests.append(fmt(N, [(x, max(0, x // 2 + rng.randint(-5, 5))) for x in xs]))\n    xs = sorted(rng.sample(range(1, N), 10 ** 5))\n    tests.append(fmt(N, [(x, rng.randint(0, 10 ** 9)) for x in xs]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef max_value(n: int, limits: List[Tuple[int, int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    limits = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(m)]\n    print(max_value(n, limits))\n\n\nmain()\n",
+  "javascript": "function maxValue(n, limits) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst limits = []\nfor (let i = 0; i < m; i++) limits.push([t[2 + 2 * i], t[3 + 2 * i]])\nconsole.log(maxValue(n, limits))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxValue(int n, vector<pair<int, long long>>& limits) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<pair<int, long long>> limits(m);\n    for (int i = 0; i < m; i++) cin >> limits[i].first >> limits[i].second;\n    cout << maxValue(n, limits) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxValue(int n, int[] xs, long[] ys) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[] xs = new int[m];\n        long[] ys = new long[m];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); xs[i] = (int) in.nval;\n            in.nextToken(); ys[i] = (long) in.nval;\n        }\n        System.out.println(maxValue(n, xs, ys));\n    }\n}\n"
+ }
+}

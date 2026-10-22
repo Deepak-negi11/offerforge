@@ -1,0 +1,18 @@
+{
+ "qid": "0187dbb142",
+ "question": "Google SWE interview, a hard design-plus-coding round. **A master-slave setup stores the logs of a Google system. Each slave holds terabytes of logs in a CSV file with rows of `[timestamp, log-data]`. Design a solution where the master prints all logs from all slaves sorted by timestamp.** The log file on a slave **might not be sorted**. For example, if slave 1 has 10M logs and slave 2 has 20M logs, the master must print all 30M in sorted order. The candidate discussed several approaches, the interviewer did not seem satisfied with any, and was asked to code the proposed solution.",
+ "lookingFor": [
+  "Recognising external sorting: data far larger than memory.",
+  "Using a k-way merge with a min-heap on the master.",
+  "Splitting sorting work so each slave sorts locally and in parallel.",
+  "Network and disk I/O awareness: streaming, batching, backpressure.",
+  "Handling failures and correctness of the final ordering."
+ ],
+ "answer": "**Constraints.** Terabytes per slave means no node can hold its data in memory, and the master certainly cannot. So the solution must be streaming and use external sorting.\n\n**Step 1: sort locally on each slave (in parallel).** Run an external merge sort:\n- Read the file in chunks that fit in memory (say 1 GB), sort each chunk by timestamp, and write each as a sorted *run* to local disk.\n- Merge the runs with a k-way merge (min-heap of the heads of each run) into one sorted file, possibly in several passes if there are too many runs. Cost: O(n log n) comparisons, about two sequential passes over the data per merge level. Slaves work in parallel, so total time is bounded by the largest slave.\n\n**Step 2: global merge at the master.** Each slave now streams its sorted file. The master keeps a **min-heap with one entry per slave**: the current head record of each stream.\n1. Push the first record from each of the S slaves.\n2. Pop the smallest, print it, and pull the next record from the same slave into the heap.\n3. Repeat until all streams are exhausted.\nHeap size is S, so each output costs O(log S) and memory is O(S), regardless of data size. Total time O(N log S) for N records.\n\n**Streaming and network.** Do not fetch records one at a time. Each slave sends data in batches (for example 10,000 rows) into a bounded buffer on the master; the master consumes from the buffer and requests more (backpressure), so the network and the master are never idle or flooded. Master output is still a single sequential stream, which is the real throughput bottleneck.\n\n**Improvements.**\n- If you can sample timestamps, partition by timestamp range (range partitioning) across several workers, each merging its range, then concatenate the ranges in order. This parallelises the final merge and avoids a single-master bottleneck.\n- If each slave could produce sorted data natively (for example log writes already time ordered), step 1 is skipped.\n\n**Failures.** Checkpoint progress (last printed timestamp per slave) and restart streams from there; retry on slave failure.\n\n**Edge cases.** Ties in timestamps (use a stable tie-break such as slave id and line offset), malformed rows, differing time formats and clock skew.",
+ "followUps": [
+  "What is the time complexity and memory usage of the master merge?",
+  "How would you avoid the master being the bottleneck with hundreds of slaves?",
+  "What if one slave is much slower than the others?",
+  "How would you handle clock skew between slaves?"
+ ]
+}

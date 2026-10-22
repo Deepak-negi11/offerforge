@@ -1,0 +1,18 @@
+{
+ "qid": "a70c7c5385",
+ "question": "Goldman Sachs HLD round (Associate). **Design a social media feed.** Functional requirements: create a post, read the feed, like a post, comment on a post. Non-functional: about **1M total users**, about **10k concurrent users**, and roughly **1-2M posts per month**.\n\nThe candidate discussed client to backend, media in S3, post metadata in SQL, and UserFollower and UserPost mappings. The interviewer focused mainly on **how the feed should be modelled in the database** and how posts map to followers.",
+ "lookingFor": [
+  "Turning numbers into a realistic design: this scale does not need an elaborate architecture.",
+  "Relational modelling: tables, keys, indexes, relationships (follower graph, posts).",
+  "Understanding feed generation trade-offs: fan-out on read vs on write.",
+  "Pagination and query performance, not just the happy path.",
+  "Avoiding over-engineering while knowing how it would scale."
+ ],
+ "answer": "**Estimate:** 1-2M posts/month is under one post per second on average. 10k concurrent users reading is a few thousand requests/sec at most. One well-indexed relational database with a cache and read replicas handles this. Say so, then explain how you would scale.\n\n**API:** `POST /posts`, `GET /feed?cursor=`, `POST /posts/{id}/likes`, `POST /posts/{id}/comments`, `POST /users/{id}/follow`. Media uploaded to object storage (S3) via pre-signed URLs, served through a CDN; the DB stores only the URL.\n\n**Data model (SQL):**\n- `users(id, name, ...)`\n- `follows(follower_id, followee_id, created_at)` with primary key (follower_id, followee_id) and an index on followee_id\n- `posts(id, author_id, text, media_url, created_at)` with index (author_id, created_at DESC)\n- `likes(post_id, user_id, created_at)` primary key (post_id, user_id) prevents duplicates; keep a counter column or cached count on `posts`\n- `comments(id, post_id, user_id, text, created_at)` index (post_id, created_at)\n\nA separate UserPost mapping is unnecessary because `posts.author_id` already provides it.\n\n**Feed query (fan-out on read):** posts where author_id is in the people I follow, ordered by created_at descending, with keyset pagination on (created_at, id) rather than OFFSET. Fast enough at this scale with the indexes above.\n\n**When it grows:** switch to fan-out on write: a `feed(user_id, post_id, created_at)` table (or Redis sorted set) updated asynchronously through a queue when someone posts. Use a hybrid for celebrities with many followers: do not push their posts, merge them at read time. Cache hot feeds, shard by user_id, use read replicas.\n\n**Trade-offs:** fan-out on write gives fast reads but costly writes and storage; on read is simple but slower for users following many accounts. Like counts can be eventually consistent.",
+ "followUps": [
+  "How would you paginate the feed so new posts do not cause duplicates?",
+  "What changes when a user has 10 million followers?",
+  "How would you rank the feed instead of showing it chronologically?",
+  "How do you prevent a user from liking a post twice under concurrent requests?"
+ ]
+}

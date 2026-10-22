@@ -1,0 +1,49 @@
+{
+ "pid": "longest-string-chain",
+ "title": "Longest String Chain",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given a list of `n` distinct words made of lowercase letters. Word `a` is a **predecessor** of word `b` if `b` can be obtained from `a` by inserting exactly one letter at any position, without reordering or changing the other letters. Equivalently, removing exactly one letter from `b` gives `a`.\n\nA **word chain** is a sequence of words from the list `w1, w2, ..., wk` in which each word is a predecessor of the next. A single word is a chain of length 1.\n\nPrint the length of the longest word chain that can be formed from the list. The words may be used in any order; the order in the input does not matter.\n\nFor example, with the words `abcd, abd, abc, a, ad`, the chain `a → ad → abd → abcd` has length 4.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains one word.",
+ "output_format": "Print a single integer: the length of the longest word chain.",
+ "constraints": [
+  "1 ≤ n ≤ 5 · 10^4",
+  "1 ≤ |word| ≤ 16",
+  "words consist of lowercase English letters and are pairwise distinct"
+ ],
+ "examples": [
+  {
+   "input": "5\nabcd\nabd\nabc\na\nad",
+   "output": "4",
+   "explanation": "a → ad (insert d) → abd (insert b) → abcd (insert c) is a chain of 4 words. `abc` is not reachable from `a`, `ab` is missing."
+  },
+  {
+   "input": "5\nxyz\nxz\nz\nzzz\nxy",
+   "output": "3",
+   "explanation": "z → xz → xyz is a chain of 3. `xy` leads to `xyz` but has no predecessor (`x` and `y` are not in the list), and `zzz` has no predecessor `zz`."
+  },
+  {
+   "input": "3\nab\nba\nc",
+   "output": "1",
+   "explanation": "`ab` and `ba` have the same length, and `c` is not obtained by removing a letter from either of them, so no chain is longer than one word."
+  }
+ ],
+ "complexity": {
+  "time": "O(n · L^2)",
+  "space": "O(n · L)"
+ },
+ "hints": [
+  "Process words from shortest to longest. A word can only extend chains that end in a word exactly one letter shorter.",
+  "Let best[w] be the longest chain ending at w. To compute it, try deleting each single letter of w and look the result up in a hash map.",
+  "best[w] = 1 + max(best[w without letter i]) over the predecessors that exist in the list (or 1 if none). The answer is the maximum best over all words. Comparing every pair of words instead is too slow."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    words = sorted(data[1:1 + n], key=len)\n    best = {}\n    ans = 1\n    for w in words:\n        b = 1\n        for i in range(len(w)):\n            p = w[:i] + w[i + 1:]\n            v = best.get(p)\n            if v is not None and v + 1 > b:\n                b = v + 1\n        best[w] = b\n        if b > ans:\n            ans = b\n    print(ans)\n\nmain()\n",
+ "brute": "import sys\nfrom functools import lru_cache\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nwords = data[1:1 + n]\nwset = set(words)\nletters = 'abcdefghijklmnopqrstuvwxyz'\n\ndef successors(a):\n    res = set()\n    for i in range(len(a) + 1):\n        for ch in letters:\n            b = a[:i] + ch + a[i:]\n            if b in wset:\n                res.add(b)\n    return res\n\n@lru_cache(maxsize=None)\ndef longest(a):\n    best = 1\n    for b in successors(a):\n        best = max(best, 1 + longest(b))\n    return best\n\nprint(max(longest(w) for w in words))\n",
+ "generator": "def gen(rng):\n    def fmt(ws):\n        return str(len(ws)) + '\\n' + '\\n'.join(ws)\n    def rword(alpha, lo, hi):\n        return ''.join(rng.choice(alpha) for _ in range(rng.randint(lo, hi)))\n    def uniq(ws):\n        seen = set()\n        out = []\n        for w in ws:\n            if w not in seen:\n                seen.add(w)\n                out.append(w)\n        return out\n    def grow(alpha, count, maxlen, start_words):\n        ws = list(start_words)\n        S = set(ws)\n        tries = 0\n        while len(ws) < count and tries < count * 20:\n            tries += 1\n            base = rng.choice(ws)\n            if len(base) >= maxlen:\n                continue\n            i = rng.randint(0, len(base))\n            w = base[:i] + rng.choice(alpha) + base[i:]\n            if w not in S:\n                S.add(w)\n                ws.append(w)\n        return ws\n    tests = [fmt(['a']), fmt(['abcd', 'abd', 'abc', 'a', 'ad']), fmt(['xyz', 'xz', 'z', 'zzz', 'xy']),\n             fmt(['ab', 'ba', 'c']), fmt(['a', 'b', 'c']), fmt(['a', 'ba', 'bca', 'bda', 'bdca'])]\n    for n in (2, 3, 5, 8, 12, 16, 20):\n        for _ in range(3):\n            alpha = rng.choice(['ab', 'abc', 'abcd'])\n            tests.append(fmt(uniq([rword(alpha, 1, 5) for _ in range(n)])))\n    for _ in range(6):\n        alpha = rng.choice(['ab', 'abc'])\n        ws = grow(alpha, rng.randint(6, 25), 7, [rng.choice(alpha)])\n        rng.shuffle(ws)\n        tests.append(fmt(ws[:60]))\n    # large tests\n    letters = 'abcdefghijklmnopqrstuvwxyz'\n    chain = ['q']\n    for _ in range(15):\n        w = chain[-1]\n        i = rng.randint(0, len(w))\n        chain.append(w[:i] + rng.choice(letters) + w[i:])\n    ws = grow(letters, 50000, 16, chain)\n    rng.shuffle(ws)\n    tests.append(fmt(ws))\n    ws = grow('ab', 50000, 16, ['a'])\n    rng.shuffle(ws)\n    tests.append(fmt(ws))\n    ws = grow('abc', 50000, 16, chain[:1] + ['a'])\n    rng.shuffle(ws)\n    tests.append(fmt(ws))\n    ws = uniq([''.join(rng.choice(letters) for _ in range(16)) for _ in range(50000)])\n    tests.append(fmt(ws))\n    ws = uniq([''.join(rng.choice('ab') for _ in range(rng.randint(1, 16))) for _ in range(50000)])\n    tests.append(fmt(ws))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef longest_chain(words: List[str]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    words = data[1:1 + n]\n    print(longest_chain(words))\n\n\nmain()\n",
+  "javascript": "function longestChain(words) {\n  // Write your solution here\n  return 0\n}\n\nconst tk = input.split(/\\s+/).filter(Boolean)\nconst n = Number(tk[0])\nconst words = tk.slice(1, 1 + n)\nconsole.log(String(longestChain(words)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint longestChain(vector<string>& words) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<string> words(n);\n    for (int i = 0; i < n; i++) cin >> words[i];\n    cout << longestChain(words) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int longestChain(String[] words) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        int n = Integer.parseInt(br.readLine().trim());\n        String[] words = new String[n];\n        for (int i = 0; i < n; i++) words[i] = br.readLine().trim();\n        System.out.println(longestChain(words));\n    }\n}\n"
+ }
+}

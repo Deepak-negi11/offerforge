@@ -1,0 +1,49 @@
+{
+ "pid": "zoho-remove-words-common-to-all-strings",
+ "title": "Remove Words Common to All Strings",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given `n` sentences. Each sentence is a sequence of words separated by single spaces. A word is **common** if it occurs (at least once) in **every** one of the `n` sentences. Words are compared exactly and are case-sensitive.\n\nRemove **every occurrence** of every common word from every sentence. The remaining words of each sentence stay in their original order, separated by single spaces. A sentence that loses all its words becomes an empty line.\n\nPrint the `n` cleaned sentences, one per line, followed by one more line containing the removed (common) words. Each removed word is listed once, in the order in which it first appears in the **first** sentence, separated by single spaces. If no word was removed, that last line is empty.\n\n**Follow-up:** Solve it without using `split` or any similar library string-splitting method: scan every sentence character by character and extract the words yourself.",
+ "input_format": "The first line contains the integer `n`.\nEach of the next `n` lines contains one sentence: one or more lowercase words separated by single spaces, with no leading or trailing spaces.",
+ "output_format": "Print `n` lines with the cleaned sentences (a line may be empty), then one line with the removed words (empty if there are none).",
+ "constraints": [
+  "1 ≤ n ≤ 1000",
+  "Every sentence has at least one word; the total number of words over all sentences is at most 10^5",
+  "Each word consists of 1 to 10 lowercase English letters"
+ ],
+ "examples": [
+  {
+   "input": "3\nthe cat sat on the mat\nthe dog sat on the log\na cat and the dog sat",
+   "output": "cat on mat\ndog on log\na cat and dog\nthe sat",
+   "explanation": "`the` and `sat` occur in all three sentences. `on` is missing from the third and `cat` and `dog` are each missing from one sentence, so they stay. Every occurrence of `the` and `sat` is removed (`the` appears twice in the first two sentences). The removed words in order of first appearance in sentence 1 are `the`, `sat`."
+  },
+  {
+   "input": "2\nred blue green\nblue red red yellow",
+   "output": "green\nyellow\nred blue",
+   "explanation": "`red` and `blue` are in both sentences, in the first sentence `red` comes first. The second sentence loses both occurrences of `red`."
+  },
+  {
+   "input": "2\nx y\nz",
+   "output": "x y\nz",
+   "explanation": "No word appears in both sentences, so nothing is removed and the last line (the removed words) is empty."
+  }
+ ],
+ "complexity": {
+  "time": "O(total length)",
+  "space": "O(total length)"
+ },
+ "hints": [
+  "A word can only be common if it appears in the first sentence, so start from the words of the first sentence.",
+  "Keep, for each distinct word, the number of sentences it has appeared in (count a word at most once per sentence). A word is common when this count equals n.",
+  "Do a second pass over every sentence, keeping only the words whose count is below n."
+ ],
+ "reference": "import sys\n\ndef main():\n    lines = sys.stdin.read().split('\\n')\n    n = int(lines[0])\n    sents = [lines[1 + i].split() for i in range(n)]\n    common = set(sents[0])\n    for s in sents[1:]:\n        common &= set(s)\n    removed = []\n    seen = set()\n    for w in sents[0]:\n        if w in common and w not in seen:\n            seen.add(w)\n            removed.append(w)\n    out = []\n    for s in sents:\n        out.append(' '.join(w for w in s if w not in common))\n    out.append(' '.join(removed))\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\nlines = sys.stdin.read().split('\\n')\nn = int(lines[0])\nsents = [lines[1 + i].split(' ') for i in range(n)]\nremoved = []\nfor w in sents[0]:\n    if w not in removed and all(w in s for s in sents):\n        removed.append(w)\nfor s in sents:\n    print(' '.join(x for x in s if x not in removed))\nprint(' '.join(removed))\n",
+ "generator": "def gen(rng):\n    letters = 'abcdefghijklmnopqrstuvwxyz'\n    def mkword(lo=1, hi=8):\n        return ''.join(rng.choice(letters) for _ in range(rng.randint(lo, hi)))\n\n    def fmt(sents):\n        return str(len(sents)) + '\\n' + '\\n'.join(' '.join(s) for s in sents)\n\n    tests = [\n        fmt([['a']]),\n        fmt([['a', 'b', 'a']]),\n        fmt([['x', 'y'], ['z']]),\n        fmt([['the', 'cat', 'sat', 'on', 'the', 'mat'], ['the', 'dog', 'sat', 'on', 'the', 'log'], ['a', 'cat', 'and', 'the', 'dog', 'sat']]),\n        fmt([['red', 'blue', 'green'], ['blue', 'red', 'red', 'yellow']]),\n        fmt([['a', 'b'], ['b', 'a']]),\n        fmt([['a', 'a'], ['a'], ['a', 'a', 'a']]),\n    ]\n    for _ in range(60):\n        v = rng.randint(2, 7)\n        vocab = list({mkword(1, 3) for _ in range(v)})\n        n = rng.randint(1, 4)\n        sents = [[rng.choice(vocab) for _ in range(rng.randint(1, 7))] for _ in range(n)]\n        tests.append(fmt(sents))\n    pool = list({mkword(1, 10) for _ in range(6000)})\n\n    def big(n, per, common_k, vocab_k):\n        common = rng.sample(pool, common_k)\n        vocab = rng.sample(pool, vocab_k)\n        sents = []\n        for _ in range(n):\n            words = [rng.choice(vocab) for _ in range(per - common_k)] if per > common_k else []\n            words += common\n            rng.shuffle(words)\n            sents.append(words)\n        return fmt(sents)\n\n    tests.append(big(1000, 100, 5, 3000))\n    tests.append(big(100, 1000, 40, 2000))\n    tests.append(big(2, 50000, 100, 150))\n    tests.append(big(10, 10000, 300, 2500))\n    tests.append(big(1, 100000, 0, 1) if False else fmt([[rng.choice(pool) for _ in range(100000)]]))\n    tests.append(big(1000, 100, 100, 100))\n    tests.append(fmt([['w'] * 50000, ['w'] * 50000]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef remove_common(sentences: List[str]) -> Tuple[List[str], List[str]]:\n    # Write your solution here\n    return [], []\n\n\ndef main():\n    lines = sys.stdin.read().split('\\n')\n    n = int(lines[0])\n    sentences = [lines[1 + i] for i in range(n)]\n    cleaned, removed = remove_common(sentences)\n    print('\\n'.join(cleaned + [' '.join(removed)]))\n\n\nmain()\n",
+  "javascript": "function removeCommon(sentences) {\n  // Write your solution here\n  return { cleaned: [], removed: [] }\n}\n\nconst lines = input.split('\\n').map(l => l.replace('\\r', ''))\nconst n = parseInt(lines[0], 10)\nconst sentences = []\nfor (let i = 0; i < n; i++) sentences.push(lines[1 + i])\nconst res = removeCommon(sentences)\nconsole.log(res.cleaned.concat([res.removed.join(' ')]).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\npair<vector<string>, vector<string>> removeCommon(vector<string>& sentences) {\n    // Write your solution here\n    return {{}, {}};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    string line;\n    getline(cin, line);\n    n = stoi(line);\n    vector<string> sentences(n);\n    for (int i = 0; i < n; i++) {\n        getline(cin, sentences[i]);\n        while (!sentences[i].empty() && (sentences[i].back() == '\\r' || sentences[i].back() == '\\n')) sentences[i].pop_back();\n    }\n    auto res = removeCommon(sentences);\n    for (auto& s : res.first) cout << s << \"\\n\";\n    for (size_t i = 0; i < res.second.size(); i++) cout << res.second[i] << (i + 1 < res.second.size() ? \" \" : \"\");\n    cout << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    // Return the cleaned sentences, then the removed words as the last element of a second list.\n    static List<List<String>> removeCommon(String[] sentences) {\n        // Write your solution here\n        // result.get(0) = cleaned sentences, result.get(1) = removed words\n        List<List<String>> result = new ArrayList<>();\n        result.add(new ArrayList<>());\n        result.add(new ArrayList<>());\n        return result;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        int n = Integer.parseInt(br.readLine().trim());\n        String[] sentences = new String[n];\n        for (int i = 0; i < n; i++) sentences[i] = br.readLine().trim();\n        List<List<String>> res = removeCommon(sentences);\n        StringBuilder sb = new StringBuilder();\n        for (String s : res.get(0)) sb.append(s).append(\"\\n\");\n        sb.append(String.join(\" \", res.get(1))).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

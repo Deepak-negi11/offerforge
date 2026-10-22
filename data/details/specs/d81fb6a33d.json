@@ -1,0 +1,19 @@
+{
+ "qid": "d81fb6a33d",
+ "question": "LLD round (1 hour) at Swiggy for SDE-1, after 10-15 minutes of resume and project discussion: **design a system to assign drivers to orders** with constraints:\n\n- Orders can be **VIP or Non-VIP**.\n- Drivers have **ratings**.\n- Different conditions determine how drivers should be matched with orders.\n\nThe candidate had to design the approach, **choose appropriate data structures**, **write code** and **do a dry run**; the interviewer cross-questioned the data-structure choices and design decisions. The exact matching rules were not reported.",
+ "lookingFor": [
+  "Can you define the matching rules clearly when the spec is vague?",
+  "Do you pick data structures (heaps, queues) that fit the rules and justify them?",
+  "Is the code modular, with matching policy separated from storage?",
+  "Can you dry-run on an example and cover edge cases?",
+  "Do you think about concurrency and extension?"
+ ],
+ "answer": "**Clarify (the rules were not reported).** A sensible assumption to state: VIP orders are served before non-VIP, and VIP orders get the highest-rated available driver; non-VIP orders get any available driver (maybe the best remaining or nearest). Ask about distance, FIFO within a class, what happens when no driver is free (queue the order), and whether drivers return to the pool after delivery.\n\n**Entities**\n- `Driver` (id, rating, status AVAILABLE/BUSY), `Order` (id, type VIP/NORMAL, createdAt), `Assignment`.\n- `DriverPool` (available drivers), `OrderQueue` (pending), `MatchingStrategy` (interface), `DispatchService`.\n\n**Data structures and why**\n- **Max-heap** of available drivers by rating: take the best in O(log n), insert on release in O(log n). Use a lazy-deletion or an id map if a driver goes offline.\n- **Two FIFO queues** (or one priority queue ordered by `(isVip desc, createdAt asc)`) for pending orders, so VIP always comes first and order within a class is fair. A priority queue is O(log n) per operation.\n- If non-VIP orders should get the lowest-rated sufficient driver, you would need a sorted structure (`TreeMap`) with a floor/ceiling lookup instead of a heap.\n\n**Algorithm**\n```\nonOrder(o):  pending.add(o); dispatch()\nonDriverFree(d): pool.add(d); dispatch()\ndispatch():\n  while pool not empty and pending not empty:\n    o = pending.poll()                 // VIP first, then oldest\n    d = strategy.pick(o, pool)         // VIP: max rating\n    assign(o, d)\n```\n\n**Dry run:** drivers D1 (4.9), D2 (4.2); orders N1 (normal), V1 (VIP) arrive in that order while both drivers are free: N1 is assigned immediately (if rules allow), then V1 gets D2. Walk through a case where all drivers are busy and V1 jumps ahead of earlier normal orders when a driver frees.\n\n**Edge cases:** no driver (order waits, with timeout), driver cancellation (re-queue), ties in rating, starvation of non-VIP orders (aging: promote after a wait threshold), and thread safety (synchronise `dispatch` or process events on a single thread/queue).\n\n**Extensibility:** `MatchingStrategy` can later add distance, driver load or batching.",
+ "followUps": [
+  "Why a heap rather than sorting the drivers every time?",
+  "How would you prevent starvation of non-VIP orders?",
+  "How would you incorporate distance between driver and restaurant?",
+  "How would you make dispatch thread-safe?",
+  "What is the time complexity of your assign and release operations?"
+ ]
+}

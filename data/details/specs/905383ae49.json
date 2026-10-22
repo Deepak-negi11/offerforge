@@ -1,0 +1,18 @@
+{
+ "question": "Adobe MTS-2 hiring manager / technical round (C++ focus): **implement the Singleton design pattern so that it is safe in a multithreaded environment, and discuss the issues a naive implementation has.** Candidates also reported being asked about Singleton in the context of multithreading in a C++/OOP discussion.",
+ "lookingFor": [
+  "Knowing the pattern and its purpose (one instance, global access).",
+  "Spotting the race in lazy initialisation.",
+  "Correct fixes, including memory-ordering subtleties of double-checked locking.",
+  "Awareness of Singleton drawbacks (global state, testing)."
+ ],
+ "answer": "**Pattern.** Ensure a class has exactly one instance and provide a global access point: private constructor, deleted copy/move, and a static accessor.\n\n**Naive version (broken under threads).**\n```cpp\nstatic Singleton* get() {\n    if (!inst) inst = new Singleton();   // two threads can both see null\n    return inst;\n}\n```\nProblems: two threads can both pass the null check and create two objects (violating the guarantee and leaking one); without synchronisation there is a data race (undefined behaviour in C++), and a thread may see a partially constructed object because of reordering.\n\n**Fix 1: lock every call.** Wrap the check in a mutex. Correct, but every access pays for the lock.\n\n**Fix 2: double-checked locking.** Check, lock, check again. In C++ this needs `std::atomic<Singleton*>` with acquire/release ordering; in Java the field must be `volatile`. Without that, the compiler or CPU may publish the pointer before the constructor's writes, so another thread reads a half-built object.\n\n**Fix 3 (preferred in C++11 and later): Meyers singleton.**\n```cpp\nclass Singleton {\n public:\n  static Singleton& get() {\n    static Singleton instance;     // initialised once, thread-safe\n    return instance;\n  }\n  Singleton(const Singleton&) = delete;\n  Singleton& operator=(const Singleton&) = delete;\n private:\n  Singleton() = default;\n};\n```\nSince C++11 the initialisation of a function-local static is guaranteed to happen exactly once even with concurrent calls. In Java, use an enum singleton or the initialisation-on-demand holder idiom; `std::call_once` is another C++ option.\n\n**Other issues:** destruction order across translation units, hidden global state that makes unit testing hard (prefer dependency injection), and subclassing difficulty.",
+ "followUps": [
+  "Why does double-checked locking need volatile or atomics?",
+  "How does the Meyers singleton guarantee thread safety?",
+  "What are the drawbacks of Singleton and what are alternatives?",
+  "How would you make a Singleton testable?",
+  "What problems arise with static destruction order?"
+ ],
+ "qid": "905383ae49"
+}

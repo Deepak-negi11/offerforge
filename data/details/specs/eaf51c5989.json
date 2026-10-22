@@ -1,0 +1,18 @@
+{
+ "qid": "eaf51c5989",
+ "question": "Reported from a Paytm SDE-1 (Backend, about 1.5 years of experience) Low-Level Design round: **design a UPI-like system** that supports:\n\n- **Multiple types of wallets** (for example Paytm Wallet and FASTag),\n- a **main bank account linked to the user**.\n\nYou must define proper **data models** and implement the core functions: **add money, transfer, balance check and transaction history**.",
+ "lookingFor": [
+  "Can you model entities cleanly: user, bank account, wallet types, transaction?",
+  "Do you apply OOP and patterns (abstraction over wallet types, strategy) without over-engineering?",
+  "Do you maintain money correctness: atomic transfers, no double-debit, no negative balance, idempotency?",
+  "Do you handle concurrency (locking, ordering) in transfers?",
+  "Can you write clear method signatures and handle failure paths?"
+ ],
+ "answer": "**Clarify scope.** Single process, in-memory plus a repository interface? Currency: assume one. Supported operations: add money (bank to wallet), transfer (wallet to wallet or wallet to bank), balance, history.\n\n**Entities.**\n- `User(id, name, phone)`\n- `BankAccount(id, userId, balance)` (or an adapter to an external bank)\n- `Account` interface/abstract class (a payment instrument) with `id`, `userId`, `balance`, `debit(amount)`, `credit(amount)`; implementations `BankAccount`, `PaytmWallet`, `FastagWallet`. Wallet types can carry rules (a FASTag wallet may only pay tolls or have a minimum balance) via a strategy or a `canDebit(context)` method.\n- `Transaction(id, fromAccountId, toAccountId, amount, type [ADD_MONEY|TRANSFER], status [PENDING|SUCCESS|FAILED], createdAt, idempotencyKey)`.\n- Use integer minor units (paise) or `BigDecimal`, never floating point.\n\n**Services.**\n- `WalletService`: `addMoney(userId, walletId, amount)` debits the linked bank account and credits the wallet; `transfer(from, to, amount, key)`; `getBalance(accountId)`; `getHistory(accountId, page)`.\n- `TransactionRepository`, `AccountRepository` interfaces to allow swapping storage.\n\n**Correctness.**\n1. **Atomicity:** debit and credit must both happen or neither. In a database, use one transaction; in memory, hold both locks.\n2. **Concurrency:** lock the two accounts in a **consistent order** (for example by account id) to avoid deadlock; or use optimistic locking with a version column and retry.\n3. **Validation:** amount greater than zero, sufficient balance, accounts active, no self-transfer.\n4. **Idempotency:** the same idempotency key returns the original result and does not move money twice.\n5. **Ledger thinking:** every movement is an immutable transaction record; the balance is a derived and cached value. History is a query on transactions filtered by account, ordered by time, paginated.\n\n**Failure handling.** For add money, if the bank debit succeeds and the wallet credit fails, record a compensating action (refund) and mark the transaction `FAILED`. Mention a status state machine.\n\n**Extensibility.** A new wallet type means a new `Account` implementation; adding fees or limits is a new strategy, without touching the transfer flow (open/closed principle).",
+ "followUps": [
+  "How would you prevent two concurrent transfers from overdrawing the same wallet?",
+  "How would you make transfer idempotent when the client retries?",
+  "How would you design the transaction history query for a user with millions of transactions?",
+  "How would the design change to call an external bank API that can time out?"
+ ]
+}

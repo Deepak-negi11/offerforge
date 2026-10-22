@@ -1,0 +1,19 @@
+{
+ "qid": "00e6c75937",
+ "question": "In round 1 of a **Platform Engineer** interview at NVIDIA (senior, about 10 years of experience), the Kubernetes/platform fundamentals round covered: **cluster architecture, OIDC and RBAC, AWS workload identity, Terraform versus Helm, Argo CD, controllers versus operators, and Vault**.\n\nMost questions in the loop had follow-ups such as *why this design?*, *what if it fails?* and *how would you scale it?*",
+ "lookingFor": [
+  "Do you know Kubernetes components and how a request flows through them?",
+  "Do you understand authentication versus authorisation (OIDC, RBAC) and workload identity?",
+  "Can you pick the right tool among Terraform, Helm and GitOps and explain boundaries?",
+  "Do you understand the controller pattern and operators?",
+  "Do you understand secrets management and failure modes?"
+ ],
+ "answer": "**Architecture.** Control plane: `kube-apiserver` (the only component that talks to etcd; authn, authz, admission), `etcd` (consistent key-value store of cluster state), `kube-scheduler` (assigns pods to nodes), `kube-controller-manager` (runs controllers). Node: `kubelet` (runs pods via a CRI runtime such as containerd), `kube-proxy`/CNI for networking. Everything is a watch on the API server, with controllers reconciling desired and actual state.\n\n**OIDC and RBAC.** OIDC is **authentication**: users log in with an identity provider; the API server validates the signed JWT (issuer, audience, claims such as groups). RBAC is **authorisation**: `Role`/`ClusterRole` define verbs on resources; `RoleBinding`/`ClusterRoleBinding` bind them to users, groups or service accounts. Use least privilege and bind to groups, not individuals.\n\n**AWS workload identity.** Avoid long-lived keys. With IRSA, a projected service account token is trusted by IAM through the cluster's OIDC provider, and the pod calls `sts:AssumeRoleWithWebIdentity` to get short-lived credentials for a role scoped to that service account. EKS Pod Identity is a newer, simpler mechanism. Scope trust policies to a specific namespace and service account.\n\n**Terraform vs Helm.** Terraform provisions infrastructure (VPCs, clusters, IAM) with state and plan/apply. Helm packages and templates Kubernetes manifests into versioned releases with values. They overlap at the edge (Terraform's Helm provider), but a common split is Terraform for infrastructure and bootstrap, Helm/GitOps for applications.\n\n**Argo CD.** A GitOps controller: Git is the source of truth; Argo continuously compares the live state and the Git state, shows drift, syncs automatically or on approval, and can self-heal.\n\n**Controller vs operator.** A controller is a reconcile loop for a resource type. An operator is a controller plus Custom Resource Definitions that encode domain-specific operational knowledge (install, upgrade, backup, failover for a database).\n\n**Vault.** Central secrets management: dynamic and short-lived secrets, encryption as a service, leases and audit logs. Pods authenticate via the Kubernetes auth method; secrets are delivered by a sidecar injector, CSI driver or External Secrets. Plan for Vault availability and unseal procedures.\n\n**Failure thinking.** Be ready to say what breaks if etcd, the API server, Vault or the IdP is down.",
+ "followUps": [
+  "What happens when you run `kubectl apply`, from the request to a running pod?",
+  "How does IRSA differ from using node instance roles?",
+  "When would you use Kustomize instead of Helm?",
+  "What happens to running workloads if the control plane goes down?",
+  "How do you rotate secrets without downtime?"
+ ]
+}

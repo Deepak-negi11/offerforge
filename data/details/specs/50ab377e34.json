@@ -1,0 +1,18 @@
+{
+ "qid": "50ab377e34",
+ "question": "Intel Software Engineering Intern, technical interview (C++). The candidate was asked about **OOP concepts such as polymorphism and its types, with code implementation**, and about **virtual functions**; the interviewers also asked **what a race condition is**. The task: explain compile-time vs runtime polymorphism in C++ with code, the role of virtual functions, and define a race condition.",
+ "lookingFor": [
+  "Clear classification of polymorphism (static versus dynamic).",
+  "Working code examples rather than only definitions.",
+  "Understanding of the vtable mechanism and why virtual is needed.",
+  "Awareness of costs and pitfalls (virtual destructor, slicing).",
+  "A correct basic definition of a race condition and how to prevent one."
+ ],
+ "answer": "**Polymorphism** means one interface, many implementations. C++ has two kinds.\n\n**1. Compile-time (static) polymorphism:** the compiler picks the function. Forms: function overloading, operator overloading and templates.\n\n```cpp\nint add(int a, int b)       { return a + b; }\ndouble add(double a, double b) { return a + b; }   // overload\ntemplate <class T> T maxOf(T a, T b) { return a > b ? a : b; }\n```\nResolved by argument types at compile time, so there is no runtime cost and calls can be inlined.\n\n**2. Runtime (dynamic) polymorphism:** the function is chosen by the object's actual type at runtime, using inheritance, virtual functions and a base pointer or reference.\n\n```cpp\nstruct Shape { virtual double area() const = 0; virtual ~Shape() = default; };\nstruct Circle : Shape { double r; Circle(double r):r(r){} double area() const override { return 3.14159*r*r; } };\nstruct Rect   : Shape { double w,h; Rect(double w,double h):w(w),h(h){} double area() const override { return w*h; } };\n\nvoid print(const Shape& s) { std::cout << s.area(); }   // works for any Shape\n```\n\n**Role of `virtual`.** Without it, a call through a `Shape*` binds to `Shape`'s version at compile time. With it, each object has a hidden vptr to its class's vtable (a table of function pointers), so the call is looked up at runtime. `= 0` makes a function pure virtual and the class abstract. `override` lets the compiler check you really override. A polymorphic base needs a **virtual destructor**, otherwise deleting through a base pointer is undefined behavior. Polymorphism works through pointers or references, not by value (slicing).\n\n**Race condition.** A bug where the result depends on the unpredictable timing or interleaving of threads (or processes) accessing shared data, and at least one of them writes. Example: two threads doing `counter++`, which is read-modify-write, can both read 5 and both write 6, losing an update. Prevent it with mutual exclusion (`std::mutex` with `lock_guard`), atomic operations (`std::atomic<int>`), avoiding shared mutable state, or message passing.",
+ "followUps": [
+  "How is a vtable laid out, and what happens with multiple inheritance?",
+  "What is the difference between overriding and overloading?",
+  "When would you use templates instead of virtual functions?",
+  "How would you fix a race condition on a shared counter?"
+ ]
+}

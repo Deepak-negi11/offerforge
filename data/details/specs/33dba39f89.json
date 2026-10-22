@@ -1,0 +1,17 @@
+{
+ "qid": "33dba39f89",
+ "question": "JPMorgan Chase, Senior Data Engineer / SWE II, Technical Interview 2. **SQL and PySpark:** find the **employees whose salary is greater than the average salary**, and the **highest-earning employee in each department**. The same round included other SQL and PySpark problems, window functions and aggregations. Assume a table `employees(id, name, dept_id, salary)`.",
+ "lookingFor": [
+  "Correct use of a scalar subquery or window function for the average comparison.",
+  "Per-group maximum with ties handled deliberately (`RANK` vs `ROW_NUMBER`).",
+  "Knowing both SQL and the equivalent PySpark DataFrame code.",
+  "Awareness of performance and `NULL` handling."
+ ],
+ "answer": "**1. Salary above the overall average.**\n\n```sql\nSELECT id, name, salary\nFROM employees\nWHERE salary > (SELECT AVG(salary) FROM employees);\n```\nThe scalar subquery runs once and returns one value. `AVG` ignores `NULL` salaries. Variant: above the average of their own department, using a window function: `AVG(salary) OVER (PARTITION BY dept_id)` in a subquery, then filter on it.\n\n**2. Highest earner per department.**\n\n```sql\nSELECT dept_id, id, name, salary\nFROM (\n  SELECT e.*, RANK() OVER (PARTITION BY dept_id ORDER BY salary DESC) AS rnk\n  FROM employees e\n) t\nWHERE rnk = 1;\n```\n`PARTITION BY` restarts the ranking per department. **`RANK`** returns all employees tied at the top; `ROW_NUMBER` returns exactly one (arbitrary among ties unless you add a tiebreaker); `DENSE_RANK` matters when you want the Nth highest. State which behaviour the question wants. A join alternative is to join the table to `SELECT dept_id, MAX(salary) ... GROUP BY dept_id` on both columns, which also returns ties.\n\n**PySpark equivalents.**\n\n```python\nfrom pyspark.sql import functions as F, Window\n\navg_sal = df.agg(F.avg(\"salary\")).first()[0]\nabove_avg = df.filter(F.col(\"salary\") > avg_sal)\n\nw = Window.partitionBy(\"dept_id\").orderBy(F.col(\"salary\").desc())\ntop = (df.withColumn(\"rnk\", F.rank().over(w))\n         .filter(\"rnk = 1\").drop(\"rnk\"))\n```\nThe first computes the average on the driver as one action; alternatively use `df.crossJoin(df.agg(F.avg(\"salary\").alias(\"avg\")))` to keep it lazy.\n\n**Performance notes.** A window with `PARTITION BY` triggers a shuffle on `dept_id`, and a heavily skewed department can create a hot partition; consider salting or checking the skew. Avoid `collect` on large data. Use built-in functions rather than Python UDFs so Catalyst can optimise the plan.\n\n**Edge cases:** an empty table (the average is `NULL`, so the first query returns no rows), `NULL` salaries (`ORDER BY ... DESC` puts them first in some engines; add `NULLS LAST`), and employees with no department.",
+ "followUps": [
+  "How would you find the second-highest salary in each department?",
+  "What is the difference between `RANK`, `DENSE_RANK` and `ROW_NUMBER`?",
+  "How would you handle data skew in the PySpark window version?",
+  "How would you find employees earning more than their own department's average?"
+ ]
+}

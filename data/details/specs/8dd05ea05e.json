@@ -1,0 +1,17 @@
+{
+ "qid": "8dd05ea05e",
+ "question": "In the first technical round of an SAP Labs summer-internship interview (offline), there was a DBMS task: add a column to two tables, make it a foreign key, and write a join to extract results. The exact tables were not reported, so a typical pair is used here: a parent table that owns the key and a child table that references it.",
+ "lookingFor": [
+  "Do you know the difference between a primary key and a foreign key, and what constraint a foreign key enforces?",
+  "Can you write `ALTER TABLE` statements correctly from memory?",
+  "Do you think about existing data and referential integrity before adding the constraint?",
+  "Can you write and explain an `INNER JOIN` versus a `LEFT JOIN`?"
+ ],
+ "answer": "**Setup (assumed tables).** `departments(dept_id PK, dept_name)` and `employees(emp_id PK, emp_name)`. We want each employee to belong to a department.\n\n**1. Add the column.** The child table gets the referencing column; if the parent also needs a new column (for example a unique code), add it too.\n\n```sql\nALTER TABLE employees ADD COLUMN dept_id INT;\nALTER TABLE departments ADD COLUMN location VARCHAR(50);\n```\n\n**2. Make it a foreign key.**\n\n```sql\nALTER TABLE employees\n  ADD CONSTRAINT fk_emp_dept\n  FOREIGN KEY (dept_id) REFERENCES departments(dept_id)\n  ON DELETE SET NULL;\n```\n\nPoints to say out loud:\n- The referenced column must be a primary key or unique, and have the same data type.\n- Existing rows must already satisfy the constraint. Backfill valid `dept_id` values or leave them `NULL` before adding it, otherwise the statement fails.\n- A foreign key enforces *referential integrity*: you cannot insert an employee for a department that does not exist, and you cannot delete a department that still has employees unless you define `ON DELETE CASCADE` or `SET NULL`.\n- Index the foreign key column (some databases do not do it automatically) so joins and deletes on the parent stay fast.\n\n**3. Join to extract results.**\n\n```sql\nSELECT e.emp_name, d.dept_name\nFROM employees e\nINNER JOIN departments d ON e.dept_id = d.dept_id;\n```\n\n`INNER JOIN` returns only matching pairs. To also list employees with no department, use `LEFT JOIN departments d ...`; the department columns come back `NULL` for them.\n\n**Variant to be ready for.** If asked to add the column in both tables, you can say \"add the shared column, then the child table's constraint points to the parent's key\". Syntax differs slightly by database (for example `ADD COLUMN` without the keyword `COLUMN` in Oracle), so state which one you are assuming.",
+ "followUps": [
+  "What is the difference between INNER, LEFT, RIGHT and FULL joins?",
+  "What happens if you try to delete a parent row that has child rows?",
+  "Can a foreign key be NULL, and can it reference a non-primary key?",
+  "How would you find employees whose department does not exist or is missing?"
+ ]
+}

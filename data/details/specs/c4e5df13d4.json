@@ -1,0 +1,19 @@
+{
+ "qid": "c4e5df13d4",
+ "question": "In the Java and high-level-design round for a Developer T2 (full-stack, 3 years of experience) role at SAP Labs, after core Java and Spring Boot fundamentals, the candidate was asked to design a system that returns the **top-K most viewed YouTube videos**. The round was backend-heavy and no frontend questions were asked.",
+ "lookingFor": [
+  "Do you clarify requirements first (time window, K, freshness, accuracy, scale)?",
+  "Do you know a correct and scalable way to count and rank at high write volume?",
+  "Can you use the right data structures (heap, sorted set) and explain trade-offs such as exact versus approximate counts?",
+  "Do you design for sharding, hot keys, failure and read-heavy traffic?",
+  "Can you structure the answer and defend the trade-offs?"
+ ],
+ "answer": "**Clarify.** Top-K over what window (all time, last hour, last day)? How fresh must it be (real time or minutes)? Global or per region/category? Assume K up to 100, ~1 billion views/day (about 12k/sec average, higher at peak), reads far fewer than writes, and slightly stale results are acceptable.\n\n**APIs.** `POST /views` (video_id, user, timestamp), usually emitted as an event rather than a synchronous call; `GET /top?k=100&window=1h&region=IN`.\n\n**Data flow.**\n1. Clients/servers emit view events to a log such as Kafka, partitioned by `video_id` so one video's views land on one partition.\n2. A stream processor (Flink/Spark Streaming or a simple consumer group) aggregates counts per video in small time buckets (for example 1-minute tumbling windows).\n3. Each partition keeps its local top-K using a **min-heap of size K**: push a candidate, pop the smallest when size exceeds K; O(log K) per update.\n4. A merge step combines the partition top-Ks into the global top-K. This is correct because every global top-K video is in the top-K of its own partition.\n5. Results are written to a store (Redis sorted set or a small table) and served from cache; the API only reads the precomputed list.\n\n**Windows.** For \"last hour/day\", keep per-minute buckets and sum the last N buckets (sliding window), or subtract expired buckets. All-time top-K can be a running counter updated from the stream.\n\n**Exact vs approximate.** Per-video counters in a hash map are exact but memory grows with the catalogue. A **Count-Min Sketch** plus a heap gives approximate counts in fixed memory, suitable when only heavy hitters matter. Batch jobs (MapReduce/Spark) can periodically recompute exact counts and correct the approximate result.\n\n**Bottlenecks and scaling.**\n- Hot videos: a viral video concentrates writes on one partition; pre-aggregate locally (batch increments per consumer) and use salting for extreme cases.\n- Durability: Kafka retains events; checkpoint operator state so a failed worker replays from its offset.\n- Read load: cache the top-K for a few seconds; it is small and identical for most users.\n- Duplicates and abuse: deduplicate views by (user, video, window) and filter bots.",
+ "followUps": [
+  "How do you handle a single viral video that overloads one partition?",
+  "How would you support top-K per category or country as well as global?",
+  "What is a Count-Min Sketch and what error does it introduce?",
+  "How do you get exactly-once counting, or is at-least-once with dedup enough?",
+  "What changes if K is huge (for example the top million)?"
+ ]
+}

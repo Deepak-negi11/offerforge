@@ -1,0 +1,43 @@
+{
+ "pid": "visa-cells-with-uniform-row-and-column",
+ "title": "Cells With Uniform Row and Column",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a grid of integers with `r` rows and `c` columns. For a cell `(i, j)`, look at every **other** cell in row `i` and every **other** cell in column `j`, that is, all the cells of the \"cross\" through `(i, j)` except `(i, j)` itself. The cell `(i, j)` is **good** if all of those cells hold one single identical value. The value of the cell `(i, j)` itself does not matter: it may be equal to that value or different.\n\nIf the cross has no other cells (a `1 x 1` grid), the cell is good.\n\nPrint the number of good cells.",
+ "input_format": "The first line contains `r` and `c`.\nEach of the next `r` lines contains `c` integers: one row of the grid.",
+ "output_format": "Print a single integer: the number of good cells.",
+ "constraints": [
+  "1 ≤ r, c ≤ 500",
+  "1 ≤ grid[i][j] ≤ 10^5"
+ ],
+ "examples": [
+  {
+   "input": "3 3\n1 1 1\n1 2 1\n1 1 1",
+   "output": "5",
+   "explanation": "The centre cell has four neighbours in its cross, all equal to 1, so it is good although it holds 2. Each corner sees only 1s as well. A middle-of-edge cell, such as the top middle one, sees the 2 in its column together with 1s, so it is not good."
+  },
+  {
+   "input": "2 3\n5 5 5\n5 5 9",
+   "output": "3",
+   "explanation": "Cell (0,0): its cross holds 5, 5 and 5, so it is good; the same holds for (0,1). Cell (1,2): the others in its row are 5, 5 and the other in its column is 5, so it is good although it holds 9. Cell (0,2) sees a 9 in its column and 5s in its row, so it is not good. Cells (1,0) and (1,1) see both 5 and 9 in their row."
+  }
+ ],
+ "complexity": {
+  "time": "O(r * c)",
+  "space": "O(r + c) extra"
+ },
+ "hints": [
+  "Checking each cell's whole cross costs O(r + c) per cell. Try to answer 'are the other cells of this row all equal?' in O(1).",
+  "For each row keep a frequency map of its values. Removing one cell leaves a uniform remainder only if the row has one distinct value, or two distinct values and the cell's own value occurs exactly once.",
+  "Do the same for each column, then combine: both parts must be uniform and, if both are non-empty, hold the same value."
+ ],
+ "reference": "import sys\nfrom collections import Counter\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    g = [[int(x) for x in data[2 + i * c:2 + (i + 1) * c]] for i in range(r)]\n    rows = [Counter(row) for row in g]\n    cols = [Counter(g[i][j] for i in range(r)) for j in range(c)]\n    EMPTY = 0\n\n    def rest(C, a, L):\n        # value shared by all other cells of a line, EMPTY if none, -1 if not uniform\n        k = len(C)\n        if k == 1:\n            return a if L > 1 else EMPTY\n        if k == 2 and C[a] == 1:\n            for key in C:\n                if key != a:\n                    return key\n        return -1\n\n    total = 0\n    for i in range(r):\n        Ri = rows[i]\n        gi = g[i]\n        for j in range(c):\n            a = gi[j]\n            rv = rest(Ri, a, c)\n            if rv == -1:\n                continue\n            cv = rest(cols[j], a, r)\n            if cv == -1:\n                continue\n            if rv == EMPTY or cv == EMPTY or rv == cv:\n                total += 1\n    print(total)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\ng = [[int(x) for x in data[2 + i * c:2 + (i + 1) * c]] for i in range(r)]\ntotal = 0\nfor i in range(r):\n    for j in range(c):\n        vals = set()\n        for jj in range(c):\n            if jj != j:\n                vals.add(g[i][jj])\n        for ii in range(r):\n            if ii != i:\n                vals.add(g[ii][j])\n        if len(vals) <= 1:\n            total += 1\nprint(total)\n",
+ "generator": "def gen(rng):\n    def fmt(g):\n        return f'{len(g)} {len(g[0])}\\n' + '\\n'.join(' '.join(map(str, row)) for row in g)\n    def uniform(r, c, v=1):\n        return [[v] * c for _ in range(r)]\n    tests = [fmt([[7]]), fmt([[1, 2]]), fmt([[3, 3, 3, 4]]), fmt([[1], [2], [2]]), fmt([[1, 1, 1], [1, 2, 1], [1, 1, 1]]), fmt([[5, 5, 5], [5, 5, 9]]), fmt([[1, 2], [3, 4]]), fmt(uniform(2, 2, 4))]\n    for _ in range(30):\n        r, c = rng.randint(1, 6), rng.randint(1, 6)\n        k = rng.choice([2, 2, 3])\n        if rng.random() < 0.5:\n            g = [[rng.randint(1, k) for _ in range(c)] for _ in range(r)]\n        else:\n            g = uniform(r, c, rng.randint(1, 3))\n            for _ in range(rng.randint(1, 3)):\n                g[rng.randrange(r)][rng.randrange(c)] = rng.randint(1, 3)\n        tests.append(fmt(g))\n    R = C = 500\n    tests.append(fmt(uniform(R, C, 77777)))\n    g = uniform(R, C, 5)\n    g[rng.randrange(R)][rng.randrange(C)] = 6\n    tests.append(fmt(g))\n    g = uniform(R, C, 100000)\n    for _ in range(40):\n        g[rng.randrange(R)][rng.randrange(C)] = rng.randint(1, 100000)\n    tests.append(fmt(g))\n    tests.append(fmt([[rng.randint(1, 10**5) for _ in range(C)] for _ in range(R)]))\n    tests.append(fmt([[rng.randint(1, 2) for _ in range(C)] for _ in range(R)]))\n    g = uniform(R, C, 9)\n    g[0][0] = 3\n    g[R - 1][C - 1] = 3\n    tests.append(fmt(g))\n    tests.append(fmt([[rng.randint(1, 10**5)] * C for _ in range(R)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_good_cells(grid: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    grid = [[int(x) for x in data[2 + i * c:2 + (i + 1) * c]] for i in range(r)]\n    print(count_good_cells(grid))\n\n\nmain()\n",
+  "javascript": "function countGoodCells(grid) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst r = t[0], c = t[1]\nconst grid = []\nfor (let i = 0; i < r; i++) grid.push(t.slice(2 + i * c, 2 + (i + 1) * c))\nconsole.log(countGoodCells(grid))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countGoodCells(vector<vector<int>>& grid) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<vector<int>> grid(r, vector<int>(c));\n    for (int i = 0; i < r; i++)\n        for (int j = 0; j < c; j++) cin >> grid[i][j];\n    cout << countGoodCells(grid) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countGoodCells(int[][] grid) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int r = (int) in.nval;\n        in.nextToken();\n        int c = (int) in.nval;\n        int[][] grid = new int[r][c];\n        for (int i = 0; i < r; i++)\n            for (int j = 0; j < c; j++) {\n                in.nextToken();\n                grid[i][j] = (int) in.nval;\n            }\n        System.out.println(countGoodCells(grid));\n    }\n}\n"
+ }
+}

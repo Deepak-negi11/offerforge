@@ -1,0 +1,43 @@
+{
+ "pid": "rubrik-sum-of-prefix-ands-over-a-range",
+ "title": "Sum of Prefix ANDs over a Range",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "In a distributed backup system, data blocks are indexed by the integers `L` to `R`. A compression step combines blocks with the bitwise AND operation. For a test case with bounds `L` and `R`, compute\n\n`S = L + (L & (L+1)) + (L & (L+1) & (L+2)) + ... + (L & (L+1) & ... & R)`\n\nthat is, the sum over every `k` from `L` to `R` of the bitwise AND of all integers from `L` to `k`. Since the result can be huge, print it modulo `10^9 + 7`.\n\nThe input contains several independent test cases.",
+ "input_format": "The first line contains an integer `T`, the number of test cases.\nEach of the next `T` lines contains two integers `L` and `R`.",
+ "output_format": "For each test case print one line: the value of `S` modulo `10^9 + 7`.",
+ "constraints": [
+  "1 ≤ T ≤ 10^4",
+  "1 ≤ L ≤ R ≤ 10^18"
+ ],
+ "examples": [
+  {
+   "input": "3\n5 7\n9 9\n1 4",
+   "output": "13\n9\n1",
+   "explanation": "For L=5, R=7: 5 + (5&6 = 4) + (5&6&7 = 4) = 13. For L=R=9 the sum is just 9. For L=1, R=4: 1 + (1&2 = 0) + 0 + 0 = 1."
+  },
+  {
+   "input": "1\n6 10",
+   "output": "12",
+   "explanation": "The running ANDs are 6, 6&7 = 6, 6&7&8 = 0, then 0 and 0, so the sum is 6 + 6 = 12."
+  }
+ ],
+ "complexity": {
+  "time": "O(T log R)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "The AND of all integers from L to k keeps exactly the common binary prefix of L and k and zeros out everything below the highest bit where they differ.",
+  "Group the values of k by the highest bit h where k and L differ. Since k > L, bit h of L is 0 and bit h of k is 1, and all higher bits agree with L. Those k form one contiguous block.",
+  "For each bit h that is 0 in L, the block is [base + 2^h, base + 2^(h+1) - 1] where base is L with bits 0..h cleared, intersected with [L, R]. Every k in it contributes `base`. Add L itself for k = L, then take everything modulo 10^9 + 7."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    t = int(data[0])\n    MOD = 10 ** 9 + 7\n    out = []\n    for c in range(t):\n        L = int(data[1 + 2 * c]); R = int(data[2 + 2 * c])\n        total = L\n        for h in range(R.bit_length()):\n            if (L >> h) & 1:\n                continue\n            base = (L >> (h + 1)) << (h + 1)\n            start = base + (1 << h)\n            end = start + (1 << h) - 1\n            hi = R if R < end else end\n            if hi >= start:\n                total += (hi - start + 1) * base\n        out.append(total % MOD)\n    print('\\n'.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nt = int(data[0])\nout = []\nfor c in range(t):\n    L = int(data[1 + 2 * c]); R = int(data[2 + 2 * c])\n    cur = L\n    total = 0\n    for k in range(L, R + 1):\n        cur &= k\n        total += cur\n    out.append(total % (10 ** 9 + 7))\nprint('\\n'.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def fmt(cases):\n        return str(len(cases)) + '\\n' + '\\n'.join(f\"{l} {r}\" for l, r in cases)\n\n    tests = [fmt([(5, 7), (9, 9), (1, 4)]), fmt([(6, 10)]), fmt([(1, 1)]), fmt([(1, 2)]), fmt([(7, 8)]),\n             fmt([(8, 15)]), fmt([(3, 3), (4, 4)]), fmt([(1, 100)]), fmt([(2, 64)]), fmt([(63, 65)])]\n    for hi in (8, 16, 64, 300, 5000):\n        for _ in range(3):\n            cs = []\n            for _ in range(rng.randint(3, 8)):\n                a = rng.randint(1, hi)\n                b = rng.randint(a, min(hi, a + 300))\n                cs.append((a, b))\n            tests.append(fmt(cs))\n    M = 10 ** 18\n    tests.append(fmt([(1, M)]))\n    tests.append(fmt([(M, M)]))\n    tests.append(fmt([(M - 1, M)]))\n    tests.append(fmt([(2 ** 59, M)]))\n    tests.append(fmt([(2 ** 59 - 5, 2 ** 59 + 5)]))\n    cs = []\n    for _ in range(10000):\n        a = rng.randint(1, M)\n        b = rng.randint(a, M)\n        cs.append((a, b))\n    tests.append(fmt(cs))\n    cs = []\n    for _ in range(10000):\n        a = rng.randint(1, 2 ** 40)\n        b = rng.randint(M // 2, M)\n        cs.append((a, b))\n    tests.append(fmt(cs))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef range_and_sum(L: int, R: int) -> int:\n    MOD = 10 ** 9 + 7\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    t = int(data[0])\n    out = []\n    for c in range(t):\n        L = int(data[1 + 2 * c])\n        R = int(data[2 + 2 * c])\n        out.append(range_and_sum(L, R))\n    print('\\n'.join(map(str, out)))\n\n\nmain()\n",
+  "javascript": "const MOD = 1000000007n\n\nfunction rangeAndSum(L, R) {\n  // L and R are BigInt values (they can reach 10^18)\n  // Write your solution here\n  return 0n\n}\n\nconst tok = input.split(/\\s+/).filter(Boolean)\nconst t = Number(tok[0])\nconst out = []\nfor (let c = 0; c < t; c++) {\n  out.push(String(rangeAndSum(BigInt(tok[1 + 2 * c]), BigInt(tok[2 + 2 * c]))))\n}\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long rangeAndSum(long long L, long long R) {\n    const long long MOD = 1000000007LL;\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int t;\n    cin >> t;\n    while (t--) {\n        long long L, R;\n        cin >> L >> R;\n        cout << rangeAndSum(L, R) << \"\\n\";\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static final long MOD = 1000000007L;\n\n    static long rangeAndSum(long L, long R) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int t = Integer.parseInt(st.nextToken());\n        StringBuilder sb = new StringBuilder();\n        while (t-- > 0) {\n            long L = Long.parseLong(st.nextToken());\n            long R = Long.parseLong(st.nextToken());\n            sb.append(rangeAndSum(L, R)).append(\"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

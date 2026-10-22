@@ -1,0 +1,50 @@
+{
+ "pid": "bloomberg-longest-dictionary-word-from-letters",
+ "title": "Longest Dictionary Word From Letters",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a dictionary of `n` words and a string `letters`, like the rack of tiles in Scrabble. A word **can be formed** from `letters` if you can pick tiles from `letters` to spell it, using each tile at most once; the order of the letters in `letters` does not matter, but a letter that appears `k` times in the word must appear at least `k` times in `letters`.\n\nFind the **longest** dictionary word that can be formed from `letters`. If several words of that maximum length can be formed, print the **lexicographically smallest** one. If no dictionary word can be formed, print `-1`.\n\nThe dictionary may contain the same word more than once.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains one dictionary word.\nThe last line contains the string `letters`.",
+ "output_format": "Print the chosen word, or `-1` if no word can be formed.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ length of each word ≤ 100, and the total length of all words ≤ 10^6",
+  "1 ≤ |letters| ≤ 10^5",
+  "all words and `letters` consist of lowercase English letters"
+ ],
+ "examples": [
+  {
+   "input": "4\nwhen\nwhat\nwhatthen\nwhatnow\nwhatno",
+   "output": "what",
+   "explanation": "`whatnow` needs two `w` but `whatno` has only one, and `whatthen` needs two `t` and an `e`. `when` needs an `e`. Only `what` can be formed."
+  },
+  {
+   "input": "4\nwhen\nwhat\nwhatthen\nwhatnow\nwonthaw",
+   "output": "whatnow",
+   "explanation": "The letters `w o n t h a w` contain `w` twice, `h`, `a`, `t`, `n`, `o`, so `whatnow` can be formed and it is the longest such word."
+  },
+  {
+   "input": "5\ntac\nact\ncat\nat\ncatz\ntcaxx",
+   "output": "act",
+   "explanation": "`catz` needs a `z`. Of the length-3 words that can be formed (`tac`, `act`, `cat`), `act` is lexicographically smallest."
+  }
+ ],
+ "complexity": {
+  "time": "O(L + m)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Only the count of each of the 26 letters in `letters` matters, not their order.",
+  "Check each word on its own against those 26 counts. The check costs time proportional to the word's length.",
+  "A word beats the current best if it is longer, or equally long and lexicographically smaller. Skip words longer than `letters` right away."
+ ],
+ "reference": "import sys\nfrom collections import Counter\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    words = data[1:1 + n]\n    letters = data[1 + n]\n    avail = Counter(letters)\n    m = len(letters)\n    best = None\n    for w in words:\n        lw = len(w)\n        if lw > m:\n            continue\n        if best is not None:\n            if lw < len(best):\n                continue\n            if lw == len(best) and w >= best:\n                continue\n        ok = True\n        for ch, k in Counter(w).items():\n            if avail[ch] < k:\n                ok = False\n                break\n        if ok:\n            best = w\n    print(best if best is not None else -1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nwords = data[1:1 + n]\nletters = data[1 + n]\ncands = []\nfor w in words:\n    pool = list(letters)\n    ok = True\n    for ch in w:\n        if ch in pool:\n            pool.remove(ch)\n        else:\n            ok = False\n            break\n    if ok:\n        cands.append(w)\nif not cands:\n    print(-1)\nelse:\n    cands.sort(key=lambda x: (-len(x), x))\n    print(cands[0])\n",
+ "generator": "def gen(rng):\n    def fmt(words, letters):\n        return str(len(words)) + '\\n' + '\\n'.join(words) + '\\n' + letters\n\n    def rw(alpha, lo, hi):\n        return ''.join(rng.choice(alpha) for _ in range(rng.randint(lo, hi)))\n\n    tests = [\n        fmt(['when', 'what', 'whatthen', 'whatnow'], 'whatnwo'),\n        fmt(['a'], 'a'),\n        fmt(['a'], 'b'),\n        fmt(['abc', 'abc', 'abc'], 'cba'),\n        fmt(['aa', 'a'], 'a'),\n        fmt(['b', 'a', 'c'], 'abc'),\n        fmt(['zz', 'yy', 'xx'], 'zzyyxx'),\n    ]\n    for _ in range(18):\n        alpha = rng.choice(['ab', 'abc', 'abcd', 'abcdef'])\n        n = rng.randint(1, 8)\n        words = [rw(alpha, 1, 6) for _ in range(n)]\n        letters = rw(alpha, 1, rng.choice([4, 8, 14]))\n        tests.append(fmt(words, letters))\n    for _ in range(4):\n        alpha = 'abcdefghijklmnopqrstuvwxyz'\n        words = [rw(alpha, 1, 5) for _ in range(rng.randint(1, 20))]\n        letters = rw(alpha, 5, 30)\n        tests.append(fmt(words, letters))\n    # large: many short words, big rack\n    letters = ''.join(rng.choice('abcdefghijklmnopqrstuvwxyz') for _ in range(100000))\n    words = [rw('abcdefghijklmnopqrstuvwxyz', 8, 11) for _ in range(100000)]\n    tests.append(fmt(words, letters))\n    # large: rack with few distinct letters, many words that nearly fit\n    letters = ''.join(rng.choice('abcde') for _ in range(100000))\n    words = [rw('abcde', 1, 17) for _ in range(100000)]\n    tests.append(fmt(words, letters))\n    # large: long words, rack too small for most\n    letters = ''.join(rng.choice('abcdefghij') for _ in range(60))\n    words = [rw('abcdefghij', 90, 100) for _ in range(3000)] + [rw('abcdefghij', 20, 60) for _ in range(15000)]\n    rng.shuffle(words)\n    tests.append(fmt(words, letters))\n    # large: all words identical\n    tests.append(fmt(['abcdefghij' * 10] * 9000, 'abcdefghij' * 10))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef longest_word(words: List[str], letters: str) -> str:\n    # Write your solution here\n    return \"-1\"\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    words = data[1:1 + n]\n    letters = data[1 + n]\n    print(longest_word(words, letters))\n\n\nmain()\n",
+  "javascript": "function longestWord(words, letters) {\n  // Write your solution here\n  return '-1'\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0])\nconst words = t.slice(1, 1 + n)\nconst letters = t[1 + n]\nconsole.log(longestWord(words, letters))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring longestWord(vector<string>& words, const string& letters) {\n    // Write your solution here\n    return \"-1\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<string> words(n);\n    for (int i = 0; i < n; i++) cin >> words[i];\n    string letters;\n    cin >> letters;\n    cout << longestWord(words, letters) << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String longestWord(String[] words, String letters) {\n        // Write your solution here\n        return \"-1\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int n = Integer.parseInt(st.nextToken());\n        String[] words = new String[n];\n        for (int i = 0; i < n; i++) words[i] = st.nextToken();\n        String letters = st.nextToken();\n        System.out.println(longestWord(words, letters));\n    }\n}\n"
+ }
+}

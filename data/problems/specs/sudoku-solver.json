@@ -1,0 +1,44 @@
+{
+ "pid": "sudoku-solver",
+ "title": "Sudoku Solver",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given a partially filled 9 × 9 Sudoku grid. Fill every empty cell with a digit from `1` to `9` so that:\n\n- every row contains each digit `1`-`9` exactly once,\n- every column contains each digit `1`-`9` exactly once, and\n- each of the nine 3 × 3 boxes (the ones that start at rows and columns 0, 3 and 6) contains each digit `1`-`9` exactly once.\n\nEmpty cells are marked with `.`. The digits already given do not conflict with each other, and at least one valid completion exists.\n\nIf several completions exist, print the **lexicographically smallest** one, comparing the grid row by row, left to right (as one string of 81 digits). A backtracking search that fills cells in that order and tries digits in increasing order finds it first.",
+ "input_format": "9 lines, each a string of exactly 9 characters: a digit `1`-`9` or `.` for an empty cell.",
+ "output_format": "Print the completed grid as 9 lines of 9 digits.",
+ "constraints": [
+  "The grid is exactly 9 × 9",
+  "Each character is a digit from `1` to `9` or `.`",
+  "The given digits do not violate any row, column or box rule, and a valid completion exists"
+ ],
+ "examples": [
+  {
+   "input": ".23456789\n4567.9123\n78912345.\n23.564897\n564897.31\n897.31564\n312645978\n645978312\n978312645",
+   "output": "123456789\n456789123\n789123456\n231564897\n564897231\n897231564\n312645978\n645978312\n978312645",
+   "explanation": "Each of the first six rows has exactly one empty cell, and the missing digit is forced by the rest of that row: row 0 needs a 1, row 1 an 8, row 2 a 6, row 3 a 1, row 4 a 2 and row 5 a 2. The last three rows are already complete, and the result satisfies every column and box."
+  },
+  {
+   "input": ".........\n.........\n.........\n.........\n.........\n.........\n.........\n.........\n.........",
+   "output": "123456789\n456789123\n789123456\n214365897\n365897214\n897214365\n531642978\n642978531\n978531642",
+   "explanation": "With an empty grid many completions are valid. Filling cells in row-major order with the smallest legal digit first gives this lexicographically smallest one."
+  }
+ ],
+ "complexity": {
+  "time": "O(9^m) worst case where m is the number of empty cells; heavily pruned in practice",
+  "space": "O(1) (fixed 9 × 9 grid)"
+ },
+ "hints": [
+  "Search by backtracking: pick an empty cell, try each digit that does not already appear in its row, column or box, recurse, and undo the digit if the recursion fails.",
+  "Checking validity by scanning 27 cells is slow. Keep three arrays of 9 bitmasks (rows, columns, boxes) recording which digits are used, so a legality test is one AND.",
+  "Choosing the empty cell with the fewest legal digits first prunes much faster. If you do that, remember the output must still be the lexicographically smallest completion."
+ ],
+ "reference": "import sys\nsys.setrecursionlimit(10000)\n\ndef main():\n    rows = sys.stdin.read().split()[:9]\n    g = [[0 if c == '.' else int(c) for c in r] for r in rows]\n    R = [0] * 9\n    C = [0] * 9\n    B = [0] * 9\n    empties = []\n    for i in range(9):\n        for j in range(9):\n            v = g[i][j]\n            if v:\n                bit = 1 << v\n                R[i] |= bit\n                C[j] |= bit\n                B[i // 3 * 3 + j // 3] |= bit\n            else:\n                empties.append((i, j))\n    m = len(empties)\n\n    def solve(idx):\n        if idx == m:\n            return True\n        i, j = empties[idx]\n        b = i // 3 * 3 + j // 3\n        used = R[i] | C[j] | B[b]\n        for v in range(1, 10):\n            bit = 1 << v\n            if used & bit:\n                continue\n            g[i][j] = v\n            R[i] |= bit\n            C[j] |= bit\n            B[b] |= bit\n            if solve(idx + 1):\n                return True\n            R[i] ^= bit\n            C[j] ^= bit\n            B[b] ^= bit\n        g[i][j] = 0\n        return False\n\n    solve(0)\n    print('\\n'.join(''.join(map(str, r)) for r in g))\n\nmain()\n",
+ "brute": "import sys\n\nrows = sys.stdin.read().split()[:9]\ng = [[0 if c == '.' else int(c) for c in r] for r in rows]\n\ndef ok(i, j, v):\n    for k in range(9):\n        if g[i][k] == v or g[k][j] == v:\n            return False\n    bi, bj = i // 3 * 3, j // 3 * 3\n    for a in range(3):\n        for b in range(3):\n            if g[bi + a][bj + b] == v:\n                return False\n    return True\n\ndef solve():\n    for i in range(9):\n        for j in range(9):\n            if g[i][j] == 0:\n                for v in range(1, 10):\n                    if ok(i, j, v):\n                        g[i][j] = v\n                        if solve():\n                            return True\n                        g[i][j] = 0\n                return False\n    return True\n\nsolve()\nprint('\\n'.join(''.join(map(str, r)) for r in g))\n",
+ "generator": "def gen(rng):\n    def base():\n        digs = list(range(1, 10))\n        rng.shuffle(digs)\n        bands = [0, 1, 2]\n        rng.shuffle(bands)\n        rows = []\n        for b in bands:\n            inner = [0, 1, 2]\n            rng.shuffle(inner)\n            rows += [b * 3 + x for x in inner]\n        stacks = [0, 1, 2]\n        rng.shuffle(stacks)\n        cols = []\n        for s in stacks:\n            inner = [0, 1, 2]\n            rng.shuffle(inner)\n            cols += [s * 3 + x for x in inner]\n        return [[digs[(3 * (r % 3) + r // 3 + c) % 9] for c in cols] for r in rows]\n    def puzzle(holes):\n        g = base()\n        cells = [(i, j) for i in range(9) for j in range(9)]\n        rng.shuffle(cells)\n        for i, j in cells[:holes]:\n            g[i][j] = 0\n        return '\\n'.join(''.join('.' if v == 0 else str(v) for v in r) for r in g)\n    tests = [puzzle(0), puzzle(1), puzzle(2), puzzle(81), '\\n'.join(['.' * 9] * 9)]\n    for h in (10, 20, 30, 35, 40, 45, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 75):\n        tests.append(puzzle(h))\n    for _ in range(4):\n        tests.append(puzzle(rng.randint(50, 62)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef solve_sudoku(board: List[List[str]]) -> List[List[str]]:\n    # Write your solution here\n    return board\n\n\ndef main():\n    rows = sys.stdin.read().split()[:9]\n    board = [list(r) for r in rows]\n    result = solve_sudoku(board)\n    print('\\n'.join(''.join(r) for r in result))\n\n\nmain()\n",
+  "javascript": "function solveSudoku(board) {\n  // Write your solution here\n  return board\n}\n\nconst rows = input.split(/\\s+/).filter(Boolean).slice(0, 9)\nconst board = rows.map(r => r.split(''))\nconsole.log(solveSudoku(board).map(r => r.join('')).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<string> solveSudoku(vector<string> board) {\n    // Write your solution here\n    return board;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    vector<string> board(9);\n    for (int i = 0; i < 9; i++) cin >> board[i];\n    vector<string> res = solveSudoku(board);\n    for (const string& r : res) cout << r << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static char[][] solveSudoku(char[][] board) {\n        // Write your solution here\n        return board;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        char[][] board = new char[9][];\n        for (int i = 0; i < 9; i++) board[i] = br.readLine().trim().toCharArray();\n        char[][] res = solveSudoku(board);\n        StringBuilder sb = new StringBuilder();\n        for (char[] r : res) sb.append(new String(r)).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

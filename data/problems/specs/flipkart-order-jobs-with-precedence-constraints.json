@@ -1,0 +1,49 @@
+{
+ "pid": "flipkart-order-jobs-with-precedence-constraints",
+ "title": "Order Jobs With Precedence Constraints",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You have `n` jobs numbered `0` to `n - 1` and a single worker that runs one job at a time. There are `m` precedence constraints. Each constraint is a pair `a b`, meaning job `a` cannot run before job `b` has run, so `b` must appear earlier than `a` in the order.\n\nReturn an order in which all `n` jobs can be run so that every constraint is respected. If several orders are valid, return the **lexicographically smallest** one, i.e. the one whose job indices, compared from left to right, are smallest at the first position where two valid orders differ.\n\nIf no valid order exists (the constraints contradict each other), print `-1`.\n\nConstraints may repeat, and a constraint may name the same job twice (`a a`), in which case no valid order exists.",
+ "input_format": "The first line contains two integers `n` and `m`.\nEach of the next `m` lines contains two integers `a` and `b`: job `a` cannot run before job `b`.",
+ "output_format": "Print `n` space-separated job indices in the order they run, or `-1` if no valid order exists.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ m ≤ 10^5",
+  "0 ≤ a, b < n"
+ ],
+ "examples": [
+  {
+   "input": "5 4\n0 3\n3 2\n1 2\n4 1",
+   "output": "2 1 3 0 4",
+   "explanation": "Only job 2 has no prerequisite, so it runs first. Then jobs 1 and 3 are both ready and 1 is smaller. After 1, jobs 3 and 4 are ready; 3 is smaller. Job 0 and job 4 are then ready, so 0 runs before 4."
+  },
+  {
+   "input": "3 0",
+   "output": "0 1 2",
+   "explanation": "With no constraints, the smallest order is simply increasing indices."
+  },
+  {
+   "input": "3 3\n0 1\n1 2\n2 1",
+   "output": "-1",
+   "explanation": "Job 1 must run after job 2, and job 2 must run after job 1, so neither can go first."
+  }
+ ],
+ "complexity": {
+  "time": "O((n + m) log n)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Model each constraint as a directed edge from the job that must run first to the job that must run after it.",
+  "A job is ready when every job it depends on has already run. Count the unfinished prerequisites of each job.",
+  "To get the lexicographically smallest order, always run the smallest-indexed ready job: keep ready jobs in a min-heap. If fewer than n jobs get run, the constraints contain a cycle."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    adj = [[] for _ in range(n)]\n    indeg = [0] * n\n    for i in range(m):\n        a = int(data[2 + 2 * i])\n        b = int(data[3 + 2 * i])\n        adj[b].append(a)\n        indeg[a] += 1\n    heap = [i for i in range(n) if indeg[i] == 0]\n    heapq.heapify(heap)\n    order = []\n    while heap:\n        u = heapq.heappop(heap)\n        order.append(u)\n        for v in adj[u]:\n            indeg[v] -= 1\n            if indeg[v] == 0:\n                heapq.heappush(heap, v)\n    print(' '.join(map(str, order)) if len(order) == n else -1)\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import permutations\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\ncons = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(m)]\nans = None\nfor perm in permutations(range(n)):\n    pos = {v: i for i, v in enumerate(perm)}\n    if all(pos[b] < pos[a] for a, b in cons):\n        ans = perm\n        break\nprint(' '.join(map(str, ans)) if ans is not None else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(n, es):\n        return f\"{n} {len(es)}\\n\" + \"\\n\".join(f\"{a} {b}\" for a, b in es)\n\n    def dag(n, m):\n        order = list(range(n))\n        rng.shuffle(order)\n        es = []\n        for _ in range(m):\n            if n < 2:\n                break\n            a, b = rng.sample(range(n), 2)\n            if a < b:\n                a, b = b, a\n            es.append((order[a], order[b]))\n        return es\n\n    tests = [fmt(1, []), fmt(1, [(0, 0)]), fmt(2, [(0, 1), (1, 0)]), fmt(2, [(1, 0), (1, 0)]), fmt(4, []), fmt(3, [(0, 2), (1, 2)])]\n    for n in (2, 3, 4, 5, 6, 7):\n        for _ in range(3):\n            tests.append(fmt(n, dag(n, rng.randint(0, 8))))\n        for _ in range(2):\n            es = dag(n, rng.randint(0, 6))\n            es.append((rng.randrange(n), rng.randrange(n)))\n            tests.append(fmt(n, es))\n    N = 100000\n    perm = list(range(N))\n    rng.shuffle(perm)\n    chain = [(perm[i], perm[i - 1]) for i in range(1, N)]\n    tests.append(fmt(N, chain))\n    tests.append(fmt(N, chain[:-1] + [(perm[0], perm[N - 1])]))\n    tests.append(fmt(N, dag(N, 100000)))\n    tests.append(fmt(N, [(i, N - 1) for i in range(N - 1)]))\n    tests.append(fmt(N, [(0, i) for i in range(1, N)]))\n    tests.append(fmt(60000, dag(60000, 100000)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef find_order(n: int, constraints: List[List[int]]) -> List[int]:\n    # Write your solution here\n    # Return the lexicographically smallest valid order, or an empty list if none exists.\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    constraints = [[int(data[2 + 2 * i]), int(data[3 + 2 * i])] for i in range(m)]\n    order = find_order(n, constraints)\n    print(' '.join(map(str, order)) if order else -1)\n\n\nmain()\n",
+  "javascript": "function findOrder(n, constraints) {\n  // Write your solution here\n  // Return the lexicographically smallest valid order, or an empty array if none exists.\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst constraints = []\nfor (let i = 0; i < m; i++) constraints.push([t[2 + 2 * i], t[3 + 2 * i]])\nconst order = findOrder(n, constraints)\nconsole.log(order.length ? order.join(' ') : '-1')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> findOrder(int n, vector<pair<int, int>>& constraints) {\n    // Write your solution here\n    // Return the lexicographically smallest valid order, or an empty vector if none exists.\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<pair<int, int>> constraints(m);\n    for (int i = 0; i < m; i++) cin >> constraints[i].first >> constraints[i].second;\n    vector<int> order = findOrder(n, constraints);\n    if (order.empty()) {\n        cout << -1 << \"\\n\";\n        return 0;\n    }\n    for (size_t i = 0; i < order.size(); i++) cout << order[i] << (i + 1 < order.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] findOrder(int n, int[][] constraints) {\n        // Write your solution here\n        // Return the lexicographically smallest valid order, or an empty array if none exists.\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] constraints = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); constraints[i][0] = (int) in.nval;\n            in.nextToken(); constraints[i][1] = (int) in.nval;\n        }\n        int[] order = findOrder(n, constraints);\n        if (order.length == 0) {\n            System.out.println(-1);\n            return;\n        }\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < order.length; i++) sb.append(order[i]).append(i + 1 < order.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

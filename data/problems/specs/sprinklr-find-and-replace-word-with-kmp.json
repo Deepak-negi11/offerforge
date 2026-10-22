@@ -1,0 +1,50 @@
+{
+ "pid": "sprinklr-find-and-replace-word-with-kmp",
+ "title": "Find and Replace Word With KMP",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a paragraph, a word, and a replacement pattern. Find every occurrence of the word in the paragraph and replace each occurrence with the pattern. Print the resulting paragraph.\n\nThe rules are:\n\n- An occurrence is any substring of the paragraph equal to the word. It does not have to be a whole word, so `cat` also occurs inside `concatenate`.\n- Scan the paragraph from left to right. When the word matches at some position, replace that occurrence with the pattern and continue scanning right **after** the end of the matched occurrence. Replaced occurrences never overlap: in `aaaaa` with the word `aa`, the occurrences replaced are at positions 0 and 2, and the final `a` stays.\n- Text produced by a replacement is not scanned again.\n- Characters outside the occurrences, including spaces, are kept exactly as they are. The pattern may be longer or shorter than the word.\n\nThe naive approach compares the word against the paragraph at every starting position, which takes `O(|paragraph| * |word|)` time in the worst case.\n\n**Follow-up:** the interviewer first asked for the brute force and then asked how to optimise it. Do it in linear time with the Knuth-Morris-Pratt (KMP) algorithm, building the failure (longest proper prefix that is also a suffix) table for the word.",
+ "input_format": "Line 1: the paragraph (lowercase letters and single spaces, no leading or trailing space).\nLine 2: the word (lowercase letters, no spaces).\nLine 3: the pattern (a non-empty string without spaces).",
+ "output_format": "Print the paragraph after all replacements, on a single line.",
+ "constraints": [
+  "1 ≤ |paragraph| ≤ 3 * 10^5",
+  "1 ≤ |word| ≤ |paragraph|",
+  "1 ≤ |pattern| ≤ 5",
+  "The paragraph and the word contain only lowercase letters (the paragraph also has single spaces between letters); the pattern contains lowercase letters, digits and the characters `*`, `#`, `@`"
+ ],
+ "examples": [
+  {
+   "input": "the cat sat on the mat with a cat\ncat\ndog",
+   "output": "the dog sat on the mat with a dog",
+   "explanation": "The word cat occurs twice, once after the first word and once at the end. Each occurrence is replaced by dog."
+  },
+  {
+   "input": "aaaaa\naa\nX",
+   "output": "XXa",
+   "explanation": "The scan finds aa at positions 0-1 and replaces it, then continues at position 2, finds aa at 2-3 and replaces it, and the remaining single a at position 4 cannot match."
+  },
+  {
+   "input": "banana bandana\nana\n#",
+   "output": "b#na band#",
+   "explanation": "In banana the first ana is at positions 1-3; scanning resumes at position 4 where only na remains. In bandana the word ana is at positions 4-6."
+  }
+ ],
+ "complexity": {
+  "time": "O(|paragraph| + |word|)",
+  "space": "O(|paragraph| + |word|)"
+ },
+ "hints": [
+  "Comparing the word with the paragraph from every start position repeats work. When a match fails after matching j characters, you already know what those j paragraph characters are.",
+  "Build the KMP failure table for the word: fail[i] is the length of the longest proper prefix of word[0..i] that is also a suffix of it. On a mismatch after j matched characters, fall back to fail[j - 1] instead of restarting.",
+  "Scan the paragraph once with the KMP automaton. When the matched length reaches |word|, copy the text since the previous replacement, append the pattern, and reset the matched length to 0 so the next occurrence starts after this one."
+ ],
+ "reference": "import sys\n\ndef main():\n    lines = sys.stdin.read().split('\\n')\n    text = lines[0].rstrip('\\r')\n    word = lines[1].strip()\n    rep = lines[2].strip()\n    m = len(word)\n    fail = [0] * m\n    k = 0\n    for i in range(1, m):\n        while k and word[i] != word[k]:\n            k = fail[k - 1]\n        if word[i] == word[k]:\n            k += 1\n        fail[i] = k\n    out = []\n    last = 0\n    k = 0\n    for i, ch in enumerate(text):\n        while k and ch != word[k]:\n            k = fail[k - 1]\n        if ch == word[k]:\n            k += 1\n        if k == m:\n            start = i - m + 1\n            out.append(text[last:start])\n            out.append(rep)\n            last = i + 1\n            k = 0\n    out.append(text[last:])\n    print(''.join(out))\n\nmain()\n",
+ "brute": "import sys\n\nlines = sys.stdin.read().split('\\n')\ntext = lines[0].rstrip('\\r')\nword = lines[1].strip()\nrep = lines[2].strip()\nres = []\ni = 0\nn, m = len(text), len(word)\nwhile i < n:\n    if i + m <= n and all(text[i + j] == word[j] for j in range(m)):\n        res.append(rep)\n        i += m\n    else:\n        res.append(text[i])\n        i += 1\nprint(''.join(res))\n",
+ "generator": "def gen(rng):\n    def fmt(text, word, rep):\n        return text + '\\n' + word + '\\n' + rep\n    def para(n, alpha, sp):\n        s = []\n        for i in range(n):\n            if 0 < i < n - 1 and s[-1] != ' ' and rng.random() < sp:\n                s.append(' ')\n            else:\n                s.append(rng.choice(alpha))\n        return ''.join(s)\n    tests = [\n        fmt('the cat sat on the mat with a cat', 'cat', 'dog'),\n        fmt('aaaaa', 'aa', 'X'),\n        fmt('banana bandana', 'ana', '#'),\n        fmt('hello', 'hello', '*****'),\n        fmt('hello', 'world', '#'),\n        fmt('a', 'a', 'b'),\n        fmt('abc abc abc', 'abc', 'abc'),\n        fmt('aaaa aaaa', 'aaa', 'zz'),\n        fmt('ababababab', 'abab', '1'),\n    ]\n    for n in (5, 10, 20, 40, 80, 150, 300):\n        for _ in range(3):\n            alpha = rng.choice(['ab', 'abc', 'abcdefgh'])\n            text = para(n, alpha, rng.choice([0.0, 0.15]))\n            m = rng.randint(1, min(5, n))\n            if rng.random() < 0.7:\n                st = rng.randrange(n - m + 1)\n                word = text[st:st + m].replace(' ', '') or rng.choice(alpha)\n            else:\n                word = ''.join(rng.choice(alpha) for _ in range(m))\n            rep = ''.join(rng.choice('xyz*#@19') for _ in range(rng.randint(1, 5)))\n            tests.append(fmt(text, word, rep))\n    N = 300000\n    tests.append(fmt('a' * N, 'a' * 99999 + 'b', 'X'))\n    tests.append(fmt('a' * N, 'a' * 1000, 'ZZ'))\n    tests.append(fmt(para(N, 'ab', 0.05), 'abababababababababab', '#'))\n    tests.append(fmt(para(N, 'abcdefghijklmnopqrstuvwxyz', 0.15), 'e', '*'))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef replace_all(paragraph: str, word: str, pattern: str) -> str:\n    # Write your solution here\n    return paragraph\n\n\ndef main():\n    lines = sys.stdin.read().split('\\n')\n    paragraph = lines[0].rstrip('\\r')\n    word = lines[1].strip()\n    pattern = lines[2].strip()\n    print(replace_all(paragraph, word, pattern))\n\n\nmain()\n",
+  "javascript": "function replaceAll(paragraph, word, pattern) {\n  // Write your solution here\n  return paragraph\n}\n\nconst lines = input.split('\\n')\nconst paragraph = lines[0].replace(/\\r$/, '')\nconst word = (lines[1] || '').trim()\nconst pattern = (lines[2] || '').trim()\nconsole.log(replaceAll(paragraph, word, pattern))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring replaceAll(const string& paragraph, const string& word, const string& pattern) {\n    // Write your solution here\n    return paragraph;\n}\n\nstatic string trim(const string& s) {\n    size_t a = s.find_first_not_of(\" \\r\\n\\t\");\n    if (a == string::npos) return \"\";\n    size_t b = s.find_last_not_of(\" \\r\\n\\t\");\n    return s.substr(a, b - a + 1);\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string paragraph, word, pattern;\n    getline(cin, paragraph);\n    if (!paragraph.empty() && paragraph.back() == '\\r') paragraph.pop_back();\n    getline(cin, word);\n    getline(cin, pattern);\n    cout << replaceAll(paragraph, trim(word), trim(pattern)) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String replaceAll(String paragraph, String word, String pattern) {\n        // Write your solution here\n        return paragraph;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String paragraph = br.readLine();\n        String word = br.readLine().trim();\n        String pattern = br.readLine().trim();\n        System.out.println(replaceAll(paragraph, word, pattern));\n    }\n}\n"
+ }
+}

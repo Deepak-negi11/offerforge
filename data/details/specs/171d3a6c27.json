@@ -1,0 +1,18 @@
+{
+ "qid": "171d3a6c27",
+ "question": "Ola full-stack SDE system design round. **Design a toll booth system for Ola cabs: describe the functions and data structures you would use.** The report gives no more detail, so state your assumptions: a cab crosses toll plazas on a trip, the toll must be detected, charged correctly and shown on the fare.",
+ "lookingFor": [
+  "Asking clarifying questions and stating assumptions about an open-ended prompt.",
+  "Clean decomposition into components, APIs and entities.",
+  "Choosing data structures with reasons (geospatial lookup, maps, queues).",
+  "Correctness for money: idempotency, no double charging, auditing.",
+  "Scale and failure handling (GPS gaps, retries)."
+ ],
+ "answer": "**Clarify.** Is this the toll plaza itself (vehicle in, fee, barrier opens) or Ola's system that adds tolls to a trip fare? I would cover the cab-side system and note the plaza flow. Assume millions of trips per day, GPS pings every few seconds, and tolls that depend on the plaza, vehicle class and direction.\n\n**Requirements.** Detect toll crossings, compute toll, charge it to the rider's fare (or driver, per policy), record receipts, handle disputes, and support rate changes. Non-functional: accuracy, auditability, low latency, resilience to missing GPS.\n\n**Entities.** `TollPlaza(id, name, geofence polygon or line, direction, location)`, `TollRate(plazaId, vehicleClass, amount, validFrom, validTo)`, `Trip(id, riderId, driverId, vehicleClass, route)`, `TollCharge(id, tripId, plazaId, amount, crossedAt, status)`.\n\n**Functions.** `detectCrossing(tripId, gpsPoint)`, `getRate(plazaId, vehicleClass, time)`, `recordCharge(tripId, plazaId, ts)` (idempotent on `tripId+plazaId+ts`), `addToFare(tripId)`, `refund(chargeId)`.\n\n**Data structures.**\n- Plaza lookup: a geospatial index (geohash/quadtree or R-tree) so each GPS point checks only nearby plazas instead of all of them.\n- Crossing detection: compare consecutive points of the trip against the plaza's geofence segment (segment intersection) rather than a single point, since pings may skip the plaza.\n- Rates: hash map keyed by `(plazaId, vehicleClass)` holding time-ordered rate versions (sorted list with binary search).\n- Per-trip state: map of plazas already charged, to prevent duplicates.\n- Pipeline: GPS stream through a queue (Kafka-like) into stateless workers.\n\n**Flow.** GPS to stream to crossing detector to charge service to fare and billing. Alternatively, route-based estimation: precompute tolls on the planned route and reconcile at trip end.\n\n**Trade-offs and scale.** Real-time versus end-of-trip reconciliation; partition by trip id; use idempotent writes and an audit log; dispute flow for false positives; cache plaza and rate data; handle offline gaps by interpolating the route.",
+ "followUps": [
+  "How do you avoid charging the same toll twice if the event is retried?",
+  "How would you handle GPS drift or a missing ping near a plaza?",
+  "How would you model a toll that depends on entry and exit gates (distance-based)?",
+  "How would you handle a rate change that applies at midnight?"
+ ]
+}

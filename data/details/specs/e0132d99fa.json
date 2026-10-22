@@ -1,0 +1,19 @@
+{
+ "qid": "e0132d99fa",
+ "question": "Meesho Machine Coding round (SDE-1, 60 minutes, executable code on HackerRank). Build an in-memory car-pooling service with these operations: (1) add a ride (rideId, start and end lat/lng, driver name, max seat capacity; duplicate rideId is rejected or ignored); (2) find rides whose start is within 5 km of the requester's start, sorted by ascending distance; (3) book the nearest ride that has a free seat, falling back to the next nearest if it is full; (4) cancel a booking; (5) get a passenger's ride history in chronological order. Follow-up: how do you prevent two passengers from booking the last available seat at the same time (locking, optimistic concurrency or compare-and-swap)?",
+ "lookingFor": [
+  "Clean OOP decomposition: entities, services and responsibilities.",
+  "Correct handling of the booking edge cases (full ride, duplicates, cancellation freeing a seat).",
+  "Sensible geo-distance computation and sorting.",
+  "Concurrency reasoning on the last-seat race.",
+  "Working, testable code under time pressure."
+ ],
+ "answer": "**Entities.** `Ride` (id, start, end, driverName, capacity, bookedPassengers, seatsLeft), `Passenger/Person` (id, name, `List<Booking>` history), `Booking` (passenger, ride, timestamp, status), `Location` (lat, lng). Keep a `RideService` with `Map<String, Ride> rides`, `Map<String, Person> people`.\n\n**Operations.**\n- `addRide`: if `rides.containsKey(id)` ignore (idempotent), else insert.\n- `findNearby(person)`: for each ride compute the distance between the ride's start and the requester's start with the Haversine formula, keep those at or below 5 km, sort ascending. O(R log R) is fine for an in-memory test; mention a grid or geohash index if R is large.\n- `bookNearest(person)`: iterate the sorted list; for each ride call `ride.tryBook(person)`; the first that succeeds wins. If a ride is full print that it cannot be booked and move on. Record a `Booking` in the person's history.\n- `cancel(rideId, person)`: find the booking, mark it cancelled, remove the passenger from the ride and increment `seatsLeft`. Reject if there is no such booking.\n- `history(personId)`: return bookings ordered by booking time (an append-only list already gives that).\n\n**Design choices.** Put the invariant (`0 <= seatsLeft <= capacity`, no duplicate passenger on a ride) inside `Ride`, not in the service, so it cannot be violated from outside. A `DistanceStrategy` interface and a `RideSelectionStrategy` (nearest, cheapest) keep the design open for extension; do not over-engineer when you must produce running code in an hour. Note the interviewer said no controller/repository layers were needed.\n\n**Concurrency follow-up.** The race is check-then-act on `seatsLeft`.\n1. *Pessimistic:* make `tryBook` `synchronized` (or use a per-ride `ReentrantLock`) so check and decrement are atomic. Per-ride locks avoid a global bottleneck.\n2. *Lock-free:* hold `seatsLeft` in an `AtomicInteger` and loop with `compareAndSet(s, s-1)` while `s > 0`.\n3. *Database version:* `UPDATE rides SET seats_left = seats_left - 1 WHERE id = ? AND seats_left > 0`, and check affected rows (or an optimistic version column).\nThe loser gets a failure and falls back to the next nearest ride.",
+ "followUps": [
+  "How would you speed up the nearby search with 1 million rides?",
+  "What happens if the same passenger books the same ride twice?",
+  "How would you extend it so the ride's route (not only its start) matters?",
+  "Which of the three concurrency approaches would you choose in a distributed deployment?",
+  "How would you test the race condition?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "38e5ceb8c6",
+ "question": "Amazon SDE-1 LLD round (virtual, coded in a notepad-style editor). Design a **cart-management system** that tells the user the **final price of the cart**. Users can **add, remove or delete items**, and there can be **multiple types of discounts**; the system must apply all the applicable ones and return the final price.\n\nYou must write the **entire class architecture and class bodies, including a Main class**, using appropriate design patterns, and discuss alternative approaches and reasoning.",
+ "lookingFor": [
+  "Clean domain model: Cart, CartItem, Product, Discount.",
+  "Correct pattern choice for discounts (Strategy, Chain, or Decorator).",
+  "Defining how multiple discounts combine and in what order.",
+  "Complete, runnable code including Main.",
+  "Discussion of trade-offs and extensibility."
+ ],
+ "answer": "**Clarify first.** What discount types exist: percentage off the cart, flat off, item-level (for example 10% on a category), buy-X-get-Y, coupon codes? Can they stack? In what order? Is there a maximum discount? Is tax or shipping in scope? Do we need quantities and inventory checks?\n\n**Model.**\n- `Product`: id, name, category, price (use `BigDecimal`).\n- `CartItem`: product, quantity.\n- `Cart`: `Map<productId, CartItem>`; `addItem(product, qty)`, `removeItem(productId, qty)` (reduce), `deleteItem(productId)` (remove the line), `subtotal()`.\n- `Discount` interface (Strategy): `boolean isApplicable(Cart c)` and `BigDecimal calculate(Cart c)`. Implementations: `PercentageDiscount`, `FlatDiscount`, `CategoryDiscount`, `BuyXGetYDiscount`, `CouponDiscount`.\n- `PricingService`/`DiscountEngine`: holds an ordered list of discounts and `finalPrice(cart)`.\n\n**Combining rules.** State your policy explicitly. A simple, defensible one: apply discounts in a defined priority order against a running total, never letting it drop below zero, with an optional cap. For non-stackable ones, mark them in a `DiscountGroup` and pick the best in that group. Mention a Chain of Responsibility if each discount transforms the running amount in sequence.\n\n**Flow.**\n```java\nBigDecimal total = cart.subtotal();\nfor (Discount d : discounts)\n  if (d.isApplicable(cart)) total = total.subtract(d.calculate(cart));\nreturn total.max(BigDecimal.ZERO);\n```\n\n**Main.** Create products, add and remove items, register discounts, print subtotal, applied discounts and final price.\n\n**Trade-offs.** Strategy keeps each rule isolated and testable; the cost is a coordinating engine that must define order and stacking. Decorator on price is elegant but harder to report which discounts applied.\n\n**Mistakes to avoid.** One method full of `if (type == ...)`, floating-point money, and unclear stacking behaviour.",
+ "followUps": [
+  "How would you handle conflicting or mutually exclusive discounts?",
+  "How would you make discount rules configurable from a database?",
+  "How would the design change for concurrent carts and stock limits?",
+  "How would you show the customer an itemised breakdown?"
+ ]
+}

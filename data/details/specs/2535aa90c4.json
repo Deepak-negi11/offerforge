@@ -1,0 +1,17 @@
+{
+ "qid": "2535aa90c4",
+ "question": "D. E. Shaw SMTS Full Stack (about 5 years of experience), first technical round. Among the questions on scaling and switching databases, there was a functional-programming exercise: **write a `compose` function that takes an arbitrary number of functions as arguments and returns their cumulative (composed) result.**",
+ "lookingFor": [
+  "Comfort with higher-order functions and closures.",
+  "Handling variable arguments and edge cases (zero functions, argument order).",
+  "Clear reasoning about evaluation order.",
+  "Clean code, with a recursive or reduce-based solution explained."
+ ],
+ "answer": "**Idea.** `compose(f, g, h)(x)` means `f(g(h(x)))`: apply functions **right to left**, feeding each result into the next. `pipe` is the same with left-to-right order.\n\n**Solution (JavaScript) with `reduceRight`**\n```js\nconst compose = (...fns) => (...args) => {\n  if (fns.length === 0) return args[0];          // identity for zero functions\n  const last = fns[fns.length - 1];\n  return fns.slice(0, -1).reduceRight((acc, fn) => fn(acc), last(...args));\n};\n\nconst add1 = x => x + 1, double = x => x * 2;\ncompose(add1, double)(5);   // add1(double(5)) = 11\n```\nThe right-most function may take several arguments; every other function takes the single result of the previous one.\n\n**Simpler version for unary functions**\n```js\nconst compose = (...fns) => x => fns.reduceRight((acc, fn) => fn(acc), x);\n```\n\n**Recursive formulation**\n```js\nconst compose = (...fns) =>\n  fns.length === 0 ? x => x\n  : fns.length === 1 ? fns[0]\n  : (...args) => fns[0](compose(...fns.slice(1))(...args));\n```\n\n**Python equivalent**\n```python\nfrom functools import reduce\ndef compose(*fns):\n    return lambda x: reduce(lambda acc, f: f(acc), reversed(fns), x)\n```\n\n**Edge cases and discussion**\n- No functions: return the identity function.\n- One function: return it unchanged.\n- Validate that each argument is callable.\n- Complexity: O(n) calls for n functions.\n- Async functions need a promise-aware version (`await` in a loop).\n- Compose is associative, which is what makes the recursive form valid.\n- Typed languages need care to keep the argument and return types consistent.",
+ "followUps": [
+  "How would you write pipe, and when would you prefer it over compose?",
+  "How would you make compose work with async functions?",
+  "What is currying and how does it relate to composition?",
+  "How would you type this function in TypeScript?"
+ ]
+}

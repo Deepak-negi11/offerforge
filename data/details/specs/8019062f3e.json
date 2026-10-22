@@ -1,0 +1,17 @@
+{
+ "qid": "8019062f3e",
+ "question": "In the Infosys Specialist Programmer / DSE technical interview (reported as a pen-and-paper style offline interview) one of the operating-system questions was **\"What is a deadlock?\"**, followed by **how to prevent it** in a related report. Explain deadlock, how it is prevented or handled, and the **Banker's algorithm**.",
+ "lookingFor": [
+  "Precise definition and the four necessary conditions.",
+  "Distinguishing prevention, avoidance, detection and recovery.",
+  "Ability to run the Banker's safety algorithm on a small example.",
+  "Practical view: how deadlocks happen in code and how to avoid them."
+ ],
+ "answer": "**Deadlock:** a set of processes (or threads) is blocked forever because each holds a resource and waits for a resource held by another in the set.\n\n**Coffman conditions (all four must hold):** 1. **Mutual exclusion** (resource used by one process at a time). 2. **Hold and wait.** 3. **No preemption.** 4. **Circular wait.**\n\n**Handling strategies**\n- **Prevention:** break one condition. Request all resources at once (no hold and wait), allow preemption, or impose a **global ordering** on resources so locks are always acquired in that order (no circular wait). Mutual exclusion usually cannot be removed.\n- **Avoidance:** the system grants a request only if the resulting state is *safe*. The **Banker's algorithm** is the classic example.\n- **Detection and recovery:** allow deadlocks, detect cycles in the resource-allocation or wait-for graph, then terminate processes or preempt resources.\n- **Ignore (ostrich):** used by many general-purpose OSes because deadlocks are rare.\n\n**Banker's algorithm.** Data structures per process: `Max` (maximum demand), `Allocation`, `Need = Max - Allocation`, and a vector `Available`. **Safe state** means there is an order in which every process can finish.\n\n*Safety algorithm:* set `Work = Available`. Repeatedly find an unfinished process with `Need <= Work`, pretend it finishes, add its `Allocation` to `Work`. If all finish, the state is safe and that order is a safe sequence.\n\n*Resource request:* if `Request > Need`, error; if `Request > Available`, wait; otherwise tentatively allocate, run the safety check, and grant only if the state stays safe, else roll back and wait.\n\n**Small example (one resource type, 12 units):** Max = P0:10, P1:4, P2:9. Allocation = 5, 2, 2, so Available = 3 and Need = 5, 2, 7.\nP1 (need 2 <= 3) finishes, Work becomes 5; P0 (need 5 <= 5) finishes, Work becomes 10; P2 (need 7 <= 10) finishes. Safe sequence **P1, P0, P2**. If P2 asked for one more unit and got it, Available would be 2 and Need for P2 would be 6; only P1 could finish (Work 4), then no one fits (P0 needs 5, P2 needs 6), so the state is unsafe and the request is denied.\n\n**Limits:** needs advance knowledge of maximum demand and a fixed number of processes, so it is rarely used in practice.",
+ "followUps": [
+  "What is the difference between deadlock and starvation?",
+  "How do you detect a deadlock using a wait-for graph?",
+  "How would you avoid deadlock in a program with two mutexes?",
+  "What is a safe state versus an unsafe state? Does unsafe always mean deadlock?"
+ ]
+}

@@ -1,0 +1,44 @@
+{
+ "pid": "interval-list-intersections",
+ "title": "Interval List Intersections",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given two lists of closed intervals, `A` and `B`. Inside each list the intervals are sorted by start and pairwise disjoint: for consecutive intervals `[s1, e1]` and `[s2, e2]` of one list, `e1 < s2`. Every interval has `start ≤ end`.\n\nThe intersection of two closed intervals `[a, b]` and `[c, d]` is `[max(a, c), min(b, d)]` when `max(a, c) ≤ min(b, d)`, and empty otherwise. Two intervals that merely touch at one point intersect in a single point, for example `[1, 4]` and `[4, 7]` intersect in `[4, 4]`.\n\nReturn every non-empty intersection between an interval of `A` and an interval of `B`, as a list sorted by start. The intersections never overlap each other, so the order is unique.",
+ "input_format": "The first line contains `m`, the size of `A`. The next `m` lines each contain two integers `start end`.\nThen a line with `n`, the size of `B`, followed by `n` lines each containing two integers `start end`.",
+ "output_format": "Print the number `c` of intersections on the first line, followed by `c` lines, each containing `start end` of one intersection, in increasing order of start.",
+ "constraints": [
+  "1 ≤ m, n ≤ 10^5",
+  "0 ≤ start ≤ end ≤ 10^9",
+  "Within each list, intervals are sorted and pairwise disjoint (the next start is strictly greater than the previous end)"
+ ],
+ "examples": [
+  {
+   "input": "3\n1 4\n6 9\n12 12\n3\n2 3\n4 7\n9 13",
+   "output": "5\n2 3\n4 4\n6 7\n9 9\n12 12",
+   "explanation": "[1,4] meets [2,3] in [2,3] and meets [4,7] in the single point [4,4]. [6,9] meets [4,7] in [6,7] and [9,13] in [9,9]. Finally [12,12] lies inside [9,13]."
+  },
+  {
+   "input": "1\n1 2\n1\n3 4",
+   "output": "0",
+   "explanation": "The two intervals do not overlap, so there are no intersections."
+  }
+ ],
+ "complexity": {
+  "time": "O(m + n)",
+  "space": "O(1) extra, besides the output"
+ },
+ "hints": [
+  "Both lists are already sorted. Can you walk through them together with one pointer in each?",
+  "For the current pair, the intersection starts at the larger start and ends at the smaller end. If start ≤ end, record it.",
+  "After handling a pair, the interval that ends first can never intersect anything later in the other list, so advance that pointer."
+ ],
+ "reference": "import sys\n\ndata = sys.stdin.read().split()\nm = int(data[0])\nA = [(int(data[1 + 2 * i]), int(data[2 + 2 * i])) for i in range(m)]\np = 1 + 2 * m\nn = int(data[p])\nB = [(int(data[p + 1 + 2 * i]), int(data[p + 2 + 2 * i])) for i in range(n)]\ni = j = 0\nout = []\nwhile i < m and j < n:\n    lo = max(A[i][0], B[j][0])\n    hi = min(A[i][1], B[j][1])\n    if lo <= hi:\n        out.append(f'{lo} {hi}')\n    if A[i][1] < B[j][1]:\n        i += 1\n    else:\n        j += 1\nprint(len(out))\nif out:\n    print('\\n'.join(out))\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nm = int(data[0])\nA = [(int(data[1 + 2 * i]), int(data[2 + 2 * i])) for i in range(m)]\np = 1 + 2 * m\nn = int(data[p])\nB = [(int(data[p + 1 + 2 * i]), int(data[p + 2 + 2 * i])) for i in range(n)]\nres = []\nfor a in A:\n    for b in B:\n        lo, hi = max(a[0], b[0]), min(a[1], b[1])\n        if lo <= hi:\n            res.append((lo, hi))\nres.sort()\nprint(len(res))\nfor lo, hi in res:\n    print(lo, hi)\n",
+ "generator": "def gen(rng):\n    def make(m, g, L, start):\n        res = []\n        cur = start\n        for _ in range(m):\n            s = cur\n            e = s + rng.randint(0, L)\n            res.append((s, e))\n            cur = e + rng.randint(1, g)\n        return res\n\n    def fmt(A, B):\n        return (f\"{len(A)}\\n\" + '\\n'.join(f\"{a} {b}\" for a, b in A) + f\"\\n{len(B)}\\n\"\n                + '\\n'.join(f\"{a} {b}\" for a, b in B))\n\n    big = 10**9\n    tests = [fmt([(1, 1)], [(1, 1)]), fmt([(1, 2)], [(3, 4)]), fmt([(1, 5)], [(2, 3)]),\n             fmt([(2, 3)], [(1, 5)]), fmt([(1, 3)], [(3, 6)]), fmt([(3, 6)], [(1, 3)]),\n             fmt([(0, big)], [(0, 0), (5, 5), (big, big)])]\n    for m, n in ((1, 2), (2, 2), (3, 5), (5, 3), (6, 6), (8, 10), (10, 8), (4, 4)):\n        for _ in range(2):\n            tests.append(fmt(make(m, 5, 5, rng.randint(0, 5)), make(n, 5, 5, rng.randint(0, 5))))\n    N = 100000\n    tests.append(fmt(make(N, 4000, 4000, 0), make(N, 4000, 4000, rng.randint(0, 3000))))\n    tests.append(fmt(make(N, 2, 3, 0), make(N, 2, 3, rng.randint(0, 3))))\n    tests.append(fmt(make(N, 4000, 4000, 0), [(0, big)]))\n    tests.append(fmt([(0, big)], make(N, 4000, 4000, 7)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef interval_intersection(a: List[List[int]], b: List[List[int]]) -> List[List[int]]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    m = int(data[0])\n    a = [[int(data[1 + 2 * i]), int(data[2 + 2 * i])] for i in range(m)]\n    p = 1 + 2 * m\n    n = int(data[p])\n    b = [[int(data[p + 1 + 2 * i]), int(data[p + 2 + 2 * i])] for i in range(n)]\n    res = interval_intersection(a, b)\n    print(len(res))\n    for s, e in res:\n        print(s, e)\n\n\nmain()\n",
+  "javascript": "function intervalIntersection(a, b) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst m = t[0]\nconst a = []\nfor (let i = 0; i < m; i++) a.push([t[1 + 2 * i], t[2 + 2 * i]])\nconst p = 1 + 2 * m\nconst n = t[p]\nconst b = []\nfor (let i = 0; i < n; i++) b.push([t[p + 1 + 2 * i], t[p + 2 + 2 * i]])\nconst res = intervalIntersection(a, b)\nconst lines = [String(res.length)]\nfor (const [s, e] of res) lines.push(s + ' ' + e)\nconsole.log(lines.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<pair<int, int>> intervalIntersection(vector<pair<int, int>>& a, vector<pair<int, int>>& b) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int m, n;\n    cin >> m;\n    vector<pair<int, int>> a(m);\n    for (int i = 0; i < m; i++) cin >> a[i].first >> a[i].second;\n    cin >> n;\n    vector<pair<int, int>> b(n);\n    for (int i = 0; i < n; i++) cin >> b[i].first >> b[i].second;\n    vector<pair<int, int>> res = intervalIntersection(a, b);\n    string out = to_string(res.size()) + \"\\n\";\n    for (auto& p : res) out += to_string(p.first) + \" \" + to_string(p.second) + \"\\n\";\n    cout << out;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[][] intervalIntersection(int[][] a, int[][] b) {\n        // Write your solution here\n        return new int[0][];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] a = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken();\n            a[i][0] = (int) in.nval;\n            in.nextToken();\n            a[i][1] = (int) in.nval;\n        }\n        in.nextToken();\n        int n = (int) in.nval;\n        int[][] b = new int[n][2];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            b[i][0] = (int) in.nval;\n            in.nextToken();\n            b[i][1] = (int) in.nval;\n        }\n        int[][] res = intervalIntersection(a, b);\n        StringBuilder sb = new StringBuilder();\n        sb.append(res.length).append(\"\\n\");\n        for (int[] r : res) sb.append(r[0]).append(\" \").append(r[1]).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

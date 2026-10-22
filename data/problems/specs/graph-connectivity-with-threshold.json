@@ -1,0 +1,45 @@
+{
+ "pid": "graph-connectivity-with-threshold",
+ "title": "Graph Connectivity With Threshold",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "There are `n` cities labelled `1` to `n`. Given an integer `threshold`, two different cities `x` and `y` are joined by a **direct road** if and only if there is an integer `z` with `z > threshold` that divides both `x` and `y` evenly.\n\nYou are then given `q` queries. Query `(a, b)` asks whether cities `a` and `b` are connected, meaning that you can travel from one to the other using one or more roads (a city is always connected to itself).\n\nFor every query print `1` if the two cities are connected and `0` otherwise.",
+ "input_format": "The first line contains three integers `n`, `threshold` and `q`.\nEach of the next `q` lines contains two integers `a` and `b`.",
+ "output_format": "Print `q` lines, one per query in order: `1` if the cities are connected, otherwise `0`.",
+ "constraints": [
+  "2 ≤ n ≤ 2 * 10^4",
+  "0 ≤ threshold ≤ n",
+  "1 ≤ q ≤ 10^5",
+  "1 ≤ a, b ≤ n"
+ ],
+ "examples": [
+  {
+   "input": "10 2 5\n6 9\n4 6\n5 10\n7 7\n2 4",
+   "output": "1\n0\n1\n1\n0",
+   "explanation": "Only divisors above 2 create roads. Divisor 3 joins 3, 6 and 9; divisor 4 joins 4 and 8; divisor 5 joins 5 and 10. So 6 and 9 are connected, 4 and 6 are not, 5 and 10 are, a city is connected to itself, and 2 and 4 are not because the only shared divisor 2 is not above the threshold."
+  },
+  {
+   "input": "6 1 4\n2 3\n4 6\n1 5\n5 5",
+   "output": "1\n1\n0\n1",
+   "explanation": "With threshold 1, divisor 2 links 2, 4, 6 and divisor 3 links 3 and 6, so 2, 3, 4, 6 form one group; 5 only shares divisor 5 with itself and 1 shares nothing above 1."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n · α(n) + q · α(n))",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Whether x and y share a divisor greater than threshold is the same as asking whether gcd(x, y) > threshold, but testing all pairs is far too slow.",
+  "Flip the loop: for each z from threshold + 1 to n, every multiple of z (z, 2z, 3z, ...) belongs to one component, since they all share the divisor z.",
+  "Use a union-find (disjoint set union) and union each multiple of z with z. The total work is a harmonic sum, about n log n. Then answer each query with a find."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.buffer.read().split()\n    n, th, q = int(data[0]), int(data[1]), int(data[2])\n    parent = list(range(n + 1))\n\n    def find(x):\n        while parent[x] != x:\n            parent[x] = parent[parent[x]]\n            x = parent[x]\n        return x\n\n    for z in range(th + 1, n // 2 + 1):\n        rz = find(z)\n        for m in range(2 * z, n + 1, z):\n            rm = find(m)\n            if rm != rz:\n                parent[rm] = rz\n    out = []\n    p = 3\n    for _ in range(q):\n        a, b = int(data[p]), int(data[p + 1])\n        p += 2\n        out.append('1' if find(a) == find(b) else '0')\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\nfrom math import gcd\n\ndata = sys.stdin.read().split()\nn, th, q = int(data[0]), int(data[1]), int(data[2])\nparent = list(range(n + 1))\n\ndef find(x):\n    while parent[x] != x:\n        x = parent[x]\n    return x\n\nfor x in range(1, n + 1):\n    for y in range(x + 1, n + 1):\n        if gcd(x, y) > th:\n            parent[find(x)] = find(y)\nout = []\nfor k in range(q):\n    a, b = int(data[3 + 2 * k]), int(data[4 + 2 * k])\n    out.append('1' if find(a) == find(b) else '0')\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    def fmt(n, th, qs):\n        return f'{n} {th} {len(qs)}\\n' + '\\n'.join(f'{a} {b}' for a, b in qs)\n    def rq(n, k):\n        return [(rng.randint(1, n), rng.randint(1, n)) for _ in range(k)]\n    tests = [fmt(2, 0, [(1, 2), (2, 2)]), fmt(2, 1, [(1, 2), (1, 1)]), fmt(6, 1, [(2, 3), (4, 6), (1, 5), (5, 5)]), fmt(8, 2, [(3, 6), (4, 8), (5, 7), (3, 3), (6, 8)])]\n    tests.append(fmt(10, 10, [(1, 2), (3, 3), (9, 10)]))\n    tests.append(fmt(12, 0, rq(12, 20)))\n    for _ in range(30):\n        n = rng.randint(2, 40)\n        th = rng.randint(0, n)\n        if rng.random() < 0.6:\n            th = rng.randint(0, max(0, n // 2))\n        tests.append(fmt(n, th, rq(n, rng.randint(1, 15))))\n    N = 20000\n    tests.append(fmt(N, 0, rq(N, 10**5)))\n    tests.append(fmt(N, 1, rq(N, 10**5)))\n    tests.append(fmt(N, 7, rq(N, 10**5)))\n    tests.append(fmt(N, 500, rq(N, 10**5)))\n    tests.append(fmt(N, 9999, rq(N, 10**5)))\n    tests.append(fmt(N, 3000, [(rng.randint(1, N), rng.randint(1, N)) if rng.random() < 0.5 else (6000 * rng.randint(1, 3), 3000 * rng.randint(1, 6)) for _ in range(10**5)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef are_connected(n: int, threshold: int, queries: List[Tuple[int, int]]) -> List[int]:\n    # Write your solution here\n    return [0] * len(queries)\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, threshold, q = int(data[0]), int(data[1]), int(data[2])\n    queries = [(int(data[3 + 2 * i]), int(data[4 + 2 * i])) for i in range(q)]\n    print('\\n'.join(map(str, are_connected(n, threshold, queries))))\n\n\nmain()\n",
+  "javascript": "function areConnected(n, threshold, queries) {\n  // Write your solution here\n  return queries.map(() => 0)\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], threshold = t[1], q = t[2]\nconst queries = []\nfor (let i = 0; i < q; i++) queries.push([t[3 + 2 * i], t[4 + 2 * i]])\nconsole.log(areConnected(n, threshold, queries).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> areConnected(int n, int threshold, vector<pair<int,int>>& queries) {\n    // Write your solution here\n    return vector<int>(queries.size(), 0);\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, threshold, q;\n    cin >> n >> threshold >> q;\n    vector<pair<int,int>> queries(q);\n    for (int i = 0; i < q; i++) cin >> queries[i].first >> queries[i].second;\n    vector<int> res = areConnected(n, threshold, queries);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] areConnected(int n, int threshold, int[][] queries) {\n        // Write your solution here\n        return new int[queries.length];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int threshold = (int) in.nval;\n        in.nextToken();\n        int q = (int) in.nval;\n        int[][] queries = new int[q][2];\n        for (int i = 0; i < q; i++) {\n            in.nextToken(); queries[i][0] = (int) in.nval;\n            in.nextToken(); queries[i][1] = (int) in.nval;\n        }\n        int[] res = areConnected(n, threshold, queries);\n        StringBuilder sb = new StringBuilder();\n        for (int r : res) sb.append(r).append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

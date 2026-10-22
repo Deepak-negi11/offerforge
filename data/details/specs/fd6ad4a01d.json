@@ -1,0 +1,18 @@
+{
+ "qid": "fd6ad4a01d",
+ "question": "MakeMyTrip SSE-2 Backend (Bangalore). In the LLD round (with a senior engineer), the candidate was asked to **implement an in-memory cache** and then to **handle concurrency in that cache**. The earlier machine coding round, with a peer engineer, asked for a few use cases of the **Splitwise** application to be coded. The system design round that followed asked to design IRCTC, focusing on schema, API queries and concurrency.",
+ "lookingFor": [
+  "A cache API with the right data structures and complexity.",
+  "Eviction policy knowledge (LRU, TTL).",
+  "Choosing a concurrency strategy and knowing its cost.",
+  "Thread-safety pitfalls such as check-then-act races.",
+  "Clean, extensible class design."
+ ],
+ "answer": "**API.** `Cache<K,V>` with `get(key)`, `put(key, value)`, `remove(key)`, and a fixed capacity. Make the eviction policy pluggable (Strategy) so LRU can be swapped for LFU or FIFO, and optionally support a per-entry TTL.\n\n**Single-threaded core (LRU).** A `HashMap<K, Node>` plus a doubly linked list ordered by recency. `get` moves the node to the head; `put` inserts at the head and, if over capacity, removes the tail node and its map entry. All operations are O(1). In Java, `LinkedHashMap` with `accessOrder=true` and `removeEldestEntry` gives this quickly, but interviewers often want the hand-written version.\n\n**Concurrency.** Even `get` mutates the list in LRU, so it is not a read-only operation. Options:\n1. **One lock** (`synchronized` or `ReentrantLock`) around every method: correct and simple, but a bottleneck.\n2. **Read-write lock:** does not help LRU much, since reads reorder.\n3. **Lock striping / sharding:** split into N segments by `hash(key) % N`, each with its own lock and LRU list, so threads on different keys do not contend. Eviction becomes per segment (approximate global LRU), which is usually acceptable.\n4. **ConcurrentHashMap + approximate recency** (sampling, or buffering access events and applying them in batches, as Caffeine does).\n\n**Pitfalls.** Check-then-act: `if (!map.containsKey(k)) map.put(k, load())` races, so use `computeIfAbsent` or hold the lock across the compound operation. Cache stampede on a miss: only one thread should load a value (per-key lock or future). Avoid holding a lock while calling slow loaders.\n\n**TTL.** Store an expiry timestamp; check on `get` (lazy expiry) and sweep with a background thread.\n\n**Test.** Run many threads doing mixed get/put and assert no exceptions, size never exceeds capacity, and values are consistent.\n\n**Avoid:** a plain `HashMap` shared across threads, and a global lock held during value loading.",
+ "followUps": [
+  "Why is a read-write lock a poor fit for an LRU cache?",
+  "How would you prevent a cache stampede on a popular key?",
+  "How would you make eviction approximate but faster?",
+  "How would you extend this to a distributed cache?"
+ ]
+}

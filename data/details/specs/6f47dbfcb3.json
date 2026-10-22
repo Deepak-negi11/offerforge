@@ -1,0 +1,19 @@
+{
+ "question": "Airbnb senior software engineer, technical interview: a **pull request code review round** on a Python service. You review three increasingly complex pull requests: (1) an enum consistency fix, where an API sent \"WEAK\" instead of \"EVENTUAL\" for the consistency type; (2) a DAO layer that fetches listing and host data from other services with retries and transforms raw responses into internal objects; (3) batching calls to a partner API through a job queue. Points are scored for each valid issue found across correctness, error handling, logging, typing, tests and architecture. The reporter advised starting with PR 3 and making architecture comments, since it carries the most points.",
+ "lookingFor": [
+  "Finding real correctness bugs, not only style nitpicks.",
+  "Production thinking: retries, idempotency, partial failure, observability.",
+  "Prioritising issues by impact and managing the time limit.",
+  "Constructive, specific review comments.",
+  "Test coverage and typing awareness."
+ ],
+ "answer": "**Strategy (time-boxed).** Skim all three PRs, then start with the biggest (PR 3), since it carries the most points, and sweep the smaller ones for quick wins. Review in layers: correctness first, then failure handling, then design, then style.\n\n**Checklist to apply to any PR.**\n- *Correctness:* off-by-one, wrong types, mutated shared state, unhandled null/empty, time zones, incorrect conversions between objects (for example fields lost when converting one model to another).\n- *Error handling:* exceptions swallowed; broad `except`; no distinction between retryable and non-retryable errors; errors that return partial data silently.\n- *Logging and metrics:* log the real exception with context (IDs, not secrets or PII), add counters and alerts for failure paths.\n- *Typing and validation:* use an `Enum` instead of raw strings or lists of strings; validate input at the boundary; type hints on public functions; f-strings.\n- *Tests:* each enum value, error paths, boundary cases, a regression test for the fixed bug, and some integration or system test.\n\n**PR 1 (enum fix).** Use an Enum as the single source of truth; reject unknown values; consider case-insensitivity; test every value; avoid the same bug elsewhere (search other usages).\n\n**PR 2 (DAO + retries).** Retries need a limit, backoff with jitter, and only for idempotent or retryable errors; set timeouts; avoid N+1 calls (batch fetch); handle partial responses; check mapping between `Listing` and `Listings` objects; caching and consistency; separate transport from transformation.\n\n**PR 3 (batching via job queue).** Batch size and flush interval limits; idempotency and deduplication; at-least-once delivery means duplicates; retry with a dead-letter queue; ordering; partner rate limits and backpressure; partial batch failure handling; observability (queue depth, lag); config not hard-coded; concurrency and thread-safety of the buffer; graceful shutdown without losing items.\n\n**Communicate:** phrase comments as specific, actionable suggestions, labelled by severity.",
+ "followUps": [
+  "How would you prioritise comments if you only had 10 minutes?",
+  "How do you make retries safe for non-idempotent partner API calls?",
+  "What would you log and alert on in the batching job?",
+  "How would you test the DAO layer's failure behaviour?",
+  "How do you give critical review feedback to a senior colleague?"
+ ],
+ "qid": "6f47dbfcb3"
+}

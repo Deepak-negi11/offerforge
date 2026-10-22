@@ -1,0 +1,45 @@
+{
+ "pid": "sprinklr-subsequence-remainder-queries",
+ "title": "Subsequence Remainder Queries",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a very large non-negative number `N` written as a string of decimal digits, an integer `k`, and `q` queries. Each query is a single integer `x`.\n\nA **subsequence** of `N` is obtained by deleting zero or more digits of the string without changing the order of the remaining ones. It must keep at least one digit. A subsequence is read as an ordinary decimal number, so `\"07\"` stands for the number `7` and `\"0\"` stands for `0`.\n\nFor each query, decide whether there exists a non-empty subsequence of `N` whose value leaves remainder `x` when divided by `k`. Print `YES` if there is one and `NO` otherwise. Different choices of deleted digits count as different subsequences, but only the existence of at least one matters.\n\nThe string can have thousands of digits, so you cannot enumerate its subsequences, and you cannot store the number in a fixed-width integer type.",
+ "input_format": "The first line contains the string `N` of decimal digits (it may contain leading zeros).\nThe second line contains the integer `k`.\nThe third line contains the integer `q`.\nThe fourth line contains `q` space-separated integers `x`.",
+ "output_format": "Print `q` space-separated words on one line: `YES` or `NO` for each query, in order.",
+ "constraints": [
+  "1 ≤ |N| ≤ 10^4 (number of digits)",
+  "2 ≤ k ≤ 100",
+  "1 ≤ q ≤ 2 · 10^5",
+  "0 ≤ x < k"
+ ],
+ "examples": [
+  {
+   "input": "174\n9\n3\n0 1 2",
+   "output": "NO YES YES",
+   "explanation": "The non-empty subsequences of 174 are 1, 7, 4, 17, 14, 74 and 174, with remainders 1, 7, 4, 8, 5, 2 and 3 modulo 9. No subsequence is divisible by 9, so x = 0 gives NO. Remainder 1 comes from \"1\" and remainder 2 from \"74\"."
+  },
+  {
+   "input": "305\n7\n4\n0 1 6 4",
+   "output": "YES NO NO YES",
+   "explanation": "The subsequences 3, 0, 5, 30, 35, 05 (the number 5) and 305 give remainders 3, 0, 5, 2, 0, 5 and 4 modulo 7. So 0 and 4 are reachable and 1 and 6 are not."
+  }
+ ],
+ "complexity": {
+  "time": "O(|N| · k + q)",
+  "space": "O(k)"
+ },
+ "hints": [
+  "Only the remainder of a subsequence matters. Which remainders can be produced by subsequences using only the digits seen so far?",
+  "When a new digit d arrives, every old subsequence either ignores it or gets d appended. Appending d to a subsequence with remainder r gives remainder (10 * r + d) mod k. The digit alone also starts a new subsequence.",
+  "Maintain a boolean array of size k for the reachable remainders, update it once per digit (copy the old reachable set before applying the new digit), then answer every query by a lookup."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    s = data[0]\n    k = int(data[1])\n    q = int(data[2])\n    reach = [False] * k\n    for ch in s:\n        d = int(ch)\n        cur = [r for r in range(k) if reach[r]]\n        reach[d % k] = True\n        for r in cur:\n            reach[(r * 10 + d) % k] = True\n    out = []\n    for i in range(q):\n        x = int(data[3 + i])\n        out.append('YES' if reach[x] else 'NO')\n    print(' '.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\ns = data[0]\nk = int(data[1])\nq = int(data[2])\nn = len(s)\nseen = set()\nfor mask in range(1, 1 << n):\n    digits = ''.join(s[i] for i in range(n) if (mask >> i) & 1)\n    seen.add(int(digits) % k)\nprint(' '.join('YES' if int(data[3 + i]) in seen else 'NO' for i in range(q)))\n",
+ "generator": "def gen(rng):\n    def fmt(s, k, xs):\n        return s + '\\n' + str(k) + '\\n' + str(len(xs)) + '\\n' + ' '.join(map(str, xs))\n    tests = [\n        fmt('0', 2, [0, 1]),\n        fmt('7', 7, [0, 1, 6]),\n        fmt('7', 100, [7, 0, 70]),\n        fmt('10', 10, [0, 1, 2, 9]),\n        fmt('000', 3, [0, 1, 2]),\n        fmt('9', 2, [0, 1]),\n        fmt('1111', 3, [0, 1, 2]),\n        fmt('5050', 100, [0, 5, 50, 55, 1]),\n    ]\n    for _ in range(14):\n        n = rng.randint(1, 11)\n        alpha = rng.choice(['0123456789', '0123456789', '01', '05', '135', '2468'])\n        s = ''.join(rng.choice(alpha) for _ in range(n))\n        k = rng.choice([2, 3, 4, 5, 6, 7, 9, 10, 11, 25, 50, 97, 100, rng.randint(2, 100)])\n        xs = [rng.randint(0, k - 1) for _ in range(rng.randint(1, 30))]\n        tests.append(fmt(s, k, xs))\n    L = 10000\n    Q = 200000\n    def big(alpha, k):\n        s = ''.join(rng.choice(alpha) for _ in range(L))\n        xs = [rng.randint(0, k - 1) for _ in range(Q)]\n        return fmt(s, k, xs)\n    tests.append(big('0123456789', 97))\n    tests.append(big('0123456789', 99))\n    tests.append(big('05', 100))\n    tests.append(big('1', 99))\n    tests.append(big('0', 2))\n    tests.append(big('2468', 100))\n    tests.append(big('0123456789', 100))\n    tests.append(big('37', 89))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef subsequence_remainders(num: str, k: int, queries: List[int]) -> List[str]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    num = data[0]\n    k = int(data[1])\n    q = int(data[2])\n    queries = [int(v) for v in data[3:3 + q]]\n    print(' '.join(subsequence_remainders(num, k, queries)))\n\n\nmain()\n",
+  "javascript": "function subsequenceRemainders(num, k, queries) {\n  // num is a string of digits; return an array of \"YES\" / \"NO\"\n  // Write your solution here\n  return []\n}\n\nconst tk = input.split(/\\s+/).filter(Boolean)\nconst num = tk[0]\nconst k = Number(tk[1])\nconst q = Number(tk[2])\nconst queries = []\nfor (let i = 0; i < q; i++) queries.push(Number(tk[3 + i]))\nconsole.log(subsequenceRemainders(num, k, queries).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<string> subsequenceRemainders(const string& num, int k, vector<int>& queries) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string num;\n    int k, q;\n    cin >> num >> k >> q;\n    vector<int> queries(q);\n    for (int i = 0; i < q; i++) cin >> queries[i];\n    vector<string> res = subsequenceRemainders(num, k, queries);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String[] subsequenceRemainders(String num, int k, int[] queries) {\n        // Write your solution here\n        return new String[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        String num = st.nextToken();\n        int k = Integer.parseInt(br.readLine().trim());\n        int q = Integer.parseInt(br.readLine().trim());\n        int[] queries = new int[q];\n        st = new StringTokenizer(br.readLine());\n        for (int i = 0; i < q; i++) queries[i] = Integer.parseInt(st.nextToken());\n        String[] res = subsequenceRemainders(num, k, queries);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

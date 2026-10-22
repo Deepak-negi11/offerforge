@@ -1,0 +1,17 @@
+{
+ "qid": "29f50a29eb",
+ "question": "SQL question from a D. E. Shaw intern technical round: **write a query to find the 5th highest salary** in a given `Salary` table. (Reported without the schema; assume a table `Salary` with a numeric column `salary`, and consider duplicates.)",
+ "lookingFor": [
+  "Knowledge of several SQL approaches: LIMIT/OFFSET, window functions, subqueries.",
+  "Handling duplicate salaries and the meaning of \"5th highest\".",
+  "Handling the case where fewer than five distinct salaries exist.",
+  "Awareness of dialect differences and performance."
+ ],
+ "answer": "**Clarify:** is the 5th highest the 5th *distinct* salary value (usual meaning), or the 5th row after sorting with duplicates counted separately? Assume distinct values. Also decide what to return if fewer than five exist (usually `NULL`).\n\n**Approach 1: LIMIT/OFFSET (MySQL, PostgreSQL)**\n```sql\nSELECT DISTINCT salary\nFROM Salary\nORDER BY salary DESC\nLIMIT 1 OFFSET 4;\n```\n`DISTINCT` removes duplicates, sorting descending puts the highest first, `OFFSET 4` skips the top four, and `LIMIT 1` takes the fifth. If there are fewer than five values this returns **no row**; to get a `NULL` instead, wrap it:\n```sql\nSELECT (SELECT DISTINCT salary FROM Salary ORDER BY salary DESC LIMIT 1 OFFSET 4) AS fifth_highest;\n```\n\n**Approach 2: window function (most portable and flexible)**\n```sql\nSELECT salary\nFROM (\n    SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk\n    FROM Salary\n) t\nWHERE rnk = 5\nGROUP BY salary;\n```\n`DENSE_RANK` gives tied salaries the same rank with no gaps, so rank 5 is the 5th distinct value. (`RANK` would leave gaps after ties; `ROW_NUMBER` would count duplicates separately.) Change `5` to any `N`.\n\n**Approach 3: correlated subquery (no vendor features)**\n```sql\nSELECT DISTINCT s1.salary\nFROM Salary s1\nWHERE 4 = (SELECT COUNT(DISTINCT s2.salary)\n           FROM Salary s2\n           WHERE s2.salary > s1.salary);\n```\nIt keeps a salary exactly when four distinct salaries are greater than it. It is O(n^2) without an index, so it is mainly a fallback.\n\n**Dialects:** SQL Server uses `ORDER BY salary DESC OFFSET 4 ROWS FETCH NEXT 1 ROWS ONLY`, or `TOP`.\n\n**Performance:** an index on `salary` lets the database read from the top of the index instead of sorting the whole table.",
+ "followUps": [
+  "What is the difference between RANK, DENSE_RANK and ROW_NUMBER?",
+  "How do you find the Nth highest salary per department?",
+  "How would the query change if duplicates should be counted separately?",
+  "How would you make it fast on a table with hundreds of millions of rows?"
+ ]
+}

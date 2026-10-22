@@ -1,0 +1,44 @@
+{
+ "pid": "excel-sheet-column-number",
+ "title": "Excel Sheet Column Number and Title",
+ "difficulty": "Easy",
+ "source_note": "standard",
+ "statement": "Spreadsheet columns are labelled `A`, `B`, ..., `Z`, then `AA`, `AB`, ..., `AZ`, `BA`, ..., `ZZ`, then `AAA`, and so on. Column `1` is `A`, column `26` is `Z`, column `27` is `AA`, column `52` is `AZ`, and column `703` is `AAA`.\n\nYou are given `q` queries, each a single token. If the token consists of digits, it is a column number and you must print the matching column title. If it consists of uppercase letters, it is a column title and you must print the matching column number.\n\nAnswer every query, one result per line, in the order given.\n\n**Follow-up:** Each direction is often asked on its own in interviews (title to number, or number to title). Make sure you can derive both and explain why this is not a plain base-26 conversion.",
+ "input_format": "The first line contains an integer `q`.\nEach of the next `q` lines contains one token: either a positive integer (a column number) or a string of uppercase letters (a column title).",
+ "output_format": "Print `q` lines. For a number token print its column title; for a title token print its column number.",
+ "constraints": [
+  "1 ≤ q ≤ 10^4",
+  "Every column number is between 1 and 10^9",
+  "Every title is the title of a column number between 1 and 10^9 (so it has at most 7 letters)"
+ ],
+ "examples": [
+  {
+   "input": "4\nA\n28\nAB\n701",
+   "output": "1\nAB\n28\nZY",
+   "explanation": "`A` is column 1. Column 28 is `AB` (26 columns `A`-`Z`, then `AA`, `AB`). `AB` is 1*26 + 2 = 28. Column 701 is 26*26 + 25, so letters 26 (`Z`) and 25 (`Y`): `ZY`."
+  },
+  {
+   "input": "3\nABC\n52\n703",
+   "output": "731\nAZ\nAAA",
+   "explanation": "`ABC` is a title: 1*26^2 + 2*26 + 3 = 731. The other two are numbers: column 52 is `AZ`, and column 703 is `AAA`, the first three-letter title."
+  }
+ ],
+ "complexity": {
+  "time": "O(q · L), where L ≤ 7 is the title length",
+  "space": "O(L) per query"
+ },
+ "hints": [
+  "Title to number is a base-26 conversion where `A`..`Z` stand for 1..26: `value = value * 26 + letter`.",
+  "Number to title is the reverse, but there is no zero digit, so the usual `n % 26` breaks at multiples of 26.",
+  "Subtract 1 before every division: `n -= 1; letter = n % 26; n //= 26`, and reverse the letters at the end."
+ ],
+ "reference": "import sys\n\ndef title(n):\n    s = []\n    while n:\n        n, r = divmod(n - 1, 26)\n        s.append(chr(65 + r))\n    return ''.join(reversed(s))\n\ndef number(t):\n    v = 0\n    for ch in t:\n        v = v * 26 + (ord(ch) - 64)\n    return v\n\ndata = sys.stdin.read().split()\nq = int(data[0])\nout = []\nfor tok in data[1:1 + q]:\n    out.append(title(int(tok)) if tok.isdigit() else str(number(tok)))\nprint('\\n'.join(out))\n",
+ "brute": "import sys\n\ndef inc(t):\n    cs = list(t)\n    i = len(cs) - 1\n    while i >= 0:\n        if cs[i] == 'Z':\n            cs[i] = 'A'\n            i -= 1\n        else:\n            cs[i] = chr(ord(cs[i]) + 1)\n            return ''.join(cs)\n    return 'A' + ''.join(cs)\n\ndata = sys.stdin.read().split()\nq = int(data[0])\nout = []\nfor tok in data[1:1 + q]:\n    if tok.isdigit():\n        t = 'A'\n        for _ in range(int(tok) - 1):\n            t = inc(t)\n        out.append(t)\n    else:\n        t = 'A'\n        v = 1\n        while t != tok:\n            t = inc(t)\n            v += 1\n        out.append(str(v))\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    def title(n):\n        s = ''\n        while n:\n            n, r = divmod(n - 1, 26)\n            s = chr(65 + r) + s\n        return s\n    def fmt(toks):\n        return str(len(toks)) + '\\n' + '\\n'.join(map(str, toks))\n    tests = [fmt(['A']), fmt(['1']), fmt(['Z', '26', 'AA', '27']),\n             fmt(['AZ', '52', 'BA', '53', 'ZZ', '702', 'AAA', '703']),\n             fmt(['ZZZ', '18278', 'AAAA', '18279'])]\n    for _ in range(14):\n        toks = []\n        for _ in range(rng.randint(1, 8)):\n            v = rng.randint(1, 3000)\n            toks.append(rng.choice([str(v), title(v)]))\n        tests.append(fmt(toks))\n    top = 10 ** 9\n    special = []\n    p = 26\n    while p <= top:\n        for d in (-1, 0, 1):\n            if 1 <= p + d <= top:\n                special.append(p + d)\n        p *= 26\n    special.append(top)\n    def big(mode):\n        toks = []\n        for i in range(10000):\n            if mode == 0:\n                v = rng.randint(1, top)\n            elif mode == 1:\n                v = rng.choice(special)\n            elif mode == 2:\n                v = top - rng.randint(0, 5000)\n            else:\n                v = rng.randint(1, 10 ** rng.randint(1, 9))\n            toks.append(rng.choice([str(v), title(v)]))\n        return fmt(toks)\n    for mode in range(4):\n        tests.append(big(mode))\n    tests.append(fmt([title(top)] * 10000))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef convert(token: str) -> str:\n    # Write your solution here\n    return \"\"\n\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    print('\\n'.join(convert(data[1 + i]) for i in range(q)))\n\n\nmain()\n",
+  "javascript": "function convert(token) {\n  // Write your solution here\n  return \"\"\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst q = parseInt(t[0])\nconst out = []\nfor (let i = 0; i < q; i++) out.push(convert(t[1 + i]))\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring convert(const string& token) {\n    // Write your solution here\n    return \"\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int q;\n    cin >> q;\n    for (int i = 0; i < q; i++) {\n        string token;\n        cin >> token;\n        cout << convert(token) << \"\\n\";\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String convert(String token) {\n        // Write your solution here\n        return \"\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int q = Integer.parseInt(st.nextToken());\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < q; i++) sb.append(convert(st.nextToken())).append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

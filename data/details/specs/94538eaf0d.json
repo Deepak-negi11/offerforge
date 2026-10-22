@@ -1,0 +1,18 @@
+{
+ "qid": "94538eaf0d",
+ "question": "Adobe MTS-1 technical interview, round 1 (on-campus). Reported question: **write a generic compare function for sorting.** For example, a `Student` has marks in subjects X, Y and Z, and the user chooses which field to sort by. The hint was to **use a function pointer**.",
+ "lookingFor": [
+  "Understanding function pointers (and callbacks) and how `qsort` uses them.",
+  "Designing for extension: selecting behaviour at runtime.",
+  "Correct comparator semantics (negative, zero, positive; no overflow).",
+  "Knowing modern C++ alternatives: lambdas, `std::sort` with a comparator.",
+  "Clean, correct code."
+ ],
+ "answer": "**Idea:** write one small comparator per field, with the same signature, and pick one at runtime by storing a pointer to it. A sorting routine only calls through the pointer, so it does not need to know the field.\n\n```c\ntypedef struct { int id, x, y, z; } Student;\n\ntypedef int (*Cmp)(const void*, const void*);\n\nint cmpX(const void* a, const void* b) {\n    int l = ((const Student*)a)->x, r = ((const Student*)b)->x;\n    return (l > r) - (l < r);          // no overflow, unlike l - r\n}\nint cmpY(const void* a, const void* b) { /* same, field y */ }\nint cmpZ(const void* a, const void* b) { /* same, field z */ }\n\nint main() {\n    Student s[100]; int n = /* read */;\n    int field = /* user's choice: 0,1,2 */;\n    Cmp table[] = { cmpX, cmpY, cmpZ };\n    qsort(s, n, sizeof(Student), table[field]);\n}\n```\n\n**Why this works:** `qsort` takes a `int (*)(const void*, const void*)`, calls it on pairs, and orders the array by the sign of the result. Selecting the pointer from a table (or `switch`) means no `if` chain inside the sorting loop.\n\n**Points to mention:**\n- Return `(a > b) - (a < b)` rather than `a - b`, because subtraction can overflow for large ints.\n- To sort descending, swap the arguments or negate.\n- For ties or multi-key sorting (marks X, then Y), compare the next field when the first compares equal.\n- If you write your own sort (bubble or merge), pass the same `Cmp` and replace direct `<` by `cmp(a, b) < 0`.\n\n**C++ version:**\n```cpp\nstd::sort(v.begin(), v.end(), [&](const Student& a, const Student& b){\n    return a.marks[field] < b.marks[field]; });\n```\nA lambda or functor can be inlined by the compiler, while a function pointer usually cannot, so it can be faster. Use a stable sort (`std::stable_sort`) if equal elements must keep their original order.",
+ "followUps": [
+  "Why is returning `a - b` from a comparator dangerous?",
+  "How would you sort by multiple fields?",
+  "What is the difference between a function pointer, a functor and a lambda?",
+  "Why is `std::sort` often faster than `qsort`?"
+ ]
+}

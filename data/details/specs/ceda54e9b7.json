@@ -1,0 +1,18 @@
+{
+ "qid": "ceda54e9b7",
+ "question": "In the system design round (45 minutes) for a Senior Software Engineer (Frontend) role at PayPal, the problem was to **design a payment gateway system**, even though the role was frontend and the discussion was backend focused. The interviewer covered the **overall architecture and components, the payment flow between services, transaction processing, and a ledger system for consistency and traceability**. The source notes this topic appears frequently in PayPal interviews.",
+ "lookingFor": [
+  "Do you clarify scope and identify correctness as the dominant requirement?",
+  "Do you understand idempotency, state machines and exactly-once effects?",
+  "Can you explain a double-entry ledger and why it gives traceability?",
+  "Do you handle failures, timeouts, webhooks and reconciliation?",
+  "Do you consider security and compliance (tokenization, PCI)?"
+ ],
+ "answer": "**Requirements.** Merchants accept payments (card and wallet) through the gateway: authorize, capture, refund, status queries, webhooks. Non-functional: **no lost or duplicated money**, strong consistency for money movement, high availability, low latency (a couple of seconds), full audit trail, security and compliance.\n\n**Components.** API gateway (auth, rate limiting), **payment service** (orchestrates the flow), **risk/fraud service**, **payment processor adapters** (acquirers, card networks, bank rails), **ledger service**, **notification/webhook service**, **reconciliation** job, and a token vault for card data (tokenization so merchants never touch raw card numbers).\n\n**Flow.** \n1. Merchant calls `POST /payments` with an **idempotency key**; the service stores a payment record in state `CREATED`.\n2. Risk check, then authorize with the processor (`AUTHORIZED` or `FAILED`).\n3. Capture later or immediately (`CAPTURED`), then settlement.\n4. Persist each transition, publish an event, and send a signed webhook to the merchant with retries.\nModel the payment as a **state machine** with allowed transitions only.\n\n**Idempotency and failures.** Same key returns the stored result. If the processor call times out, the outcome is unknown: do not retry blindly, query the processor by a reference id, or mark `PENDING` and resolve through reconciliation. Use the **transactional outbox** pattern so a database commit and its event cannot diverge.\n\n**Ledger.** An append-only **double-entry** ledger: every movement writes balanced debit and credit entries (for example customer funds, merchant payable, fees) in one database transaction. Entries are never updated; corrections are new reversing entries. This gives traceability and lets you recompute balances and reconcile with processor reports.\n\n**Data and scale.** Relational database with ACID transactions for payments and ledger, sharded by merchant id; read replicas for reporting; queue for async work. Cache only non-critical reads.\n\n**Security.** TLS, tokenization, encryption at rest, least privilege, audit logs, and PCI DSS scope reduction.",
+ "followUps": [
+  "What do you do when the processor times out after you sent an authorization?",
+  "How does a double-entry ledger help detect errors?",
+  "How would you design refunds and partial captures?",
+  "How do you reconcile your records with the bank's settlement file?"
+ ]
+}

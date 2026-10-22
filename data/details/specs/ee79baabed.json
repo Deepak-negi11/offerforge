@@ -1,0 +1,19 @@
+{
+ "qid": "ee79baabed",
+ "question": "Databricks Staff Software Engineer system design phone screen: **design an online bookstore that sells books sourced from other suppliers.** The candidate reported that the interviewer joined late and appeared distracted, so expect to drive the discussion yourself and state your assumptions clearly.",
+ "lookingFor": [
+  "Ability to scope an open-ended problem: requirements, scale and what is out of scope.",
+  "Modelling a marketplace or aggregator where inventory is owned by third parties.",
+  "Consistency thinking around stock, pricing and orders when supplier data is stale.",
+  "API and data-model design, and sensible storage choices.",
+  "Trade-offs and how the design scales and fails."
+ ],
+ "answer": "**Clarify and scope.** Customers browse, search and buy; the store does not hold stock but gets it from several suppliers (dropship or fulfilment through suppliers). Ask: how many suppliers and books, how fresh must availability be, who ships, and are payments and returns in scope. Assume, for example, tens of millions of titles, a read-heavy workload (browse/search far exceeds orders), and orders in the thousands per minute at peak.\n\n**Core entities.** `Book` (ISBN, metadata), `Supplier`, `Offer` (supplier, ISBN, price, quantity, lead time, last_updated), `Cart`, `Order`, `OrderItem`, `Payment`, `Shipment`.\n\n**Components.**\n- **Catalog and search:** metadata in a document or relational store, a search index (Elasticsearch/OpenSearch as an example) fed asynchronously.\n- **Supplier integration layer:** adapters per supplier that pull feeds or receive webhooks, normalise them to one `Offer` schema, and publish changes on a queue. Isolate flaky suppliers with timeouts, retries and circuit breakers.\n- **Offer aggregation:** pick the best offer per book (price, availability, delivery time) and cache it.\n- **Order service:** creates an order, then places a purchase order with the chosen supplier.\n- **Payment:** use a provider with idempotency keys; authorise at checkout, capture when the supplier confirms.\n\n**Key trade-off: stale stock.** Displayed availability comes from cached feeds, so it can be wrong. Options: show \"likely available\", re-check with the supplier at checkout, and allow cancel or substitute with another supplier if the confirmation fails. Model order status as a state machine (placed, supplier_confirmed, shipped, delivered, cancelled/refunded) driven by events, using a saga with compensating actions.\n\n**Scale.** Cache hot pages in a CDN and Redis, shard orders by user id, keep search eventually consistent, and make every write path idempotent. Observe supplier latency and error rates and fail over to the next-best offer.",
+ "followUps": [
+  "How do you prevent overselling when supplier stock is only approximately known?",
+  "How would you handle a supplier going down during checkout?",
+  "How would you design the search and ranking of books?",
+  "How do you keep the order and payment consistent if a step fails?",
+  "How would you support price changes by suppliers?"
+ ]
+}

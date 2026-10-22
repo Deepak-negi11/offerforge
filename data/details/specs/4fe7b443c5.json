@@ -1,0 +1,19 @@
+{
+ "qid": "4fe7b443c5",
+ "question": "In a TCS Digital interview for a Salesforce profile, the Triggers section included:\n\n**Write a trigger that automatically creates an Opportunity whenever an Account is created.**\n\nThe interviewer then asked **what bulkification is** and **what governor limits are**. Related questions in the same section covered trigger types and events, before vs after triggers, and trigger context variables.",
+ "lookingFor": [
+  "Can you write correct Apex trigger syntax with the right event (after insert) and context variable?",
+  "Do you understand why the Account Id is only available after insert?",
+  "Do you write bulk-safe code (no SOQL or DML inside loops)?",
+  "Do you know the main governor limits and why they exist in a multi-tenant platform?",
+  "Do you think about test coverage and trigger design practices?"
+ ],
+ "answer": "**Choose the event.** The Opportunity needs the new Account's `Id`, which exists only after the record is saved, so use an **after insert** trigger. `Trigger.new` holds the inserted Accounts.\n\n    trigger AccountTrigger on Account (after insert) {\n        List<Opportunity> opps = new List<Opportunity>();\n        for (Account acc : Trigger.new) {\n            opps.add(new Opportunity(\n                Name = acc.Name + ' - New Opportunity',\n                StageName = 'Prospecting',\n                CloseDate = Date.today().addDays(30),\n                AccountId = acc.Id\n            ));\n        }\n        if (!opps.isEmpty()) {\n            insert opps;\n        }\n    }\n\nOpportunity requires Name, StageName and CloseDate, which is why they are set.\n\n**Bulkification.** A trigger receives up to 200 records per batch (for example from a data load or API call), so it must handle a list, not one record. The code above collects all Opportunities in a list and does **one** `insert` outside the loop. Bad practice: a SOQL query or DML statement inside the `for` loop, which fails as soon as many records arrive.\n\n**Governor limits.** Salesforce is multi-tenant, so it caps what one transaction can use. Typical synchronous limits to quote: 100 SOQL queries, 150 DML statements, 50,000 rows returned by SOQL, 10,000 rows processed by DML, 10 seconds CPU time, and 6 MB heap. Limits can change, so verify in the Apex Developer Guide.\n\n**Good practice to mention:**\n- Keep the trigger thin and move logic into a handler class.\n- One trigger per object.\n- Write a test class that inserts 200 Accounts and asserts 200 Opportunities exist.\n- Consider a record-triggered Flow as a declarative alternative.",
+ "followUps": [
+  "Why can't this be a before insert trigger?",
+  "What happens if you put the insert inside the for loop and load 200 Accounts?",
+  "How would you prevent duplicate Opportunities or recursive trigger execution?",
+  "When would you use a record-triggered Flow instead of a trigger?",
+  "What is the difference between Trigger.new and Trigger.newMap?"
+ ]
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "31c2f7fff1",
+ "question": "In Technical Round 2 of an Oracle Server Technology on-campus interview (a Python/Django candidate), the interviewer asked how sessions are maintained in Django and then asked the candidate to code a simple session handling mechanism: register a user with a username and password (and explain how the password will be stored), and on every login display a welcome message with the number of times the user has logged in before and the last login time.",
+ "lookingFor": [
+  "Never storing plain-text passwords: salted, slow hashing",
+  "Basic data modeling for users and login history",
+  "Understanding how sessions work (server-side state plus a cookie)",
+  "Clean, working code with edge cases handled (first login, wrong password)"
+ ],
+ "answer": "**Password storage.** Never store the password. Store a salted hash from a slow, purpose-built algorithm (bcrypt, scrypt, Argon2 or PBKDF2). A unique random salt per user defeats rainbow tables; slowness makes brute force expensive. Verify by hashing the attempt with the stored salt and comparing in constant time. Django does this by default (PBKDF2 via `make_password` and `check_password`).\n\n**Sessions in Django.** After a successful login the server creates a session record (database, cache or signed cookie) and sends the browser only a random session id in a cookie (`sessionid`). On each request the middleware loads the session from that id. That is how state is kept over stateless HTTP.\n\n**Data model:** `users(username unique, salt, password_hash, login_count, last_login)`.\n\n```python\nimport hashlib, hmac, os, time, sqlite3\ndb = sqlite3.connect(\"app.db\")\ndb.execute('''CREATE TABLE IF NOT EXISTS users(\n  username TEXT PRIMARY KEY, salt BLOB, pw BLOB,\n  login_count INTEGER DEFAULT 0, last_login REAL)''')\n\ndef _hash(pw, salt):\n    return hashlib.scrypt(pw.encode(), salt=salt, n=2**14, r=8, p=1)\n\ndef register(user, pw):\n    salt = os.urandom(16)\n    db.execute(\"INSERT INTO users(username, salt, pw) VALUES (?,?,?)\",\n               (user, salt, _hash(pw, salt)))\n    db.commit()\n\ndef login(user, pw):\n    row = db.execute(\"SELECT salt, pw, login_count, last_login FROM users \"\n                     \"WHERE username=?\", (user,)).fetchone()\n    if not row or not hmac.compare_digest(row[1], _hash(pw, row[0])):\n        return \"Invalid credentials\"\n    when = time.ctime(row[3]) if row[3] else \"never\"\n    msg = f\"Welcome {user}! Previous logins: {row[2]}, last login: {when}\"\n    db.execute(\"UPDATE users SET login_count = login_count + 1, last_login=? \"\n               \"WHERE username=?\", (time.time(), user))\n    db.commit()\n    return msg\n```\n\nDetails to mention: read the old count and time before updating them; parameterized queries prevent SQL injection; use the same generic error for unknown user and wrong password; the primary key rejects duplicate usernames; in a web app use `request.session` to mark the user as logged in, and add HTTPS-only cookies and rate limiting.",
+ "followUps": [
+  "Why is a salt needed if the hash is already one-way?",
+  "Why use bcrypt or Argon2 instead of SHA-256 alone?",
+  "Where can Django store sessions and what are the trade-offs?",
+  "How would you protect login against brute-force attempts?"
+ ]
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "b1b2cdd571",
+ "question": "Two linked questions came up in the login-design part of the Zomato SDE Intern (Backend) interview.\n\n1. What is the difference between **hashing** and **encryption**? (The candidate could not answer this clearly.)\n2. The login design sends a **session ID** with each request to authorise the dashboard view. If someone else obtains a user's session ID, how do you prevent them from using it? The candidate suggested logging the user's IP address and requiring requests for a session to come from the same IP. The follow-up was: **what if the attacker has the same IP** (for example behind the same NAT or Wi-Fi)?",
+ "lookingFor": [
+  "Do you know the precise difference between hashing and encryption and where each is used?",
+  "Do you understand how session hijacking happens and the layered defences?",
+  "Can you see the weakness in IP binding and move to better controls?",
+  "Can you think like an attacker and reason about trade-offs with usability?"
+ ],
+ "answer": "**Hashing vs encryption**\n- **Hashing** is a one-way function: the same input always gives the same fixed-size output, and you cannot recover the input. Use it for passwords (with a salt and a slow algorithm such as bcrypt, scrypt or argon2) and for integrity checks. You verify by hashing the new input and comparing.\n- **Encryption** is two-way: with the right key, ciphertext decrypts back to the original. Use it when the data must be read later (stored card data, messages, TLS traffic). Security depends on keeping the key secret.\n- Encoding such as base64 is neither; it is not secret.\n\n**Stolen session ID.** The root problem is that a session ID is a bearer token: whoever holds it is the user. Defence is in layers.\n1. **Prevent theft.** Use HTTPS everywhere, set cookies `Secure`, `HttpOnly` (JavaScript cannot read them, limiting XSS theft) and `SameSite`. Never put the ID in the URL, since URLs leak through logs and the `Referer` header. Fix XSS.\n2. **Limit damage.** Short idle and absolute expiry, rotate the ID on login and on privilege change, and let users log out and revoke sessions server-side. Require re-authentication or a second factor for sensitive actions.\n3. **Detect misuse.** Bind the session to context, but only as a signal: compare user agent, rough location and device fingerprint; on a big change, ask for re-login or a 2FA step. A changed IP alone is a weak rule because mobile users switch networks legitimately.\n4. **Same IP.** IP binding does not stop an attacker on the same NAT or Wi-Fi, so it cannot be the only defence. A stronger control is a device-bound credential: a long-lived refresh token plus short-lived access token, rotated on use with reuse detection (if an old token reappears, revoke the whole session family). Techniques such as token binding (DPoP or mTLS) tie a token to a client key, so a copied token is useless without the key.\n\nState clearly that no single measure is perfect; the goal is to make theft hard, short-lived and detectable.",
+ "followUps": [
+  "Why do we add a salt to password hashes, and what is a pepper?",
+  "What is the difference between a session cookie and a JWT, and how do you revoke each?",
+  "How does CSRF differ from session hijacking and how do you prevent it?",
+  "What does HttpOnly protect against and what does it not?"
+ ]
+}

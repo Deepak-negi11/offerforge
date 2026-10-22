@@ -1,0 +1,19 @@
+{
+ "qid": "f62267454d",
+ "question": "Flipkart SDE-2 hiring-manager system design round. The flow was: **gather requirements**, model **entities and database schema**, design **APIs and the high-level architecture**, then go deep into **microservice patterns such as circuit breaker, Saga and CQRS**. The reported question did not name a single product, so practise it with a typical commerce workflow (for example order placement across inventory, payment and shipping services).",
+ "lookingFor": [
+  "Structured system design: requirements to entities to APIs to architecture.",
+  "Understanding of when and why to use each microservice resilience pattern.",
+  "Handling distributed transactions without two-phase commit.",
+  "Awareness of trade-offs: complexity, eventual consistency, operability.",
+  "Ability to tie patterns to concrete failure scenarios."
+ ],
+ "answer": "**Framework.** Requirements (functional, non-functional, scale), entities and schema, APIs, high-level components, then deep dives. Use an order-placement example to ground the patterns.\n\n**Architecture sketch.** API gateway -> Order, Inventory, Payment, Shipping and Notification services, each with its own database, communicating via synchronous calls for queries and a message broker (Kafka/RabbitMQ) for events. Orders have status PENDING -> CONFIRMED/CANCELLED.\n\n**Circuit breaker.** Wraps calls to a dependency (for example Payment). States: *closed* (calls pass, failures counted), *open* (after a failure-rate or timeout threshold, calls fail fast with a fallback instead of piling up threads), *half-open* (after a cool-down, a few trial calls decide whether to close again). Pair it with timeouts, retries with backoff and jitter (only for idempotent calls) and bulkheads. Libraries: Resilience4j. Trade-off: choosing thresholds, and fallbacks must be meaningful.\n\n**Saga.** A business transaction across services is a sequence of local transactions, each with a **compensating action** (reserve stock -> charge payment -> create shipment; if payment fails, release stock). Two styles: *choreography* (services react to events; simple, but flow is hard to follow) and *orchestration* (a coordinator drives steps; clearer, a central point to maintain). Needs idempotent steps, a durable state machine and the outbox pattern to publish events reliably. No isolation, so design for intermediate states (for example PENDING).\n\n**CQRS.** Separate the write model (normalised, transactional) from read models (denormalised, optimised views, for example an order-history view in Elasticsearch/read replica) updated from events. Benefit: independent scaling and fast queries; cost: eventual consistency, extra moving parts. Do not use it where simple CRUD suffices.\n\n**Tie together:** the circuit breaker protects the call, the Saga keeps data consistent across services, and CQRS serves reads cheaply.",
+ "followUps": [
+  "How do you choose between choreography and orchestration for a Saga?",
+  "What happens to a circuit breaker's state when many instances each keep their own counters?",
+  "How do you make Saga steps and event publication reliable (outbox, idempotency)?",
+  "What consistency do users see with CQRS and how do you handle it in the UI?",
+  "When would you avoid microservices altogether?"
+ ]
+}

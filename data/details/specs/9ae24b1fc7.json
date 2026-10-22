@@ -1,0 +1,18 @@
+{
+ "qid": "9ae24b1fc7",
+ "question": "Cisco internship, hiring manager round. The interviewer asked the candidate to **design and develop an app that is a competitor to Instagram**. They were given about **5 minutes** to think and sketch a basic architecture. After explaining it, the interviewer asked a follow-up on **how to handle delays in distributed systems**, which the candidate said they could not answer because they had not worked with such systems.",
+ "lookingFor": [
+  "Ability to structure an open-ended design under tight time pressure.",
+  "Sensible high-level components: API, storage, media handling, feed, CDN.",
+  "Awareness of scale and key trade-offs (e.g. feed fan-out).",
+  "Understanding of latency, timeouts, retries and eventual consistency in distributed systems.",
+  "Communication: stating assumptions and priorities out loud."
+ ],
+ "answer": "**Requirements (say them first, 30 seconds).** Core features: sign up, follow users, upload photo or video with caption, view a home feed, like and comment. Assume 100M users, 10M daily uploads, read-heavy (feed views far exceed posts). Latency goal: feed under about 300 ms; availability matters more than perfect consistency.\n\n**Entities.** User, Post (id, owner, media URL, caption, time), Follow (follower, followee), Like, Comment.\n\n**High-level architecture**\n- **Clients** call an **API gateway / load balancer**, which routes to stateless services: user, post, feed, and social graph.\n- **Media upload:** the client uploads the image or video to **object storage** (e.g. S3) via a presigned URL; a background worker generates thumbnails and resolutions. Serve media through a **CDN**.\n- **Metadata:** posts and users in a database (relational or a sharded store); the follow graph in a store sharded by user id.\n- **Feed:** two models. *Fan-out on write*: when a user posts, push the post id into each follower's precomputed feed list in a cache such as Redis. Fast reads, costly for users with millions of followers. *Fan-out on read*: assemble the feed at request time. Common answer: a **hybrid**, push for normal users, pull for celebrities.\n- **Async work** (notifications, fan-out, media processing) goes through a **message queue**.\n- **Cache** hot data (feeds, profiles); paginate with cursors.\n\n**Handling delays in distributed systems (the follow-up)**\n- Set **timeouts** on every remote call and **retry with exponential backoff and jitter**; make operations **idempotent** (idempotency keys) so retries are safe.\n- Use **circuit breakers** and fallbacks (e.g. show a cached feed) so one slow service does not cascade.\n- Move slow work **off the request path** with queues; accept **eventual consistency**, and handle replica lag with read-your-writes for the author.\n- Reduce tail latency with caching, request hedging and load shedding. Do not rely on synchronized clocks; use ordering by ids or logical timestamps.",
+ "followUps": [
+  "How would you shard the posts database?",
+  "How do you handle a celebrity with 50 million followers posting?",
+  "What happens if a feed-update message is delivered twice or out of order?",
+  "How would you design the like counter so it scales?"
+ ]
+}

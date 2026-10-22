@@ -1,0 +1,18 @@
+{
+ "qid": "4f1ef38c7e",
+ "question": "A \"managerial\" round for an on-campus SDE intern turned into a **technical grilling** that dissected the resume. Topics reported:\n\n- Backend architecture: **handling scale and data flow**.\n- **Operating systems and networking** in depth.\n- **Writing SQL queries live**.\n- **Apache Kafka** internals, **partitions** and **consumer groups**, and how the candidate had used Kafka, because it was listed on the resume.",
+ "lookingFor": [
+  "Fundamentals across backend, OS, networking and SQL",
+  "Ability to write correct SQL under observation",
+  "Real understanding of Kafka concepts, not just the name",
+  "Connecting concepts to what you built",
+  "Staying composed during deep probing"
+ ],
+ "answer": "**Kafka internals (what to know cold).**\n- A **topic** is split into **partitions**; each partition is an ordered, append-only log with sequential **offsets**, stored on disk and **replicated** across brokers (one leader, followers in the ISR).\n- **Ordering** is guaranteed only within a partition. Producers choose the partition by key hash, so all events of a key land in one partition.\n- A **consumer group** shares the work: each partition is assigned to exactly one consumer in the group, so parallelism is capped by partition count. Different groups each get a full copy of the stream. When consumers join or leave, a **rebalance** reassigns partitions.\n- Consumers track progress with **committed offsets**. Committing after processing gives at-least-once delivery (so make processing idempotent); committing before gives at-most-once. Exactly-once needs idempotent producers and transactions.\n- Retention is time- or size-based, not \"delete after read\", which allows replay.\n- Producer `acks` setting trades latency against durability (`acks=all` with min in-sync replicas).\n\n**Backend scale and data flow.** Be ready to trace a request: client, load balancer, stateless app servers, cache, database with indexes and read replicas, and a queue for asynchronous work. Explain where bottlenecks appear and how to relieve them.\n\n**SQL live.** Practise `JOIN`, `GROUP BY` with `HAVING`, subqueries and window functions. Example: top earner per department with `SELECT * FROM (SELECT *, RANK() OVER (PARTITION BY dept ORDER BY salary DESC) r FROM emp) t WHERE r = 1;`. Think aloud and state assumptions about NULLs and ties.\n\n**OS and networking.** Processes versus threads, deadlock conditions, paging, TCP versus UDP, the TCP handshake, HTTP and TLS basics.\n\n**Resume rule.** Only list Kafka if you can explain the above and how you used it.",
+ "followUps": [
+  "What happens to a consumer group when a consumer crashes?",
+  "How do you guarantee ordering and avoid duplicates in Kafka processing?",
+  "Write a query for the second highest salary.",
+  "What happens, step by step, when you type a URL in the browser?"
+ ]
+}

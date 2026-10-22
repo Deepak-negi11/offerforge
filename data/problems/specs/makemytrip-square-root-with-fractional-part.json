@@ -1,0 +1,44 @@
+{
+ "pid": "makemytrip-square-root-with-fractional-part",
+ "title": "Square Root with Fractional Part",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given `q` queries. Each query gives a non-negative integer `n` and a number of decimal places `d`.\n\nFor each query, compute the square root of `n` **truncated** (not rounded) to exactly `d` digits after the decimal point, and print it as a decimal string.\n\nFormatting rules:\n\n- When `d = 0`, print only the integer part with no decimal point (for example `1` for `n = 3`).\n- When `d > 0`, print the integer part, a decimal point, and exactly `d` fractional digits, keeping trailing zeros (for example `4.0000` for `n = 16`, `d = 4`).\n\nThe intended exercise is to find the root without a built-in square-root function, using binary search. The answer is the largest value `x / 10^d` (with `x` an integer) whose square does not exceed `n`, so work with integers throughout and avoid floating-point arithmetic.\n\n**Follow-up:** the interviewer first asked for the integer part only and then for the fractional digits; handle the two stages with the same binary-search idea.",
+ "input_format": "The first line contains an integer `q`.\nEach of the next `q` lines contains two integers `n` and `d`.",
+ "output_format": "Print `q` lines. Line `i` is the square root of the `i`-th `n`, truncated to `d` decimal places, in the format described above.",
+ "constraints": [
+  "1 ≤ q ≤ 10^5",
+  "0 ≤ n ≤ 10^6",
+  "0 ≤ d ≤ 4"
+ ],
+ "examples": [
+  {
+   "input": "3\n2 3\n3 0\n10 2",
+   "output": "1.414\n1\n3.16",
+   "explanation": "sqrt(2) = 1.41421..., kept to 3 places gives 1.414. sqrt(3) = 1.732..., with 0 places only the integer part 1 is printed (truncation, not rounding). sqrt(10) = 3.1622..., so 3.16."
+  },
+  {
+   "input": "3\n16 4\n0 2\n8 1",
+   "output": "4.0000\n0.00\n2.8",
+   "explanation": "16 is a perfect square, so the fractional digits are zeros: 4.0000. sqrt(0) = 0.00. sqrt(8) = 2.828..., truncated to one place is 2.8."
+  }
+ ],
+ "complexity": {
+  "time": "O(q log(n * 10^d))",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Scale the problem up: the answer `x / 10^d` satisfies `x^2 ≤ n * 10^(2d)`, so you are looking for the largest integer `x` with that property.",
+  "The predicate `x * x <= n * 10^(2d)` is monotone in `x`, so binary search over `x` from `0` to a safe upper bound such as `n * 10^d + 1`.",
+  "Split the final integer `x` into `x // 10^d` and `x % 10^d`; pad the fractional part with leading zeros to exactly `d` digits."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    out = []\n    for i in range(q):\n        n = int(data[1 + 2 * i])\n        d = int(data[2 + 2 * i])\n        scale = 10 ** d\n        target = n * scale * scale\n        lo, hi = 0, n * scale + 1\n        while lo < hi:\n            mid = (lo + hi + 1) // 2\n            if mid * mid <= target:\n                lo = mid\n            else:\n                hi = mid - 1\n        if d == 0:\n            out.append(str(lo))\n        else:\n            out.append(str(lo // scale) + '.' + str(lo % scale).zfill(d))\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nq = int(data[0])\nout = []\nfor i in range(q):\n    n = int(data[1 + 2 * i])\n    d = int(data[2 + 2 * i])\n    target = n * 10 ** (2 * d)\n    x = 0\n    while (x + 1) * (x + 1) <= target:\n        x += 1\n    s = str(x).zfill(d + 1)\n    out.append(s if d == 0 else s[:-d] + '.' + s[-d:])\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    def fmt(qs):\n        return str(len(qs)) + '\\n' + '\\n'.join(f'{n} {d}' for n, d in qs)\n    tests = [fmt([(0, 0)]), fmt([(0, 4)]), fmt([(1, 0)]), fmt([(1, 4)]), fmt([(2, 4)]), fmt([(3, 0)]), fmt([(10 ** 6, 4)]), fmt([(10 ** 6 - 1, 4)]), fmt([(10 ** 6 - 1, 0)]), fmt([(999999, 3)]), fmt([(4, 0), (4, 1), (4, 2), (5, 0), (5, 1), (5, 2)])]\n    for _ in range(16):\n        k = rng.randint(1, 6)\n        tests.append(fmt([(rng.randint(0, 2000), rng.randint(0, 4)) for _ in range(k)]))\n    for _ in range(6):\n        k = rng.randint(1, 3)\n        tests.append(fmt([(rng.randint(0, 10 ** 6), rng.randint(0, 4)) for _ in range(k)]))\n    Q = 10 ** 5\n    tests.append(fmt([(rng.randint(0, 10 ** 6), rng.randint(0, 4)) for _ in range(Q)]))\n    tests.append(fmt([(rng.randint(900000, 10 ** 6), 4) for _ in range(Q)]))\n    tests.append(fmt([(r * r, rng.randint(0, 4)) if rng.random() < 0.5 else (r * r - 1, rng.randint(0, 4)) for r in [rng.randint(1, 1000) for _ in range(Q)]]))\n    tests.append(fmt([(10 ** 6 - rng.randint(0, 5), 4) for _ in range(Q)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef sqrt_truncated(n: int, d: int) -> str:\n    # Write your solution here\n    return ''\n\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    out = []\n    for i in range(q):\n        out.append(sqrt_truncated(int(data[1 + 2 * i]), int(data[2 + 2 * i])))\n    print('\\n'.join(out))\n\n\nmain()\n",
+  "javascript": "function sqrtTruncated(n, d) {\n  // Write your solution here\n  return ''\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst q = t[0]\nconst out = []\nfor (let i = 0; i < q; i++) out.push(sqrtTruncated(t[1 + 2 * i], t[2 + 2 * i]))\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring sqrtTruncated(long long n, int d) {\n    // Write your solution here\n    return \"\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int q;\n    cin >> q;\n    while (q--) {\n        long long n;\n        int d;\n        cin >> n >> d;\n        cout << sqrtTruncated(n, d) << \"\\n\";\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String sqrtTruncated(long n, int d) {\n        // Write your solution here\n        return \"\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int q = (int) in.nval;\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < q; i++) {\n            in.nextToken();\n            long n = (long) in.nval;\n            in.nextToken();\n            int d = (int) in.nval;\n            sb.append(sqrtTruncated(n, d)).append('\\n');\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

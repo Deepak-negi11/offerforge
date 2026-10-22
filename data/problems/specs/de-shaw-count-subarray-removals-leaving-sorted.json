@@ -1,0 +1,48 @@
+{
+ "pid": "de-shaw-count-subarray-removals-leaving-sorted",
+ "title": "Count Subarray Removals Leaving Sorted",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `arr` of `n` integers. A **subarray** is any contiguous, non-empty segment `arr[l..r]`.\n\nCount the subarrays with the following property: if you **remove** the subarray from `arr` (the elements before it and after it are joined together, keeping their order), the remaining array is **non-empty** and **sorted in non-decreasing order** (each element is at most the next one; equal neighbours are allowed).\n\nTwo subarrays are different if their start or end positions differ, even when their values are the same. An array of one element counts as sorted.",
+ "input_format": "The first line contains the integer `n`.\nThe second line contains `n` space-separated integers `arr[0] ... arr[n-1]`.",
+ "output_format": "Print a single integer: the number of subarrays whose removal leaves a non-empty non-decreasing array.",
+ "constraints": [
+  "1 ≤ n ≤ 2 × 10^5",
+  "1 ≤ arr[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "4\n1 2 1 2",
+   "output": "7",
+   "explanation": "Removing [1..1] gives 1 1 2, [1..2] gives 1 2, [1..3] gives 1, [2..2] gives 1 2 2, [2..3] gives 1 2, [0..1] gives 1 2 and [0..2] gives 2. Removing [0..0] leaves 2 1 2, [3..3] leaves 1 2 1 and [0..3] leaves nothing, so none of those count: 7 in total."
+  },
+  {
+   "input": "3\n3 1 2",
+   "output": "3",
+   "explanation": "Removing [3] leaves 1 2, removing [3, 1] leaves 2, and removing [1, 2] leaves 3. Removing only [1] leaves 3 2 and only [2] leaves 3 1, which are not sorted. Removing the whole array leaves nothing, which is not allowed."
+  },
+  {
+   "input": "6\n1 2 2 6 1 3",
+   "output": "10",
+   "explanation": "Here the sorted prefix is 1 2 2 6 and the sorted suffix is 1 3. Ten different (start, end) removals leave a non-decreasing array, for example [2,2,6] leaves 1 1 3 and [6, 1] leaves 1 2 2 3."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "After removing arr[l..r], what is left is a prefix arr[0..l-1] joined to a suffix arr[r+1..n-1]. Both pieces must be sorted on their own, so only a limited range of l and r is possible.",
+  "Let p be the length of the longest sorted prefix and s the first index of the longest sorted suffix. You need l ≤ p and r + 1 ≥ s. The last remaining condition is that the junction is ordered: arr[l-1] ≤ arr[r+1].",
+  "For each valid l, the valid values of r+1 lie in the sorted suffix, and arr[r+1] ≥ arr[l-1] holds for all of them from some point on, so a binary search finds how many there are. Handle l = 0 and r = n-1 separately, and never count the removal of the whole array."
+ ],
+ "reference": "import sys\nfrom bisect import bisect_left\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    p = 1\n    while p < n and a[p - 1] <= a[p]:\n        p += 1\n    s = n - 1\n    while s > 0 and a[s - 1] <= a[s]:\n        s -= 1\n    res = 0\n    # l = 0: remaining is the suffix a[r+1..], must be non-empty and sorted\n    lo = max(0, s - 1)\n    if lo <= n - 2:\n        res += n - 1 - lo\n    for l in range(1, min(p, n - 1) + 1):\n        res += 1  # r = n - 1, only the sorted prefix remains\n        start = max(l + 1, s)\n        j = bisect_left(a, a[l - 1], start, n)\n        res += n - j\n    print(res)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + n]]\nres = 0\nfor l in range(n):\n    for r in range(l, n):\n        rest = a[:l] + a[r + 1:]\n        if rest and all(rest[i] <= rest[i + 1] for i in range(len(rest) - 1)):\n            res += 1\nprint(res)\n",
+ "generator": "def gen(rng):\n    def fmt(v):\n        return str(len(v)) + '\\n' + ' '.join(map(str, v))\n    tests = [fmt([5]), fmt([1, 2]), fmt([2, 1]), fmt([3, 1, 2]), fmt([1, 2, 1, 2]), fmt([1, 2, 2, 6, 1, 3]),\n             fmt([1, 1, 1, 1]), fmt([5, 4, 3, 2, 1]), fmt([1, 2, 3, 4, 5]), fmt([2, 1, 2, 1, 2]),\n             fmt([1, 3, 2, 4]), fmt([4, 1, 2, 3])]\n    for n in (3, 4, 5, 6, 7, 8, 10, 12, 15, 20, 30, 40):\n        for hi in (2, 4, 10):\n            tests.append(fmt([rng.randint(1, hi) for _ in range(n)]))\n    for n in (6, 9, 14, 25):\n        # nearly sorted arrays\n        v = sorted(rng.randint(1, 30) for _ in range(n))\n        for _ in range(2):\n            i = rng.randrange(n)\n            v[i] = rng.randint(1, 30)\n        tests.append(fmt(v))\n    N = 200000\n    tests.append(fmt(sorted(rng.randint(1, 10**9) for _ in range(N))))\n    tests.append(fmt([1] * N))\n    v = sorted(rng.randint(1, 10**5) for _ in range(N))\n    v[N // 2] = 1\n    tests.append(fmt(v))\n    half = sorted(rng.randint(1, 10**6) for _ in range(N // 2))\n    tests.append(fmt(half + sorted(rng.randint(1, 10**6) for _ in range(N - N // 2))))\n    tests.append(fmt([rng.randint(1, 10**6) for _ in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_removals(arr: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    arr = [int(x) for x in data[1:1 + n]]\n    print(count_removals(arr))\n\n\nmain()\n",
+  "javascript": "function countRemovals(arr) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst arr = t.slice(1, 1 + n)\nconsole.log(String(countRemovals(arr)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countRemovals(vector<long long>& arr) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> arr(n);\n    for (int i = 0; i < n; i++) cin >> arr[i];\n    cout << countRemovals(arr) << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countRemovals(long[] arr) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] arr = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            arr[i] = (long) in.nval;\n        }\n        System.out.println(countRemovals(arr));\n    }\n}\n"
+ }
+}

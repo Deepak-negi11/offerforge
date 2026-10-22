@@ -1,0 +1,18 @@
+{
+ "qid": "696f704389",
+ "question": "Atlassian SDE-2 (P40) **Code Design round**. You work on a payments team. A customer subscribes to products (for example Jira) and wants to know **what it will cost to keep using them for the rest of the year**. Build a **Cost Explorer** that, on any day of the year, produces a provisional report of **monthly cost** (a bill for each month, including future months in the unit year) and a **yearly cost estimate**.\n\nPlans: `BASIC 9.99`, `STANDARD 49.99`, `PREMIUM 249.99`. A subscription is described like `[planId, startDate, endDate, newPlan]`, for example `[\"BASIC\", \"2022-01-01\", \"2022-03-31\", \"PREMIUM\"]` meaning the customer is on BASIC through the end date and then moves to PREMIUM. **Follow-up:** incorporate a **trial period** (per product) into the bill, with the design kept **extensible** (for example for discounts).",
+ "lookingFor": [
+  "Modelling the domain with sensible classes (plans, subscriptions, bills).",
+  "Date and period logic: partial months, plan changes mid-year.",
+  "Extensibility through pricing or discount strategies rather than if/else chains.",
+  "Careful money handling and clarifying ambiguous requirements.",
+  "Writing code that is modular and testable under time pressure."
+ ],
+ "answer": "**Clarify assumptions first** (state them aloud): are plan prices per month? Is billing prorated by day for partial months, or charged per started month? Are end dates inclusive? What happens after the final `newPlan` begins (continues to year end)? Pick one rule, for example **daily proration: price x (days used in month / days in month)**.\n\n**Entities**\n- `Plan` (id, monthlyPrice), held in a `PlanCatalog`.\n- `Subscription` (customerId, productName, startDate, endDate, plan, nextPlan).\n- `PricingRule` / `BillingPolicy` interface for how a period is charged.\n- `MonthlyBill` (month, lineItems per product, total) and `CostReport` (monthly bills, yearly total).\n- `CostExplorer` with `monthlyBills(customer, year)` and `yearlyEstimate(customer, year)`.\n\n**Algorithm**\n1. Expand each subscription into **segments**: `(plan, from, to)` (the first from `start` to `end`, the second from `end + 1` to year end under `newPlan`).\n2. For each month of the year, intersect every segment with the month and compute `daysOverlap`.\n3. Cost for a segment in a month = `price x daysOverlap / daysInMonth`, summed over products.\n4. Yearly estimate = sum of monthly totals. Because future months are included, the report is a provisional estimate.\n\n**Money:** use `BigDecimal` (or integer cents) with a defined rounding mode, never `double`.\n\n**Trial extension:** add an optional `trialDays` or `trialEnd` per product subscription. When splitting the timeline, the overlap with the trial is charged at zero (a `TrialDiscount` rule). Implement discounts as a chain of `Adjustment` strategies applied to each line item (percentage, fixed amount, trial), so new offers are new classes, not edits to the core loop.\n\n**Edge cases and tests:** subscription spanning year boundaries, leap years, start in mid-month, a plan change on the last day of a month, trial longer than the subscription, no subscriptions.",
+ "followUps": [
+  "How would you handle a customer who cancels mid-year?",
+  "How do you represent multiple discounts that stack or conflict?",
+  "How would you handle different currencies or tax?",
+  "Why use BigDecimal or integer cents instead of double?"
+ ]
+}

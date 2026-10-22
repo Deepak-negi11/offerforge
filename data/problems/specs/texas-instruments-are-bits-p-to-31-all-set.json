@@ -1,0 +1,49 @@
+{
+ "pid": "texas-instruments-are-bits-p-to-31-all-set",
+ "title": "Are Bits p to 31 All Set",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "Bits of an unsigned 32-bit integer `x` are numbered from `0` (the least significant bit) to `31` (the most significant bit). Given `x` and a position `p`, decide whether **every** bit from position `p` up to position `31` (inclusive) is `1`. Bits below position `p` do not matter.\n\nYou are given `q` queries `(x, p)`. For each one print `true` if all bits `p, p+1, ..., 31` of `x` are set and `false` otherwise. `x` is given as an unsigned decimal number (for example `4294901760` is `0xFFFF0000`).\n\n**Follow-up:** in the original interview the solution had to use only bitwise operators and run in O(1) per query, written as a complete C program. Avoid loops over the bits.",
+ "input_format": "The first line contains the integer `q`.\nEach of the next `q` lines contains two integers `x` and `p`.",
+ "output_format": "Print `q` lines, each `true` or `false`.",
+ "constraints": [
+  "1 ≤ q ≤ 10^5",
+  "0 ≤ x ≤ 2^32 - 1",
+  "0 ≤ p ≤ 31"
+ ],
+ "examples": [
+  {
+   "input": "3\n4294901760 16\n4294901760 15\n4294901760 17",
+   "output": "true\nfalse\ntrue",
+   "explanation": "`4294901760` is `0xFFFF0000`: bits 16 to 31 are ones. From p = 16 or 17 all required bits are set. From p = 15 the bit 15 is 0, so the answer is false."
+  },
+  {
+   "input": "3\n4294967295 0\n2147483648 31\n2147483647 31",
+   "output": "true\ntrue\nfalse",
+   "explanation": "`0xFFFFFFFF` has all bits set. `0x80000000` has bit 31 set, which is the only bit required when p = 31. `0x7FFFFFFF` has bit 31 clear."
+  },
+  {
+   "input": "2\n0 31\n4294967294 0",
+   "output": "false\nfalse",
+   "explanation": "Zero has no set bits, and `0xFFFFFFFE` has bit 0 clear so it fails when p = 0."
+  }
+ ],
+ "complexity": {
+  "time": "O(q)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Which 32-bit number has exactly the bits p to 31 set to 1 and the rest 0? Think of `0xFFFFFFFF` shifted, or of `~((1 << p) - 1)`.",
+  "Only the bits from `p` upward matter. Force the lower `p` bits to 1 (with OR) and the question becomes: is the whole word all ones?",
+  "Careful with signed 32-bit arithmetic in some languages: `1 << 31` is negative in C-like `int` and JavaScript. Use unsigned or 64-bit values, or compare with `x >>> p` in JavaScript."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    out = []\n    full = 0xFFFFFFFF\n    for i in range(q):\n        x = int(data[1 + 2 * i])\n        p = int(data[2 + 2 * i])\n        out.append('true' if (x | ((1 << p) - 1)) == full else 'false')\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nq = int(data[0])\nfor i in range(q):\n    x = int(data[1 + 2 * i])\n    p = int(data[2 + 2 * i])\n    ok = all((x >> b) & 1 for b in range(p, 32))\n    print('true' if ok else 'false')\n",
+ "generator": "def gen(rng):\n    def fmt(qs):\n        return str(len(qs)) + '\\n' + '\\n'.join('%d %d' % p for p in qs)\n\n    M = 2 ** 32 - 1\n\n    def hi_ones(p):\n        return M ^ ((1 << p) - 1)\n\n    tests = [fmt([(M, 0)]), fmt([(0, 31)]), fmt([(0x80000000, 31)]), fmt([(0x7FFFFFFF, 31)]),\n             fmt([(0xFFFF0000, 16), (0xFFFF0000, 15), (0xFFFF0000, 17)]),\n             fmt([(M, 31), (M, 15), (M, 0)]), fmt([(0, 0)]), fmt([(M - 1, 0), (M - 1, 1)])]\n    for _ in range(30):\n        qs = []\n        for _ in range(rng.randint(1, 12)):\n            p = rng.randint(0, 31)\n            mode = rng.randint(0, 3)\n            if mode == 0:\n                x = rng.randint(0, M)\n            elif mode == 1:\n                x = hi_ones(p) | rng.randint(0, (1 << p) - 1) if p else M\n            elif mode == 2:\n                x = (hi_ones(p) | rng.randint(0, (1 << p) - 1) if p else M) ^ (1 << rng.randint(p, 31))\n            else:\n                x = hi_ones(p)\n            qs.append((x, p))\n        tests.append(fmt(qs))\n    def big(n, mixed):\n        qs = []\n        for _ in range(n):\n            p = rng.randint(0, 31)\n            if mixed and rng.random() < 0.5:\n                x = (hi_ones(p) | rng.randint(0, (1 << p) - 1)) if p else M\n            else:\n                x = rng.randint(0, M)\n            qs.append((x, p))\n        return qs\n    tests.append(fmt(big(100000, True)))\n    tests.append(fmt(big(100000, False)))\n    tests.append(fmt([(M, 0)] * 100000))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef all_set_from(x: int, p: int) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    out = []\n    for i in range(q):\n        x = int(data[1 + 2 * i])\n        p = int(data[2 + 2 * i])\n        out.append('true' if all_set_from(x, p) else 'false')\n    print('\\n'.join(out))\n\n\nmain()\n",
+  "javascript": "function allSetFrom(x, p) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst q = t[0]\nconst out = []\nfor (let i = 0; i < q; i++) out.push(allSetFrom(t[1 + 2 * i], t[2 + 2 * i]) ? 'true' : 'false')\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool allSetFrom(unsigned long long x, int p) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int q;\n    cin >> q;\n    while (q--) {\n        unsigned long long x;\n        int p;\n        cin >> x >> p;\n        cout << (allSetFrom(x, p) ? \"true\" : \"false\") << \"\\n\";\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean allSetFrom(long x, int p) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int q = (int) in.nval;\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < q; i++) {\n            in.nextToken();\n            long x = (long) in.nval;\n            in.nextToken();\n            int p = (int) in.nval;\n            sb.append(allSetFrom(x, p) ? \"true\" : \"false\").append(\"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "f7fc47e776",
+ "question": "CRED SDE-1 Backend (lateral), Round 2 system design: **design an InDrive-like ride platform with one key difference: only drivers can list their prices, and customers have no option to negotiate or counter-offer**. Discussion covered **driver discovery, the pricing flow, matching logic and scalability**.",
+ "lookingFor": [
+  "Structured requirements gathering and scoping.",
+  "Geo-spatial discovery design and real-time updates.",
+  "Matching and concurrency (one driver, one ride).",
+  "Scaling, consistency and failure handling trade-offs."
+ ],
+ "answer": "**Requirements.** Functional: rider requests a trip (pickup, drop); nearby available drivers see it and each posts a price (no counter-offers); the rider sees offers and picks one; the driver is notified and the trip starts, with tracking, payment and ratings. Non-functional: low latency discovery (a few seconds), high availability, correctness (no double assignment). Assume, say, 5M daily trips and 500K drivers online; confirm with the interviewer.\n\n**APIs.** `POST /rides` (pickup, drop), `POST /rides/{id}/offers` (driver, price, ETA), `GET /rides/{id}/offers`, `POST /rides/{id}/accept` (offerId), driver location `PUT /drivers/{id}/location`, trip lifecycle updates.\n\n**Components.**\n- **Location service**: drivers send GPS every few seconds. Store in an in-memory geo-index (Redis GEO, or geohash/H3 cell to set of drivers) for \"drivers within R km\".\n- **Ride service**: owns the ride state machine REQUESTED -> OFFERS_OPEN -> ACCEPTED -> IN_PROGRESS -> COMPLETED/CANCELLED.\n- **Dispatch/notification**: finds nearby available drivers (with filters such as vehicle type and rating) and pushes the request via push notifications or WebSocket. Cap the fan-out (the nearest N drivers, widening the radius in steps).\n- **Offer service**: stores each driver's price with a TTL (offers expire after, say, 30-60 seconds); pushes new offers to the rider in real time.\n- **Matching on accept**: atomically move the ride to ACCEPTED and mark the driver busy using a conditional update or a Redis lock with a unique constraint, so a driver cannot take two rides and two drivers cannot get one ride.\n- **Payments, trip tracking, ratings** as separate services behind a queue (Kafka) for async events.\n\n**Data model.** `rides`, `offers (ride_id, driver_id, price, expires_at)`, `drivers (status, vehicle)`, `trips`, `payments`. Use SQL for transactional entities and Redis for hot location data; shard by city or region.\n\n**Trade-offs.** Without negotiation the price is the driver's anchor, so show rating and ETA to help choice and consider price guardrails (min/max bands) against gouging. Offer fan-out to many drivers is write-heavy: limit it. Stale driver location versus update cost: batch updates.\n\n**Scaling and reliability.** Partition by geography, WebSocket gateways behind a load balancer, idempotent accept calls, and timeouts that return a ride to the open pool.",
+ "followUps": [
+  "How would you find the nearest drivers efficiently (geohash vs quadtree)?",
+  "What happens if the driver accepted but loses connectivity?",
+  "How would you prevent price manipulation or driver collusion?",
+  "How would you handle surge demand in one area?"
+ ]
+}

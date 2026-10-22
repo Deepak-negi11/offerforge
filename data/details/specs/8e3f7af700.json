@@ -1,0 +1,18 @@
+{
+ "qid": "8e3f7af700",
+ "question": "Meesho SDE-1 and SDE-3 machine coding round (90 minutes, two interviewers, HackerRank-style editor). Design a **stock exchange order book**: users can **place, modify and cancel buy and sell orders**. A trade can execute only when the **buy price is greater than or equal to the sell price**; if several orders qualify, choose the **older one (price-time / FIFO priority)**. Maintain an order book of unexecuted orders and the state of each trade. **Handle concurrency and thread safety and exceptions.** Input and output formats are not provided. Bonus: remove orders after their expiry time. The SDE-3 version asked for the same matching engine with concurrency care.",
+ "lookingFor": [
+  "Choosing the right data structures for price-time priority matching.",
+  "Correct matching logic, including partial fills and price selection.",
+  "Thread-safety strategy and the reasoning behind it.",
+  "Order lifecycle handling: modify, cancel, expire.",
+  "Clean decomposition that fits into 90 minutes."
+ ],
+ "answer": "**Clarify.** Single symbol or many? Limit orders only? Partial fills allowed? At what price does a trade execute? (Usual rule: the price of the resting order, i.e. the one that arrived first.) Is modify allowed on quantity, price, or both?\n\n**Entities**\n- `Order(id, userId, symbol, side BUY/SELL, price, quantity, remaining, timestamp/sequence, status, expiresAt)`.\n- `Trade(id, buyOrderId, sellOrderId, price, quantity, time)`.\n- `OrderBook` per symbol with two sides:\n  - Buys: ordered by price **descending**, then by sequence ascending.\n  - Sells: ordered by price **ascending**, then by sequence ascending.\n  Use a `TreeMap<price, Queue<Order>>` per side (or a `PriorityQueue` with a comparator on price then sequence). Also keep `Map<orderId, Order>` for O(1) lookup in cancel and modify.\n\n**Matching on a new order.** A buy matches while the best sell price is `<= buy price`; take the oldest order at that price level, trade `min(remaining)`, reduce both, remove fully filled orders, repeat. Anything left is added to the book. Sells are symmetric. Use a monotonically increasing sequence number instead of wall-clock time to break ties reliably.\n\n**Cancel.** Look up by id, remove from its price queue (use a linked structure or lazy deletion by marking `CANCELLED` and skipping it during matching), update status.\n\n**Modify.** A price change or a quantity increase loses time priority: treat it as cancel plus new order (new sequence number). A quantity decrease can keep priority. State your rule.\n\n**Concurrency.** Matching must be atomic per symbol. Simplest correct option: one lock per `OrderBook` (symbol), or a single-threaded matching loop fed by a queue, which is how many real engines achieve determinism. Different symbols can run in parallel. Do not hold the lock while doing slow work such as notifications; publish trade events after.\n\n**Expiry bonus.** A delay queue or a scheduled sweeper ordered by `expiresAt` marks orders `EXPIRED` and removes them, taking the same lock as matching; also skip expired orders during matching.\n\n**Exceptions.** Invalid price or quantity, unknown order, cancelling a filled order.\n\n**Demo.** User1 buys 10 at 100, User2 sells 6 at 99 (trade 6 at 100, the resting price), show the remaining book.",
+ "followUps": [
+  "How would you support market orders and IOC/FOK order types?",
+  "Why use a sequence number instead of a timestamp for time priority?",
+  "How would you scale to thousands of symbols and millions of orders per second?",
+  "How would you persist the book and recover after a crash?"
+ ]
+}

@@ -1,0 +1,48 @@
+{
+ "pid": "encode-string-with-shortest-length",
+ "title": "Encode String With Shortest Length",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "A string can be written in a compressed form using the rule `k[encoded]`, where `k` is a positive integer written in decimal and the text `encoded` inside the square brackets is repeated exactly `k` times. For example, `3[ab]` stands for `ababab`. The text inside the brackets may itself be encoded, so `2[3[a]b]` stands for `aaabaaab`.\n\nAn **encoding** of a string `s` is obtained by cutting `s` into one or more consecutive pieces and writing each piece either as it is or in the form `k[encoded]` (with `k ≥ 2`), where `encoded` is itself an encoding of the repeated unit. The length of an encoding is the number of characters it contains, counting digits and brackets. An encoding does not have to be shorter than the original: if encoding a piece would not make it shorter, simply leave it as it is.\n\nGiven a string `s`, find the **length of the shortest encoding** of `s`.\n\nThe original task asks for the encoded string itself; since several different strings can have the same minimum length, this version asks only for that length so that the answer is unique.",
+ "input_format": "A single line containing the string `s`.",
+ "output_format": "Print a single integer: the minimum possible length of an encoding of `s`.",
+ "constraints": [
+  "1 ≤ |s| ≤ 200",
+  "`s` consists of lowercase English letters"
+ ],
+ "examples": [
+  {
+   "input": "aaaaaaaaaa",
+   "output": "5",
+   "explanation": "`10[a]` has 5 characters, compared with 10 for the original string."
+  },
+  {
+   "input": "abababcabababc",
+   "output": "9",
+   "explanation": "The string is `abababc` written twice, and `abababc` is `ab` three times followed by `c`. So `2[3[ab]c]` works and has 9 characters, compared with 14 for the original."
+  },
+  {
+   "input": "abc",
+   "output": "3",
+   "explanation": "No piece repeats, so encoding cannot help. The shortest encoding is the string itself."
+  }
+ ],
+ "complexity": {
+  "time": "O(n^3)",
+  "space": "O(n^2)"
+ },
+ "hints": [
+  "Think in intervals: let best[i][j] be the shortest encoding length of the substring s[i..j]. Smaller substrings feed larger ones.",
+  "For a substring, you can leave it plain, split it into two parts and add their best lengths, or (if it is a whole number of copies of a shorter unit) write it as k[unit] where the unit is encoded optimally.",
+  "To test whether a substring t is made of a repeated unit, search for t inside t + t starting at index 1; the position found is the length of the smallest unit."
+ ],
+ "reference": "import sys\n\ndef main():\n    s = sys.stdin.read().split()[0]\n    n = len(s)\n    dp = [[0] * n for _ in range(n)]\n    for length in range(1, n + 1):\n        for i in range(n - length + 1):\n            j = i + length - 1\n            t = s[i:j + 1]\n            best = length\n            for k in range(i, j):\n                c = dp[i][k] + dp[k + 1][j]\n                if c < best:\n                    best = c\n            p = (t + t).find(t, 1)\n            if p < length:\n                c = len(str(length // p)) + 2 + dp[i][i + p - 1]\n                if c < best:\n                    best = c\n            dp[i][j] = best\n    print(dp[0][n - 1])\n\nmain()\n",
+ "brute": "import sys\nfrom functools import lru_cache\n\ns = sys.stdin.read().split()[0]\n\n@lru_cache(maxsize=None)\ndef f(t):\n    n = len(t)\n    best = n\n    for i in range(1, n):\n        best = min(best, f(t[:i]) + f(t[i:]))\n    for k in range(2, n + 1):\n        if n % k == 0 and t[:n // k] * k == t:\n            best = min(best, len(str(k)) + 2 + f(t[:n // k]))\n    return best\n\nprint(f(s))\n",
+ "generator": "def gen(rng):\n    tests = ['a', 'ab', 'aa', 'aaa', 'aaaa', 'abc', 'abab', 'aabaab', 'abcabcabcabc', 'a' * 9, 'a' * 10, 'a' * 11,\n             'abbbabbbcabbbabbbc', 'aabcaabcd', 'abababababababab']\n    for L in (3, 5, 8, 10, 14, 18, 24):\n        for alpha in ('ab', 'abc', 'a'):\n            for _ in range(2):\n                tests.append(''.join(rng.choice(alpha) for _ in range(L)))\n    for _ in range(14):\n        unit = ''.join(rng.choice('ab') for _ in range(rng.randint(1, 4)))\n        k = rng.randint(2, 8)\n        pre = ''.join(rng.choice('abc') for _ in range(rng.randint(0, 3)))\n        suf = ''.join(rng.choice('abc') for _ in range(rng.randint(0, 3)))\n        tests.append((pre + unit * k + suf)[:60])\n    for _ in range(6):\n        inner = ''.join(rng.choice('ab') for _ in range(rng.randint(1, 3))) * rng.randint(2, 4) + rng.choice('abc')\n        tests.append((inner * rng.randint(2, 4))[:60])\n    tests.append('a' * 200)\n    tests.append('ab' * 100)\n    tests.append('abc' * 66 + 'ab')\n    unit = ''.join(rng.choice('ab') for _ in range(10))\n    tests.append(unit * 20)\n    inner = ('ab' * 3 + 'c') * 3 + 'd'\n    tests.append((inner * 20)[:200])\n    tests.append(''.join(rng.choice('abc') for _ in range(200)))\n    tests.append(''.join(rng.choice('ab') for _ in range(200)))\n    tests.append(('a' * 7 + 'b') * 25)\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef shortest_encoded_length(s: str) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    s = sys.stdin.read().split()[0]\n    print(shortest_encoded_length(s))\n\n\nmain()\n",
+  "javascript": "function shortestEncodedLength(s) {\n  // Write your solution here\n  return 0\n}\n\nconst s = input.trim().split(/\\s+/)[0]\nconsole.log(String(shortestEncodedLength(s)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint shortestEncodedLength(const string& s) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s;\n    cin >> s;\n    cout << shortestEncodedLength(s) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int shortestEncodedLength(String s) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String s = br.readLine().trim();\n        System.out.println(shortestEncodedLength(s));\n    }\n}\n"
+ }
+}

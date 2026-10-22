@@ -1,0 +1,47 @@
+{
+ "pid": "integer-to-english-words",
+ "title": "Integer to English Words",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "Given a non-negative integer `num`, write out its value in English words.\n\nUse exactly this vocabulary and format:\n\n- Words are capitalised and separated by single spaces, with no hyphens, no commas and no `And`. For example `21` is `Twenty One`, and `101` is `One Hundred One`.\n- Numbers `1` to `19` use the words `One`, `Two`, ..., `Nineteen`; the tens use `Twenty`, `Thirty`, `Forty`, `Fifty`, `Sixty`, `Seventy`, `Eighty`, `Ninety`.\n- Each group of three digits is read as `<digit> Hundred <rest>` and followed by its scale word: `Thousand` for 10^3, `Million` for 10^6 and `Billion` for 10^9. A group that is entirely zero is skipped together with its scale word.\n- The number `0` is written as `Zero`.\n\nThe tricky parts are the special words for 10 to 19, the zero groups in the middle of a number (for example `1000010`), and keeping spaces exactly right.",
+ "input_format": "A single line containing the integer `num`.",
+ "output_format": "Print the English words for `num` on one line.",
+ "constraints": [
+  "0 ≤ num ≤ 2^31 - 1"
+ ],
+ "examples": [
+  {
+   "input": "1234",
+   "output": "One Thousand Two Hundred Thirty Four",
+   "explanation": "The groups are 1 (Thousand) and 234. 234 reads as Two Hundred Thirty Four."
+  },
+  {
+   "input": "1000010",
+   "output": "One Million Ten",
+   "explanation": "The thousands group is 000, so it and the word Thousand are skipped. The last group is 10, which reads as Ten."
+  },
+  {
+   "input": "0",
+   "output": "Zero",
+   "explanation": "Zero is the only number written without any scale or digit words."
+  }
+ ],
+ "complexity": {
+  "time": "O(log num), at most four groups of three digits",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Solve the problem for numbers below 1000 first: handle the hundreds digit, then the remainder below 100.",
+  "Numbers below 20 need their own names, and from 20 up you combine a tens word with an ones word.",
+  "Split the number into groups of three digits from the right (billions, millions, thousands, ones), convert each non-zero group with the helper and append its scale word. Collect the words in a list and join with single spaces so you never get extra spaces."
+ ],
+ "reference": "import sys\n\nONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve',\n        'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']\nTENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']\nSCALES = [(10**9, 'Billion'), (10**6, 'Million'), (10**3, 'Thousand')]\n\ndef below_thousand(x):\n    words = []\n    if x >= 100:\n        words.append(ONES[x // 100])\n        words.append('Hundred')\n        x %= 100\n    if x >= 20:\n        words.append(TENS[x // 10])\n        x %= 10\n    if x > 0:\n        words.append(ONES[x])\n    return words\n\ndef main():\n    num = int(sys.stdin.read().split()[0])\n    if num == 0:\n        print('Zero')\n        return\n    words = []\n    for size, name in SCALES:\n        if num >= size:\n            words.extend(below_thousand(num // size))\n            words.append(name)\n            num %= size\n    words.extend(below_thousand(num))\n    print(' '.join(words))\n\nmain()\n",
+ "brute": "import sys\n\nsmall = {1: 'One', 2: 'Two', 3: 'Three', 4: 'Four', 5: 'Five', 6: 'Six', 7: 'Seven', 8: 'Eight', 9: 'Nine'}\nteens = {10: 'Ten', 11: 'Eleven', 12: 'Twelve', 13: 'Thirteen', 14: 'Fourteen', 15: 'Fifteen', 16: 'Sixteen',\n         17: 'Seventeen', 18: 'Eighteen', 19: 'Nineteen'}\ntens = {2: 'Twenty', 3: 'Thirty', 4: 'Forty', 5: 'Fifty', 6: 'Sixty', 7: 'Seventy', 8: 'Eighty', 9: 'Ninety'}\nnames = ['Billion', 'Million', 'Thousand', '']\n\ns = sys.stdin.read().split()[0]\nif int(s) == 0:\n    print('Zero')\nelse:\n    s = s.zfill(12)\n    out = []\n    for g in range(4):\n        chunk = s[3 * g:3 * g + 3]\n        h, t, o = int(chunk[0]), int(chunk[1]), int(chunk[2])\n        if h + t + o == 0:\n            continue\n        if h:\n            out += [small[h], 'Hundred']\n        if t == 1:\n            out.append(teens[10 + o])\n        else:\n            if t:\n                out.append(tens[t])\n            if o:\n                out.append(small[o])\n        if names[g]:\n            out.append(names[g])\n    print(' '.join(out))\n",
+ "generator": "def gen(rng):\n    nums = [0, 1, 7, 10, 11, 13, 19, 20, 21, 40, 55, 99, 100, 101, 110, 111, 119, 120, 999, 1000, 1001, 1010, 1100,\n            1234, 10000, 12345, 100000, 100001, 999999, 1000000, 1000001, 1000010, 1010101, 20000000, 100000000,\n            123456789, 999999999, 1000000000, 1000000001, 1000000010, 2000000000, 2100000000, 2147483647,\n            2147483646, 1000010000, 1001000000]\n    tests = [str(x) for x in nums]\n    for digits in range(1, 11):\n        for _ in range(2):\n            lo = 10 ** (digits - 1)\n            hi = min(10 ** digits - 1, 2**31 - 1)\n            tests.append(str(rng.randint(lo, hi)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef number_to_words(num: int) -> str:\n    # Write your solution here\n    return ''\n\n\ndef main():\n    num = int(sys.stdin.read().split()[0])\n    print(number_to_words(num))\n\n\nmain()\n",
+  "javascript": "function numberToWords(num) {\n  // Write your solution here\n  return ''\n}\n\nconst num = Number(input.split(/\\s+/).filter(Boolean)[0])\nconsole.log(numberToWords(num))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring numberToWords(long long num) {\n    // Write your solution here\n    return \"\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    long long num;\n    cin >> num;\n    cout << numberToWords(num) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String numberToWords(long num) {\n        // Write your solution here\n        return \"\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        long num = Long.parseLong(br.readLine().trim());\n        System.out.println(numberToWords(num));\n    }\n}\n"
+ }
+}

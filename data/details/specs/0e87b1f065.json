@@ -1,0 +1,19 @@
+{
+ "qid": "0e87b1f065",
+ "question": "Phone screen for a Senior Member of Technical Staff (SMTS) role at Oracle Health (about 4 years of experience). The problem:\n\nGiven a **huge set of URL access logs**, find the **top K most accessed URLs overall** and the **top K in the last 24 hours**, when **memory is limited**. Write pseudocode and discuss the trade-offs.",
+ "lookingFor": [
+  "Can you choose a heap-based top-K approach and state its complexity?",
+  "Do you handle data larger than memory (partitioning, external aggregation, approximation)?",
+  "Can you design the sliding 24-hour window efficiently?",
+  "Do you compare exact and approximate methods and justify the choice?",
+  "Can you extend the single-machine idea to a distributed one?"
+ ],
+ "answer": "**Baseline (counts fit in memory).** Count with a hash map `url -> count`, then keep a **min-heap of size K**: for each (url, count), push, and pop the smallest if the size exceeds K. Time O(U log K) for U distinct URLs, memory O(U + K).\n\n**If distinct URLs do not fit in memory.**\n- **Partition by hash.** Stream the logs and write each URL to one of P files by `hash(url) mod P`. The same URL always lands in the same partition, so each partition can be counted in memory independently. Take each partition's local top K, then merge those P lists with a heap. This is exact.\n- **Approximate.** A **Count-Min Sketch** (fixed memory) estimates counts, plus a K-sized heap of current candidates; counts only overestimate, and heavy hitters are found reliably. Alternatives: Space-Saving or Misra-Gries for frequent items. Accept small error for constant memory.\n\n**Last 24 hours.** Bucket counts by time, for example one hash map (or sketch) per hour. A query sums the last 24 buckets, and old buckets are dropped as they expire. Finer buckets (per minute) give more accurate windows at more cost. For an exact sliding window on a stream, keep a queue of (timestamp, url) events and decrement counts as events expire, but that needs memory proportional to events in the window.\n\n**Pseudocode (exact, partitioned).**\n\n```\nfor each log line: write url to file[hash(url) % P]\nfor each file f: counts = map(); for url in f: counts[url]++\n    for (u, c) in counts: heap.push((c,u)); if size>K: heap.pop()\nmerge the per-file heaps into the final top K\n```\n\n**Trade-offs.** Exact needs more disk passes; sketches use small memory but approximate counts. Distributed version: shard by URL hash across machines (MapReduce style), each computes local top K, a coordinator merges. Because URL partitions are disjoint, merging local top K lists is correct.",
+ "followUps": [
+  "Why is a min-heap better than sorting all counts?",
+  "How does a Count-Min Sketch work, and what are its error characteristics?",
+  "How would you answer top K for the last 24 hours continuously on a live stream?",
+  "How would you handle a very skewed URL such as the homepage in a partitioned approach?",
+  "How would you do this on a cluster using MapReduce or Spark?"
+ ]
+}

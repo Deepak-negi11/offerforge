@@ -1,0 +1,18 @@
+{
+ "qid": "bf49b3d34d",
+ "question": "Second coding pair round for an experienced (3+ years) D. E. Shaw SMTS candidate. After a knapsack-style DP problem, the interviewer gave a **multithreading problem** and asked for **pseudocode**, then discussed concurrency concerns around it. The exact problem was not recorded in the report; the most common form of this question is a producer-consumer or similar shared-resource problem, which is what is answered here.",
+ "lookingFor": [
+  "Understanding of shared state, race conditions and critical sections.",
+  "Correct use of mutexes and condition variables, including spurious wakeups.",
+  "Awareness of deadlock, starvation and visibility issues.",
+  "Ability to reason about correctness and test concurrent code."
+ ],
+ "answer": "**Pick a classic and state it.** A bounded buffer shared by producer and consumer threads is a good vehicle. Say clearly: producers must wait when the buffer is full, consumers must wait when it is empty, and access to the buffer must be mutually exclusive.\n\n**Pseudocode (monitor style)**\n```\nclass BoundedQueue(capacity):\n    queue = empty\n    lock = Mutex()\n    notFull = Condition(lock)\n    notEmpty = Condition(lock)\n\n    put(item):\n        lock.acquire()\n        while queue.size == capacity:   # while, not if\n            notFull.wait()              # releases lock while waiting\n        queue.push(item)\n        notEmpty.signal()\n        lock.release()\n\n    take():\n        lock.acquire()\n        while queue.size == 0:\n            notEmpty.wait()\n        item = queue.pop()\n        notFull.signal()\n        lock.release()\n        return item\n```\n\n**Why it is correct**\n- The lock gives mutual exclusion, so there are no data races on `queue`.\n- Wait loops use `while`, because of **spurious wakeups** and because another thread may consume the item first.\n- Two conditions avoid waking the wrong kind of thread.\n\n**Concerns to discuss**\n- **Race condition:** the check and the action must happen under one lock (check-then-act).\n- **Deadlock:** four conditions (mutual exclusion, hold and wait, no preemption, circular wait); prevent by acquiring multiple locks in a fixed order, using timeouts or `tryLock`.\n- **Starvation and fairness:** fair locks or queues if some threads never get served.\n- **Memory visibility:** use the language's synchronisation primitives (locks, `volatile` and atomics in Java) so writes are visible across threads.\n- **Shutdown:** a poison pill or a `closed` flag so consumers do not wait forever.\n- **Performance:** lock contention; consider lock-free queues or finer-grained locking only after measuring.\n- **Testing:** stress tests with many threads, small capacity, and tools such as ThreadSanitizer.\n\nIn practice, use the library's `BlockingQueue` or `ExecutorService` rather than hand-writing this.",
+ "followUps": [
+  "Why use `while` instead of `if` around `wait()`?",
+  "What is the difference between a mutex and a semaphore?",
+  "How would you solve this with semaphores instead?",
+  "How would you detect and fix a deadlock in production?",
+  "What is the difference between `signal` and `signalAll`, and when does it matter?"
+ ]
+}

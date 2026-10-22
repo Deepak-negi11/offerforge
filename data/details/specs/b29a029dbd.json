@@ -1,0 +1,18 @@
+{
+ "qid": "b29a029dbd",
+ "question": "Goldman Sachs Analyst - Software Engineer, Round 3 (resume, LLD and DP, two interviewers): **design a task scheduler where tasks can only start after their dependencies are completed.** Follow-up: **add priority-based execution.**",
+ "lookingFor": [
+  "Modelling dependencies as a DAG and recognising topological ordering.",
+  "Detecting cycles and invalid input.",
+  "Clean class design with a clear scheduler and executor split.",
+  "Extending to priorities and concurrent execution safely."
+ ],
+ "answer": "**Clarify:** are tasks run once, in one process? Can tasks run in parallel? What if a task fails? Are dependencies known up front? Assume in-memory, parallel execution with a worker pool.\n\n**Model:** the tasks and dependencies form a directed acyclic graph (DAG). Each `Task` has an `id`, `Runnable`/callable, `priority`, a set of `dependencies`, and a `status` (PENDING, READY, RUNNING, DONE, FAILED).\n\n**Algorithm (Kahn's topological sort, adapted for execution):**\n1. Build `dependents: taskId -> list of tasks that wait on it` and `indegree: taskId -> number of unfinished dependencies`.\n2. Validate: every dependency exists; detect cycles (if processed count is less than total tasks at the end, a cycle exists). Reject the whole submission with a clear error.\n3. Put all tasks with indegree 0 into the **ready queue**.\n4. Workers take a task from the ready queue and run it. On success, for each dependent decrement its indegree (atomically); when it reaches 0, move it to the ready queue.\n5. Finish when all tasks are done.\n\nTime O(V + E).\n\n**Priority extension:** replace the FIFO ready queue by a priority queue (a `PriorityBlockingQueue` ordered by priority, then submission time). Only *ready* tasks compete, so priority never violates dependencies. A high-priority task that depends on a low-priority one must wait for it; optionally mention priority inheritance (boost the dependency), and aging to avoid starvation of low-priority tasks.\n\n**Classes:** `Task`, `TaskGraph` (adds tasks, validates), `Scheduler` (core loop and API such as `submit` and `awaitAll`), `Executor` worker pool, and an optional `TaskListener` for status events.\n\n**Concurrency:** the indegree map needs atomic counters (`AtomicInteger`) or a lock around the \"decrement and release\" step so a task is enqueued exactly once.\n\n**Failure policy:** if a task fails, mark its transitive dependents SKIPPED (or retry with backoff), configurable per task.\n\n**Extensions:** timeouts, retries, dynamic task submission (re-check cycles on add), persistence for a distributed scheduler.",
+ "followUps": [
+  "How do you detect a cycle, and what do you report to the user?",
+  "How would you handle a failed task and its dependents?",
+  "Could priority cause starvation? How do you prevent it?",
+  "How would you run independent branches in parallel safely?",
+  "How would you persist the state to survive a restart?"
+ ]
+}

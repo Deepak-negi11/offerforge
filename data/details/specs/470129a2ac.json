@@ -1,0 +1,19 @@
+{
+ "qid": "470129a2ac",
+ "question": "Round 2 of a Swiggy SDE-1 process was a **3-hour machine coding round** where the task was to **build a calendar application** (similar to Google Calendar or Google Meet scheduling):\n\n- schedule meetings,\n- display different users' calendars,\n- allow users to **accept or reject** meetings.\n\nThere were seven requirements in total, the code had to **run without errors** at the end, and the interviewer discussed extra requirements and the candidate's design for the ones not completed.",
+ "lookingFor": [
+  "Can you extract entities and a clean object model from a vague spec?",
+  "Do you prioritise requirements and deliver working code incrementally?",
+  "Can you handle scheduling logic such as overlap and conflict detection correctly?",
+  "Is the design extensible (recurrence, reminders, rooms) without rewrites?",
+  "Do you test and demo what you built?"
+ ],
+ "answer": "**Process (3 hours):** spend about 15 minutes on requirements and design, build the core end to end first, then add features in priority order, keeping the code runnable throughout. Say your assumptions aloud.\n\n**Entities**\n- `User` (id, name), `Calendar` (owner, list of events), `Event`/`Meeting` (id, title, start, end, organiser, attendees), and `Invite` or `Attendance` (user, meeting, status: PENDING, ACCEPTED, REJECTED).\n- Optionally `MeetingRoom`, and a `RecurrenceRule`.\n\n**Services**\n- `CalendarService`: `scheduleMeeting(organiser, attendees, start, end)`, `respond(user, meetingId, ACCEPT|REJECT)`, `getCalendar(user, range)`.\n- `ConflictChecker`/strategy: decides whether a new meeting overlaps with the user's accepted meetings.\n- `NotificationService` (observer) to notify invitees. Use in-memory repositories behind interfaces.\n\n**Key logic**\n- Two intervals overlap iff `a.start < b.end && b.start < a.end`. Keep each user's events sorted by start time (a `TreeMap` or sorted list) to find conflicts with binary search in O(log n) instead of scanning.\n- Decide the policy: reject or warn on conflicts with accepted meetings, auto-add to the organiser's calendar as accepted, and invitees see it as pending. A rejected meeting is removed from that user's visible calendar.\n- Validate: `start < end`, attendees exist, only invitees can respond.\n- Concurrency: guard a user's calendar with a lock if scheduling is concurrent, otherwise two requests could both pass the conflict check.\n\n**Extensions to discuss:** recurring events (store the rule and expand lazily), time zones (store UTC), free/busy search across attendees (merge sorted intervals), meeting rooms as resources, reminders, and persistence (DB schema with an index on user and start time).\n\n**Mistakes to avoid:** spending the whole time on design with nothing running, hard-coding to the in-memory structure, and getting overlap boundaries wrong (back-to-back meetings must not conflict).",
+ "followUps": [
+  "How would you find a common free slot for N attendees?",
+  "How would you support recurring meetings?",
+  "How would you handle time zones?",
+  "How would you prevent double booking under concurrent requests?",
+  "Which design patterns did you use and why?"
+ ]
+}

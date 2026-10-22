@@ -1,0 +1,17 @@
+{
+ "qid": "4cb3f7a716",
+ "question": "Goldman Sachs Associate (about 5 years of experience), Round 4, LLD with a two-interviewer panel: **design a vehicle rental system with some customisations.** The specific custom requirements were not reported, so clarify them at the start and design for the typical needs (multiple vehicle types, branches, bookings and pricing).",
+ "lookingFor": [
+  "Eliciting requirements and handling the unspecified 'customisations'.",
+  "Entity design, relationships and responsibilities.",
+  "Correct availability and double-booking logic, including concurrency.",
+  "Flexible pricing and extensibility with design patterns."
+ ],
+ "answer": "**Clarify:** one company with many branches/stores? Vehicle types (car, bike, truck)? Hourly or daily rental? Pick up and drop off at different branches? Deposits, late fees, insurance? Reservation in advance? Assume bookings by date range at a branch.\n\n**Entities:**\n- `Vehicle` (id, type, registration, status, hourly/daily rate) with subclasses or a `VehicleType` enum.\n- `Branch`/`Store` (location, inventory of vehicles).\n- `Customer` (profile, driving license, rental history).\n- `Reservation`/`Rental` (customer, vehicle, start, end, status: RESERVED, ACTIVE, COMPLETED, CANCELLED, price).\n- `Payment` and `Invoice`.\n- Services: `InventoryService` (search available vehicles by branch, type and time), `ReservationService` (book, modify, cancel, return), `PricingService`, `PaymentService`.\n\n**Availability:** a vehicle is available for [s, e) if no existing reservation overlaps, meaning no `r.start < e && r.end > s` among its active reservations. Index reservations per vehicle (sorted by start) so the check is O(log n).\n\n**Booking flow:** search, select vehicle, create reservation, take payment or deposit, confirm; at pickup mark ACTIVE; at return compute actual duration, extra charges and damage, close.\n\n**Patterns:** **Strategy** for pricing (hourly, daily, weekend, surge, discount codes); **Factory** to create vehicles by type; **State** for the reservation lifecycle; **Observer** for notifications.\n\n**Concurrency:** two users booking the same vehicle: make \"check availability and create reservation\" atomic, with a lock per vehicle (in memory) or a transaction with a unique constraint or `SELECT ... FOR UPDATE` on the database.\n\n**Edge cases:** late returns, cancellation policy and refunds, vehicle under maintenance, drop at a different branch (relocation), invalid dates, license validation.\n\n**Extend:** search filters, loyalty program, and HLD for scale (search index, caching).",
+ "followUps": [
+  "How do you prevent two customers from booking the same vehicle?",
+  "How would you add dynamic pricing for peak days?",
+  "How would you model a one-way rental to a different branch?",
+  "How would you handle a vehicle that is returned late for the next customer?"
+ ]
+}

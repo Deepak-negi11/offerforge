@@ -1,0 +1,44 @@
+{
+ "pid": "morgan-stanley-per-ip-rate-limiter",
+ "title": "Per-IP Rate Limiter",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "Implement a rate limiter for incoming requests, based on the IP address of the sender. Each IP address may make **up to 10 requests per minute**. If an IP exceeds this limit within its current minute, further requests from that IP are **denied** until the minute window resets.\n\nYou are given a log of `q` requests in non-decreasing order of arrival time. Request `i` arrives at integer time `t[i]` (in seconds) from the IP address `ip[i]`. Decide for each request whether it is allowed or denied. Each IP is tracked independently using a **fixed window** of 60 seconds:\n\n- If the IP has no active window, or the request arrives at time `t >= start + 60` where `start` is the start of its current window, the request is **allowed** and starts a new window with `start = t`; the window's counter becomes 1.\n- Otherwise (`t < start + 60`), the request is allowed and the counter is incremented if the counter is below 10, and is **denied** if the counter is already 10. Denied requests are not counted and do not move the window.\n\nSo a window that starts at time `s` covers times `s` to `s + 59` inclusive.\n\n**Follow-up:** how would you make this thread-safe, how would you evict entries of IPs that went quiet so memory does not grow forever, and how does a sliding-window variant differ at the window boundary? These are not tested here.",
+ "input_format": "The first line contains an integer `q`.\nEach of the next `q` lines contains an integer `t` and an IP address string `ip`, separated by a space. The times are non-decreasing.",
+ "output_format": "Print `q` lines. Line `i` is `ALLOW` if request `i` is allowed and `DENY` otherwise.",
+ "constraints": [
+  "1 ≤ q ≤ 10^5",
+  "0 ≤ t ≤ 10^9, non-decreasing",
+  "ip is a non-empty string of digits and dots, at most 15 characters, without spaces"
+ ],
+ "examples": [
+  {
+   "input": "14\n0 1.1.1.1\n5 1.1.1.1\n10 1.1.1.1\n15 1.1.1.1\n20 1.1.1.1\n25 1.1.1.1\n30 1.1.1.1\n35 1.1.1.1\n40 1.1.1.1\n45 1.1.1.1\n50 1.1.1.1\n59 1.1.1.1\n60 1.1.1.1\n61 1.1.1.1",
+   "output": "ALLOW\nALLOW\nALLOW\nALLOW\nALLOW\nALLOW\nALLOW\nALLOW\nALLOW\nALLOW\nDENY\nDENY\nALLOW\nALLOW",
+   "explanation": "The window of 1.1.1.1 starts at time 0 and covers 0 to 59. The first 10 requests (times 0 to 45) are allowed, and the requests at times 50 and 59 are denied because the counter is already 10. At time 60 the window has expired, so the request is allowed and opens a new window starting at 60. The request at 61 is the second in that window and is allowed."
+  },
+  {
+   "input": "12\n5 1.1.1.1\n5 1.1.1.1\n5 1.1.1.1\n5 1.1.1.1\n5 1.1.1.1\n5 1.1.1.1\n5 1.1.1.1\n5 1.1.1.1\n5 1.1.1.1\n5 1.1.1.1\n5 1.1.1.1\n5 2.2.2.2",
+   "output": "ALLOW\nALLOW\nALLOW\nALLOW\nALLOW\nALLOW\nALLOW\nALLOW\nALLOW\nALLOW\nDENY\nALLOW",
+   "explanation": "The first 10 requests from 1.1.1.1 at time 5 are allowed and the 11th is denied. The request from 2.2.2.2 belongs to a different IP with its own counter, so it is allowed."
+  }
+ ],
+ "complexity": {
+  "time": "O(q)",
+  "space": "O(number of distinct IPs)"
+ },
+ "hints": [
+  "Each IP only needs two numbers: the start time of its current window and how many requests it has made in it.",
+  "Keep them in a hash map keyed by the IP string.",
+  "A request starts a new window exactly when t - start >= 60; denied requests must not change the stored state."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    state = {}\n    out = []\n    for i in range(q):\n        t = int(data[1 + 2 * i])\n        ip = data[2 + 2 * i]\n        st = state.get(ip)\n        if st is None or t >= st[0] + 60:\n            state[ip] = [t, 1]\n            out.append('ALLOW')\n        elif st[1] < 10:\n            st[1] += 1\n            out.append('ALLOW')\n        else:\n            out.append('DENY')\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nq = int(data[0])\nreqs = [(int(data[1 + 2 * i]), data[2 + 2 * i]) for i in range(q)]\nout = []\nfor i in range(q):\n    t, ip = reqs[i]\n    start = None\n    count = 0\n    for j in range(i):\n        tj, ipj = reqs[j]\n        if ipj != ip:\n            continue\n        if start is None or tj >= start + 60:\n            start = tj\n            count = 1\n        elif count < 10:\n            count += 1\n    if start is None or t >= start + 60 or count < 10:\n        out.append('ALLOW')\n    else:\n        out.append('DENY')\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    def fmt(reqs):\n        reqs = sorted(reqs, key=lambda r: r[0])\n        return str(len(reqs)) + '\\n' + '\\n'.join(f'{t} {ip}' for t, ip in reqs)\n    tests = [\n        fmt([(0, '1.1.1.1')]),\n        fmt([(5, '1.1.1.1')] * 11 + [(5, '2.2.2.2')]),\n        fmt([(0, 'a')] * 10 + [(59, 'a'), (60, 'a'), (119, 'a'), (120, 'a')]),\n        fmt([(i, 'x') for i in range(0, 60)] + [(60, 'x'), (61, 'x')]),\n        fmt([(0, 'a')] * 15 + [(60, 'a')] * 15 + [(120, 'a')] * 15),\n        fmt([(10**9, 'z.z')] * 12),\n    ]\n    for _ in range(25):\n        q = rng.randint(1, 40)\n        ips = ['10.0.0.1', '10.0.0.2', '192.168.1.1'][:rng.randint(1, 3)]\n        span = rng.choice([5, 30, 70, 200])\n        tests.append(fmt([(rng.randint(0, span), rng.choice(ips)) for _ in range(q)]))\n    n = 100000\n    tests.append(fmt([(rng.randint(0, 10**9), '.'.join(str(rng.randint(0, 255)) for _ in range(4))) for _ in range(n)]))\n    tests.append(fmt([(rng.randint(0, 3000), f'10.0.0.{rng.randint(1, 20)}') for _ in range(n)]))\n    tests.append(fmt([(rng.randint(0, 10**9), f'10.0.{rng.randint(0, 9)}.{rng.randint(0, 9)}') for _ in range(n)]))\n    tests.append(fmt([(i // 3, '255.255.255.255') for i in range(n)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef rate_limit(times: List[int], ips: List[str]) -> List[bool]:\n    # Write your solution here\n    # Return True for an allowed request and False for a denied one.\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    times = [int(data[1 + 2 * i]) for i in range(q)]\n    ips = [data[2 + 2 * i] for i in range(q)]\n    res = rate_limit(times, ips)\n    print('\\n'.join('ALLOW' if r else 'DENY' for r in res))\n\n\nmain()\n",
+  "javascript": "function rateLimit(times, ips) {\n  // Write your solution here\n  // Return true for an allowed request and false for a denied one.\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst q = Number(t[0])\nconst times = [], ips = []\nfor (let i = 0; i < q; i++) {\n  times.push(Number(t[1 + 2 * i]))\n  ips.push(t[2 + 2 * i])\n}\nconsole.log(rateLimit(times, ips).map(r => (r ? 'ALLOW' : 'DENY')).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<bool> rateLimit(vector<long long>& times, vector<string>& ips) {\n    // Write your solution here\n    // Return true for an allowed request and false for a denied one.\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int q;\n    cin >> q;\n    vector<long long> times(q);\n    vector<string> ips(q);\n    for (int i = 0; i < q; i++) cin >> times[i] >> ips[i];\n    vector<bool> res = rateLimit(times, ips);\n    for (size_t i = 0; i < res.size(); i++) cout << (res[i] ? \"ALLOW\" : \"DENY\") << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean[] rateLimit(long[] times, String[] ips) {\n        // Write your solution here\n        // Return true for an allowed request and false for a denied one.\n        return new boolean[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StreamTokenizer unused = null;\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int q = Integer.parseInt(st.nextToken());\n        long[] times = new long[q];\n        String[] ips = new String[q];\n        for (int i = 0; i < q; i++) {\n            st = new StringTokenizer(br.readLine());\n            times[i] = Long.parseLong(st.nextToken());\n            ips[i] = st.nextToken();\n        }\n        boolean[] res = rateLimit(times, ips);\n        StringBuilder sb = new StringBuilder();\n        for (boolean r : res) sb.append(r ? \"ALLOW\" : \"DENY\").append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

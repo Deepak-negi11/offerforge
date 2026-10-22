@@ -1,0 +1,19 @@
+{
+ "qid": "0d16cc481f",
+ "question": "In a Tech Mahindra Associate Software Engineer technical interview, a Java-based question was: **explain the Singleton design pattern and serialization in Java.**",
+ "lookingFor": [
+  "Understanding of the Singleton intent and implementations (eager, lazy, thread-safe, enum).",
+  "Knowledge of Java serialization (Serializable, transient, serialVersionUID).",
+  "Awareness that serialization and reflection can break a singleton, and the fixes.",
+  "Thread-safety reasoning (double-checked locking, volatile).",
+  "Discipline in trade-offs: Singleton makes testing harder."
+ ],
+ "answer": "**Singleton.** A creational pattern that guarantees a class has **only one instance** and offers a global access point (for example a configuration manager, logger or connection pool).\n\n**Basic recipe:** private constructor, a private static instance, and a public static `getInstance()`.\n\n```java\npublic class Config {\n    private static volatile Config instance;\n    private Config() {}\n    public static Config getInstance() {\n        if (instance == null) {                    // first check, no lock\n            synchronized (Config.class) {\n                if (instance == null)              // second check, with lock\n                    instance = new Config();\n            }\n        }\n        return instance;\n    }\n}\n```\n\nVariants: *eager* (instance created at class loading, simple and thread-safe), *lazy with synchronized method* (safe but slower), *double-checked locking* (the above, where `volatile` is essential), *initialisation-on-demand holder* (a static inner class), and **enum singleton**, which Joshua Bloch's *Effective Java* recommends as the simplest and most robust.\n\n**Serialization.** Converting an object's state into a byte stream (to store it or send it over a network) and rebuilding it later (deserialization). A class implements the marker interface `java.io.Serializable`; `ObjectOutputStream.writeObject()` and `ObjectInputStream.readObject()` do the work. Fields marked `transient` and static fields are not serialized. `serialVersionUID` is a version number that must match on deserialization, or an `InvalidClassException` is thrown.\n\n**How they interact:** deserialization creates a *new* object without calling your constructor, so a serializable singleton can end up with two instances. Fixes: add `private Object readResolve() { return instance; }` or, better, use an enum, where the JVM guarantees one instance, including against serialization and reflection attacks (a private constructor can be called through reflection).\n\n**Downsides of Singleton:** hidden global state, harder unit testing, and tight coupling. Dependency injection is often preferred.",
+ "followUps": [
+  "How does double-checked locking work and why is volatile needed?",
+  "How can reflection break a singleton and how do you prevent it?",
+  "What is the purpose of the transient keyword?",
+  "What is the difference between Serializable and Externalizable?",
+  "Which other design patterns do you know?"
+ ]
+}

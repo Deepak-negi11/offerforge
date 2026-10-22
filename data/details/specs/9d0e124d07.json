@@ -1,0 +1,19 @@
+{
+ "qid": "9d0e124d07",
+ "question": "Online assessment for the Oracle Associate Software Developer role (6-month intern plus full-time, on-campus). Besides aptitude, reading comprehension, probability and CS fundamentals sections, one coding problem was:\n\n**JSON Diff Tool:** develop a simple service to **compare two JSON objects (up to size 1e5)** and **identify differences in their key-value pairs**.\n\nThe exact output format was not reported, so state your assumptions (for example, report added, removed and changed keys with their paths).",
+ "lookingFor": [
+  "Can you turn a vague spec into clear requirements and an output format?",
+  "Do you handle nested objects, arrays and type differences correctly?",
+  "Can you pick an efficient algorithm and state its complexity?",
+  "Do you avoid recursion-depth problems on large input?",
+  "Do you consider edge cases and structure the code as a small service?"
+ ],
+ "answer": "**Clarify first.** Compare two JSON documents and report, per key path, whether a key was **added** (only in B), **removed** (only in A) or **changed** (different values or types). Decide how to treat arrays: positional comparison (index by index) is the simplest; order-insensitive matching is an option to mention. Assume `n` is the total number of nodes (up to 1e5).\n\n**Approach.** Parse both inputs, then walk them together recursively, carrying the current path (for example `user.address.city` or `items[2]`):\n\n```python\ndef diff(a, b, path, out):\n    if isinstance(a, dict) and isinstance(b, dict):\n        for k in a.keys() | b.keys():\n            p = f\"{path}.{k}\" if path else k\n            if k not in b:   out.append((\"removed\", p, a[k]))\n            elif k not in a: out.append((\"added\", p, b[k]))\n            else:            diff(a[k], b[k], p, out)\n    elif isinstance(a, list) and isinstance(b, list):\n        for i in range(max(len(a), len(b))):\n            p = f\"{path}[{i}]\"\n            if i >= len(b):   out.append((\"removed\", p, a[i]))\n            elif i >= len(a): out.append((\"added\", p, b[i]))\n            else:             diff(a[i], b[i], p, out)\n    elif a != b or type(a) is not type(b):\n        out.append((\"changed\", path, (a, b)))\n```\n\nUsing dict lookups makes each key comparison O(1), so the total time is **O(n)** and extra space is O(depth) plus the output.\n\n**Edge cases.**\n- Different types (an object vs a list, or `1` vs `\"1\"`): treat as changed. In Python, `True == 1`, so check the type explicitly.\n- Null versus a missing key are different.\n- Empty objects and arrays.\n- Very deep nesting can overflow the recursion stack; convert to an explicit stack if depth could be large (1e5 nested levels in the worst case).\n- Floating-point numbers and key order (JSON objects are unordered, so ignore order).\n\n**As a service.** Expose `POST /diff` with `{left, right}`, validate JSON and size limits, return a list of `{op, path, before, after}` entries. Mention testing with nested, array and type-mismatch cases.",
+ "followUps": [
+  "How would you compare arrays ignoring order?",
+  "How would you avoid recursion depth problems for deeply nested JSON?",
+  "How would you handle numbers like 1 and 1.0?",
+  "How would you stream the comparison if the documents do not fit in memory?",
+  "How would you test the diff tool?"
+ ]
+}

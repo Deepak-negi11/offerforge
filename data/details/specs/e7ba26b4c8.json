@@ -1,0 +1,18 @@
+{
+ "qid": "e7ba26b4c8",
+ "question": "Flipkart Data Scientist 2, coding round (about 2 hours with a senior Data Scientist). The task was a **fraud detection problem: write end-to-end code from data loading to model inference**. The internet could be used only to read documentation. The round emphasised problem-solving approach and coding skills.",
+ "lookingFor": [
+  "Ability to structure an ML pipeline end to end under time pressure.",
+  "Handling class imbalance and choosing metrics that suit fraud.",
+  "Avoiding data leakage with proper splits (often time-based).",
+  "Clean, reusable code with a working inference path.",
+  "Explaining decisions: why this model, why this metric."
+ ],
+ "answer": "**Plan the two hours before coding:** clarify the data, label definition and what a false positive versus false negative costs. Then build a working baseline first, improve second.\n\n**Pipeline (scikit-learn style):**\n\n1. **Load and inspect.** `pd.read_csv`, check shape, dtypes, missing values and the fraud rate (typically well under 1%).\n2. **Split correctly.** Fraud is temporal, so split by time (train on the past, validate on the future) rather than randomly; group by customer if the same user appears many times, to avoid leakage. Fit all preprocessing on the training portion only.\n3. **Features.** Handle missing values, encode categoricals, and engineer behavioural features such as transaction amount relative to the user's average, counts in the last hour or day, time of day, new device or merchant. Compute these using only information available at prediction time.\n4. **Baseline.** Logistic regression for a reference, then a gradient boosted tree (LightGBM, XGBoost or `HistGradientBoostingClassifier`), which handles non-linearities and missing data well.\n5. **Imbalance.** Use class weights (`scale_pos_weight`) or undersampling the majority class; use SMOTE cautiously and only inside the training fold.\n6. **Metrics.** Accuracy is misleading. Report precision-recall AUC, recall at a fixed precision or fixed alert budget, and a confusion matrix; choose a decision threshold from business cost, not 0.5.\n7. **Inference.** Wrap preprocessing and model in one `Pipeline`, save it with `joblib`, and write a `predict(df)` function returning a probability and flag. Test it on a few rows.\n8. **Wrap-up.** Mention monitoring, drift, retraining, explainability (SHAP) and feedback delays (chargeback labels arrive weeks later).\n\nPractical tip: get a simple end-to-end script running early and keep it runnable while you iterate.",
+ "followUps": [
+  "Why is a random train/test split risky for fraud data?",
+  "How do you choose the decision threshold?",
+  "How would you handle labels that arrive weeks late?",
+  "How would you serve this model in real time with a latency budget?"
+ ]
+}

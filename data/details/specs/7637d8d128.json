@@ -1,0 +1,18 @@
+{
+ "qid": "7637d8d128",
+ "question": "Uber SDE-2, LLD round. Design a **voter management (election) system**. Each state has multiple constituencies, then districts, then EVMs (voting machines). The system must handle **creating and setting up the election** and the **voting process**. The expectation was to write **working code for at least one feature**. The candidate reported not being able to code properly in the time.",
+ "lookingFor": [
+  "Can you model a nested hierarchy and keep the model simple (composite or plain containment)?",
+  "Do you enforce core voting rules: eligibility, one vote per voter, vote secrecy?",
+  "Do you pick one feature, implement it end to end, and defer the rest explicitly?",
+  "Is the design extensible and the code runnable within the time limit?",
+  "Do you handle concurrency and auditability in the voting path?"
+ ],
+ "answer": "**Time strategy first.** The ask is working code for at least one feature, so spend about 5 minutes on requirements, 10 on the design sketch, then code one vertical slice, for example \"cast a vote and get the result for a constituency\". List the others and state that you will implement them if time remains.\n\n**Requirements.** Set up an election (states, constituencies, districts, EVMs, candidates per constituency), register voters with their constituency, cast a vote (one per voter, only at the right EVM), count and report results, and optionally close polling.\n\n**Entities.**\n\n- Hierarchy: `Election` -> `State` -> `Constituency` -> `District` -> `EVM`. A plain parent/children structure works; use Composite only if you need uniform operations like \"total votes under this node\". Each node can aggregate counts from its children.\n- `Candidate(id, name, party, constituencyId)`.\n- `Voter(id, constituencyId, hasVoted)`.\n- `EVM(id, districtId, tally: Map<candidateId, count>)`.\n- `ElectionService` facade: `setup(...)`, `registerVoter`, `castVote(voterId, evmId, candidateId)`, `getResult(constituencyId)`.\n\n**`castVote` rules.** Election must be open; voter exists, belongs to the EVM's constituency and has not voted; the candidate contests that constituency. Then mark `hasVoted = true` and increment the EVM tally **atomically**. Store the voter's \"has voted\" flag separately from the choice so the choice is not linkable to the voter (vote secrecy).\n\n**Results.** A constituency result is the sum of its EVM tallies, and the winner is the candidate with the most votes (handle ties explicitly). State totals can be computed by aggregation up the hierarchy, or maintained incrementally.\n\n**Concurrency.** Many EVMs vote in parallel: use per-EVM locks or atomic counters, and an atomic compare-and-set on the voter's flag so a voter cannot vote twice from two machines.\n\n**Tests.** Double vote rejected, wrong-constituency voter rejected, tie, results after closing.",
+ "followUps": [
+  "How would you ensure a voter cannot vote twice on two EVMs at the same time?",
+  "How would you preserve vote secrecy while keeping the system auditable?",
+  "How would you compute national results efficiently from millions of EVM tallies?",
+  "How would you add a ranked-choice or runoff voting mode?"
+ ]
+}

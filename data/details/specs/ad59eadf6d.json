@@ -1,0 +1,18 @@
+{
+ "qid": "ad59eadf6d",
+ "question": "Design an **online auction platform**, focusing on **database schemas, scaling and low-latency APIs**. Follow-ups reported: how to handle **bid edits**, build a **near real-time leaderboard** (for example with Redis sorted sets), and **track the winning bid without trusting the cache as the source of truth**.",
+ "lookingFor": [
+  "Correct data model and constraints for items, auctions and bids.",
+  "Handling concurrent bids safely.",
+  "Right use of a cache or Redis for read speed, with the database as truth.",
+  "Real-time updates to clients.",
+  "Fairness, auditability and edge cases (auction end, ties)."
+ ],
+ "answer": "**Requirements.** Sellers list items with start and end time and reserve price; buyers place bids; highest valid bid at close wins; bidders see current price quickly. Assume read-heavy (many watchers per auction) and bursty bidding near closing time.\n\n**Schema.**\n- `auctions(id, item_id, seller_id, start_at, end_at, start_price, min_increment, status, current_high_bid_id, version)`.\n- `bids(id, auction_id, bidder_id, amount, created_at, status)` append-only, index `(auction_id, amount DESC, created_at)`.\n- `users`, `items`, `payments`.\nKeep bids immutable. A bid edit means: for most real auctions, bids cannot be lowered or retracted; model an edit as a **new bid** (only allowed to raise) that supersedes the old one, with the old kept for audit.\n\n**Placing a bid (correctness).** Concurrent bids race. Use a transaction with a conditional update:\n```sql\nUPDATE auctions SET current_high = :amt, current_high_bid_id = :id\nWHERE id = :a AND status='OPEN' AND now() < end_at\n  AND :amt >= current_high + min_increment;\n```\nIf zero rows are affected, reject with the latest price. Insert the bid in the same transaction. This is the source of truth; ties are broken by earliest timestamp.\n\n**Leaderboard and cache.** Keep a Redis sorted set per auction (`ZADD bids:{a} amount bidder`) and a cached current price for fast reads and top-N views. Update it after the DB commit (or through change events). On a miss or suspected drift, rebuild from the `bids` table. At close, the winner is computed **from the database**, never from the cache.\n\n**Real-time delivery.** Push price updates over WebSockets or SSE through a pub/sub channel; fall back to polling.\n\n**Scaling and low latency.** Partition auctions by id across DB shards (a single auction is a single hot row, which serialises writes safely); cache read paths; put bid placement behind a queue only if you can still answer synchronously. Anti-sniping: extend the end time if a bid arrives in the last minutes.\n\n**Closing.** A scheduler marks auctions closed at `end_at`, picks the top valid bid, and triggers payment.",
+ "followUps": [
+  "How would you handle bids arriving exactly at the end time?",
+  "What if Redis and the database disagree?",
+  "How would you support proxy (maximum) bidding?",
+  "How would you prevent shill or bot bidding?"
+ ]
+}

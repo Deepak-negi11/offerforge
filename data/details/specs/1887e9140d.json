@@ -1,0 +1,18 @@
+{
+ "qid": "1887e9140d",
+ "question": "System design round for an experienced (3+ years) D. E. Shaw SMTS candidate: design the **handling of trade information messages**, covering **reliable relaying, replay, and the types of message delivery** (at-most-once, at-least-once, exactly-once). The report gave no numbers or scale, so state your assumptions.",
+ "lookingFor": [
+  "Understanding delivery semantics and what each costs.",
+  "Designing for ordering, durability, idempotency and recovery.",
+  "Ability to reason about failure modes of producers, brokers and consumers.",
+  "Handling replay for audit and recovery."
+ ],
+ "answer": "**Requirements and assumptions.** Trade events (executions, amendments, cancels) come from trading systems and must reach downstream consumers (risk, positions, reporting) **without loss and without double-counting**, in order per instrument or account, with the ability to **replay** history. Assume thousands to hundreds of thousands of messages per second, millisecond-to-second latency, and a strict audit requirement.\n\n**Core design: a durable, partitioned, append-only log**\n- Producers write to a log or broker (Kafka-like). The write is acknowledged after replication, so a crash does not lose a message.\n- **Partition by key** (account or instrument) to keep per-key order and parallelise. Global ordering is expensive and usually unnecessary.\n- Each message has a **unique id and a per-key sequence number**, so consumers can detect gaps and duplicates.\n- Consumers track their **offset**, committed only after processing succeeds.\n\n**Delivery semantics**\n- **At-most-once:** fire and forget, or commit the offset before processing. No duplicates, but messages can be lost. Unacceptable for trades.\n- **At-least-once:** retry until acknowledged, commit after processing. No loss, but **duplicates** are possible.\n- **Exactly-once (effect):** at-least-once delivery plus **idempotent processing**: dedupe on message id (or upsert by trade id and version), or use transactions that write results and the offset atomically. True exactly-once delivery over an unreliable network is impossible; you achieve it in effect.\n\n**Replay.** Because the log is retained, a consumer can reset its offset to a timestamp or sequence number and reprocess. For long history, take periodic **snapshots** and replay only events after the snapshot. Replayed processing must be deterministic and idempotent, and replays should not trigger external side effects such as emails.\n\n**Failure handling.** Retries with backoff, a dead-letter queue for poison messages, gap detection with a request for retransmission, the transactional outbox pattern so a database write and its message cannot diverge, and monitoring of consumer lag.\n\n**Trade-offs:** stronger guarantees cost latency and throughput; ordering limits parallelism.",
+ "followUps": [
+  "How would you guarantee ordering of trades for one account when you have many partitions?",
+  "How do you make a consumer idempotent?",
+  "What does a consumer do when it detects a gap in sequence numbers?",
+  "How would you replay a day of trades without impacting live consumers?",
+  "What is the transactional outbox pattern and what problem does it solve?"
+ ]
+}

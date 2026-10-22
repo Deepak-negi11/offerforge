@@ -1,0 +1,17 @@
+{
+ "qid": "e6fbdef403",
+ "question": "Goldman Sachs Associate (about 2.3 years of experience), Software Engineering Practices round 2. The question: **Design a rate limiter.** After a meaningful discussion the candidate mentioned the **leaky bucket algorithm**, and was finally asked to **write a code snippet for the leaky bucket**. A follow-up asked **how to select the leak rate and the bucket size**.",
+ "lookingFor": [
+  "Clarifying requirements for a rate limiter (per user, per API, distributed or not).",
+  "Knowing the main algorithms and their trade-offs.",
+  "Writing correct, thread-safe leaky bucket logic.",
+  "Reasoning about parameter choice from capacity and burst needs."
+ ],
+ "answer": "**Clarify:** limit per user, IP or API key? Reject or delay excess requests? Single server or distributed? Assume per-user, reject with HTTP 429.\n\n**Algorithms:** fixed window (simple, but bursts at window edges), sliding window log/counter (accurate, more memory), token bucket (allows bursts up to a capacity, refills at a rate), leaky bucket (smooths output to a constant rate).\n\n**Leaky bucket idea.** Requests pour into a bucket of fixed capacity; the bucket leaks at a constant rate. If the bucket is full, the request is dropped. As a meter (no real queue): keep `water` and `lastLeakTime`; on each request first leak `elapsed * leakRate`, then add 1 if there is room.\n\n    class LeakyBucket {\n      private final long capacity; private final double leakPerMs;\n      private double water = 0; private long last = System.currentTimeMillis();\n      LeakyBucket(long capacity, double leakPerSec) {\n        this.capacity = capacity; this.leakPerMs = leakPerSec / 1000.0;\n      }\n      synchronized boolean allow() {\n        long now = System.currentTimeMillis();\n        water = Math.max(0, water - (now - last) * leakPerMs);\n        last = now;\n        if (water + 1 <= capacity) { water += 1; return true; }\n        return false;\n      }\n    }\n\nKeep one bucket per key in a `ConcurrentHashMap` and evict idle ones. The queue variant stores requests in a bounded queue processed at a fixed rate by a worker, which truly smooths traffic but adds latency.\n\n**Choosing parameters.**\n- *Leak rate* = the sustained rate the protected resource can safely handle (or the contractual limit), for example 100 requests/s per server.\n- *Bucket size* = the burst you accept. A bucket of B drains in B / rate seconds, so in the queue variant the worst-case added delay is B / rate; set it from the latency budget. Too small rejects legitimate bursts; too large lets overload through.\n- Validate with load tests and real traffic percentiles, and monitor reject rates.\n\n**Distributed:** keep the counters in Redis with an atomic Lua script, or approximate locally and sync periodically. Decide whether to fail open or closed if the store is down.",
+ "followUps": [
+  "How does token bucket differ from leaky bucket in behaviour?",
+  "How would you make this work across 10 servers?",
+  "How would you rate limit by both user and IP?",
+  "What HTTP headers should the rate limiter return?"
+ ]
+}

@@ -1,0 +1,50 @@
+{
+ "pid": "zomato-detect-and-remove-a-linked-list-loop",
+ "title": "Detect and Remove a Linked List Loop",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A singly linked list has `n` nodes, labelled `0` to `n - 1`. Node `i` stores the value `val[i]` and a pointer `next[i]`, which is either the label of another node or `-1` (no next node). The **head** of the list is always node `0`, and following `next` pointers from the head visits every node exactly once before the pointers either end with `-1` or point back to a node that was already visited. In other words, the last node's `next` is either `-1` or points to some node on the path (possibly itself), creating a **loop**.\n\nDo two things:\n\n1. **Detect** whether the list has a loop. If it does, find the node where the loop begins (the first node of the loop met when walking from the head), and the **last node** of the list (the node whose `next` points back to the loop start).\n2. **Remove** the loop by setting `next` of the last node to `-1`, then read out the values of the list from the head to the end.\n\nNode labels are arbitrary, so the order of nodes in the list is not the order of the input lines. Values may repeat, so report nodes by their label.\n\n**Follow-up:** The interviewer also asked to prove why Floyd's tortoise-and-hare algorithm finds the loop (why the two pointers must meet, and why restarting one pointer from the head makes them meet at the loop start). Try to solve this in `O(n)` time and `O(1)` extra space with that algorithm.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains two integers: `val[i]` and `next[i]` for node `i`, in order of `i` from `0` to `n - 1`.",
+ "output_format": "First line: two integers `start last`, the label of the loop's first node and the label of the last node of the list. If there is no loop print `-1 -1`.\nSecond line: the `n` values of the list from the head to the end, after the loop (if any) has been removed, separated by single spaces.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "-10^9 ≤ val[i] ≤ 10^9",
+  "next[i] = -1 or 0 ≤ next[i] < n",
+  "Starting from node 0, following next pointers visits all n nodes exactly once before the list ends or loops"
+ ],
+ "examples": [
+  {
+   "input": "5\n10 2\n40 3\n20 4\n50 4\n30 1",
+   "output": "4 3\n10 20 30 40 50",
+   "explanation": "From the head: node 0 (10), node 2 (20), node 4 (30), node 1 (40), node 3 (50). Node 3 points back to node 4, so the loop starts at node 4 and the last node is node 3. Cutting node 3's pointer leaves 10 20 30 40 50."
+  },
+  {
+   "input": "3\n7 1\n7 2\n9 -1",
+   "output": "-1 -1\n7 7 9",
+   "explanation": "The list ends at node 2 with next = -1, so there is no loop. The values are printed in list order."
+  },
+  {
+   "input": "4\n3 1\n1 2\n2 3\n8 0",
+   "output": "0 3\n3 1 2 8",
+   "explanation": "Node 3 points back to the head, so the loop starts at node 0 and the last node is node 3."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Walking the list with one pointer cannot tell you whether it ends or repeats without extra memory. Use two pointers that move at different speeds: if there is a loop, the faster one eventually catches the slower one.",
+  "After the pointers meet inside the loop, restart one of them at the head. Move both one step at a time; they meet exactly at the first node of the loop.",
+  "Once you know the loop start, walk around the loop until you reach the node whose next is the loop start. That node is the last node; set its next to -1, then traverse from the head to print the values."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    val = [int(data[1 + 2 * i]) for i in range(n)]\n    nxt = [int(data[2 + 2 * i]) for i in range(n)]\n    slow = fast = 0\n    meet = -1\n    while fast != -1 and nxt[fast] != -1:\n        slow = nxt[slow]\n        fast = nxt[nxt[fast]]\n        if slow == fast:\n            meet = slow\n            break\n    start = last = -1\n    if meet != -1:\n        p, q = 0, meet\n        while p != q:\n            p = nxt[p]\n            q = nxt[q]\n        start = p\n        last = start\n        while nxt[last] != start:\n            last = nxt[last]\n        nxt[last] = -1\n    out = []\n    x = 0\n    while x != -1:\n        out.append(val[x])\n        x = nxt[x]\n    print(start, last)\n    print(' '.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nval = [int(data[1 + 2 * i]) for i in range(n)]\nnxt = [int(data[2 + 2 * i]) for i in range(n)]\nseen = set()\norder = []\nx = 0\nprev = -1\nwhile x != -1 and x not in seen:\n    seen.add(x)\n    order.append(val[x])\n    prev = x\n    x = nxt[x]\nif x == -1:\n    print(-1, -1)\nelse:\n    print(x, prev)\nprint(' '.join(map(str, order)))\n",
+ "generator": "def gen(rng):\n    def make(n, t, vals):\n        # t: position (0-based along the list) the last node points to, or -1 for no loop\n        perm = [0] + rng.sample(range(1, n), n - 1) if n > 1 else [0]\n        nxt = [-1] * n\n        for i in range(n - 1):\n            nxt[perm[i]] = perm[i + 1]\n        nxt[perm[n - 1]] = perm[t] if t >= 0 else -1\n        return str(n) + '\\n' + '\\n'.join('%d %d' % (vals[i], nxt[i]) for i in range(n))\n    def rv(n, hi=10**9):\n        return [rng.randint(-hi, hi) for _ in range(n)]\n    tests = [make(1, -1, [4]), make(1, 0, [4]), make(2, 0, [1, 2]), make(2, 1, [1, 2]), make(2, -1, [1, 2]),\n             make(3, 0, [5, 5, 5]), make(3, 2, [5, 5, 5]), make(3, 1, [1, 1, 2]), make(4, 0, [3, 1, 2, 8])]\n    for n in (3, 4, 5, 6, 8, 10, 15, 25):\n        for _ in range(3):\n            t = rng.choice([-1, 0, n - 1, rng.randint(0, n - 1), rng.randint(0, n - 1)])\n            tests.append(make(n, t, rv(n, rng.choice([2, 100, 10**9]))))\n    N = 100000\n    tests.append(make(N, -1, rv(N)))\n    tests.append(make(N, 0, rv(N)))\n    tests.append(make(N, N - 1, rv(N)))\n    tests.append(make(N, rng.randint(1, N - 2), rv(N, 10**9)))\n    tests.append(make(N, N // 2, rv(N, 5)))\n    tests.append(make(N, N - 2, rv(N, 1000)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef remove_loop(val: List[int], nxt: List[int]) -> List[int]:\n    # Return [start, last, v0, v1, ...]: the loop start label and last node label\n    # (both -1 if there is no loop), followed by the values from the head after removal.\n    # Write your solution here\n    return [-1, -1]\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    val = [int(data[1 + 2 * i]) for i in range(n)]\n    nxt = [int(data[2 + 2 * i]) for i in range(n)]\n    res = remove_loop(val, nxt)\n    print(res[0], res[1])\n    print(' '.join(map(str, res[2:])))\n\n\nmain()\n",
+  "javascript": "function removeLoop(val, nxt) {\n  // Return [start, last, v0, v1, ...]: the loop start label and last node label\n  // (both -1 if there is no loop), followed by the values from the head after removal.\n  // Write your solution here\n  return [-1, -1]\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst val = [], nxt = []\nfor (let i = 0; i < n; i++) {\n  val.push(t[1 + 2 * i])\n  nxt.push(t[2 + 2 * i])\n}\nconst res = removeLoop(val, nxt)\nconsole.log(res[0] + ' ' + res[1])\nconsole.log(res.slice(2).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\n// Return {start, last, v0, v1, ...}: the loop start label and last node label\n// (both -1 if there is no loop), followed by the values from the head after removal.\nvector<long long> removeLoop(vector<long long>& val, vector<int>& nxt) {\n    // Write your solution here\n    return {-1, -1};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> val(n);\n    vector<int> nxt(n);\n    for (int i = 0; i < n; i++) cin >> val[i] >> nxt[i];\n    vector<long long> res = removeLoop(val, nxt);\n    cout << res[0] << \" \" << res[1] << \"\\n\";\n    for (size_t i = 2; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    if (res.size() <= 2) cout << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    // Return {start, last, v0, v1, ...}: the loop start label and last node label\n    // (both -1 if there is no loop), followed by the values from the head after removal.\n    static long[] removeLoop(long[] val, int[] nxt) {\n        // Write your solution here\n        return new long[]{-1, -1};\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] val = new long[n];\n        int[] nxt = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); val[i] = (long) in.nval;\n            in.nextToken(); nxt[i] = (int) in.nval;\n        }\n        long[] res = removeLoop(val, nxt);\n        StringBuilder sb = new StringBuilder();\n        sb.append(res[0]).append(\" \").append(res[1]).append(\"\\n\");\n        for (int i = 2; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\");\n        sb.append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

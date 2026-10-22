@@ -1,0 +1,48 @@
+{
+ "pid": "airbnb-minimum-cost-to-remove-stones",
+ "title": "Minimum Cost to Remove Stones",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "There are `n` stones in a row, numbered `0` to `n - 1`. Each stone `i` has two costs, `a[i]` and `b[i]`.\n\nYou must remove all the stones one by one, in any order you choose. The cost of removing stone `i` depends on which of its two original neighbours, stone `i - 1` and stone `i + 1`, are **still present** at that moment (a neighbour that does not exist, such as stone `-1` or stone `n`, counts as not present):\n\n- if **both** stone `i - 1` and stone `i + 1` are still present, removing stone `i` costs `b[i]`;\n- if **exactly one** of them is still present, removing stone `i` costs `a[i]`;\n- if **neither** of them is present, removing stone `i` costs `0`.\n\nNeighbours always refer to the original positions `i - 1` and `i + 1`, not to whichever stones happen to be adjacent after some removals.\n\nFind the minimum possible total cost to remove all the stones.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` integers `a[0] ... a[n-1]`.\nThe third line contains `n` integers `b[0] ... b[n-1]`.",
+ "output_format": "Print one integer: the minimum total cost.",
+ "constraints": [
+  "1 ≤ n ≤ 50000",
+  "1 ≤ a[i], b[i] ≤ 1000"
+ ],
+ "examples": [
+  {
+   "input": "3\n5 5 5\n9 9 9",
+   "output": "9",
+   "explanation": "Remove the middle stone first: both neighbours are present, so it costs b[1] = 9. Stones 0 and 2 then have no neighbour left and cost 0. Removing an end stone first costs 5 and the middle stone then still costs 5 or more, for a total of at least 10."
+  },
+  {
+   "input": "4\n6 2 3 6\n1 8 7 5",
+   "output": "9",
+   "explanation": "Remove stones in the order 2, 1, 0, 3. Stone 2 has both neighbours present (b[2] = 7), stone 1 has only stone 0 left (a[1] = 2), and stones 0 and 3 have no neighbours left (0 each). Total 9."
+  },
+  {
+   "input": "1\n4\n8",
+   "output": "0",
+   "explanation": "A single stone has no neighbours, so removing it costs 0."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Look at each adjacent pair of stones `(i, i + 1)`. Whichever of the two is removed first \"sees\" the other one still present; the other one does not see it. So every pair is charged to exactly one of its two stones.",
+  "A stone charged for 0, 1 or 2 of its adjacent pairs pays 0, `a[i]` or `b[i]` respectively. Any choice of who is charged for each pair is achievable by some removal order, because the pairs lie on a path and cannot form a cycle.",
+  "Run a left-to-right DP over the stones whose state is whether the pair `(i, i + 1)` is charged to stone `i` or to stone `i + 1`."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    b = [int(x) for x in data[1 + n:1 + 2 * n]]\n    INF = float('inf')\n    # t = 1 if the pair (i, i+1) is charged to stone i (stone i removed first)\n    dp = [INF, 0]  # state of the virtual pair (-1, 0): charged to the left side\n    for i in range(n):\n        cost = (0, a[i], b[i])\n        new = [INF, INF]\n        for t in (0, 1):\n            if i == n - 1 and t == 1:\n                continue\n            for tp in (0, 1):\n                if dp[tp] == INF:\n                    continue\n                cnt = t + (1 - tp)\n                v = dp[tp] + cost[cnt]\n                if v < new[t]:\n                    new[t] = v\n        dp = new\n    print(dp[0])\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + n]]\nb = [int(x) for x in data[1 + n:1 + 2 * n]]\nINF = float('inf')\nfull = (1 << n) - 1\ndp = [INF] * (1 << n)\ndp[0] = 0\nfor mask in range(1 << n):\n    if dp[mask] == INF:\n        continue\n    for i in range(n):\n        if mask >> i & 1:\n            continue\n        cnt = 0\n        if i > 0 and not (mask >> (i - 1) & 1):\n            cnt += 1\n        if i < n - 1 and not (mask >> (i + 1) & 1):\n            cnt += 1\n        c = (0, a[i], b[i])[cnt]\n        nm = mask | (1 << i)\n        if dp[mask] + c < dp[nm]:\n            dp[nm] = dp[mask] + c\nprint(dp[full])\n",
+ "generator": "def gen(rng):\n    def fmt(a, b):\n        return f'{len(a)}\\n' + ' '.join(map(str, a)) + '\\n' + ' '.join(map(str, b))\n    tests = [fmt([4], [8]), fmt([3, 7], [1, 1]), fmt([5, 5, 5], [9, 9, 9]), fmt([1, 1, 1], [1000, 1000, 1000]), fmt([1000] * 4, [1] * 4), fmt([2, 3, 4, 5], [1, 1, 1, 1])]\n    for _ in range(50):\n        n = rng.randint(1, 11)\n        hi = rng.choice([3, 10, 1000])\n        tests.append(fmt([rng.randint(1, hi) for _ in range(n)], [rng.randint(1, hi) for _ in range(n)]))\n    n = 50000\n    tests.append(fmt([rng.randint(1, 1000) for _ in range(n)], [rng.randint(1, 1000) for _ in range(n)]))\n    tests.append(fmt([1000] * n, [1] * n))\n    tests.append(fmt([1] * n, [1000] * n))\n    tests.append(fmt([rng.randint(500, 1000) for _ in range(n)], [rng.randint(1, 500) for _ in range(n)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_removal_cost(a: List[int], b: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    b = [int(x) for x in data[1 + n:1 + 2 * n]]\n    print(min_removal_cost(a, b))\n\n\nmain()\n",
+  "javascript": "function minRemovalCost(a, b) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst a = t.slice(1, 1 + n)\nconst b = t.slice(1 + n, 1 + 2 * n)\nconsole.log(minRemovalCost(a, b))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minRemovalCost(vector<long long>& a, vector<long long>& b) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> a(n), b(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    for (int i = 0; i < n; i++) cin >> b[i];\n    cout << minRemovalCost(a, b) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minRemovalCost(long[] a, long[] b) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] a = new long[n], b = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (long) in.nval;\n        }\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            b[i] = (long) in.nval;\n        }\n        System.out.println(minRemovalCost(a, b));\n    }\n}\n"
+ }
+}

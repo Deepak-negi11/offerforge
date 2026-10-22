@@ -1,0 +1,19 @@
+{
+ "qid": "03670552d7",
+ "question": "Morgan Stanley Technology Analyst on-campus technical round 2, an object-oriented design round (about 2 hours 20 minutes). The candidate was asked to **design the elevator system of a building where there can be multiple elevators**, working through the design for over an hour. The reported approach assigned a **priority to each lift based on the number of requests it currently had**, then optimised it using **disk-scheduling ideas from operating systems**, which the interviewers liked.",
+ "lookingFor": [
+  "Structured requirements and clear entity modelling.",
+  "Choice of a scheduling algorithm and justification.",
+  "State handling and concurrency awareness.",
+  "Use of design patterns with reasons.",
+  "Ability to iterate on a design and optimise it."
+ ],
+ "answer": "**Clarify requirements.** Number of floors and elevators, request types (hall call: floor plus direction; car call: destination floor), capacity or weight limit, fairness versus throughput, emergency stop, maintenance mode, and whether a destination-dispatch panel is used.\n\n**Entities.**\n- `Building` / `ElevatorSystem`: holds elevators and the dispatcher.\n- `Elevator`: id, current floor, direction (UP, DOWN, IDLE), state, door state, sorted sets of pending stops (`upStops`, `downStops`), capacity.\n- `Request`: floor, direction, timestamp (hall) or destination (car).\n- `Dispatcher` / `ElevatorController`: chooses which elevator serves a hall call.\n- `Button`, `Display`, `Door` as small collaborators.\n\n**Elevator movement: SCAN / LOOK.** Like the disk-scheduling algorithm, an elevator keeps moving in its current direction serving stops in order, then reverses when no stops remain ahead. This avoids starvation and wasted travel, and is better than FCFS or pure nearest-first (SSTF, which can starve far floors).\n\n**Dispatch strategy (Strategy pattern).** Score each elevator for a hall call: an idle one gets cost = distance; one moving toward the caller in the same direction cost = distance; one moving away costs distance plus its remaining route; add a penalty per queued request (the load-balancing idea), skip full or out-of-service cars. Pick the minimum cost. Strategies are swappable (nearest car, least loaded, zoned).\n\n**State pattern** for the elevator: IDLE, MOVING_UP, MOVING_DOWN, DOOR_OPEN, MAINTENANCE.\n\n**Concurrency.** Requests arrive concurrently: use a thread-safe request queue, one control loop per elevator, and locks or message passing so a stop is not assigned twice.\n\n**Edge cases:** the same floor requested twice, a request for the current floor, overload, a power failure or fire mode (all cars return to ground), rush-hour patterns (pre-positioning idle cars).\n\n**Extend:** priority for VIP or emergency calls with aging to prevent starvation, metrics such as average wait, and simulation tests.",
+ "followUps": [
+  "Why is SCAN better than nearest-floor-first for elevators?",
+  "How do you avoid starvation of a request on a far floor?",
+  "How would you handle an elevator going out of service mid-trip?",
+  "How would the design change for destination dispatch?",
+  "How do you make the dispatcher thread-safe?"
+ ]
+}

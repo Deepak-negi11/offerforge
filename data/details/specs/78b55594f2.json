@@ -1,0 +1,18 @@
+{
+ "qid": "78b55594f2",
+ "question": "Uber SDE-2 (L4), Depth in Specialization round. Design a ranged key-value store with three operations: `get(key)`, `set(key, value)` and `getRange(startKey, endKey)`, in a **concurrent, multithreaded environment**. Optimise the locking so that waiting time is reduced and deadlock is avoided. For example, when `getRange` is running, only the keys in that range should block `set`, not the whole store. The interviewer discussed solutions with `synchronized`, semaphores and callbacks.",
+ "lookingFor": [
+  "Do you understand the concurrency primitives of your language (locks, read-write locks, concurrent collections)?",
+  "Can you reason about lock granularity and the trade-off between simplicity and throughput?",
+  "Do you know how deadlock arises and how to prevent it (lock ordering, try-lock with timeout)?",
+  "Do you pick a data structure that makes range queries efficient (ordered map)?",
+  "Can you reason about consistency of range reads (snapshot versus best effort)?"
+ ],
+ "answer": "**Data structure.** Range queries need ordered keys: a balanced tree or skip list (`TreeMap` / `ConcurrentSkipListMap`), not a plain hash map.\n\n**Level 1: one global lock.** Simple and correct: wrap `TreeMap` in a `ReadWriteLock`. `get` and `getRange` take the read lock (many in parallel); `set` takes the write lock. The weakness is that any write blocks every reader and other writers.\n\n**Level 2: striped or range locks.** Partition the key space into N ranges (shards), each with its own `ReadWriteLock` and its own sorted map.\n\n- `get`/`set(key)`: lock only the shard owning the key.\n- `getRange(a, b)`: find the shards overlapping `[a, b]`, acquire their read locks **in a fixed order (by shard index)**, read, then release. A writer to a shard outside the range is never blocked.\n\n**Deadlock avoidance.** Deadlock needs a cycle of waiting. Always acquire multiple locks in one global order (ascending shard index), and never take a write lock while holding a read lock on the same lock (upgrade deadlock). Optionally use `tryLock` with a timeout and retry.\n\n**Consistency semantics.** Holding all overlapping read locks during the scan gives a consistent snapshot of that range. Alternative: use `ConcurrentSkipListMap`, whose `subMap` iterators are weakly consistent and lock-free: no blocking, but a range read may see concurrent updates. State which guarantee you offer; if a snapshot is needed without blocking writers, use MVCC (versioned values with a read timestamp).\n\n**Trade-offs.** More shards means higher concurrency but more locks to take for wide ranges and more complex code. Hot keys still serialise on one shard.\n\n**Testing.** Run many threads doing mixed set/getRange and assert invariants; use a timeout to detect deadlock.\n\n**Mistakes to avoid:** locking inside a callback that calls back into the store, locks acquired in inconsistent order, and choosing a hash map and then sorting on every range call.",
+ "followUps": [
+  "What is the difference between a read-write lock and a plain mutex here, and when can a read-write lock starve writers?",
+  "How would you provide a consistent snapshot for getRange without blocking writers?",
+  "What happens if getRange spans all shards? Is that still better than a global lock?",
+  "How would you test for deadlocks and race conditions?"
+ ]
+}

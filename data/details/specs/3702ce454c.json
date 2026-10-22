@@ -1,0 +1,18 @@
+{
+ "qid": "3702ce454c",
+ "question": "Intel AI Software Solutions Engineer (experienced), a round covering C++ and Python. The Python part covered **pybind11**, **decorators and generators**, **multithreading**, and **how to bypass the Global Interpreter Lock (GIL)**. The candidate said the GIL question was the one they struggled with because they had not worked much with Python's multiprocessing library. The task: explain the GIL and the practical ways to get parallelism despite it.",
+ "lookingFor": [
+  "Correct understanding of what the GIL is and why it exists.",
+  "Knowing which workloads suffer (CPU-bound) and which do not (I/O-bound).",
+  "Practical options: multiprocessing, native extensions, asyncio, newer interpreters.",
+  "Awareness of trade-offs: IPC cost, memory, complexity.",
+  "Familiarity with Python-C++ interop, since the role uses pybind11."
+ ],
+ "answer": "**What the GIL is.** In CPython, a global lock ensures that only one thread executes Python bytecode at a time. It exists mainly because CPython's memory management uses non-atomic reference counting, and one global lock is a simple, fast way to keep object state consistent for single-threaded code and C extensions.\n\n**Consequences.**\n- *CPU-bound* pure-Python threads do not run in parallel on multiple cores, so threading does not speed them up.\n- *I/O-bound* threads still help, because the GIL is released while waiting on sockets, files and sleep.\n- It does not make your own code thread-safe: `counter += 1` is still a race, so you need `threading.Lock` or queues.\n\n**Ways around it (work around, not literally bypass).**\n1. **multiprocessing / `concurrent.futures.ProcessPoolExecutor`:** separate processes, each with its own interpreter and GIL. True parallelism, but data is pickled between processes and memory is duplicated, so it suits coarse-grained tasks.\n2. **Native extensions that release the GIL:** NumPy and many C/C++ libraries release it during heavy computation. With pybind11 you can release it in long C++ calls using `py::gil_scoped_release`, and must re-acquire it before touching Python objects.\n3. **asyncio:** single thread, cooperative concurrency for many I/O tasks; no CPU parallelism.\n4. **Other designs:** run CPU work in a service written in a language without a GIL, or use a different interpreter. Recent CPython work addresses this: per-interpreter GILs for sub-interpreters (3.12) and an experimental free-threaded build (3.13, PEP 703). Check the version you target before relying on these.\n\n**Decorators and generators (quick recap).** A decorator is a function that takes a function and returns a wrapped one (`@wraps` keeps metadata); useful for logging, timing, caching. A generator uses `yield` to produce values lazily, keeping its local state between calls, so it handles large streams with constant memory.\n\n**Choosing:** profile first; if I/O-bound use threads or asyncio; if CPU-bound in Python use processes; if the hot loop can move to C++ or NumPy, do that and release the GIL.",
+ "followUps": [
+  "Why is reference counting the reason for the GIL?",
+  "How do multiprocessing processes share data?",
+  "When would you pick threading over multiprocessing?",
+  "What does pybind11 do, and how do you release the GIL in a bound function?"
+ ]
+}

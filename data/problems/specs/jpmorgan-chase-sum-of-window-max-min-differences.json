@@ -1,0 +1,50 @@
+{
+ "pid": "jpmorgan-chase-sum-of-window-max-min-differences",
+ "title": "Sum of Window Max-Min Differences",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `capacity` of `n` server capacities and a list `numOfServers` of `m` window sizes.\n\nFor a window size `k`, consider every contiguous subarray of `capacity` of length exactly `k` (each starting position gives one subarray, so there are `n - k + 1` of them). For each such subarray compute `max - min`, the difference between its largest and smallest element, and let `S(k)` be the **sum** of these differences over all the subarrays of length `k`.\n\nReturn the **maximum** of `S(k)` over all `k` in `numOfServers`. A window size may appear more than once in the list.\n\nNote that `m` and `n` can both be large, so computing each `S(k)` separately is too slow.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` integers `capacity[0..n-1]`.\nThe third line contains an integer `m`.\nThe fourth line contains `m` integers: the window sizes `numOfServers`.",
+ "output_format": "Print a single integer: the maximum of `S(k)` over the given window sizes.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ m ≤ 10^5",
+  "1 ≤ numOfServers[j] ≤ n",
+  "1 ≤ capacity[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "6\n2 3 5 1 2 6\n2\n1 3",
+   "output": "16",
+   "explanation": "For `k = 1` every window has one element, so each difference is 0 and `S(1) = 0`. For `k = 3` the windows are `[2,3,5]`, `[3,5,1]`, `[5,1,2]`, `[1,2,6]` with differences 3, 4, 4, 5, so `S(3) = 16`. The maximum is 16."
+  },
+  {
+   "input": "5\n4 4 4 4 4\n3\n1 2 5",
+   "output": "0",
+   "explanation": "All elements are equal, so every window has `max - min = 0`."
+  },
+  {
+   "input": "4\n1 9 2 8\n2\n2 4",
+   "output": "21",
+   "explanation": "For `k = 2` the windows are `[1,9]`, `[9,2]`, `[2,8]` with differences 8, 7, 6, so `S(2) = 21`. For `k = 4` the only window is the whole array with difference 9 - 1 = 8. The maximum is 21."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Write `S(k)` as (sum of window maximums) minus (sum of window minimums). Handle the two parts the same way.",
+  "Instead of sliding a window for each `k`, count for each element how many windows of length `k` it is the maximum of. A monotonic stack gives the range in which an element is the maximum.",
+  "If an element is the maximum over `A` positions to its left (including itself) and `B` positions to its right (including itself), the number of windows of length `k` it owns is `min(k, A, B, A + B - k)` (clamped at 0). This is piecewise linear in `k`, so you can add it for all `k` at once using a second-order difference array, then take the maximum over the requested sizes."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    m = int(data[1 + n])\n    ks = [int(x) for x in data[2 + n:2 + n + m]]\n    ds = [0] * (n + 4)\n\n    def add(A, B, w):\n        lo, hi = (A, B) if A < B else (B, A)\n        ds[1] += w\n        ds[lo + 1] -= w\n        ds[hi + 1] -= w\n        ds[A + B + 1] += w\n\n    # maximum: leftmost maximum owns a window\n    st = []\n    left = [0] * n\n    for i in range(n):\n        while st and a[st[-1]] < a[i]:\n            st.pop()\n        left[i] = i - (st[-1] if st else -1)\n        st.append(i)\n    st = []\n    for i in range(n - 1, -1, -1):\n        while st and a[st[-1]] <= a[i]:\n            st.pop()\n        add(left[i], (st[-1] if st else n) - i, a[i])\n        st.append(i)\n    # minimum: leftmost minimum owns a window\n    st = []\n    for i in range(n):\n        while st and a[st[-1]] > a[i]:\n            st.pop()\n        left[i] = i - (st[-1] if st else -1)\n        st.append(i)\n    st = []\n    for i in range(n - 1, -1, -1):\n        while st and a[st[-1]] >= a[i]:\n            st.pop()\n        add(left[i], (st[-1] if st else n) - i, -a[i])\n        st.append(i)\n\n    slope = 0\n    f = 0\n    total = [0] * (n + 2)\n    for k in range(1, n + 1):\n        slope += ds[k]\n        f += slope\n        total[k] = f\n    print(max(total[k] for k in ks))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + n]]\nm = int(data[1 + n])\nks = [int(x) for x in data[2 + n:2 + n + m]]\nbest = None\nfor k in ks:\n    s = 0\n    for i in range(n - k + 1):\n        w = a[i:i + k]\n        s += max(w) - min(w)\n    if best is None or s > best:\n        best = s\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(a, ks):\n        return f'{len(a)}\\n' + ' '.join(map(str, a)) + f'\\n{len(ks)}\\n' + ' '.join(map(str, ks))\n    tests = [\n        fmt([5], [1]),\n        fmt([4, 4, 4, 4], [1, 2, 3, 4]),\n        fmt([1, 2], [2]),\n        fmt([2, 1], [1, 2]),\n        fmt([1, 1000000000], [1, 2, 2]),\n        fmt([1, 2, 3, 4, 5, 6], [2, 3, 4]),\n        fmt([6, 5, 4, 3, 2, 1], [6]),\n        fmt([3, 1, 3, 1, 3, 1, 3], [2, 3, 4, 5]),\n        fmt([5, 1, 5, 1, 5], [3]),\n    ]\n    for n in (2, 3, 4, 6, 8, 10, 14):\n        for hi in (3, 9, 1000):\n            a = [rng.randint(1, hi) for _ in range(n)]\n            m = rng.randint(1, 4)\n            tests.append(fmt(a, [rng.randint(1, n) for _ in range(m)]))\n    a = [rng.randint(1, 10**9) for _ in range(3000)]\n    tests.append(fmt(a, [rng.randint(1, 3000) for _ in range(500)]))\n    n = 100000\n    a = [rng.randint(1, 10**9) for _ in range(n)]\n    ks = list(range(1, n + 1))\n    rng.shuffle(ks)\n    tests.append(fmt(a, ks))\n    tests.append(fmt(sorted(a), ks))\n    tests.append(fmt([rng.randint(1, 5) for _ in range(n)], [rng.randint(1, n) for _ in range(n)]))\n    tests.append(fmt([10**9 if i % 2 else 1 for i in range(n)], [rng.randint(1, n) for _ in range(n)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_window_range_sum(capacity: List[int], ks: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    capacity = [int(x) for x in data[1:1 + n]]\n    m = int(data[1 + n])\n    ks = [int(x) for x in data[2 + n:2 + n + m]]\n    print(max_window_range_sum(capacity, ks))\n\n\nmain()\n",
+  "javascript": "function maxWindowRangeSum(capacity, ks) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst capacity = t.slice(1, 1 + n)\nconst m = t[1 + n]\nconst ks = t.slice(2 + n, 2 + n + m)\nconsole.log(String(maxWindowRangeSum(capacity, ks)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxWindowRangeSum(vector<long long>& capacity, vector<int>& ks) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n;\n    vector<long long> capacity(n);\n    for (auto& x : capacity) cin >> x;\n    cin >> m;\n    vector<int> ks(m);\n    for (auto& x : ks) cin >> x;\n    cout << maxWindowRangeSum(capacity, ks) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxWindowRangeSum(long[] capacity, int[] ks) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] capacity = new long[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); capacity[i] = (long) in.nval; }\n        in.nextToken();\n        int m = (int) in.nval;\n        int[] ks = new int[m];\n        for (int i = 0; i < m; i++) { in.nextToken(); ks[i] = (int) in.nval; }\n        System.out.println(maxWindowRangeSum(capacity, ks));\n    }\n}\n"
+ }
+}

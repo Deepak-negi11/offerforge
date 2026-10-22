@@ -1,0 +1,18 @@
+{
+ "qid": "8ac62fae84",
+ "question": "Meesho SDE-3 machine coding round: design a sprint planner with tickets. The interviewer focused on constraints and how they are enforced, for example if several requests to edit tickets arrive at the same time, how do you guarantee a user never has more than 2 tickets in progress. A second question was how the entities are related.",
+ "lookingFor": [
+  "Entity relationships among sprint, ticket, user and status.",
+  "Enforcing invariants correctly under concurrent updates.",
+  "Knowing the options: locking, atomic counters, database constraints.",
+  "State transitions of tickets and validation of illegal moves.",
+  "Clean, extensible design."
+ ],
+ "answer": "**Entities and relationships.**\n- `Sprint(id, name, startDate, endDate, status)` has many `Ticket`s (one-to-many).\n- `Ticket(id, title, type, status, assigneeId, sprintId, createdAt)`; a ticket belongs to at most one sprint at a time and has at most one assignee.\n- `User(id, name)` is assigned many tickets, but at most 2 may be IN_PROGRESS at once.\n- `Status`: TODO -> IN_PROGRESS -> DONE (and possibly BLOCKED or back to TODO). Keep allowed transitions in a map so illegal ones are rejected.\n\n**Services.** `SprintService` (create, start, end, add and remove tickets), `TicketService` (create, assign, change status), `UserService`. A `Rule` or validator interface lets you plug in constraints such as \"max 2 in progress per user\" (Strategy), so new rules need no edits to existing code.\n\n**The concurrency question.** The invariant is \"count of IN_PROGRESS tickets per assignee <= 2\". A naive check-then-update is a race: two threads both read 1 and both move a ticket to IN_PROGRESS, leaving the user with 3. The fix is to make the check and the update atomic over the user's state:\n- **Per-user lock**: `synchronized` on the user (or a lock map keyed by user id). Everything that changes that user's in-progress set (moving to IN_PROGRESS, reassigning, finishing) takes that lock. Simple and correct in a single JVM.\n- **Atomic counter**: keep an `AtomicInteger inProgress` per user and use a compare-and-set loop that only increments if the value is below 2; decrement on leaving the state. Lock-free, but it must be kept in sync with every transition.\n- **Reassignment** touches two users, so lock them in a consistent order (by id) to avoid deadlock.\n- **In a database**: use a transaction with `SELECT ... FOR UPDATE` on the user row, or a conditional update such as `UPDATE users SET in_progress = in_progress + 1 WHERE id = ? AND in_progress < 2` and check the affected row count. A pure count query without locking has the same race.\n\n**Related invariants** to mention: a ticket cannot be in two sprints, closed sprints reject edits, and moving a ticket to another sprint is also a state change guarded by the ticket's lock.\n\n**Demo it** with a test that fires many threads at one user and asserts the count never exceeds 2.",
+ "followUps": [
+  "Why is check-then-act unsafe, and how does an atomic compare-and-set fix it?",
+  "How would you enforce the same rule if the data lives in a SQL database?",
+  "How do you avoid deadlock when reassigning a ticket between two users?",
+  "How would you add a new rule, such as a limit on story points per sprint?"
+ ]
+}

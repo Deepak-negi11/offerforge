@@ -1,0 +1,19 @@
+{
+ "qid": "57d319db26",
+ "question": "The hiring manager round for an SDE-1 backend role at Ola included these questions, after introductions and a discussion of the candidate's project:\n\n- **Vertical vs horizontal scaling.**\n- **SQL vs NoSQL.**\n- Types of **HTTP methods**, and the difference between **PUT and POST**.\n- How would you **find all numbers common to a small file and a very big file**?\n- Which **data structure** would you use when creating your own **hash table**?",
+ "lookingFor": [
+  "Do you understand scaling options and when each is appropriate?",
+  "Can you compare SQL and NoSQL on data model, consistency and scale instead of declaring a winner?",
+  "Do you know REST semantics, especially idempotency?",
+  "Can you design an algorithm for data that does not fit in memory?",
+  "Do you understand hash table internals (hashing, collisions, resizing)?"
+ ],
+ "answer": "**Vertical vs horizontal scaling.** Vertical: give one machine more CPU/RAM; simple, no code changes, but has a hardware ceiling and a single point of failure. Horizontal: add more machines behind a load balancer; scales further and tolerates failures but needs stateless services, data partitioning and handling of distributed-system issues.\n\n**SQL vs NoSQL.** SQL: fixed schema, joins, ACID transactions, mature tooling; good for relational data and strong consistency; scales vertically first, horizontally with effort (sharding). NoSQL (key-value, document, wide-column, graph): flexible schema, built for horizontal scale and high write throughput, often trades joins and strict consistency for availability. Choose by access patterns, consistency needs and scale, not fashion.\n\n**HTTP methods.** GET (read, safe, idempotent), POST (create or trigger an action), PUT (replace a resource), PATCH (partial update), DELETE, HEAD, OPTIONS. **PUT vs POST:** PUT targets a known URI and replaces the resource, and is **idempotent** (repeating it gives the same state). POST usually targets a collection or an action, the server decides the new resource's URI, and it is **not idempotent** (repeating may create duplicates).\n\n**Common numbers in a small and a huge file.** Load the small file into a hash set (O(s) memory), then stream the big file line by line, emitting numbers found in the set: O(s + b) time. If even the small file does not fit in memory, partition both files by `hash(x) mod k` into k buckets on disk, then intersect each pair of buckets in memory. Alternatives: external sort and merge, or a Bloom filter as a pre-filter (it can give false positives, so verify).\n\n**Own hash table.** An **array of buckets** indexed by `hash(key) mod capacity`. Handle collisions by chaining (linked list or tree per bucket) or open addressing (linear/quadratic probing). Track the load factor and resize (for example, double the capacity and rehash) when it exceeds about 0.75, keeping average operations O(1).",
+ "followUps": [
+  "Is POST ever idempotent? How can you make a POST safe to retry?",
+  "What happens to a hash table when many keys collide, and how does Java's HashMap mitigate it?",
+  "How would you scale a relational database beyond one machine?",
+  "What is the CAP theorem and where do typical SQL and NoSQL stores sit?",
+  "How would you do the file intersection if both files are huge?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "9f1ea5cd9c",
+ "question": "In the system design round (45 minutes) for a Senior Software Engineer (SDE-3) role at PayPal in Chennai, the candidate was asked to **design an app like Google Calendar or Outlook**: a high-level design, the **APIs**, and the **database schema**.\n\nIn the later bar-raiser round, the interviewer probed **how to scale the application and the database, how to handle the load**, and questions about **concurrent transactions**.",
+ "lookingFor": [
+  "Do you clarify scope and choose a sensible set of features?",
+  "Can you model events, recurrence, time zones and attendees correctly?",
+  "Can you design clear APIs and a schema with the right indexes?",
+  "Do you handle scheduling conflicts and concurrent edits?",
+  "Can you scale reads and writes and justify sharding, caching and replication?"
+ ],
+ "answer": "**Requirements.** Create, edit, delete events; invite attendees and RSVP; recurring events; reminders; free/busy lookup and conflict detection; multiple calendars; time zones; sync to clients. Assume 500M users and a read-heavy workload (viewing calendars far more than writing).\n\n**API.** `POST /calendars/{id}/events`, `GET /calendars/{id}/events?from=&to=`, `PATCH /events/{id}` (with `If-Match` version), `DELETE /events/{id}`, `POST /events/{id}/rsvp`, `GET /freebusy?users=&from=&to=`. Use cursor pagination and sync tokens for incremental client sync.\n\n**Data model.**\n- `users`, `calendars(id, owner_id, tz)`\n- `events(id, calendar_id, title, start_utc, end_utc, tz, rrule, version, ...)`\n- `attendees(event_id, user_id, status)`\n- `exceptions(event_id, original_start, override_or_cancelled)`\n- `reminders(event_id, offset)`\nIndex `(calendar_id, start_utc)` for range queries.\n\n**Key decisions.**\n- **Recurrence:** store the rule (RFC 5545 RRULE style) plus exceptions, and **expand on read** for the requested window, instead of materializing infinite rows. Optionally materialize a bounded horizon.\n- **Time zones:** store UTC plus the event's zone, since daylight saving changes make local-time recurrence differ from fixed UTC.\n- **Notifications:** a scheduler scans upcoming reminders (a time-bucketed queue) and sends through a notification service.\n- **Free/busy:** compute from events and cache per user.\n\n**Components.** Clients, API gateway, calendar service, notification service, search service, database, cache (Redis), message queue.\n\n**Scaling.** Shard by `user_id` or `calendar_id` (so a calendar's events stay together), read replicas for views, cache hot calendar windows, queue for reminders and email. Cross-user free/busy fans out across shards, so cache summaries.\n\n**Concurrency.** Use **optimistic locking** (a version column and `If-Match`) for edit conflicts. For exclusive resources such as meeting rooms, enforce no overlap using a transaction with row locks or a database exclusion/unique constraint on `(room, slot)`, at an isolation level that prevents double booking. Add idempotency keys on create.",
+ "followUps": [
+  "How do you store and edit a single instance of a recurring event?",
+  "How would you prevent double booking a meeting room under concurrent requests?",
+  "How would the free/busy query work across thousands of invitees?",
+  "How do you scale the database as data grows?"
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "qid": "5659ae8366",
+ "question": "Oracle OCI IC2 (MTS) managerial round, from a devops-focused manager after a resume discussion with scenario questions. The coding task: **write merge sort**, and **write code that reproduces a deadlock using threads**.",
+ "lookingFor": [
+  "Can you write a correct, clean merge sort and state its complexity?",
+  "Do you understand the four conditions for deadlock?",
+  "Can you write a minimal reproducible deadlock and explain it?",
+  "Can you describe how to fix or prevent deadlocks?",
+  "Do you communicate while coding?"
+ ],
+ "answer": "**Merge sort** (divide and conquer, O(n log n) time in all cases, O(n) extra space, stable):\n\n```java\nstatic void sort(int[] a, int lo, int hi) {   // hi exclusive\n    if (hi - lo < 2) return;\n    int mid = (lo + hi) >>> 1;\n    sort(a, lo, mid);\n    sort(a, mid, hi);\n    int[] tmp = new int[hi - lo];\n    int i = lo, j = mid, k = 0;\n    while (i < mid && j < hi) tmp[k++] = a[i] <= a[j] ? a[i++] : a[j++];\n    while (i < mid) tmp[k++] = a[i++];\n    while (j < hi)  tmp[k++] = a[j++];\n    System.arraycopy(tmp, 0, a, lo, tmp.length);\n}\n```\n\nUsing `<=` keeps equal elements in order (stability). Recursion depth is O(log n).\n\n**Deadlock** needs mutual exclusion, hold-and-wait, no preemption and circular wait. Two threads take two locks in opposite order:\n\n```java\nObject A = new Object(), B = new Object();\nThread t1 = new Thread(() -> {\n    synchronized (A) { sleep(100); synchronized (B) { } }\n});\nThread t2 = new Thread(() -> {\n    synchronized (B) { sleep(100); synchronized (A) { } }\n});\nt1.start(); t2.start();\n```\n\n(`sleep` is a small helper that wraps `Thread.sleep`.) The short sleep makes it very likely that each thread holds its first lock before trying for the second, so both block forever.\n\n**How to explain it.** t1 holds A and waits for B; t2 holds B and waits for A: a circular wait.\n\n**Detecting and fixing.** Take a thread dump (`jstack`) and the JVM reports the deadlock. Prevention: always acquire locks in a fixed global order; use `tryLock(timeout)` from `ReentrantLock` and back off; reduce lock scope; or use higher-level concurrent structures. Mention that livelock and starvation are different problems.\n\n**Tip.** State complexity and edge cases for merge sort (empty array, one element, duplicates) and say that you can also do it bottom-up to avoid recursion.",
+ "followUps": [
+  "What is the space complexity of merge sort, and can it be done in place?",
+  "When would you choose quicksort over merge sort?",
+  "How can you detect a deadlock in a running Java application?",
+  "What is the difference between deadlock, livelock and starvation?",
+  "How does lock ordering prevent deadlock?"
+ ]
+}

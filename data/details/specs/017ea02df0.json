@@ -1,0 +1,19 @@
+{
+ "qid": "017ea02df0",
+ "question": "Design a ticket booking system like BookMyShow. Start with the functional and non-functional requirements, then define the entities, the APIs and the database schema.\n\nThe interviewer then drilled into **concurrent seat booking**: what happens when two users try to book the same seat at the same moment? Discuss row locks, optimistic versus pessimistic locking and transaction isolation levels, including what the default isolation level is in SQL databases.",
+ "lookingFor": [
+  "Can you scope requirements (browse, seat selection, payment, cancellation) and state NFRs such as consistency and availability?",
+  "Do you model the core entities and relationships cleanly (city, theatre, screen, show, seat, booking)?",
+  "Do you understand why double booking happens and how locks and isolation levels prevent it?",
+  "Can you compare optimistic and pessimistic locking and choose one with a reason?",
+  "Do you know real-world database defaults rather than a memorised one-liner?"
+ ],
+ "answer": "**Requirements.** Search shows by city/movie/date, view a seat map, temporarily hold seats, pay, get a ticket, cancel. NFRs: no double booking (strong consistency on seats), high read availability for browsing, peak load on popular releases. Assume reads are 100x writes.\n\n**Entities.** `City`, `Theatre`, `Screen`, `Movie`, `Show(show_id, screen_id, movie_id, start_time)`, `ShowSeat(show_id, seat_id, status, held_until, booking_id)`, `Booking(booking_id, user_id, show_id, status, amount)`, `Payment`.\n\n**APIs.** `GET /shows?city=&movie=&date=`, `GET /shows/{id}/seats`, `POST /shows/{id}/hold {seatIds}`, `POST /bookings {holdId}` (idempotency key), `POST /bookings/{id}/cancel`.\n\n**Booking flow.** Two phases: hold, then confirm. A hold marks seats `HELD` with an expiry (for example 5-10 minutes); payment success moves them to `BOOKED`; a background job or TTL releases expired holds.\n\n**Preventing double booking.**\n- Pessimistic: inside a transaction, `SELECT ... FROM show_seat WHERE show_id=? AND seat_id IN (...) FOR UPDATE`, check status is `AVAILABLE`, update to `HELD`. Safe under heavy contention, but holds locks and can deadlock (lock seats in a consistent order).\n- Optimistic: add a `version` column and run `UPDATE show_seat SET status='HELD', version=version+1 WHERE seat_id=? AND status='AVAILABLE' AND version=?`; if 0 rows were updated, someone else won, so return a conflict. Good when conflicts are rare; for hot seats it causes retries.\n- A unique constraint on `(show_id, seat_id)` in a bookings table is a last-line safeguard.\n\n**Isolation levels.** READ UNCOMMITTED, READ COMMITTED, REPEATABLE READ, SERIALIZABLE. The SQL standard does not mandate a default; it is vendor-specific: PostgreSQL, Oracle and SQL Server default to READ COMMITTED, MySQL InnoDB to REPEATABLE READ. A plain read-then-write under READ COMMITTED can still double book, hence the explicit lock or conditional update.\n\n**Scaling.** Cache the show and seat-map reads (Redis), shard by city or show, keep seat writes on one primary, use a queue for notifications, a virtual waiting room for blockbuster launches, and Redis `SET NX EX` for fast holds in front of the database.",
+ "followUps": [
+  "What happens if payment succeeds after the hold has expired?",
+  "How would you handle a flash sale where 100k users hit one show?",
+  "How do you avoid deadlocks when users select multiple seats?",
+  "Why would you pick optimistic over pessimistic locking here, or the reverse?",
+  "How do you make the booking API idempotent against retries?"
+ ]
+}

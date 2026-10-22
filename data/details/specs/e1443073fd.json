@@ -1,0 +1,19 @@
+{
+ "qid": "e1443073fd",
+ "question": "In a Technical Interview round (Coding 1) for an SDE-2 Frontend role at Uber, the candidate was asked to **design and implement a task queue in TypeScript that supports controlled concurrency**. The queue should execute up to **K tasks in parallel**, with additional tasks queued until slots become available. Each task has a **unique task ID** and supports **success and error callbacks**. The design should also allow setting a **custom executor** that defines how tasks run (for example adding logging, retries or rate limiting).",
+ "lookingFor": [
+  "Can you model async concurrency control in TypeScript (promises, not threads)?",
+  "Is the slot accounting correct when tasks succeed or fail?",
+  "Is the API clean: IDs, callbacks, and a pluggable executor (strategy pattern)?",
+  "Do you handle errors, ordering and edge cases?",
+  "Can you extend it with retries, priorities, cancellation or draining?"
+ ],
+ "answer": "**Design.** JavaScript is single-threaded, so concurrency means limiting the number of in-flight promises. Keep a FIFO `pending` queue and a `running` counter. Whenever a task is added or finishes, call `drain()`, which starts tasks while `running < K`.\n\n    type Task<T> = {\n      id: string;\n      run: () => Promise<T>;\n      onSuccess?: (r: T, id: string) => void;\n      onError?: (e: unknown, id: string) => void;\n    };\n    type Executor = <T>(t: Task<T>) => Promise<T>;\n\n    class TaskQueue {\n      private pending: Task<any>[] = [];\n      private running = 0;\n      constructor(\n        private k: number,\n        private executor: Executor = t => t.run()\n      ) {}\n\n      setExecutor(e: Executor) { this.executor = e; }\n\n      add<T>(task: Task<T>) {\n        this.pending.push(task);\n        this.drain();\n      }\n\n      private drain() {\n        while (this.running < this.k && this.pending.length) {\n          const t = this.pending.shift()!;\n          this.running++;\n          this.executor(t)\n            .then(r => t.onSuccess?.(r, t.id))\n            .catch(e => t.onError?.(e, t.id))\n            .finally(() => { this.running--; this.drain(); });\n        }\n      }\n    }\n\n**Why it works.** `running` is incremented synchronously before a task starts and decremented in `finally`, so a failing task still frees its slot. Each completion triggers `drain()` to fill free slots, so at most K run at once and queued tasks start in order.\n\n**Pluggable executor.** The executor wraps `t.run`: a logging executor logs start and end; a retry executor loops up to N times with backoff; a rate-limiting executor awaits a token before running. Compose them as decorators.\n\n**Edge cases.** Duplicate IDs (reject or track in a Set); exceptions thrown synchronously inside `run` (wrap in `Promise.resolve().then(...)`); callback errors shouldn't break the queue; K must be >= 1.\n\n**Extensions.** `onIdle()` promise, `pause/resume`, priorities (heap instead of array, since `shift()` is O(n) for big arrays; use a linked list or index pointer), cancellation via `AbortSignal`, and a bounded queue with back-pressure.",
+ "followUps": [
+  "How would you implement retries with exponential backoff as an executor?",
+  "How would you add priorities?",
+  "How would you provide an `onIdle()` promise that resolves when all work is done?",
+  "How would you support cancelling a queued or running task?",
+  "Why is `Array.shift()` a concern and what would you use instead?"
+ ]
+}

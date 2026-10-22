@@ -1,0 +1,48 @@
+{
+ "pid": "number-of-distinct-islands",
+ "title": "Number of Distinct Islands",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given a grid of `r` rows and `c` columns where each cell is either land (`1`) or water (`0`). An **island** is a maximal group of land cells connected **horizontally or vertically** (not diagonally).\n\nTwo islands have the **same shape** if one can be moved onto the other by a pure **translation** (sliding it up, down, left or right). Rotating or reflecting an island produces a different shape, so for example an `L` and its mirror image are two distinct shapes.\n\nCount the number of **distinct island shapes** in the grid. If there is no land, print `0`.\n\n**Follow-up:** the interviewer in one report first asked for the plain number of islands and then for the number of distinct shapes; solve the distinct-shape version directly, since the plain count is just the number of flood fills you start.",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains a string of `c` characters, each `0` (water) or `1` (land), with no spaces.",
+ "output_format": "Print a single integer: the number of distinct island shapes.",
+ "constraints": [
+  "1 ≤ r, c ≤ 500",
+  "Every island contains at most 5000 cells (so recursive flood fills stay within the recursion limits of Python and JavaScript)"
+ ],
+ "examples": [
+  {
+   "input": "4 6\n110011\n100001\n000000\n010010",
+   "output": "3",
+   "explanation": "There are four islands. The top-left one is an `L` of three cells; the top-right one is its mirror image, which is a different shape. The two single cells in the bottom row are identical. So there are 3 distinct shapes."
+  },
+  {
+   "input": "3 4\n1101\n0001\n0000",
+   "output": "2",
+   "explanation": "A horizontal domino and a vertical domino: rotating is not allowed, so they are different shapes."
+  },
+  {
+   "input": "2 2\n00\n00",
+   "output": "0",
+   "explanation": "There is no land at all."
+  }
+ ],
+ "complexity": {
+  "time": "O(r · c)",
+  "space": "O(r · c)"
+ },
+ "hints": [
+  "Find each island with a BFS/DFS flood fill. How can you describe an island independently of where it sits in the grid?",
+  "Record every cell of an island relative to the island's first cell found in row-major scan order (or relative to its minimum row and column). Two islands have the same shape exactly when these lists are equal, as long as you visit cells in a deterministic order.",
+  "Store each island's signature (a tuple, string or sorted list) in a hash set and print its size. Make sure the signature depends only on the shape, not on the position."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    rows = data[2:2 + r]\n    seen = bytearray(r * c)\n    shapes = set()\n    for i0 in range(r):\n        row = rows[i0]\n        for j0 in range(c):\n            if row[j0] != '1' or seen[i0 * c + j0]:\n                continue\n            seen[i0 * c + j0] = 1\n            queue = [(i0, j0)]\n            sig = []\n            for i, j in queue:\n                sig.append((i - i0) * 1024 + (j - j0))\n                if i > 0 and rows[i - 1][j] == '1' and not seen[(i - 1) * c + j]:\n                    seen[(i - 1) * c + j] = 1\n                    queue.append((i - 1, j))\n                if i + 1 < r and rows[i + 1][j] == '1' and not seen[(i + 1) * c + j]:\n                    seen[(i + 1) * c + j] = 1\n                    queue.append((i + 1, j))\n                if j > 0 and rows[i][j - 1] == '1' and not seen[i * c + j - 1]:\n                    seen[i * c + j - 1] = 1\n                    queue.append((i, j - 1))\n                if j + 1 < c and rows[i][j + 1] == '1' and not seen[i * c + j + 1]:\n                    seen[i * c + j + 1] = 1\n                    queue.append((i, j + 1))\n            shapes.add(tuple(sig))\n    print(len(shapes))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\ng = [list(data[2 + i]) for i in range(r)]\nshapes = set()\nfor i in range(r):\n    for j in range(c):\n        if g[i][j] == '1':\n            stack = [(i, j)]\n            g[i][j] = '0'\n            cells = []\n            while stack:\n                x, y = stack.pop()\n                cells.append((x, y))\n                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n                    nx, ny = x + dx, y + dy\n                    if 0 <= nx < r and 0 <= ny < c and g[nx][ny] == '1':\n                        g[nx][ny] = '0'\n                        stack.append((nx, ny))\n            mx = min(p for p, q in cells)\n            my = min(q for p, q in cells)\n            shapes.add(frozenset((p - mx, q - my) for p, q in cells))\nprint(len(shapes))\n",
+ "generator": "def gen(rng):\n    def fmt(g):\n        return f\"{len(g)} {len(g[0])}\\n\" + \"\\n\".join(''.join(map(str, row)) for row in g)\n    def rand_grid(r, c, p):\n        return [[1 if rng.random() < p else 0 for _ in range(c)] for _ in range(r)]\n    def rand_shape(k):\n        cells = {(0, 0)}\n        while len(cells) < k:\n            x, y = rng.choice(sorted(cells))\n            dx, dy = rng.choice(((1, 0), (-1, 0), (0, 1), (0, -1)))\n            cells.add((x + dx, y + dy))\n        mx = min(p for p, q in cells)\n        my = min(q for p, q in cells)\n        return [(p - mx, q - my) for p, q in cells]\n    def placed(r, c, templates, tries):\n        g = [[0] * c for _ in range(r)]\n        for _ in range(tries):\n            t = rng.choice(templates)\n            h = max(p for p, q in t) + 1\n            w = max(q for p, q in t) + 1\n            if h > r or w > c:\n                continue\n            oi = rng.randint(0, r - h)\n            oj = rng.randint(0, c - w)\n            ok = True\n            for p, q in t:\n                i, j = oi + p, oj + q\n                if g[i][j]:\n                    ok = False\n                    break\n                for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n                    a, b = i + di, j + dj\n                    if 0 <= a < r and 0 <= b < c and g[a][b]:\n                        ok = False\n                        break\n                if not ok:\n                    break\n            if ok:\n                for p, q in t:\n                    g[oi + p][oj + q] = 1\n        return g\n    tests = [fmt([[1]]), fmt([[0]]), fmt([[0, 0], [0, 0]]), fmt([[1, 1], [1, 1]]),\n             fmt([[1, 1, 0, 0, 1, 1], [1, 0, 0, 0, 0, 1], [0, 0, 0, 0, 0, 0], [0, 1, 0, 0, 1, 0]]),\n             fmt([[1, 1, 0, 1], [0, 0, 0, 1], [0, 0, 0, 0]]),\n             fmt([[1, 0, 1], [0, 0, 0], [1, 0, 1]]),\n             fmt([[1, 1, 1], [0, 1, 0], [0, 0, 0], [1, 0, 0], [1, 1, 1]])]\n    for _ in range(16):\n        r = rng.randint(1, 8)\n        c = rng.randint(1, 8)\n        tests.append(fmt(rand_grid(r, c, rng.choice([0.3, 0.45, 0.6]))))\n    for _ in range(4):\n        templates = [rand_shape(rng.randint(1, 4)) for _ in range(3)]\n        tests.append(fmt(placed(rng.randint(8, 14), rng.randint(8, 14), templates, 80)))\n    templates = [rand_shape(rng.randint(1, 12)) for _ in range(40)]\n    tests.append(fmt(placed(500, 500, templates, 40000)))\n    templates = [rand_shape(rng.randint(3, 6)) for _ in range(300)]\n    tests.append(fmt(placed(500, 500, templates, 40000)))\n    templates = [[(0, 0)], [(0, 0), (0, 1)], [(0, 0), (1, 0)]]\n    tests.append(fmt(placed(500, 500, templates, 60000)))\n    big = [[0] * 500 for _ in range(500)]\n    for i in range(70):\n        for j in range(70):\n            big[i][j] = 1\n    for i in range(0, 70, 2):\n        for j in range(72, 140):\n            big[i][j] = 1\n        if i + 1 < 70:\n            big[i + 1][139 if (i // 2) % 2 == 0 else 72] = 1\n    t2 = placed(500, 500, [rand_shape(rng.randint(2, 9)) for _ in range(25)], 40000)\n    for i in range(500):\n        for j in range(500):\n            if i < 72 and j < 142:\n                t2[i][j] = big[i][j] if (i < 70 and j < 140) else 0\n    tests.append(fmt(t2))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_distinct_islands(grid: List[str]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    grid = data[2:2 + r]\n    print(count_distinct_islands(grid))\n\n\nmain()\n",
+  "javascript": "function countDistinctIslands(grid) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst r = parseInt(t[0]), c = parseInt(t[1])\nconst grid = t.slice(2, 2 + r)\nconsole.log(countDistinctIslands(grid))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint countDistinctIslands(vector<string>& grid) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<string> grid(r);\n    for (auto& row : grid) cin >> row;\n    cout << countDistinctIslands(grid) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int countDistinctIslands(String[] grid) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        Scanner sc = new Scanner(System.in);\n        int r = sc.nextInt();\n        int c = sc.nextInt();\n        String[] grid = new String[r];\n        for (int i = 0; i < r; i++) grid[i] = sc.next();\n        System.out.println(countDistinctIslands(grid));\n    }\n}\n"
+ }
+}

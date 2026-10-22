@@ -1,0 +1,50 @@
+{
+ "pid": "rubrik-showroom-subsets-covering-all-car-types",
+ "title": "Showroom Subsets Covering All Car Types",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "There are `k` types of cars in the world, numbered `1` to `k`, and `n` car showrooms, numbered `1` to `n`. Showroom `i` sells `m_i` distinct car types `a_1, a_2, ..., a_{m_i}`.\n\nCount the number of ways to select a subset of the showrooms such that, together, the selected showrooms sell **all** `k` car types. Two selections are different if they differ in at least one showroom. The empty selection sells nothing, so it never counts.\n\nPrint the number of ways modulo `10^9 + 7`.",
+ "input_format": "The first line contains two integers `n` and `k`.\nEach of the next `n` lines describes one showroom: an integer `m_i` followed by `m_i` distinct integers, the car types sold there.",
+ "output_format": "Print one integer: the number of valid subsets of showrooms, modulo `1000000007`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ k ≤ 15",
+  "1 ≤ m_i ≤ k",
+  "1 ≤ each car type ≤ k"
+ ],
+ "examples": [
+  {
+   "input": "5 4\n1 3\n2 1 4\n3 1 2 4\n3 1 2 4\n4 1 2 3 4",
+   "output": "22",
+   "explanation": "Showroom 5 sells every type, so all 2^4 = 16 subsets containing it work. Without it, type 3 is sold only by showroom 1, so showroom 1 must be chosen. Type 2 is then sold only by showrooms 3 and 4, so at least one of them must be chosen (3 ways), and showroom 2 is optional (2 ways). That gives 3 * 2 = 6 more subsets, for a total of 22."
+  },
+  {
+   "input": "3 2\n1 1\n1 2\n2 1 2",
+   "output": "5",
+   "explanation": "The 4 subsets containing showroom 3 all work. Without showroom 3, only {1, 2} sells both types. Total 5."
+  },
+  {
+   "input": "2 3\n2 1 2\n2 1 2",
+   "output": "0",
+   "explanation": "Nobody sells type 3, so no subset can cover all types."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + k · 2^k)",
+  "space": "O(2^k + n)"
+ },
+ "hints": [
+  "Represent every showroom as a bitmask of the car types it sells. The union of a selection is the bitwise OR of its masks.",
+  "It is easier to count subsets whose union is contained in a given mask M: that is 2^f(M), where f(M) is the number of showrooms whose mask is a subset of M. Compute f for all M with a subset-sum (SOS) DP over the bits.",
+  "Use inclusion-exclusion over the missing types: the answer is the sum over all M of (-1)^(k - popcount(M)) * 2^f(M), modulo 10^9 + 7."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    MOD = 10**9 + 7\n    n, k = int(data[0]), int(data[1])\n    f = [0] * (1 << k)\n    pos = 2\n    for _ in range(n):\n        m = int(data[pos])\n        mask = 0\n        for j in range(m):\n            mask |= 1 << (int(data[pos + 1 + j]) - 1)\n        pos += 1 + m\n        f[mask] += 1\n    for b in range(k):\n        bit = 1 << b\n        for mask in range(1 << k):\n            if mask & bit:\n                f[mask] += f[mask ^ bit]\n    pw = [1] * (n + 1)\n    for i in range(1, n + 1):\n        pw[i] = pw[i - 1] * 2 % MOD\n    ans = 0\n    for mask in range(1 << k):\n        t = pw[f[mask]]\n        if (k - bin(mask).count('1')) & 1:\n            ans -= t\n        else:\n            ans += t\n    print(ans % MOD)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, k = int(data[0]), int(data[1])\nmasks = []\npos = 2\nfor _ in range(n):\n    m = int(data[pos])\n    mask = 0\n    for j in range(m):\n        mask |= 1 << (int(data[pos + 1 + j]) - 1)\n    pos += 1 + m\n    masks.append(mask)\nfull = (1 << k) - 1\ncount = 0\nfor sub in range(1, 1 << n):\n    u = 0\n    for i in range(n):\n        if sub >> i & 1:\n            u |= masks[i]\n    if u == full:\n        count += 1\nprint(count % (10**9 + 7))\n",
+ "generator": "def gen(rng):\n    def fmt(k, rooms):\n        lines = [f'{len(rooms)} {k}']\n        for r in rooms:\n            lines.append(str(len(r)) + ' ' + ' '.join(map(str, r)))\n        return '\\n'.join(lines)\n    def rnd_room(k, mx):\n        m = rng.randint(1, min(k, mx))\n        r = rng.sample(range(1, k + 1), m)\n        return r\n    tests = [fmt(4, [[3], [1, 4], [1, 2, 4], [1, 2, 4], [1, 2, 3, 4]]), fmt(2, [[1], [2], [1, 2]]), fmt(3, [[1, 2], [1, 2]]),\n             fmt(1, [[1]]), fmt(1, [[1], [1], [1]]), fmt(15, [list(range(1, 16))]), fmt(15, [list(range(1, 15))]),\n             fmt(3, [[1], [2], [3]]), fmt(2, [[2, 1], [1], [2]])]\n    for n in (2, 4, 6, 8, 10, 12):\n        for k in (2, 3, 5, 6):\n            tests.append(fmt(k, [rnd_room(k, k) for _ in range(n)]))\n            tests.append(fmt(k, [rnd_room(k, 2) for _ in range(n)]))\n    N = 100000\n    tests.append(fmt(15, [rnd_room(15, 5) for _ in range(N)]))\n    tests.append(fmt(15, [rnd_room(15, 15) for _ in range(40000)]))\n    tests.append(fmt(15, [list(range(1, 16)) for _ in range(40000)]))\n    tests.append(fmt(15, [[rng.randint(1, 15)] for _ in range(N)]))\n    tests.append(fmt(15, [rnd_room(14, 4) for _ in range(N)]))\n    tests.append(fmt(15, [rnd_room(15, 3) + [] for _ in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_subsets(k: int, showrooms: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    showrooms = []\n    pos = 2\n    for _ in range(n):\n        m = int(data[pos])\n        showrooms.append([int(x) for x in data[pos + 1:pos + 1 + m]])\n        pos += 1 + m\n    print(count_subsets(k, showrooms))\n\n\nmain()\n",
+  "javascript": "function countSubsets(k, showrooms) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst showrooms = []\nlet pos = 2\nfor (let i = 0; i < n; i++) {\n  const m = t[pos]\n  showrooms.push(t.slice(pos + 1, pos + 1 + m))\n  pos += 1 + m\n}\nconsole.log(String(countSubsets(k, showrooms)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countSubsets(int k, vector<vector<int>>& showrooms) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<vector<int>> showrooms(n);\n    for (int i = 0; i < n; i++) {\n        int m;\n        cin >> m;\n        showrooms[i].resize(m);\n        for (int j = 0; j < m; j++) cin >> showrooms[i][j];\n    }\n    cout << countSubsets(k, showrooms) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countSubsets(int k, int[][] showrooms) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        int[][] showrooms = new int[n][];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            int m = (int) in.nval;\n            showrooms[i] = new int[m];\n            for (int j = 0; j < m; j++) {\n                in.nextToken();\n                showrooms[i][j] = (int) in.nval;\n            }\n        }\n        System.out.println(countSubsets(k, showrooms));\n    }\n}\n"
+ }
+}

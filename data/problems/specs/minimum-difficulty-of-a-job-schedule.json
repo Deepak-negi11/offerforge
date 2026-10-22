@@ -1,0 +1,48 @@
+{
+ "pid": "minimum-difficulty-of-a-job-schedule",
+ "title": "Split Array Minimising Sum of Maxima",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given an array `arr` of `N` positive integers (for example the costs of tasks in a fixed order) and an integer `K`.\n\nSplit the array, **keeping the original order**, into exactly `K` contiguous, **non-empty** pieces. The **cost of a piece** is the maximum element inside it, and the **total cost** of a split is the sum of the costs of its `K` pieces.\n\nPrint the **minimum total cost** over all valid splits.",
+ "input_format": "The first line contains two integers `N` and `K`.\nThe second line contains `N` space-separated integers `arr[0] ... arr[N-1]`.",
+ "output_format": "Print a single integer: the minimum total cost.",
+ "constraints": [
+  "1 ≤ K ≤ N ≤ 300",
+  "1 ≤ arr[i] ≤ 10^5"
+ ],
+ "examples": [
+  {
+   "input": "5 3\n150 200 400 350 250",
+   "output": "750",
+   "explanation": "Split into [150], [200], [400, 350, 250]. The costs are 150, 200 and 400, summing to 750. No other split into 3 pieces does better."
+  },
+  {
+   "input": "5 2\n1 5 3 4 2",
+   "output": "6",
+   "explanation": "[1] and [5, 3, 4, 2] cost 1 + 5 = 6. Every split puts the 5 into some piece, so the total is at least 5 plus the other piece's maximum, which is at least 1."
+  },
+  {
+   "input": "4 4\n9 2 7 3",
+   "output": "21",
+   "explanation": "With K equal to N each element is its own piece, so the total is the sum of the array."
+  }
+ ],
+ "complexity": {
+  "time": "O(N * K)",
+  "space": "O(N)"
+ },
+ "hints": [
+  "Let dp[j][i] be the minimum total cost of splitting the first i elements into exactly j pieces. How can the last piece be described?",
+  "dp[j][i] = min over m of dp[j-1][m] + max(arr[m..i-1]). Iterating m downwards from i-1 lets you maintain the running maximum for free, which gives O(N^2 * K) overall.",
+  "Optional: for N this small the cubic DP is fine. To reach O(N * K), keep a monotonic stack of suffix maxima together with the minimum dp[j-1] value inside each stack segment."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    INF = float('inf')\n    prev = [0] + [INF] * n          # prev[i]: first i elements in 0 pieces\n    for j in range(1, k + 1):\n        cur = [INF] * (n + 1)\n        stack = []                  # (max value, min prev over its range of cut points, best over stack up to here)\n        for i in range(1, n + 1):\n            x = a[i - 1]\n            m = prev[i - 1]\n            while stack and stack[-1][0] <= x:\n                m = min(m, stack[-1][1])\n                stack.pop()\n            best = m + x\n            if stack:\n                best = min(best, stack[-1][2])\n            stack.append((x, m, best))\n            cur[i] = best\n        prev = cur\n    print(prev[n])\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import combinations\n\ndata = sys.stdin.read().split()\nn, k = int(data[0]), int(data[1])\na = [int(x) for x in data[2:2 + n]]\nbest = None\nfor cuts in combinations(range(1, n), k - 1):\n    bounds = [0] + list(cuts) + [n]\n    total = sum(max(a[bounds[t]:bounds[t + 1]]) for t in range(k))\n    if best is None or total < best:\n        best = total\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(k, a):\n        return f'{len(a)} {k}\\n' + ' '.join(map(str, a))\n    tests = [fmt(1, [5]), fmt(1, [3, 9, 2]), fmt(3, [4, 4, 4]), fmt(2, [1, 5, 3, 4, 2]), fmt(3, [150, 200, 400, 350, 250]),\n             fmt(4, [9, 2, 7, 3]), fmt(2, [10**5, 1]), fmt(2, [1, 10**5]), fmt(3, [5, 4, 3, 2, 1]), fmt(3, [1, 2, 3, 4, 5])]\n    for n in (2, 3, 4, 5, 6, 8, 10, 12):\n        for _ in range(3):\n            k = rng.randint(1, n)\n            tests.append(fmt(k, [rng.randint(1, rng.choice([5, 20, 100])) for _ in range(n)]))\n    N = 300\n    tests.append(fmt(150, [rng.randint(1, 10**5) for _ in range(N)]))\n    tests.append(fmt(100, [rng.randint(1, 10**5) for _ in range(N)]))\n    tests.append(fmt(N, [rng.randint(1, 10**5) for _ in range(N)]))\n    tests.append(fmt(7, sorted(rng.randint(1, 10**5) for _ in range(N))))\n    tests.append(fmt(200, sorted((rng.randint(1, 10**5) for _ in range(N)), reverse=True)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_total_cost(arr: List[int], k: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    arr = [int(x) for x in data[2:2 + n]]\n    print(min_total_cost(arr, k))\n\n\nmain()\n",
+  "javascript": "function minTotalCost(arr, k) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst arr = t.slice(2, 2 + n)\nconsole.log(String(minTotalCost(arr, k)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minTotalCost(vector<long long>& arr, int k) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<long long> arr(n);\n    for (int i = 0; i < n; i++) cin >> arr[i];\n    cout << minTotalCost(arr, k) << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minTotalCost(long[] arr, int k) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        long[] arr = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            arr[i] = (long) in.nval;\n        }\n        System.out.println(minTotalCost(arr, k));\n    }\n}\n"
+ }
+}

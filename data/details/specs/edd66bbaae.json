@@ -1,0 +1,17 @@
+{
+ "qid": "edd66bbaae",
+ "question": "Cisco Software Engineer Intern, technical interview 1, project discussion (reported on a Gatepass Management project). Questions: **how were passwords stored in the database?**, **which methods exist for hashing passwords?**, **how did you handle a server crash?**, and **how are frontend, backend and server connected?** Another candidate was asked about using bcrypt and JSON web tokens for authentication in a MERN project.",
+ "lookingFor": [
+  "Security fundamentals: never store plaintext passwords.",
+  "Knowing why general-purpose hashes are unsuitable and what is used instead.",
+  "Basic resilience thinking: restarts, logging, health checks.",
+  "Clear end-to-end picture of how the components of your own project talk."
+ ],
+ "answer": "Answer from your own project, but make sure the following are correct.\n\n**Password storage.** Never store plaintext or reversible encryption. Store a one-way hash with a unique random salt per user. Salt defeats rainbow tables and makes identical passwords produce different hashes. Verification means hashing the login attempt with the stored salt and comparing (constant-time compare).\n\n**Hashing methods.** Fast hashes (MD5, SHA-1, plain SHA-256) are wrong for passwords because attackers can try billions per second on GPUs. Use deliberately slow, adaptive password hashes: **bcrypt** (cost factor, built-in salt, 72-byte input limit), **scrypt** and **Argon2id** (memory-hard, resistant to GPU/ASIC attacks, current OWASP-preferred), or **PBKDF2** (acceptable, FIPS-friendly). Tune the cost so one hash takes tens to hundreds of milliseconds. Optionally add a server-side pepper kept outside the DB.\n\n**Handling a server crash.** Describe what you actually did or could do:\n- Find the cause from logs and stack traces; catch unhandled exceptions and promise rejections.\n- Auto-restart with a process manager (PM2, systemd, Docker restart policy).\n- Health-check endpoint and monitoring/alerts.\n- Keep the server stateless (sessions in a DB or JWT) so a restart loses nothing; use DB transactions so half-finished writes do not corrupt data.\n- At scale, run multiple instances behind a load balancer.\n\n**How components connect.** The browser (frontend) sends HTTP requests, usually JSON over REST, to the backend application running on a server at a port (for example Express on 3000, behind Nginx on 80/443). The backend validates input, authenticates (session cookie or JWT in a header), queries the database, and returns JSON. CORS settings allow the frontend origin, and HTTPS protects traffic.\n\nBe honest: if your project stored passwords weakly, say so, explain the risk and what you would change. That is a stronger answer than bluffing.",
+ "followUps": [
+  "Why is salting needed if the hash is already one-way?",
+  "Session cookies versus JWT: trade-offs?",
+  "How would you prevent brute-force login attempts?",
+  "What is the difference between hashing and encryption?"
+ ]
+}

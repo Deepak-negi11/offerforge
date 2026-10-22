@@ -1,0 +1,18 @@
+{
+ "qid": "488252886e",
+ "question": "Meesho Data Scientist-1, ML depth round. Because the candidate's resume mentioned them, the interviewer asked about **multi-GPU training and parallelism strategies**, **parameter-efficient fine-tuning (PEFT)** and **QLoRA**.",
+ "lookingFor": [
+  "Do you understand why large-model training needs parallelism and which kinds exist?",
+  "Can you explain LoRA and QLoRA's mechanics and memory savings accurately?",
+  "Are you honest about what you have actually run versus read?",
+  "Do you know trade-offs and when full fine-tuning is still better?"
+ ],
+ "answer": "**Why parallelism.** Memory for training is parameters plus gradients plus optimizer states (Adam keeps two extra values per parameter) plus activations. A large model overflows one GPU, or training takes too long.\n\n**Strategies.**\n- **Data parallelism (DDP):** each GPU holds a full model copy and processes a different batch slice; gradients are averaged with all-reduce. Simple and scalable if the model fits.\n- **Sharded data parallel (ZeRO / FSDP):** shard optimizer states, gradients and optionally parameters across GPUs, gathering as needed. Cuts per-GPU memory a lot at some communication cost.\n- **Tensor (model) parallelism:** split individual matrix multiplications across GPUs; needs fast interconnects.\n- **Pipeline parallelism:** assign consecutive layers to different GPUs and stream micro-batches to reduce idle bubbles.\nAlso: mixed precision (fp16/bf16), gradient accumulation, gradient checkpointing (recompute activations to save memory).\n\n**PEFT.** Fine-tune a small number of parameters and keep the base model frozen, saving memory and storage (one small adapter per task) and often reducing forgetting. Methods: adapters, prefix and prompt tuning, **LoRA**.\n\n**LoRA.** Freeze the pretrained weight `W` and learn a low-rank update `delta W = B A`, where `A` is `r x k` and `B` is `d x r` with small rank `r` (for example 8 or 16). The forward pass is `W x + (alpha/r) B A x`. Only A and B get gradients and optimizer states, which can be well under 1% of the parameters. Adapters can be merged into W after training, so there is no inference latency.\n\n**QLoRA.** LoRA on top of a **4-bit quantised** frozen base model, so a large model fits on a single GPU. Key ingredients: the **4-bit NormalFloat (NF4)** data type, **double quantisation** (quantising the quantisation constants) and **paged optimizers** to handle memory spikes. Weights are dequantised on the fly to bf16 for computation; the LoRA weights stay in higher precision and are trained.\n\n**Trade-offs.** Quantisation adds a small quality loss and slower step time; low rank limits capacity for tasks far from pretraining; hyperparameters (rank, alpha, target modules) need tuning. State only what you actually ran.",
+ "followUps": [
+  "How does ZeRO stage 1, 2 and 3 differ?",
+  "Why does LoRA not add inference latency?",
+  "How do you choose the rank r and which layers to adapt?",
+  "What is the difference between data and tensor parallelism in communication cost?",
+  "When would you prefer full fine-tuning over LoRA?"
+ ]
+}

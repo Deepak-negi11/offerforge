@@ -1,0 +1,17 @@
+{
+ "qid": "19c0494b96",
+ "question": "In an Adobe MTS-2 Frontend machine-coding round (JavaScript, React and the pub/sub pattern), the candidate was asked to implement **adding books to a book list from various places in a React app**. The follow-up: modify the solution so it works **across multiple monorepos**.\n\nThey first coded it with the Context API, then built an **EventBus** with subscribe, unsubscribe and emit, and discussed Context as dependency injection, Redux as pub/sub internally, and pub/sub vs the observer pattern.",
+ "lookingFor": [
+  "Do you know what each React state-sharing tool is good for and where Context stops scaling?",
+  "Can you implement a clean EventBus with unsubscribe and no leaks?",
+  "Can you separate pub/sub from the observer pattern (decoupling through a broker)?",
+  "Can you reason about cross-package and cross-bundle communication?"
+ ],
+ "answer": "**Single app with Context**: a `BooksProvider` holds `books` in `useReducer` and exposes `addBook` through context; any component calls `useBooks().addBook(book)`. Simple and idiomatic, but every consumer re-renders when the value changes (split state and dispatch contexts or memoise the value to limit this), and it only works inside one React tree sharing the same provider and React instance.\n\n**Across monorepos / separate bundles (micro-frontends)**: the pieces do not share a React tree or even a module instance, so use something framework-agnostic: an **EventBus** (or the browser's `CustomEvent` / `window` events, `BroadcastChannel` across tabs).\n\n```js\nclass EventBus {\n  constructor() { this.handlers = new Map(); }\n  subscribe(event, fn) {\n    if (!this.handlers.has(event)) this.handlers.set(event, new Set());\n    this.handlers.get(event).add(fn);\n    return () => this.unsubscribe(event, fn);\n  }\n  unsubscribe(event, fn) { this.handlers.get(event)?.delete(fn); }\n  emit(event, payload) { this.handlers.get(event)?.forEach(fn => fn(payload)); }\n}\n```\n\nIn React, a `useEffect` subscribes to `books:add`, updates state, and **returns the unsubscribe function** as cleanup to avoid leaks and duplicate handlers. Any module calls `bus.emit('books:add', book)`. Share the single bus instance through a shared package (as a singleton, or attached to `window` when bundles are built separately).\n\n**Pub/sub vs observer**: in the observer pattern the subject keeps a list of observers and notifies them directly (they know each other). In pub/sub a broker sits between publishers and subscribers who do not know each other, and events are often topic-based. Context is essentially dependency injection of a value; Redux has a store with subscribers, so internally it is observer/pub-sub.\n\n**Trade-offs**: an event bus is decoupled but untyped and hard to trace; define event names and payload types in one contract, version them, handle errors in handlers, and consider a replay of the last value for late subscribers.",
+ "followUps": [
+  "Why can the EventBus cause memory leaks in React, and how do you avoid them?",
+  "How would you make events type-safe in TypeScript?",
+  "When would you pick Redux or Zustand over Context?",
+  "How do late subscribers get the current book list?"
+ ]
+}

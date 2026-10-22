@@ -1,0 +1,44 @@
+{
+ "pid": "de-shaw-sum-of-lcm-partition-factors",
+ "title": "Sum of LCM Partition Factors",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `arr` of `n` positive integers and an integer `k`.\n\nFor a pair of indices `(i, j)` with `0 ≤ i ≤ j < n` (note that `i = j` is allowed, so every element also pairs with itself), the **partition factor** of the pair is the smallest positive integer `m` such that `lcm(arr[i], arr[j]) · m` is divisible by `k`. Here `lcm` is the least common multiple.\n\nPrint the **sum of the partition factors over all pairs** `(i, j)` with `i ≤ j`.\n\nThe sum fits in a signed 64-bit integer under the constraints; no modulo is applied.",
+ "input_format": "The first line contains two integers `n` and `k`.\nThe second line contains `n` integers: the elements of `arr`.",
+ "output_format": "Print one integer: the sum of the partition factors over all pairs `(i, j)` with `i ≤ j`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ k ≤ 10^6",
+  "1 ≤ arr[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3 12\n4 6 3",
+   "output": "13",
+   "explanation": "The pairs and their factors: (4,4): lcm 4, m = 3. (4,6): lcm 12, m = 1. (4,3): lcm 12, m = 1. (6,6): lcm 6, m = 2. (6,3): lcm 6, m = 2. (3,3): lcm 3, m = 4. Sum: 3 + 1 + 1 + 2 + 2 + 4 = 13."
+  },
+  {
+   "input": "2 10\n5 5",
+   "output": "6",
+   "explanation": "There are three pairs: (0,0), (0,1) and (1,1). Each has lcm 5, and the smallest m with 5·m divisible by 10 is 2. Sum = 6."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log k + D² log k), where D ≤ 240 is the number of divisors of k",
+  "space": "O(D)"
+ },
+ "hints": [
+  "The smallest m with lcm · m divisible by k is k / gcd(k, lcm). With n up to 10^5 you cannot look at every pair, so find what about arr[i] actually matters.",
+  "Think prime by prime: for a prime power p^e dividing k, the exponent of p in gcd(k, lcm(x, y)) is min(e, max(v_p(x), v_p(y))). This shows gcd(k, lcm(x, y)) = lcm(gcd(k, x), gcd(k, y)).",
+  "So replace every element by gcd(arr[i], k), a divisor of k, and count how many elements give each divisor. There are at most 240 divisors of any k ≤ 10^6, so you can loop over pairs of divisors and count element pairs with products of counts."
+ ],
+ "reference": "import sys\nfrom math import gcd\nfrom collections import Counter\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    cnt = Counter(gcd(int(x), k) for x in data[2:2 + n])\n    keys = sorted(cnt)\n    total = 0\n    for x, d1 in enumerate(keys):\n        c1 = cnt[d1]\n        total += c1 * (c1 + 1) // 2 * (k // d1)\n        for d2 in keys[x + 1:]:\n            l = d1 // gcd(d1, d2) * d2\n            total += c1 * cnt[d2] * (k // l)\n    print(total)\n\nmain()\n",
+ "brute": "import sys\nfrom math import gcd\n\ndata = sys.stdin.read().split()\nn, k = int(data[0]), int(data[1])\na = [int(x) for x in data[2:2 + n]]\ntotal = 0\nfor i in range(n):\n    for j in range(i, n):\n        l = a[i] // gcd(a[i], a[j]) * a[j]\n        m = 1\n        while (l * m) % k:\n            m += 1\n        total += m\nprint(total)\n",
+ "generator": "def gen(rng):\n    from math import gcd\n    def fmt(a, k):\n        return f\"{len(a)} {k}\\n\" + ' '.join(map(str, a))\n    def divisors(k):\n        return [d for d in range(1, k + 1) if k % d == 0]\n    tests = [fmt([4, 6, 3], 12), fmt([5, 5], 10), fmt([1], 1), fmt([7], 7), fmt([1, 1, 1], 1000000),\n             fmt([10**9] * 3, 1000000), fmt([2, 3], 6), fmt([6, 6, 6, 6], 36), fmt([999999937, 2], 999983)]\n    for n in (2, 3, 5, 8, 12, 20, 30):\n        for _ in range(4):\n            k = rng.choice([1, 2, 6, 12, 30, 36, 60, 64, 100, 210, 360, 997])\n            a = [rng.randint(1, 400) for _ in range(n)]\n            tests.append(fmt(a, k))\n    n = 100000\n    k = 720720\n    ds = divisors(k)\n    a = [rng.choice(ds) * rng.randint(1, 1387) for _ in range(n)]\n    tests.append(fmt(a, k))\n    a = [rng.randint(1, 10**9) for _ in range(n)]\n    tests.append(fmt(a, k))\n    a = [rng.choice(ds) * rng.choice([1, 1, 13, 17, 19, 23]) for _ in range(n)]\n    tests.append(fmt(a, 720720))\n    k = 1000000\n    a = [rng.choice([1, 2, 4, 5, 8, 10, 16, 20, 25, 32, 40, 50, 64, 100, 125, 200, 250, 500, 1000, 15625, 31250, 62500, 125000, 1000000]) * rng.randint(1, 7) for _ in range(n)]\n    tests.append(fmt(a, k))\n    tests.append(fmt([rng.randint(1, 10**9) for _ in range(n)], 997 * 991))\n    tests.append(fmt([10**9 - i for i in range(n)], 1))\n    tests.append(fmt([1000000] * n, 1000000))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef sum_partition_factors(arr: List[int], k: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    arr = [int(x) for x in data[2:2 + n]]\n    print(sum_partition_factors(arr, k))\n\n\nmain()\n",
+  "javascript": "function sumPartitionFactors(arr, k) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconsole.log(String(sumPartitionFactors(t.slice(2, 2 + n), k)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long sumPartitionFactors(vector<long long>& arr, long long k) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long k;\n    cin >> n >> k;\n    vector<long long> arr(n);\n    for (auto& x : arr) cin >> x;\n    cout << sumPartitionFactors(arr, k) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long sumPartitionFactors(long[] arr, long k) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        long k = (long) in.nval;\n        long[] arr = new long[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); arr[i] = (long) in.nval; }\n        System.out.println(sumPartitionFactors(arr, k));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,50 @@
+{
+ "pid": "microsoft-shortest-substring-containing-all-words",
+ "title": "Shortest Substring Containing All Words",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a sentence `S1` made of `n` words and a list `S2` of `m` words. Find the **shortest contiguous part of `S1`** (a run of consecutive words) that contains every word that appears in `S2`.\n\n- Words are compared exactly and are case sensitive; here they consist of lowercase letters.\n- `S2` may repeat a word. Only which words occur matters: a repeated word still needs to appear just once in the part you pick.\n- The length of a part is its number of words. If several parts have the minimum length, choose the one that starts **earliest** in `S1`.\n- Every word of `S2` is guaranteed to appear somewhere in `S1`.\n\nPrint the chosen part: its words in their original order, separated by single spaces.",
+ "input_format": "The first line contains the integer `n`, followed by `n` words (the words of `S1`) separated by whitespace.\nThen come the integer `m` and `m` words (the words of `S2`), separated by whitespace.",
+ "output_format": "Print the words of the shortest part on one line, separated by single spaces.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ m ≤ 10^5",
+  "Each word has 1 to 10 lowercase letters",
+  "Every word of S2 appears in S1"
+ ],
+ "examples": [
+  {
+   "input": "8\nthis is a test string for test purposes\n3\ntest string purposes",
+   "output": "string for test purposes",
+   "explanation": "The words test, string and purposes must all be present. The window starting at the first test (test string for test purposes) has 5 words, but starting at string gives string for test purposes with only 4 words, and no shorter window contains all three."
+  },
+  {
+   "input": "5\na b c a b\n3\na b c",
+   "output": "a b c",
+   "explanation": "The windows a b c, b c a and c a b each have 3 words, the minimum. The earliest one starts at position 0."
+  },
+  {
+   "input": "6\nx y x y y x\n4\ny x y x",
+   "output": "x y",
+   "explanation": "S2 contains only the distinct words x and y, so the repeats do not matter. The first window with both is x y."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(m)"
+ },
+ "hints": [
+  "Trying every start and extending to the right until all words are covered is O(n^2) in the worst case. Use two pointers instead.",
+  "Move the right end forward, keeping a count of how many times each required word is inside the window and how many distinct required words are covered.",
+  "Whenever every required word is covered, record the window and then shrink it from the left as long as it stays valid, since a shorter window might still work."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    w = data[1:1 + n]\n    m = int(data[1 + n])\n    need = set(data[2 + n:2 + n + m])\n    k = len(need)\n    cnt = {}\n    have = 0\n    best = None\n    l = 0\n    for r in range(n):\n        x = w[r]\n        if x in need:\n            cnt[x] = cnt.get(x, 0) + 1\n            if cnt[x] == 1:\n                have += 1\n        while have == k:\n            if best is None or r - l < best[1] - best[0]:\n                best = (l, r)\n            y = w[l]\n            if y in need:\n                cnt[y] -= 1\n                if cnt[y] == 0:\n                    have -= 1\n            l += 1\n    print(' '.join(w[best[0]:best[1] + 1]))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nw = data[1:1 + n]\nm = int(data[1 + n])\nneed = set(data[2 + n:2 + n + m])\nbest = None\nfor l in range(n):\n    for r in range(l, n):\n        if need <= set(w[l:r + 1]):\n            if best is None or r - l < best[1] - best[0]:\n                best = (l, r)\n            break\nprint(' '.join(w[best[0]:best[1] + 1]))\n",
+ "generator": "def gen(rng):\n    def enc(i, width=4):\n        s = []\n        for _ in range(width):\n            s.append(chr(97 + i % 26))\n            i //= 26\n        return ''.join(s)\n    def fmt(w, s2):\n        return f'{len(w)}\\n' + ' '.join(w) + f'\\n{len(s2)}\\n' + ' '.join(s2)\n    tests = [\n        fmt(['a'], ['a']),\n        fmt('this is a test string for test purposes'.split(), ['test', 'string', 'purposes']),\n        fmt('a b c a b'.split(), ['a', 'b', 'c']),\n        fmt('x y x y y x'.split(), ['y', 'x', 'y', 'x']),\n        fmt(['a', 'b', 'a', 'b'], ['b']),\n        fmt(['a', 'b', 'a', 'b'], ['a', 'a', 'a']),\n    ]\n    for n in (2, 3, 5, 8, 12, 20, 30):\n        for vocab in (2, 4, 6):\n            w = [chr(97 + rng.randrange(vocab)) for _ in range(n)]\n            present = sorted(set(w))\n            m = rng.randint(1, 5)\n            s2 = [rng.choice(present) for _ in range(m)]\n            tests.append(fmt(w, s2))\n    N = 100000\n    base = [enc(i) for i in range(50000)]\n    a = base[:]\n    rng.shuffle(a)\n    b = base[:]\n    rng.shuffle(b)\n    tests.append(fmt(a + b, base))\n    voc = [enc(i * 7 + 3) for i in range(2000)]\n    w = [rng.choice(voc) for _ in range(N)]\n    tests.append(fmt(w, sorted(set(w))))\n    w = [rng.choice(voc[:300]) for _ in range(N)]\n    tests.append(fmt(w, sorted(set(w))[:200] + sorted(set(w))[:200]))\n    w = [rng.choice(voc[:5]) for _ in range(N - 1)] + ['zzzzzzzzzz']\n    tests.append(fmt(w, ['zzzzzzzzzz', voc[0], voc[1]]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef shortest_window(words: List[str], required: List[str]) -> List[str]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    words = data[1:1 + n]\n    m = int(data[1 + n])\n    required = data[2 + n:2 + n + m]\n    print(' '.join(shortest_window(words, required)))\n\n\nmain()\n",
+  "javascript": "function shortestWindow(words, required) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0])\nconst words = t.slice(1, 1 + n)\nconst m = parseInt(t[1 + n])\nconst required = t.slice(2 + n, 2 + n + m)\nconsole.log(shortestWindow(words, required).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<string> shortestWindow(vector<string>& words, vector<string>& required) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n;\n    vector<string> words(n);\n    for (int i = 0; i < n; i++) cin >> words[i];\n    cin >> m;\n    vector<string> required(m);\n    for (int i = 0; i < m; i++) cin >> required[i];\n    vector<string> res = shortestWindow(words, required);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<String> shortestWindow(String[] words, String[] required) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int n = Integer.parseInt(st.nextToken());\n        String[] words = new String[n];\n        for (int i = 0; i < n; i++) words[i] = st.nextToken();\n        int m = Integer.parseInt(st.nextToken());\n        String[] required = new String[m];\n        for (int i = 0; i < m; i++) required[i] = st.nextToken();\n        System.out.println(String.join(\" \", shortestWindow(words, required)));\n    }\n}\n"
+ }
+}

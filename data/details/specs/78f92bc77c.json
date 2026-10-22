@@ -1,0 +1,18 @@
+{
+ "qid": "78f92bc77c",
+ "question": "Swiggy Low Level Design round: **design an e-commerce (Swiggy) cart**. Reported requirements: add, remove and delete products; calculate the total; **validate against inventory**; apply **discounts**; hook in **payment** and **notifications**. The candidate listed functional and non-functional requirements, drew the UML diagram and explained it, then wrote pseudo-code. **Follow-up: how would you support multiple carts per user?** Reported for SDE-1 (2026) and SDE-2 (2025).",
+ "lookingFor": [
+  "Can you structure requirements before designing, and separate functional from non-functional?",
+  "Clean entities and responsibilities, with pricing and discounts kept extensible.",
+  "Consistency with inventory under concurrent users.",
+  "Ability to extend the model (multiple carts) without a rewrite.",
+  "Pseudo-code that matches the diagram."
+ ],
+ "answer": "**Requirements.**\n- *Functional:* add item, update quantity, remove item, view cart with totals, apply a coupon, validate stock, checkout (payment), notify the user.\n- *Non-functional:* low latency on cart operations, correctness of totals, consistency with inventory, scalability across many users, and recovery of the cart after app restarts.\n\n**Entities.**\n- `Cart(id, userId, items, couponCode, status)`; `CartItem(productId, quantity, unitPrice)`.\n- `Product(id, name, price)`; `InventoryService.check(productId, qty)`.\n- `DiscountStrategy` interface (percent off, flat off, buy-X-get-Y); `PricingService` computes subtotal, discount and total.\n- `PaymentService` (interface over providers) and `NotificationService` (observer on checkout events).\n\n**Flows.**\n1. `addItem(productId, qty)`: check availability; merge with an existing line; recompute totals.\n2. `applyCoupon(code)`: validate (expiry, minimum order, per-user limit) and attach a `DiscountStrategy`.\n3. `checkout()`: re-validate stock and prices, reserve inventory, charge payment, mark the cart `CHECKED_OUT`, emit an `OrderPlaced` event for notifications.\n\n```\naddItem(product, qty):\n  if inventory.available(product) < qty: error\n  line = items.get(product) or new CartItem\n  line.quantity += qty\n  total = pricing.compute(items, coupon)\n```\n\n**Design points.** Strategy for discounts so new offers need no change to `Cart`; compute the total from items rather than storing it, to avoid drift; treat cart stock checks as advisory and re-check at checkout, because stock changes between add and pay; reserve stock with a short hold to avoid overselling.\n\n**Multiple carts per user (follow-up).** Make the cart its own entity keyed by `cartId` with a `userId` foreign key instead of one cart per user. Add a name or context (for example per restaurant, since a food cart usually belongs to one restaurant), an `activeCartId` on the user, and endpoints that take a `cartId`. Rules such as one active cart per restaurant become constraints.\n\n**Concurrency and storage.** Keep carts in a fast store (Redis) with a database for orders; use optimistic versioning on cart updates for multi-device edits.\n\n**Mistakes to avoid.** Hard-coding discount types; trusting client-sent prices; mixing payment logic into the cart class.",
+ "followUps": [
+  "How do you stop overselling when many users hold the last item in their carts?",
+  "How would you model stacked coupons and their priority?",
+  "Where do you store the cart, and what happens when prices change while an item sits in it?",
+  "How do you make checkout idempotent if the payment call times out?"
+ ]
+}

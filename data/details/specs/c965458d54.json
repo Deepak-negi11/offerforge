@@ -1,0 +1,18 @@
+{
+ "qid": "c965458d54",
+ "question": "Meesho SDE loop (June 2026 report): two low-level design rounds and a managerial round. One LLD prompt was to design a delivery system that minimises cost. The report does not give more detail, so this write-up covers the most likely reading: a system that assigns orders to delivery partners and plans routes so total delivery cost (distance or time) is as low as possible.",
+ "lookingFor": [
+  "Defining the cost function and constraints before designing anything.",
+  "Separation of assignment, routing and pricing in the code.",
+  "Pragmatic algorithm choice with complexity trade-offs, not a claim of perfection.",
+  "Use of graph algorithms (shortest path) and heuristics for harder problems.",
+  "Asking clarifying questions because the prompt is open-ended."
+ ],
+ "answer": "**Clarify first.** What is cost: distance, time, number of riders, or money? Is there one warehouse or many? Are orders known upfront (batch) or arriving live? Constraints: rider capacity, delivery time windows, maximum orders per rider. State your assumptions, for example a single hub, batch orders and capacity per rider, and minimise total distance.\n\n**Entities.** `Order(id, location, weight, deadline)`, `DeliveryPartner(id, capacity, currentLocation, status)`, `Hub/Warehouse(location)`, `Route(partner, ordered stops, totalCost)`, and a `Graph` or distance matrix over locations.\n\n**Separation of concerns.**\n- `CostCalculator`: edge costs between two points (Haversine distance or map time), possibly with per-km pay.\n- `AssignmentStrategy` (interface): decides which partner takes which orders. Options: greedy nearest-partner (simple, fast), or min-cost assignment (Hungarian algorithm, about O(n^3), optimal for one-order-per-partner matching), or clustering orders by area.\n- `RoutingStrategy` (interface): orders the stops for one partner. For few stops, brute force or DP over subsets (Held-Karp, O(n^2 2^n)); for more, a heuristic such as nearest neighbour plus 2-opt improvement.\n- `DeliveryService`: wires them together; `assignOrders(orders, partners)` returns routes and total cost.\n\n**Shortest path component.** If the city is a road graph rather than a complete distance matrix, run Dijkstra between stops (non-negative weights) to build the matrix once, then route on that.\n\n**Be honest about complexity.** The multi-stop version is the Vehicle Routing Problem, which is NP-hard, so say you use a heuristic and that the optimal solution is only feasible for small inputs. A greedy approach is a reasonable baseline; you would measure it against a better method on sample data.\n\n**Design points.** Strategy pattern for both assignment and routing, so new algorithms plug in; immutable `Route` results; validation of capacity; a clear status flow for an order (CREATED, ASSIGNED, PICKED, DELIVERED).\n\n**Extensions.** Live orders (re-optimise incrementally, assign on arrival), time windows, traffic-dependent costs and failed deliveries.",
+ "followUps": [
+  "Why is minimising total cost across many stops hard, and what do you do about it?",
+  "When would you use the Hungarian algorithm versus a greedy assignment?",
+  "How would you handle new orders arriving while riders are already on route?",
+  "How would you evaluate whether your heuristic is good enough?"
+ ]
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "b03087d4a7",
+ "question": "The CRED SDE-1 Backend (new grad) second round was a discussion-style problem-solving / data-structures round held in a shared Google Doc. Topics were puzzles, low-level design, trees, hash maps, tries, disjoint-set union (DSU) and probabilistic algorithms, applied to realistic CRED product scenarios. The candidate was expected to find the right data structure, algorithm or design trade-off and discuss it; code mattered less than reasoning. The exact scenarios are not in the report, so this answer shows how to reason about each tool.",
+ "lookingFor": [
+  "Mapping a product problem to the right data structure",
+  "Explaining trade-offs and complexity in words, without relying on code",
+  "Knowing probabilistic structures (Bloom filter, HyperLogLog, Count-Min Sketch) and their error behaviour",
+  "Communicating and iterating on ideas as a discussion"
+ ],
+ "answer": "**Method:** restate the requirement, identify the operations and scale (queries vs updates, memory limit, exact vs approximate answers), propose a structure, state complexity, then name the failure modes.\n\n**Hash map / set**: exact membership or lookup in O(1) average. Default choice for ids, deduplication, counting. Weakness: no order, memory grows with distinct keys.\n\n**Trie**: prefix queries in O(L) (L = key length), independent of the number of keys. Fits autocomplete or prefix search over names, merchants, VPAs or phone prefixes. Weakness: memory heavy (compress with radix trees).\n\n**DSU (union-find)**: tracks which items belong to the same group, with `find` and `union` in nearly O(1) (inverse Ackermann) using path compression and union by rank. Fits \"are these two accounts/devices connected?\", merging duplicate entities, fraud rings, connected components. Weakness: supports merging only, not splitting.\n\n**Balanced tree / sorted structure**: ordered data, range queries, \"top-k within a range\", O(log n).\n\n**Probabilistic structures (trade a small error for large memory savings)**\n- **Bloom filter**: \"have I seen this?\" with no false negatives but a tunable false-positive rate; cannot delete (use a counting variant). Good as a cheap pre-check before a database lookup, e.g. \"has this transaction/coupon/ID already been processed\".\n- **HyperLogLog**: approximate count of distinct items using kilobytes, error around 1-2%. E.g. unique users per day.\n- **Count-Min Sketch**: approximate frequency, only overestimates; finds heavy hitters (most frequent merchants).\n- **Reservoir sampling**: uniform sample from a stream of unknown length.\n\n**How to use them in the discussion:** ask whether an approximate answer is acceptable. If the cost of a false positive is high (for example money movement), use the probabilistic structure only as a filter in front of an exact check. Quantify: a Bloom filter with m bits, k hashes and n items has false-positive rate about (1 - e^(-kn/m))^k.",
+ "followUps": [
+  "Design a system that tells whether a user has already used a coupon, with 100 million users.",
+  "How does DSU path compression work and why is it near-constant time?",
+  "How do you choose the number of hash functions and bits for a Bloom filter?",
+  "Where would a trie beat a hash map in a payments app?"
+ ]
+}

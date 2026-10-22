@@ -1,0 +1,18 @@
+{
+ "qid": "ac46b7c5b3",
+ "question": "Samsung R&D Bangalore (SDE-1) technical round. Reported topics: **What is a dangling pointer? What is a context switch? What is the difference between a process and a thread?** Related questions in the same loops included whether you have used threads in a project.",
+ "lookingFor": [
+  "Precise C/C++ memory understanding",
+  "Operating-system fundamentals around scheduling and concurrency",
+  "Clear contrast between process and thread with costs",
+  "Practical examples and how to avoid the bugs"
+ ],
+ "answer": "**Dangling pointer.** A pointer that still holds an address after the memory it points to has been freed or gone out of scope. Using it is undefined behaviour: it may crash, read garbage or silently corrupt data.\n\nCommon causes:\n- `delete p;` (or `free(p)`) and then using `p`.\n- Returning the address of a local variable.\n- Two pointers to one object, with one deleted.\n\nAvoid it by setting the pointer to `nullptr` after delete, preferring smart pointers (`unique_ptr`, `shared_ptr`) and RAII, never returning references to locals, and using tools such as AddressSanitizer or Valgrind to find it. Do not confuse it with a memory leak (memory never freed) or a wild pointer (never initialised).\n\n**Context switch.** When the CPU stops running one process or thread and starts another. The OS saves the current execution state (registers, program counter, stack pointer) into its process or thread control block, picks the next task via the scheduler, and loads that task's saved state. It happens on time-slice expiry, blocking I/O or a higher-priority arrival. It is pure overhead: no useful work during the switch, plus cache and TLB effects. Switching between processes is costlier than between threads of the same process, since it must change the address space (and flush or retag the TLB).\n\n**Process vs thread.**\n- A process is an independent program in execution with its own virtual address space, file descriptors and resources. A thread is a unit of execution inside a process; threads share the code, heap and open files, but each has its own stack, registers and program counter.\n- Creation and switching are cheaper for threads. Communication between threads is direct through shared memory (needs locks), while processes need IPC (pipes, sockets, shared memory).\n- A crash in one process does not usually kill others; a bad thread can bring down the whole process.\n\nUse threads for parallelism within one application (for example a server handling requests), and processes for isolation.",
+ "followUps": [
+  "How does a smart pointer prevent a dangling pointer, and when can shared_ptr still leak?",
+  "What exactly is saved and restored during a context switch?",
+  "What is the difference between user-level and kernel-level threads?",
+  "What is a race condition and how would you fix one?",
+  "What is a zombie process?"
+ ]
+}

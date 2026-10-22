@@ -1,0 +1,18 @@
+{
+ "qid": "b3766b6a82",
+ "question": "Explain the **Singleton design pattern** and its implementation (hiring manager round, SDE-1 Backend, Myntra). Follow-ups covered **lazy loading**, **thread safety** and **synchronization**, and the candidate was asked to **write the whole code on paper**.\n\nThe same round also asked about Spring vs Spring Boot and the advantages of Spring Boot, what a **servlet** is, the difference between **autowiring and creating an object with `new`**, whether an autowired bean is **prototype or singleton**, and which design patterns Spring Boot follows.",
+ "lookingFor": [
+  "Can you write a correct thread-safe lazy Singleton without a reference?",
+  "Do you know why naive lazy initialization is broken under concurrency?",
+  "Do you understand `volatile` and double-checked locking?",
+  "Can you connect patterns to a real framework (Spring beans, IoC, DI)?",
+  "Can you explain Spring, Spring Boot and servlets clearly?"
+ ],
+ "answer": "**Singleton:** a class with exactly one instance and a global access point. Use it for shared, stateless or carefully guarded resources (config, connection pool).\n\n**Naive lazy version (not thread-safe):** two threads can both see `instance == null` and create two objects.\n\n**Thread-safe lazy options in Java**\n\n1. Synchronized method: correct but every call pays for locking.\n2. Double-checked locking:\n```java\npublic class Config {\n    private static volatile Config instance;\n    private Config() {}\n    public static Config getInstance() {\n        if (instance == null) {\n            synchronized (Config.class) {\n                if (instance == null) instance = new Config();\n            }\n        }\n        return instance;\n    }\n}\n```\n`volatile` is required: without it, another thread may see a partially constructed object because of instruction reordering.\n3. Bill Pugh holder: a private static nested class holds the instance; the JVM initializes it lazily and thread-safely on first use of `getInstance()`.\n4. Enum singleton: simplest and safe against reflection and serialization.\n\nAlso mention that reflection, serialization and cloning can break a Singleton unless handled.\n\n**Spring points**\n- Spring is a framework with IoC/DI; Spring Boot adds auto-configuration, starters, embedded server and production-ready defaults, so you write far less XML or boilerplate.\n- A **servlet** is a Java class that handles HTTP requests inside a container (Tomcat); Spring MVC's `DispatcherServlet` is the front controller.\n- `@Autowired` asks the container to inject a managed bean, instead of you wiring `new` yourself, which gives loose coupling, easy mocking and lifecycle management. Autowiring is not itself a scope: the injected bean's scope decides, and the **default scope is singleton** (one instance per Spring container, not per JVM). Use `@Scope(\"prototype\")` for a new instance per injection or request.\n- Patterns seen in Spring: Singleton (beans), Factory (`BeanFactory`), Dependency Injection, Proxy (AOP, transactions), Template Method (`JdbcTemplate`), Front Controller (`DispatcherServlet`), Observer (application events).",
+ "followUps": [
+  "Why must the instance field be volatile in double-checked locking?",
+  "How can reflection or serialization break a Singleton, and how do you prevent it?",
+  "What other bean scopes does Spring offer (request, session)?",
+  "What is the difference between a Spring singleton bean and the GoF Singleton?"
+ ]
+}

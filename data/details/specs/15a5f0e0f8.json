@@ -1,0 +1,18 @@
+{
+ "qid": "15a5f0e0f8",
+ "question": "MakeMyTrip SDE II Frontend, round 2. Build a **Typeracer** typing game. The screen shows a random paragraph and the player types it. All characters start black; each correctly typed character turns **green**; a wrongly typed character turns **red**, and **all subsequent characters also turn red**. When every character has been typed correctly, the game ends and the typing speed is shown in **words per minute**.\n\nThe same round also asked two conceptual React/build questions: **explain Higher-Order Components (HOCs)**, and **explain loaders and plugins** (in webpack).",
+ "lookingFor": [
+  "Deriving the display from the typed text rather than storing per-character state.",
+  "Correct handling of the 'red from the first mistake onward' rule and of backspace.",
+  "Sensible WPM calculation and timer start/stop.",
+  "Conceptual clarity on HOCs and the webpack build pipeline.",
+  "Controlled inputs and clean React code."
+ ],
+ "answer": "**Typeracer design.** Store only `text` (the paragraph), `typed` (the input value) and `startTime`. Everything else is derived on each render.\n\nFor character index `i`:\n- `i >= typed.length`: not typed yet, black.\n- Find `firstWrong`, the first index where `typed[i] !== text[i]` (or `-1`). If `firstWrong !== -1` and `i >= firstWrong` (and `i < typed.length`), render red. This gives the \"everything after a mistake is red\" rule for free, and backspace works automatically because nothing is stored per character.\n- Otherwise green.\n\nWire a controlled `<input>` (or capture keydown on the page), cap `typed.length` at `text.length`, and set `startTime` on the first keystroke. The game is done when `typed === text`. Then compute:\n\n`wpm = (text.length / 5) / minutes` (standard: 5 characters = 1 word), or `words / minutes` using the word count if the interviewer prefers. State which you use. Freeze the elapsed time at completion so the result does not keep changing, and add a Restart button that picks a new paragraph.\n\n**HOCs.** A higher-order component is a function that takes a component and returns a new component with extra behaviour or props, e.g. `withAuth(Page)` or `withLoading(List)`. It is a pattern for reusing component logic, based on composition. Drawbacks: wrapper hell, prop name collisions, harder debugging, and the need to hoist statics and forward refs. Custom hooks now replace most HOC uses.\n\n**Loaders vs plugins (webpack).** Loaders transform individual files as they are imported (`babel-loader` for JS, `css-loader`, `file-loader`), working per module. Plugins hook into the compiler's lifecycle for broader tasks across the whole bundle (`HtmlWebpackPlugin` generating HTML, `MiniCssExtractPlugin` extracting CSS, `DefinePlugin`, minification).\n\n**Mistakes to avoid:** storing a colour per character, starting the timer on page load, and dividing by zero when elapsed time is tiny.",
+ "followUps": [
+  "How would you handle a very long paragraph or paste events?",
+  "How would you compute accuracy in addition to WPM?",
+  "How do render props or custom hooks compare with HOCs?",
+  "What is the difference between a webpack loader's order of execution and plugin order?"
+ ]
+}

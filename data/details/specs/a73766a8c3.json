@@ -1,0 +1,17 @@
+{
+ "qid": "a73766a8c3",
+ "question": "JPMorgan Chase Software Engineer Intern (on-campus), Technical Round 1. After a resume deep dive, the candidate was given an array problem and started by sorting. The interviewer asked how they would sort without the library sort (STL `sort`). The candidate discussed merge sort (O(n log n)); the interviewer called it a big piece of code, so the candidate chose **quicksort**, explained the algorithm and began writing the code.",
+ "lookingFor": [
+  "Knowing at least two O(n log n) sorts and comparing them honestly.",
+  "Writing a correct partition routine under time pressure.",
+  "Understanding worst cases (sorted input, duplicates) and how to mitigate them.",
+  "Clear complexity analysis and in-place versus extra-space reasoning."
+ ],
+ "answer": "**Merge sort vs quicksort.**\n- **Merge sort:** divide in half, sort each, merge. O(n log n) in every case, **stable**, but needs O(n) extra space for arrays (good for linked lists and external sorting).\n- **Quicksort:** pick a pivot, partition into smaller and larger, recurse. Average O(n log n), worst case O(n^2) (bad pivots), **in place** (O(log n) stack if you recurse into the smaller side first), not stable, and usually faster in practice due to cache behaviour. Mitigate bad pivots with a **random pivot** or median-of-three; handle many duplicates with **three-way partitioning**.\n\nQuicksort is shorter to write on a whiteboard, which is why it is a sensible choice here.\n\n**Implementation (C++, Lomuto partition, random pivot).**\n\n```cpp\nint partitionRange(vector<int>& a, int lo, int hi) {\n    int p = lo + rand() % (hi - lo + 1);\n    swap(a[p], a[hi]);              // move pivot to the end\n    int pivot = a[hi], i = lo;      // i = next slot for an element < pivot\n    for (int j = lo; j < hi; ++j)\n        if (a[j] < pivot) swap(a[i++], a[j]);\n    swap(a[i], a[hi]);              // pivot into its final place\n    return i;\n}\n\nvoid quickSort(vector<int>& a, int lo, int hi) {\n    while (lo < hi) {\n        int p = partitionRange(a, lo, hi);\n        if (p - lo < hi - p) { quickSort(a, lo, p - 1); lo = p + 1; }\n        else                 { quickSort(a, p + 1, hi); hi = p - 1; }\n    }\n}\n// call: quickSort(a, 0, (int)a.size() - 1);\n```\n\n**Explain as you write.** After partition, everything left of index `p` is `< pivot`, everything right is `>= pivot`, and `a[p]` is in its final position. Recursing on the smaller part and looping on the larger bounds stack depth to O(log n).\n\n**Test aloud:** empty array, one element, all equal, already sorted, reverse sorted, negative numbers.\n\n**Complexity:** time O(n log n) expected, O(n^2) worst; space O(log n).\n\n**Mistakes to avoid:** off-by-one in the loop bounds, using the first element as pivot without comment on sorted input, and forgetting to move the pivot to its final position.",
+ "followUps": [
+  "What input makes quicksort quadratic with a last-element pivot, and how does a random pivot help?",
+  "How would you modify it to handle many duplicate values efficiently?",
+  "When would you pick merge sort instead (stability, linked lists, external data)?",
+  "How does quickselect find the k-th smallest element using the same partition?"
+ ]
+}

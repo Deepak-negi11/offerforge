@@ -1,0 +1,17 @@
+{
+  "qid": "98d551b414",
+  "question": "Zomato SDE-1 (Nugget) system design round. **Design an ad-pacing service** for restaurant advertising: a restaurant buys an ad budget (in tokens), and the budget should **last the whole campaign day** at Zomato scale, even though traffic differs between peak and off-peak hours. The interviewer also discussed **Kafka consumers, read replicas, cache sharding and consistent hashing**.",
+  "lookingFor": [
+    "Framing the actual problem: even spend without overspending or exhausting early",
+    "Using historical traffic to shape the budget curve",
+    "Consistency of a hot counter under high concurrency",
+    "Applying Kafka, caches, replicas and consistent hashing to specific parts"
+  ],
+  "answer": "**Problem.** Without pacing, an ad with a daily budget gets all its impressions in the first busy hour and then disappears. Pacing releases the budget according to a target spend curve so that the budget lasts all day and is never overspent.\n\n**Requirements.** Per campaign: daily budget, schedule, bid or cost per impression/click. Serving decisions must take only a few milliseconds. Spend tracking can be slightly delayed, but overspend should be small. Assume millions of requests per minute at peak.\n\n**Target curve.** Build an expected-traffic curve per hour (and ideally per locality and cuisine) from history. The target spend by time `t` is `budget * cumulative_traffic_share(t)`, so the budget follows the traffic: more at lunch and dinner peaks, less overnight.\n\n**Pacing logic at ad-selection time.**\n- Read `spent` and compare with `target(t)`. If `spent < target`, the campaign is eligible; if `spent` is far ahead, throttle by participating in only a fraction of auctions (a probability that a feedback controller, such as a PID, adjusts each minute).\n- Stop completely when the budget is exhausted.\n\n**Components.**\n1. **Ad server:** requests candidate ads, applies the pacing filter, runs the auction, returns the ad.\n2. **Events:** impressions and clicks go to **Kafka** (partitioned by campaign id). **Consumers** aggregate spend into the store; scale them by partitions, and process at-least-once with idempotent updates (event ids).\n3. **Spend store / cache:** hot per-campaign counters in Redis, **sharded with consistent hashing** on campaign id so adding a node moves only a small part of the keys. The ad server reads the cached spend; it is slightly stale, which is acceptable.\n4. **Config and campaign data:** stored in a relational database; **read replicas** serve ad-server reads and cached copies are refreshed periodically.\n5. **Pacing controller:** a periodic job that recomputes each campaign's throttle rate and publishes it.\n\n**Trade-offs and bottlenecks.** A hot campaign concentrates writes on one counter shard: shard the counter (split into N sub-counters and sum) or batch increments locally. Stale spend can overspend slightly, so keep a safety margin and reconcile with the database; handle double counting via idempotency, and keep the system degrading safely if the cache fails (default to conservative serving).",
+  "followUps": [
+    "How would you stop the budget from being overspent when many ad servers read stale spend?",
+    "How would you pick the traffic curve for a brand new restaurant with no history?",
+    "How do you add a cache node without invalidating most keys?",
+    "How would you test and monitor pacing quality in production?"
+  ]
+}

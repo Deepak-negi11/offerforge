@@ -1,0 +1,18 @@
+{
+ "qid": "8944855b1f",
+ "question": "Microsoft SDE-2 (L62), AI-assisted coding round, 1 hour, in three phases: **architect** an Excel-like autofill, **prompt an AI model** (ChatGPT/Gemini) to generate it, then **critically audit** the AI's output. When a user drags across cells from a seed value: a **number** seed increments (1, 2, 3, 4); a **sequence of characters** repeats or loops (a, b, c, d, then a, b, c, d). Constraint: the engine must follow **SOLID** so adding new fills (dates, days of the week, Fibonacci) requires **zero changes to the core engine**.",
+ "lookingFor": [
+  "A design with extension points (Open/Closed) rather than if/else on types.",
+  "Ability to write precise, constraint-rich prompts for an AI.",
+  "Critical review of generated code: correctness, edge cases, coupling.",
+  "Pattern choice: Strategy, Chain of Responsibility or registry.",
+  "Testing mindset."
+ ],
+ "answer": "**Phase 1: design first.**\n- Entities: `AutofillEngine`, `FillStrategy` (interface), `StrategyRegistry`, `Cell`/`Range`.\n- Interface: `boolean supports(List<String> seeds)` and `List<String> generate(List<String> seeds, int count)`.\n- Strategies: `NumericIncrementStrategy` (detects a constant step from seed values, so 2, 4 continues 6, 8), `RepeatingSequenceStrategy` (cycle through the seed with modulo), later `DateStrategy`, `WeekdayStrategy`, `FibonacciStrategy`.\n- Engine: asks each registered strategy in priority order via `supports`, picks the first match, and delegates. This is Strategy plus Chain of Responsibility. New fills are new classes registered at startup; the engine never changes (Open/Closed). Depend on the interface (Dependency Inversion); each class does one job (Single Responsibility). A default fallback strategy copies the value.\n\n**Phase 2: prompting.** Give the AI the interface, SOLID and extension constraints, the language, and the exact behaviours with examples and edge cases (empty seed, mixed types, negative numbers, multi-cell seeds, count = 0). Ask for unit tests. Iterate in small steps rather than one giant prompt, and say what you do not want (a switch on type).\n\n**Phase 3: audit the output.**\n- Does the engine contain hidden type checks that break Open/Closed?\n- Overflow for large numbers, parsing errors (\"1a\"), strategy ordering ambiguity (is \"a1\" text or number?).\n- Mutable shared state, thread safety, unnecessary abstractions.\n- Do tests actually assert behaviour? Run them. Fix what fails and explain why.\n\n**Mistakes to avoid.** Accepting the AI's first answer, skipping tests, and designing around today's two cases only. Narrate your reasoning aloud: interviewers in this format assess how you frame prompts and evaluate responses, not how fast code appears.",
+ "followUps": [
+  "How do you resolve conflicts when two strategies both claim to support the same seed?",
+  "How would you add a user-defined custom series without recompiling?",
+  "Which parts of the AI's output did you change and why?",
+  "How would you test this engine?"
+ ]
+}

@@ -1,0 +1,49 @@
+{
+ "pid": "flipkart-lines-through-at-least-3-points",
+ "title": "Lines Through At Least 3 Points",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given `n` **distinct** points with integer coordinates in the plane.\n\nCount the number of **distinct straight lines** that pass through **at least three** of the given points. A line that passes through many points is counted only once.\n\nFor example, if four points lie on one line, that is a single line (not four lines of three points).",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains two integers `x y`: the coordinates of a point.",
+ "output_format": "Print a single integer: the number of distinct lines containing at least three of the points.",
+ "constraints": [
+  "1 ≤ n ≤ 800",
+  "-10^9 ≤ x, y ≤ 10^9",
+  "All points are distinct"
+ ],
+ "examples": [
+  {
+   "input": "5\n0 0\n1 1\n2 2\n3 3\n0 5",
+   "output": "1",
+   "explanation": "Points (0,0), (1,1), (2,2), (3,3) lie on y = x. That one line counts once. The point (0,5) shares a line with at most one other point, so no other line qualifies."
+  },
+  {
+   "input": "6\n0 0\n1 0\n2 0\n0 1\n1 1\n2 1",
+   "output": "2",
+   "explanation": "The two rows y = 0 and y = 1 each contain three points. Every other line through these points contains at most two of them."
+  },
+  {
+   "input": "4\n0 0\n1 0\n0 1\n5 7",
+   "output": "0",
+   "explanation": "No three points are collinear."
+  }
+ ],
+ "complexity": {
+  "time": "O(n^2)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Checking every triple is O(n^3), too slow for n = 800. Fix one point and look at the directions to all the other points.",
+  "Normalise the direction (dx, dy) by dividing by gcd(|dx|, |dy|) and fixing the sign, then group the other points by direction with a hash map. A group of size >= 2 means a line through the fixed point with >= 3 points.",
+  "A line with m points would be found from each of its points. Count it only from its lowest-index point: from point i, group only points j > i and skip a direction if some earlier point k < i already lies in that direction from i."
+ ],
+ "reference": "import sys\nfrom math import gcd\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    xs = [int(data[1 + 2 * i]) for i in range(n)]\n    ys = [int(data[2 + 2 * i]) for i in range(n)]\n    ans = 0\n    for i in range(n):\n        xi = xs[i]; yi = ys[i]\n        prev = set()\n        cnt = {}\n        for j in range(n):\n            if j == i:\n                continue\n            dx = xs[j] - xi\n            dy = ys[j] - yi\n            g = gcd(dx, dy)\n            dx //= g\n            dy //= g\n            if dx < 0 or (dx == 0 and dy < 0):\n                dx = -dx\n                dy = -dy\n            key = (dx, dy)\n            if j < i:\n                prev.add(key)\n            else:\n                cnt[key] = cnt.get(key, 0) + 1\n        for key, c in cnt.items():\n            if c >= 2 and key not in prev:\n                ans += 1\n    print(ans)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nP = [(int(data[1 + 2 * i]), int(data[2 + 2 * i])) for i in range(n)]\nlines = set()\nfor i in range(n):\n    for j in range(i + 1, n):\n        on = []\n        for k in range(n):\n            cr = (P[j][0] - P[i][0]) * (P[k][1] - P[i][1]) - (P[j][1] - P[i][1]) * (P[k][0] - P[i][0])\n            if cr == 0:\n                on.append(k)\n        if len(on) >= 3:\n            lines.add(tuple(on))\nprint(len(lines))\n",
+ "generator": "def gen(rng):\n    def fmt(pts):\n        return str(len(pts)) + '\\n' + '\\n'.join(f'{x} {y}' for x, y in pts)\n\n    def sample(n, lo, hi):\n        s = set()\n        while len(s) < n:\n            s.add((rng.randint(lo, hi), rng.randint(lo, hi)))\n        s = list(s)\n        rng.shuffle(s)\n        return s\n\n    tests = [\n        fmt([(0, 0)]),\n        fmt([(0, 0), (1, 1)]),\n        fmt([(0, 0), (1, 1), (2, 2)]),\n        fmt([(0, 0), (1, 1), (2, 2), (3, 3), (0, 5)]),\n        fmt([(0, 0), (1, 0), (2, 0), (0, 1), (1, 1), (2, 1)]),\n        fmt([(0, 0), (1, 0), (0, 1), (5, 7)]),\n        fmt([(-10**9, -10**9), (0, 0), (10**9, 10**9), (10**9, -10**9)]),\n        fmt([(x, 0) for x in range(8)]),\n        fmt([(0, y) for y in range(8)] + [(1, 0), (2, 0)]),\n    ]\n    for n in (3, 4, 5, 6, 7, 8, 10, 12):\n        for box in (2, 3, 5):\n            if (2 * box + 1) ** 2 >= n:\n                tests.append(fmt(sample(n, -box, box)))\n    for _ in range(3):\n        tests.append(fmt(sample(12, 0, 4)))\n    n = 800\n    tests.append(fmt([(i * 1000000 - 10**9 + 7, -2 * i * 1000000 + 10**9 // 2) for i in range(n)]))\n    tests.append(fmt(sample(n, 0, 30)))\n    tests.append(fmt(sample(n, -10**9, 10**9)))\n    tests.append(fmt(sample(n, 0, 60)))\n    pts = set((i, 0) for i in range(400)) | set((0, i) for i in range(1, 401))\n    tests.append(fmt(list(pts)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_lines(xs: List[int], ys: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    xs = [int(data[1 + 2 * i]) for i in range(n)]\n    ys = [int(data[2 + 2 * i]) for i in range(n)]\n    print(count_lines(xs, ys))\n\n\nmain()\n",
+  "javascript": "function countLines(xs, ys) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst xs = [], ys = []\nfor (let i = 0; i < n; i++) {\n  xs.push(t[1 + 2 * i])\n  ys.push(t[2 + 2 * i])\n}\nconsole.log(String(countLines(xs, ys)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countLines(vector<long long>& xs, vector<long long>& ys) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> xs(n), ys(n);\n    for (int i = 0; i < n; i++) cin >> xs[i] >> ys[i];\n    cout << countLines(xs, ys) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countLines(long[] xs, long[] ys) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] xs = new long[n], ys = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); xs[i] = (long) in.nval;\n            in.nextToken(); ys[i] = (long) in.nval;\n        }\n        System.out.println(countLines(xs, ys));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,48 @@
+{
+ "pid": "infosys-maximise-product-of-pair-sums",
+ "title": "Maximise Product of Pair Sums",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `A` of `N` **distinct** positive integers, where `N` is even. The **score** of an arrangement of the array is\n\n`(A1 + A2) * (A3 + A4) * ... * (A(N-1) + AN)`\n\nthat is, the product of the sums of consecutive pairs (positions 1 and 2, positions 3 and 4, and so on).\n\nYou may rearrange the array using **swap operations**: in one swap you exchange the values at any two positions.\n\nAmong all arrangements with the **maximum possible score**, find the one that can be reached from the given array with the **fewest swaps**, and print that number of swaps.\n\nFor example, for `[4, 1, 2, 9, 3, 6]` the best arrangement is `[9, 1, 2, 6, 3, 4]`, with score `(9+1) * (2+6) * (3+4) = 560`, and it can be reached with two swaps: swap `4` with `9`, then swap `4` with `6`.",
+ "input_format": "The first line contains the even integer `N`.\nThe second line contains `N` distinct space-separated integers `A1, ..., AN`.",
+ "output_format": "Print a single integer: the minimum number of swaps needed to reach a maximum-score arrangement.",
+ "constraints": [
+  "2 ≤ N ≤ 10^5, N is even",
+  "1 ≤ Ai ≤ 10^9, all Ai are distinct"
+ ],
+ "examples": [
+  {
+   "input": "6\n4 1 2 9 3 6",
+   "output": "2",
+   "explanation": "The maximum score is 10 * 8 * 7 = 560, obtained by pairing 1 with 9, 2 with 6 and 3 with 4. The current pairs are (4,1), (2,9), (3,6), which are chained together by the target pairs, so two swaps are needed and enough."
+  },
+  {
+   "input": "4\n1 2 3 4",
+   "output": "1",
+   "explanation": "The best score is (1+4) * (2+3) = 25. Swapping 2 and 4 gives [1, 4, 3, 2], which reaches it in one swap."
+  },
+  {
+   "input": "4\n1 4 2 3",
+   "output": "0",
+   "explanation": "The array already has score (1+4) * (2+3) = 25, which is the maximum."
+  }
+ ],
+ "complexity": {
+  "time": "O(N log N)",
+  "space": "O(N)"
+ },
+ "hints": [
+  "The total of all numbers is fixed, so the sums of the pairs also add up to a fixed total. A product of positive numbers with a fixed total is largest when the numbers are as equal as possible. Which pairing makes the pair sums most balanced?",
+  "Sort the values and pair the smallest with the largest, the second smallest with the second largest, and so on. The pairs are fixed this way; their order and the order inside each pair are free.",
+  "Draw the current pairs and the target pairs as edges on the same elements. They form disjoint cycles. A cycle that contains k current pairs needs exactly k - 1 swaps, so the answer is N/2 minus the number of cycles. Union-find counts them."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = list(map(int, data[1:1 + n]))\n    order = sorted(range(n), key=lambda i: a[i])\n    parent = list(range(n))\n\n    def find(x):\n        while parent[x] != x:\n            parent[x] = parent[parent[x]]\n            x = parent[x]\n        return x\n\n    def union(x, y):\n        rx, ry = find(x), find(y)\n        if rx != ry:\n            parent[rx] = ry\n\n    for p in range(0, n, 2):\n        union(p, p + 1)\n    for k in range(n // 2):\n        union(order[k], order[n - 1 - k])\n    comps = sum(1 for i in range(n) if find(i) == i)\n    print(n // 2 - comps)\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import permutations\nfrom collections import deque\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = tuple(map(int, data[1:1 + n]))\n\ndef score(t):\n    r = 1\n    for i in range(0, n, 2):\n        r *= t[i] + t[i + 1]\n    return r\n\nbest = max(score(p) for p in permutations(a))\ndist = {a: 0}\nq = deque([a])\nwhile q:\n    cur = q.popleft()\n    if score(cur) == best:\n        print(dist[cur])\n        break\n    lst = list(cur)\n    for i in range(n):\n        for j in range(i + 1, n):\n            lst[i], lst[j] = lst[j], lst[i]\n            nxt = tuple(lst)\n            lst[i], lst[j] = lst[j], lst[i]\n            if nxt not in dist:\n                dist[nxt] = dist[cur] + 1\n                q.append(nxt)\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n    def optimal(vals):\n        s = sorted(vals)\n        n = len(s)\n        pairs = [(s[k], s[n - 1 - k]) for k in range(n // 2)]\n        rng.shuffle(pairs)\n        out = []\n        for x, y in pairs:\n            if rng.random() < 0.5:\n                x, y = y, x\n            out += [x, y]\n        return out\n    tests = [fmt([5, 9]), fmt([9, 5]), fmt([4, 1, 2, 9, 3, 6]), fmt([1, 2, 3, 4]), fmt([1, 4, 2, 3]),\n             fmt([1, 2, 3, 4, 5, 6]), fmt([6, 5, 4, 3, 2, 1]), fmt([1, 2, 3, 4, 5, 6, 7, 8])]\n    for n in (2, 4, 4, 6, 6, 6, 8, 8, 8):\n        for _ in range(2):\n            vals = rng.sample(range(1, 40), n)\n            tests.append(fmt(vals))\n    for _ in range(3):\n        vals = rng.sample(range(1, 100), 8)\n        tests.append(fmt(optimal(vals)))\n    N = 100000\n    vals = rng.sample(range(1, 10**9 + 1), N)\n    tests.append(fmt(vals))\n    tests.append(fmt(sorted(vals)))\n    tests.append(fmt(sorted(vals, reverse=True)))\n    tests.append(fmt(optimal(vals)))\n    # one big cycle: current pairs link target pairs in a chain\n    s = sorted(vals)\n    seq = [None] * N\n    # target pair k = (s[k], s[N-1-k]); chain them: slot k holds s[N-1-k] and s[k+1]\n    half = N // 2\n    for k in range(half):\n        seq[2 * k] = s[N - 1 - k]\n        seq[2 * k + 1] = s[(k + 1) % half]\n    tests.append(fmt(seq))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_swaps(a: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    print(min_swaps(a))\n\n\nmain()\n",
+  "javascript": "function minSwaps(a) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst a = t.slice(1, 1 + n)\nconsole.log(String(minSwaps(a)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minSwaps(vector<long long>& a) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    cout << minSwaps(a) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minSwaps(long[] a) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (long) in.nval;\n        }\n        System.out.println(minSwaps(a));\n    }\n}\n"
+ }
+}

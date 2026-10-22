@@ -1,0 +1,19 @@
+{
+ "qid": "88e37e3555",
+ "question": "At Sprinklr (Product Engineer / Senior Product Engineer, technical rounds including a mixed LLD/HLD/Java round) you are asked to **implement an LRU cache with O(1) `get` and `put`**. Experienced candidates were expected to have **running code within about 20 minutes**, and the follow-up was to **handle TTL (time-to-live) expiry**. In one report, the same interview was also asked to implement a vector in C++, and other rounds covered concurrency (semaphores and thread synchronization), index trade-offs and how Kafka works.\n\nDesign the cache class, state the complexity, and explain how you would add per-entry expiry.",
+ "lookingFor": [
+  "Choosing the right data structure combination to get O(1) for both operations.",
+  "Clean implementation with correct pointer handling and edge cases (capacity 1, updating an existing key).",
+  "Ability to extend the design (TTL) without breaking the core invariants.",
+  "Thread-safety and API design awareness.",
+  "Speed and accuracy of writing working code under time pressure."
+ ],
+ "answer": "**Requirements.** `get(key)` returns the value or a miss and marks the key most recently used; `put(key, value)` inserts or updates and, if over capacity, evicts the least recently used entry. Both must be O(1).\n\n**Core idea.** A hash map from key to node plus a **doubly linked list** ordered by recency (head = most recent, tail = least recent). The map gives O(1) lookup; the list gives O(1) removal from the middle and O(1) move-to-front, because a node knows its neighbours. A singly linked list or an array would make removal O(n). Use dummy head and tail sentinels so you never special-case an empty list.\n\n**Operations.**\n- `get`: look up the node, if absent return a miss; else unlink it, insert after head, return value.\n- `put`: if key exists, update value and move to front. Otherwise create a node, insert at front, add to the map; if size exceeds capacity, remove the node before the tail sentinel and delete its key from the map. The node must store its key, or you cannot delete it from the map.\n\n```\nclass Node { key, value, expiresAt, prev, next }\nget(k): n = map[k]; if !n or expired(n) { remove(n); return MISS }\n        moveToFront(n); return n.value\nput(k,v,ttl): if map has k: update; moveToFront\n              else: insert at front; if size > cap: evict tail.prev\n```\n\n**TTL follow-up.** Store `expiresAt = now + ttl` per node.\n- **Lazy expiry:** on `get`, if expired, remove it and report a miss. O(1) and simple.\n- **Active expiry:** lazy alone leaves dead entries consuming capacity, so also run a background sweeper or a min-heap/priority queue keyed by `expiresAt` (O(log n) per insert), or periodically sample entries as Redis does. Expired entries should be evicted before live LRU entries.\n- Inject a clock interface so you can test without sleeping.\n\n**Concurrency.** A single lock around each operation is correct and simple; note that even `get` mutates the list, so a read-write lock does not help. For throughput, shard the cache by key hash.\n\n**Edge cases:** capacity 0 or 1, `put` of an existing key, null values, and negative TTL.",
+ "followUps": [
+  "How would you make this cache thread-safe, and what are the contention problems?",
+  "How would you implement it in Java using `LinkedHashMap`?",
+  "How does an LFU cache differ, and how do you get O(1) there?",
+  "How would you distribute this cache across many machines?",
+  "What are the trade-offs between lazy and active expiry?"
+ ]
+}

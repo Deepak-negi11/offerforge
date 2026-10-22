@@ -1,0 +1,18 @@
+{
+ "qid": "743192a42a",
+ "question": "Meesho SDE-3 low-level design round (90 minutes): design a movie ticket booking system modelling cinemas, screens, shows and users, with booking. The candidate wrote code that ran all the test cases but was rejected because the main business logic sat in a single class and the object-oriented design was not strong, and the interviewer was not present for most of the session.",
+ "lookingFor": [
+  "Whether the design shows real separation of responsibilities, not just passing tests.",
+  "Domain model: cinema, screen, seat, show, booking.",
+  "Concurrent seat booking without double booking.",
+  "Extensibility (pricing, seat types, payments, notifications).",
+  "Ownership: self-reviewing code quality when nobody is watching."
+ ],
+ "answer": "**Lesson from the report:** passing test cases is not enough at SDE-3. Visible structure and extensibility are scored. Plan for a design that you can defend, and refactor before the end.\n\n**Entities.**\n- `Cinema(id, city, screens)` and `Screen(id, seats)` with `Seat(row, number, type)`.\n- `Movie(id, title, duration)` and `Show(id, movie, screen, start, end)`.\n- `Booking(id, user, show, seats, status, amount)` and `User`.\n- Per show: seat state `AVAILABLE, LOCKED, BOOKED`.\n\n**Responsibilities (the part that was missing in the report).**\n- `CinemaService`: add cinemas, screens, shows.\n- `SearchService`: shows by city, movie, date.\n- `SeatLockService` or `InventoryService`: owns per-show seat state and locking.\n- `BookingService`: orchestrates lock, price, payment and confirmation.\n- `PricingStrategy`: base price by seat type and show time; swappable.\n- `PaymentService` interface and `NotificationService` (Observer) stay behind interfaces.\n\n**Booking flow.** Select seats, `lockSeats(show, seats, user)` holding them for a few minutes, pay, then `confirm`; on failure or timeout release the lock. Booking must be atomic over the whole seat set: lock a per-show object (or a per-seat lock in a sorted order to avoid deadlock), check that every seat is AVAILABLE, then mark them all LOCKED; otherwise fail without partial changes. Expired locks are released by a scheduled task or checked lazily on read.\n\n**Concurrency.** Two users picking the same seat is the core race. Use per-show locking, `ConcurrentHashMap`, and an atomic check-and-set on seats. In a database version this is a conditional update on seat rows or a unique constraint on `(show, seat)`.\n\n**Patterns.** Strategy for pricing, Factory for seat types, Observer for notifications, State for booking status. Don't force them; use those that remove real conditionals.\n\n**Edge cases.** Overlapping shows on one screen (validate when adding), cancelling and refunds, shows in the past, and duplicate seats in one request.\n\n**Process.** Sketch the class diagram first, keep business rules out of one god class, write a thin demo, and leave 10 minutes to read your code as a reviewer would.",
+ "followUps": [
+  "How do you stop two users booking the same seat concurrently?",
+  "How would you release seats when a user abandons payment?",
+  "How would you add dynamic pricing without touching the booking flow?",
+  "How would you prevent overlapping shows on the same screen?"
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "qid": "4bf739b8c7",
+ "question": "In the System Design round (round 4, about one hour) for an MTS-2 role at Nutanix, the candidate was asked to **design the high-level architecture of an observability system**. The interviewer was helpful and kept the discussion flowing, but expected **very in-depth knowledge** of system architecture, databases, and a clear focus on **monitoring and observability** (metrics).\n\nTreat it as designing a platform that collects, stores, queries and alerts on telemetry from a large fleet of servers and services.",
+ "lookingFor": [
+  "Do you know the three pillars (metrics, logs, traces) and what each is good for?",
+  "Can you design a high-throughput ingestion pipeline with buffering and backpressure?",
+  "Do you pick appropriate storage per signal (time-series DB, log store, trace store) and explain why?",
+  "Do you understand cardinality, retention, downsampling and query cost?",
+  "Can you design alerting that is reliable and not noisy?"
+ ],
+ "answer": "**Requirements.** Collect metrics (and ideally logs and traces) from hosts and services; dashboards and ad-hoc queries; alerting with notifications; retention (for example, raw 15 days, downsampled 1 year); multi-tenant isolation. Non-functional: ingestion must never block the monitored systems, the observability system must be more available than what it monitors, and queries should return in seconds.\n\n**Scale estimate.** 10,000 hosts x 500 series x one sample per 10 s = 5M active series, about 500k samples/s. Compressed time-series storage (delta-of-delta timestamps, XOR-encoded values as in Gorilla-style compression) costs roughly 1 to 2 bytes per sample, so about 40 to 90 GB/day.\n\n**Architecture.**\n1. *Collection:* agents/exporters on each node (pull via scrape, or push) with local buffering. Service discovery tells scrapers what to scrape.\n2. *Ingestion:* stateless gateways validate and authenticate, then write to a durable log such as Kafka to absorb bursts and decouple producers from storage.\n3. *Storage:* a time-series database for metrics, sharded by hash of the series ID, replicated 2 to 3x; recent data in memory plus a write-ahead log, older blocks compacted and moved to object storage. Logs go to an inverted-index or columnar store; traces to a store keyed by trace ID.\n4. *Query layer:* fans out to shards, merges, caches common dashboard queries; downsampled rollups (1m, 1h) serve long ranges.\n5. *Alerting:* a rule evaluator runs queries periodically, with grouping, deduplication, silences and routing to email, chat or paging.\n6. *Visualization:* dashboards on top of the query API.\n\n**Data model.** Series = metric name + label set; sample = (timestamp, value). Index labels with an inverted index to select series quickly.\n\n**Trade-offs and bottlenecks.** High-cardinality labels (user IDs, request IDs) explode series count, so enforce limits. Push vs pull: pull gives easy health detection but needs discovery; push suits short-lived jobs. Availability over strict consistency for metrics. Alert evaluation should run redundantly (two evaluators) with dedup to avoid missing pages.\n\n**Scaling and reliability.** Add shards and rebalance by consistent hashing; separate write and read paths; monitor the monitor with a small independent \"meta\" system; apply per-tenant rate limits.",
+ "followUps": [
+  "How would you handle high-cardinality metrics?",
+  "How do you make sure alerting still works if the metrics pipeline is down?",
+  "Pull vs push: when would you choose each?",
+  "How would you correlate a metric spike with logs and traces?",
+  "How do you design downsampling and retention?"
+ ]
+}

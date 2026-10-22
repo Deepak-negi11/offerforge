@@ -1,0 +1,45 @@
+{
+ "pid": "group-shifted-strings",
+ "title": "Group Shifted Strings",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "Two lowercase strings are **buddies** if they have the same length and every pair of characters at the same position is separated by the same circular shift. In other words, for strings `a` and `b` of equal length, `(a[i] - b[i]) mod 26` must be the same value for every index `i`, where letters are numbered `a = 0, b = 1, ..., z = 25` and the alphabet wraps around (`z` is followed by `a`). A string is always a buddy of itself.\n\nFor example, `abc` and `xyz` are buddies (every letter is shifted by 23), and `az` and `ba` are buddies (every letter is shifted by 1, wrapping from `z` to `a`), but `abc` and `abd` are not.\n\nYou are given a list of `n` strings. Split them into groups so that two strings are in the same group exactly when they are buddies. Duplicate strings are separate entries and land in the same group.\n\nTo make the answer unique, list the strings inside each group in the order they appear in the input, and list the groups in the order of their first member's position in the input.",
+ "input_format": "The first line contains an integer `n`.\nThe second part of the input contains `n` whitespace-separated strings of lowercase letters (they may be spread over one or several lines).",
+ "output_format": "Print one line per group: the strings of the group separated by single spaces, in the order described above.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ length of each string",
+  "The total length of all strings is at most 5 · 10^5",
+  "Strings consist of lowercase English letters only"
+ ],
+ "examples": [
+  {
+   "input": "6\nabc\naz\nace\nbcd\nba\nxyz",
+   "output": "abc bcd xyz\naz ba\nace",
+   "explanation": "`abc`, `bcd` and `xyz` all step forward by one letter at each position, so they are buddies. `az` and `ba` are buddies because `a -> z` and `b -> a` are the same shift of 25 backwards (1 forward, circularly). `ace` has gaps 2 and 2, so it is alone. Groups are ordered by first appearance."
+  },
+  {
+   "input": "4\nzz\naa\nb\nabb",
+   "output": "zz aa\nb\nabb",
+   "explanation": "`zz` and `aa` differ by the same amount at both positions. `b` has a different length from everything else, and `abb` is not a shifted copy of any other string."
+  }
+ ],
+ "complexity": {
+  "time": "O(L)",
+  "space": "O(L)"
+ },
+ "hints": [
+  "Two buddies differ by a constant shift, so they have the same pattern of gaps between consecutive letters.",
+  "Compute the gap `(s[i] - s[i-1]) mod 26` for each adjacent pair and use the sequence of gaps as a hash key. The key's length already encodes the string's length, and every single-letter string gets the empty key.",
+  "Keep a dictionary from key to group, and remember the order in which keys were first seen."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    words = data[1:1 + n]\n    groups = {}\n    for w in words:\n        key = ''.join(chr(65 + (ord(w[i]) - ord(w[i - 1])) % 26) for i in range(1, len(w)))\n        key = (len(w), key)\n        if key not in groups:\n            groups[key] = []\n        groups[key].append(w)\n    print('\\n'.join(' '.join(g) for g in groups.values()))\n\nmain()\n",
+ "brute": "import sys\n\ndef buddies(a, b):\n    if len(a) != len(b):\n        return False\n    d = (ord(a[0]) - ord(b[0])) % 26\n    return all((ord(a[i]) - ord(b[i])) % 26 == d for i in range(len(a)))\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nwords = data[1:1 + n]\ngroups = []\nfor w in words:\n    for g in groups:\n        if buddies(g[0], w):\n            g.append(w)\n            break\n    else:\n        groups.append([w])\nprint('\\n'.join(' '.join(g) for g in groups))\n",
+ "generator": "def gen(rng):\n    letters = 'abcdefghijklmnopqrstuvwxyz'\n    def shift(w, k):\n        return ''.join(letters[(ord(c) - 97 + k) % 26] for c in w)\n    def fmt(ws):\n        return str(len(ws)) + '\\n' + '\\n'.join(ws)\n    def rnd(L, alpha=26):\n        return ''.join(letters[rng.randrange(alpha)] for _ in range(L))\n    tests = [fmt(['a']), fmt(['a', 'z', 'm']), fmt(['zz', 'aa', 'b', 'abb']), fmt(['abc', 'abc', 'abc']),\n             fmt(['az', 'ba', 'cb', 'a', 'b']), fmt(['ab', 'ba', 'yz', 'za'])]\n    for _ in range(14):\n        k = rng.randint(1, 6)\n        bases = [rnd(rng.randint(1, 5), rng.choice([2, 3, 26])) for _ in range(k)]\n        ws = []\n        for _ in range(rng.randint(2, 22)):\n            ws.append(shift(rng.choice(bases), rng.randrange(26)))\n        tests.append(fmt(ws))\n    # large: short words, heavy collisions\n    bases = [rnd(rng.randint(1, 5), 3) for _ in range(300)]\n    ws = [shift(rng.choice(bases), rng.randrange(26)) for _ in range(100000)]\n    tests.append(fmt(ws))\n    # large: all random short words\n    tests.append(fmt([rnd(rng.randint(1, 5)) for _ in range(100000)]))\n    # medium length words, few groups\n    bases = [rnd(500, 26) for _ in range(5)]\n    tests.append(fmt([shift(rng.choice(bases), rng.randrange(26)) for _ in range(1000)]))\n    # two huge strings that are buddies\n    b = rnd(250000)\n    tests.append(fmt([b, shift(b, 7)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef group_buddies(words: List[str]) -> List[List[str]]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    words = data[1:1 + n]\n    for g in group_buddies(words):\n        print(' '.join(g))\n\n\nmain()\n",
+  "javascript": "function groupBuddies(words) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0])\nconst words = t.slice(1, 1 + n)\nconsole.log(groupBuddies(words).map(g => g.join(' ')).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<vector<string>> groupBuddies(vector<string>& words) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<string> words(n);\n    for (int i = 0; i < n; i++) cin >> words[i];\n    vector<vector<string>> groups = groupBuddies(words);\n    for (auto& g : groups) {\n        for (size_t i = 0; i < g.size(); i++) cout << g[i] << (i + 1 < g.size() ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<List<String>> groupBuddies(String[] words) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int n = Integer.parseInt(st.nextToken());\n        String[] words = new String[n];\n        for (int i = 0; i < n; i++) words[i] = st.nextToken();\n        StringBuilder sb = new StringBuilder();\n        for (List<String> g : groupBuddies(words)) {\n            sb.append(String.join(\" \", g)).append(\"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

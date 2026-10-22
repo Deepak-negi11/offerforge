@@ -1,0 +1,18 @@
+{
+ "qid": "56a61ddf9f",
+ "question": "Microsoft SDE-2 (L62, Ireland) Low Level Design round (about 45 minutes): **design a Library Management System**.\n\nThe discussion covered identifying the core entities, defining classes and their responsibilities, relationships between entities, **borrowing and returning books**, handling **different types of users and books**, and extensibility of the design. The interviewer went beyond a class diagram and discussed **how the system would actually be implemented**, including implementation-level decisions.",
+ "lookingFor": [
+  "Entity identification and sensible responsibility boundaries.",
+  "Modeling relationships (book vs physical copy, member vs loan).",
+  "Use of polymorphism and patterns for user and book types without over-engineering.",
+  "Correct borrow and return flows with business rules and edge cases.",
+  "Ability to move from diagram to concrete, compilable code and discuss concurrency."
+ ],
+ "answer": "**Clarify.** Actors: members, librarians. Features: search, borrow, return, reserve, fines. Limits: max books per member, loan period per member type. Out of scope: payments, notifications, persistence (mention a repository interface).\n\n**Entities.**\n- `Book` (isbn, title, authors): the catalog entry.\n- `BookItem` (barcode, status: AVAILABLE, LOANED, RESERVED, LOST): the physical copy. Separating the two is the key modeling decision, because a library has many copies of one title.\n- `Member` (id, name, type, activeLoans) and `Librarian`.\n- `Loan` (member, bookItem, issueDate, dueDate, returnDate).\n- `Library`/`LibraryService` as the facade exposing `search`, `borrow`, `returnBook`.\n\n**Different user and book types.** Put varying rules behind strategies, not `if (type == ...)` chains: `LoanPolicy` (max books, loan days, e.g. student vs faculty) and `FineStrategy` (per day rate, maybe by book type). Book categories (reference-only, magazine, standard) can be a `BookType` enum or subclasses, with `isLendable()`. Prefer composition over deep inheritance.\n\n**Borrow flow.** Validate member active and under the limit, no unpaid fine, item is available and lendable. Then create a `Loan`, set item status to LOANED, increment the member's count, and compute the due date from the policy. **Return flow:** find the loan, set return date, compute fine if late, set item AVAILABLE (or RESERVED and notify the next member), decrement the count.\n\n**Implementation decisions.** Use maps by id and by isbn for lookup; an inverted index or title map for search. Make borrow atomic per `BookItem` (lock or compare-and-set on status) so two members cannot take the same copy. Keep services free of I/O by using repository interfaces so they are testable. Add notifications through an observer.\n\n**Extensibility.** New member type means a new policy, not a change to `borrow`. Make the facade depend on interfaces (Open/Closed, Dependency Inversion).\n\n**Mistakes to avoid:** merging Book and copy, a god `Library` class, hard-coded limits, and ignoring concurrent borrowing.",
+ "followUps": [
+  "How would you add a reservation queue when all copies are out?",
+  "Which design patterns did you use, and why those?",
+  "How do you prevent two members borrowing the last copy at once?",
+  "How would you change the design to support multiple library branches?"
+ ]
+}

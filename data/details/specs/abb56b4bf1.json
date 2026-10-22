@@ -1,0 +1,17 @@
+{
+ "qid": "abb56b4bf1",
+ "question": "Intuit SWE Intern, Technical Interview 2 (database and security questions). Reported: **How would you efficiently find all documents in the database that do not match a given regex?** **What are the benefits of using MongoDB and Firebase as databases?** (the candidate had used Firebase and Firestore in a project). **How does encryption differ from hashing?**",
+ "lookingFor": [
+  "Whether you know how regex queries and negation interact with indexes, not just the syntax.",
+  "Ability to propose practical optimisations (anchored prefixes, precomputed flags, text search) and verify them with `explain()`.",
+  "Honest, experience-based comparison of two databases, with trade-offs rather than marketing points.",
+  "Clear security fundamentals: reversibility, keys, salts, and which tool fits which job."
+ ],
+ "answer": "**Documents that do not match a regex (MongoDB).** Use `$not` with a regex:\n\n```js\ndb.users.find({ email: { $not: /@example\\.com$/ } })\n```\n\nPoints to make:\n- `$not` also returns documents where the field is **missing**, so add `{ email: { $exists: true } }` if that matters.\n- Regex matching can use an index efficiently only for **case-sensitive, anchored prefix** patterns such as `/^abc/`. A negated regex cannot use an index to skip documents: the engine still has to test every key or document. So on a big collection this is a scan.\n- Check with `explain(\"executionStats\")` and compare `totalKeysExamined` and `totalDocsExamined`.\n- Ways to make it efficient: store a **precomputed boolean or normalised field** at write time (for example `emailDomain`) and index it; use a text index or Atlas Search when you need word matching; narrow the candidate set first with an indexed filter; project only the fields you need.\n\n**MongoDB vs Firebase.** MongoDB is a document database with a rich query language, secondary indexes, aggregation pipeline and multi-document transactions; you can self-host or use Atlas, and you control the backend. Firebase (Firestore or Realtime Database) is a managed backend-as-a-service: real-time listeners, offline sync on mobile, built-in auth integration and security rules, and no servers to run. Trade-offs: Firestore queries are more limited (no regex or arbitrary text search; indexes are required for compound queries) and billing is per read/write; MongoDB gives more query freedom but you own schema design, scaling and operations. Say which you used and why.\n\n**Encryption vs hashing.**\n- **Encryption** is two-way: plaintext plus a key gives ciphertext, and the key recovers the plaintext. It protects confidentiality (AES for data, RSA or ECC for key exchange and signatures).\n- **Hashing** is one-way and deterministic with a fixed-length output (SHA-256). It supports integrity checks and password storage; you compare hashes, you do not decrypt.\n- Passwords: use a slow, salted password hash (bcrypt, scrypt, Argon2), not a fast hash and not encryption.",
+ "followUps": [
+  "How would you speed up a case-insensitive prefix search on a large collection?",
+  "When would you pick Firestore over MongoDB for a new project, and when the reverse?",
+  "Why do we salt password hashes, and why is SHA-256 alone a poor choice for passwords?",
+  "What is the difference between symmetric and asymmetric encryption?"
+ ]
+}

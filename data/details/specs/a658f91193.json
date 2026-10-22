@@ -1,0 +1,19 @@
+{
+ "qid": "a658f91193",
+ "question": "LinkedIn Software Engineer, Machine Learning: **AI coding round** where you must **explain and solve the problem mathematically first, then code it**. Two problems were reported: one on a **transformation plus sorting**, and one on **rejection sampling**, very similar to building `rand10()` from `rand7()`. The exact statement of the first problem was not reported. Below is the rejection-sampling problem: given a function `rand7()` that returns a uniform integer from 1 to 7, implement `rand10()` that returns a uniform integer from 1 to 10.",
+ "lookingFor": [
+  "Can you reason about uniformity and probability before writing code?",
+  "Do you know rejection sampling and can you justify that it stays uniform?",
+  "Can you compute expected number of calls and discuss efficiency?",
+  "Can you code it cleanly and test it statistically?",
+  "Can you explain the math clearly to an interviewer?"
+ ],
+ "answer": "**Idea.** You cannot map 7 outcomes directly onto 10. Build a uniform distribution over a larger range that is a multiple of 10, then reject the leftover.\n\n**Construction.** Call `rand7()` twice: `x = (rand7() - 1) * 7 + rand7()`. Each pair (a, b) occurs with probability 1/49, and the formula maps pairs one-to-one onto 1..49, so `x` is uniform on 1..49. Keep `x` in 1..40, which is 4 full blocks of 10, and map it with `(x - 1) % 10 + 1`. If `x` is 41..49, reject and retry.\n\n```\ndef rand10():\n    while True:\n        x = (rand7() - 1) * 7 + rand7()\n        if x <= 40:\n            return (x - 1) % 10 + 1\n```\n\n**Why uniform.** Conditioning on acceptance, each of the 40 accepted values has the same probability 1/49 divided by 40/49, which is 1/40. Each result 1..10 is hit by exactly 4 of those values, so each has probability 1/10. The retry loop does not bias the result because each attempt is independent and identically distributed.\n\n**Expected cost.** Acceptance probability per attempt is 40/49. The expected number of attempts is 49/40 = 1.225, so the expected number of `rand7()` calls is 2 x 1.225 = 2.45. The worst case is unbounded in principle, but the probability of k rejections decays geometrically as (9/49)^k.\n\n**Improvement.** Reuse the rejected values: when `x` is in 41..49 you still hold a uniform value on 1..9; combine it with another `rand7()` to form 1..63, accept 1..60, and so on. This lowers the expected calls somewhat at the cost of more code.\n\n**Test.** Call it 10^6 times and check each count is near 10^5, ideally with a chi-square test.\n\n**For the general pattern:** to sample from a distribution you cannot get directly, draw from an easier proposal, accept with the right probability, otherwise retry. Mention it connects to rejection sampling in ML (sampling from a target distribution).",
+ "followUps": [
+  "What is the expected number of rand7() calls, and how would you lower it?",
+  "Why is (rand7() + rand7()) wrong as a way to get a bigger range?",
+  "How would you implement rand7() from rand10()?",
+  "How would you statistically verify your generator is uniform?",
+  "How is this idea related to rejection sampling used in ML or Monte Carlo methods?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "fce3f3e93b",
+ "question": "In a screening round for a **Senior Software Engineer (Kubernetes/Go)** role at NVIDIA, a scenario question asked: **how would you debug a Kubernetes pod that is not reachable?** There was also a question on **scaling**, plus one easy-to-medium coding problem.\n\nTreat it as: a client cannot reach the application running in a pod; walk through how you find the cause, and then how you would scale the service.",
+ "lookingFor": [
+  "Do you troubleshoot in a structured, layered way?",
+  "Do you know Kubernetes networking: pods, Services, Endpoints, DNS, probes, NetworkPolicy?",
+  "Do you know the right kubectl and debugging tools?",
+  "Can you reason about scaling (HPA, requests, statelessness, autoscaler)?"
+ ],
+ "answer": "**First, define \"not reachable\".** From where (inside the cluster, from a node, from outside)? Via Pod IP, Service, or Ingress? Which error: timeout, connection refused, DNS failure, 502/503? This tells you the layer.\n\n**Work from the pod outwards.**\n1. *Is the pod healthy?* `kubectl get pod -o wide`, `kubectl describe pod` (events: image pull errors, probe failures, OOMKilled, CrashLoopBackOff), `kubectl logs` (and `--previous`).\n2. *Is the app listening correctly?* A common bug is binding to `127.0.0.1` instead of `0.0.0.0`, or a port mismatch. Check with `kubectl exec` and `ss -ltn`, or test with `kubectl port-forward` to bypass Services.\n3. *Readiness:* a pod failing its readiness probe is removed from Service endpoints, so it is up but receives no traffic.\n4. *Service wiring:* `kubectl get svc`, `kubectl get endpoints <svc>`. Empty endpoints mean the selector does not match pod labels, or no pod is ready. Verify `port` versus `targetPort`.\n5. *DNS:* from a debug pod, `nslookup svc.namespace` or `curl` the service name; check CoreDNS pods and logs.\n6. *Network policy:* are there `NetworkPolicy` objects that block ingress or egress for these pods or namespaces?\n7. *Cluster networking:* CNI plugin health, kube-proxy (iptables/IPVS rules), node-to-node connectivity, security groups or firewalls in cloud environments, MTU problems.\n8. *Ingress/LoadBalancer:* controller logs, backend health, TLS and host rules.\nUse `kubectl debug` (ephemeral container) or a netshoot pod to run `curl`, `dig`, `traceroute`, `tcpdump` when the app image has no tools.\n\n**Scaling.** Make the app stateless; set resource requests/limits; use the Horizontal Pod Autoscaler on CPU, memory or custom metrics (for example request rate or queue length); use the Cluster Autoscaler or Karpenter for nodes; add readiness probes and PodDisruptionBudgets; spread pods across zones with topology constraints. Check bottlenecks beyond pods: database connections, downstream limits, load balancer capacity.",
+ "followUps": [
+  "Pods are Running and Ready, the Service has endpoints, but connections still time out. What next?",
+  "How does kube-proxy route traffic to a Service?",
+  "What is the difference between ClusterIP, NodePort and LoadBalancer?",
+  "How would HPA behave if resource requests are not set?",
+  "How would you debug intermittent connection resets?"
+ ]
+}

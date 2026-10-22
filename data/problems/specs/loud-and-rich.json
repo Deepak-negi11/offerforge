@@ -1,0 +1,50 @@
+{
+ "pid": "loud-and-rich",
+ "title": "Loud and Rich",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "There are `n` people numbered `0` to `n - 1`. Person `i` has a distinct **quietness** value `quiet[i]`; a smaller value means a quieter person.\n\nYou are given `m` statements `a b`, each meaning that person `a` has strictly more money than person `b`. The statements are consistent (nobody is, directly or indirectly, richer than themselves), but they do not necessarily compare every pair of people. Money is transitive: if `a` is richer than `b` and `b` is richer than `c`, then `a` is richer than `c`. The same statement may appear more than once.\n\nFor every person `x`, consider the set of all people who are **at least as rich** as `x`: `x` itself and everybody who is richer than `x`, directly or through a chain of statements. Among these people, find the one with the smallest quietness value. Print that person's number for every `x` from `0` to `n - 1`.\n\nSince the quietness values are distinct, each answer is unique.",
+ "input_format": "The first line contains `n` and `m`.\nThe second line contains `n` integers `quiet[0] ... quiet[n-1]`.\nEach of the next `m` lines contains two integers `a` and `b`, meaning person `a` is richer than person `b`.",
+ "output_format": "Print `n` space-separated integers: for each person `x` in order, the number of the quietest person who is at least as rich as `x`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ m ≤ 10^5",
+  "1 ≤ quiet[i] ≤ 10^6, all distinct",
+  "0 ≤ a, b < n, a ≠ b, and the statements contain no cycle"
+ ],
+ "examples": [
+  {
+   "input": "5 4\n3 2 5 1 4\n0 1\n1 2\n3 2\n2 4",
+   "output": "0 1 3 3 3",
+   "explanation": "Nobody is richer than persons 0 and 3, so they answer themselves. Person 1 has person 0 above it, and quiet[1] = 2 is smaller than quiet[0] = 3, so the answer is 1. Person 2 is below persons 1 and 3 (and, through 1, person 0); among {2, 1, 0, 3} the smallest quietness is quiet[3] = 1, so the answer is 3. Person 4 is below person 2, so everyone above 2 is also above 4, and the answer is again 3."
+  },
+  {
+   "input": "3 0\n5 9 1",
+   "output": "0 1 2",
+   "explanation": "There are no statements, so every person is only compared with themselves."
+  },
+  {
+   "input": "4 3\n8 3 6 1\n3 2\n2 1\n1 0",
+   "output": "3 3 3 3",
+   "explanation": "The people form a chain 3 > 2 > 1 > 0 in wealth. Everyone has person 3 (quietness 1) at least as rich as them, and 3 is the quietest overall."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Draw an edge from the richer person to the poorer one. The answer for x depends only on people who can reach x.",
+  "If you process people so that everyone richer than a person is handled before that person (a topological order), then every predecessor's answer is already final.",
+  "Start with answer[x] = x. When you process a person a and see an edge a -> b, set answer[b] = answer[a] if answer[a] is quieter than the current answer[b]. Kahn's algorithm gives the order without recursion."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    quiet = [int(x) for x in data[2:2 + n]]\n    adj = [[] for _ in range(n)]\n    indeg = [0] * n\n    p = 2 + n\n    for _ in range(m):\n        a = int(data[p]); b = int(data[p + 1]); p += 2\n        adj[a].append(b)\n        indeg[b] += 1\n    ans = list(range(n))\n    q = deque(i for i in range(n) if indeg[i] == 0)\n    while q:\n        a = q.popleft()\n        qa = quiet[ans[a]]\n        for b in adj[a]:\n            if qa < quiet[ans[b]]:\n                ans[b] = ans[a]\n            indeg[b] -= 1\n            if indeg[b] == 0:\n                q.append(b)\n    print(' '.join(map(str, ans)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nquiet = [int(x) for x in data[2:2 + n]]\nrich = [[] for _ in range(n)]\np = 2 + n\nfor _ in range(m):\n    a = int(data[p]); b = int(data[p + 1]); p += 2\n    rich[b].append(a)\nres = []\nfor x in range(n):\n    seen = {x}\n    stack = [x]\n    while stack:\n        u = stack.pop()\n        for v in rich[u]:\n            if v not in seen:\n                seen.add(v)\n                stack.append(v)\n    res.append(min(seen, key=lambda y: quiet[y]))\nprint(' '.join(map(str, res)))\n",
+ "generator": "def gen(rng):\n    def make(n, m, span=None, qmax=10**6, kind='random'):\n        perm = list(range(n))\n        rng.shuffle(perm)\n        edges = []\n        if n >= 2:\n            if kind == 'chain':\n                edges = [(perm[i], perm[i + 1]) for i in range(n - 1)]\n            elif kind == 'star_out':\n                edges = [(perm[0], perm[i]) for i in range(1, n)]\n            elif kind == 'star_in':\n                edges = [(perm[i], perm[n - 1]) for i in range(n - 1)]\n            else:\n                for _ in range(m):\n                    i = rng.randrange(n - 1)\n                    hi = n - 1 if span is None else min(n - 1, i + span)\n                    j = rng.randint(i + 1, hi)\n                    edges.append((perm[i], perm[j]))\n        rng.shuffle(edges)\n        quiet = rng.sample(range(1, qmax + 1), n)\n        lines = [f\"{n} {len(edges)}\", ' '.join(map(str, quiet))]\n        lines += [f\"{a} {b}\" for a, b in edges]\n        return '\\n'.join(lines)\n\n    tests = [make(1, 0, qmax=5), '5 4\\n3 2 5 1 4\\n0 1\\n1 2\\n3 2\\n2 4', '3 0\\n5 9 1', '4 3\\n8 3 6 1\\n3 2\\n2 1\\n1 0',\n             '2 2\\n4 7\\n0 1\\n0 1', '2 1\\n9 2\\n1 0']\n    for n in (2, 3, 4, 5, 6, 8, 10, 12):\n        for _ in range(2):\n            m = rng.randint(0, 2 * n)\n            tests.append(make(n, m, qmax=60))\n    for n in (6, 10):\n        tests.append(make(n, n - 1, kind='chain', qmax=60))\n        tests.append(make(n, n - 1, kind='star_out', qmax=60))\n        tests.append(make(n, n - 1, kind='star_in', qmax=60))\n    tests.append(make(30000, 60000))\n    N = 100000\n    tests.append(make(N, 100000))\n    tests.append(make(N, 100000, span=5))\n    tests.append(make(N, N - 1, kind='chain'))\n    tests.append(make(N, N - 1, kind='star_out'))\n    tests.append(make(N, N - 1, kind='star_in'))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef loud_and_rich(richer: List[List[int]], quiet: List[int]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    quiet = [int(x) for x in data[2:2 + n]]\n    richer = []\n    p = 2 + n\n    for _ in range(m):\n        richer.append([int(data[p]), int(data[p + 1])])\n        p += 2\n    print(' '.join(map(str, loud_and_rich(richer, quiet))))\n\n\nmain()\n",
+  "javascript": "function loudAndRich(richer, quiet) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst quiet = t.slice(2, 2 + n)\nconst richer = []\nlet p = 2 + n\nfor (let i = 0; i < m; i++) {\n  richer.push([t[p], t[p + 1]])\n  p += 2\n}\nconsole.log(loudAndRich(richer, quiet).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> loudAndRich(vector<vector<int>>& richer, vector<int>& quiet) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<int> quiet(n);\n    for (int i = 0; i < n; i++) cin >> quiet[i];\n    vector<vector<int>> richer(m, vector<int>(2));\n    for (int i = 0; i < m; i++) cin >> richer[i][0] >> richer[i][1];\n    vector<int> ans = loudAndRich(richer, quiet);\n    for (size_t i = 0; i < ans.size(); i++) cout << ans[i] << (i + 1 < ans.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] loudAndRich(int[][] richer, int[] quiet) {\n        // Write your solution here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[] quiet = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            quiet[i] = (int) in.nval;\n        }\n        int[][] richer = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken();\n            richer[i][0] = (int) in.nval;\n            in.nextToken();\n            richer[i][1] = (int) in.nval;\n        }\n        int[] ans = loudAndRich(richer, quiet);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < ans.length; i++) sb.append(ans[i]).append(i + 1 < ans.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

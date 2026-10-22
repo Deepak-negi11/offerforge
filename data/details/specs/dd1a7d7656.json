@@ -1,0 +1,19 @@
+{
+ "qid": "dd1a7d7656",
+ "question": "Flipkart SDE-2 low-level design round on a **booking system**. The deep dive covered **database schema design** and **API design**, followed by scalability and real-world follow-ups and a comparison of **locking mechanisms: pessimistic, optimistic and distributed locks**.",
+ "lookingFor": [
+  "Sound schema and API design for a booking domain.",
+  "Understanding of lost updates and double booking.",
+  "Ability to compare locking strategies and pick one with reasons.",
+  "Scalability thinking beyond a single database.",
+  "Awareness of failure modes, such as lock expiry and retries."
+ ],
+ "answer": "**Set the scene.** A booking system (tickets, rooms, slots) shares one core problem: many users compete for limited inventory, so the invariant is *a unit of inventory is confirmed for at most one user*.\n\n**Schema and APIs.** `resource/inventory(id, ..., status, version)`, `booking(id, user_id, resource_id, status, created_at, expires_at)`, `payment(...)`, unique constraint on the resource and time slot. APIs: `GET /availability`, `POST /bookings` with an idempotency key, `POST /bookings/{id}/confirm`, `DELETE /bookings/{id}`. Return 409 on conflict.\n\n**Locking strategies.**\n- **Pessimistic**: lock the row before modifying (`SELECT ... FOR UPDATE`). Correct and simple, no wasted retries under high contention, but holds locks (blocking), risks deadlocks (lock in a consistent order) and limits throughput if held across user think time or payment. Keep the transaction short.\n- **Optimistic**: no lock; read a `version`, update with `WHERE version = ?`, retry or fail when zero rows are updated. Great for low contention and read-heavy workloads, and avoids blocking; degrades under hot spots (retry storms).\n- **Distributed lock** (Redis `SET NX PX`, ZooKeeper/etcd): needed when the critical section spans services or no single database owns the data. Costs: lock expiry while the holder is paused, clock and network issues, so use a TTL plus **fencing tokens**, and still validate in the database. Do not use it where a conditional database update suffices.\n\n**Recommendation.** For one inventory database: conditional update or optimistic version for the last-step confirm, plus a short **soft hold with TTL** during checkout. Add a distributed lock only when necessary.\n\n**Scaling.** Shard by resource (event, flight, hotel), cache availability reads (accepting staleness, verifying at write time), use a queue for surges, and make payment callbacks idempotent.",
+ "followUps": [
+  "When would optimistic locking perform worse than pessimistic locking?",
+  "What is a fencing token and why is a Redis lock alone not safe?",
+  "How would you avoid deadlocks when booking multiple resources at once?",
+  "How do you design the soft hold and its expiry?",
+  "How would you shard the booking database?"
+ ]
+}

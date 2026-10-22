@@ -1,0 +1,18 @@
+{
+ "qid": "3fb15939a9",
+ "question": "Infosys Specialist Programmer / Systems Engineer, technical interview. The SQL portion covered **joins (inner vs outer, including LEFT OUTER JOIN)** and **window functions**. One candidate in a related Infosys loop was also given `employee` and `salary` tables and asked to print the names of all employees whose salary is the second highest.",
+ "lookingFor": [
+  "Correct mental model of how each join type treats unmatched rows.",
+  "Ability to write queries rather than only recite definitions.",
+  "Knowing when a window function is better than a subquery or GROUP BY.",
+  "Handling ties and NULLs correctly.",
+  "Comfort explaining a query's logic step by step."
+ ],
+ "answer": "**Joins**\n- `INNER JOIN`: only rows with a match in both tables.\n- `LEFT (OUTER) JOIN`: every row from the left table; right columns are NULL where there is no match.\n- `RIGHT JOIN`: the mirror image. `FULL OUTER JOIN`: all rows from both, NULL on either side where unmatched.\n\nExample: customers with their orders, including customers with none:\n\n    SELECT c.name, o.id\n    FROM customers c\n    LEFT JOIN orders o ON o.customer_id = c.id;\n\nA common trap: filtering the right table in `WHERE` (e.g. `WHERE o.status = 'PAID'`) removes the NULL rows and silently turns the LEFT JOIN into an inner join; put that condition in the `ON` clause instead. To find customers with no orders, add `WHERE o.id IS NULL`.\n\n**Window functions.** They compute a value over a set of rows related to the current row *without collapsing rows* like `GROUP BY` does. Syntax: `func() OVER (PARTITION BY ... ORDER BY ... [frame])`.\n- Ranking: `ROW_NUMBER()` (always unique), `RANK()` (ties share a rank, then a gap), `DENSE_RANK()` (ties share a rank, no gap).\n- Offsets: `LAG(x)`, `LEAD(x)`.\n- Aggregates over a window: `SUM(x) OVER (PARTITION BY dept ORDER BY d)` gives a running total.\n\n**Second-highest salary, with all ties**\n\n    SELECT name FROM (\n      SELECT e.name, s.salary,\n             DENSE_RANK() OVER (ORDER BY s.salary DESC) AS rk\n      FROM employee e JOIN salary s ON s.emp_id = e.id\n    ) t\n    WHERE rk = 2;\n\n`DENSE_RANK` is chosen so that if two people share the top salary, the next distinct salary is still rank 2, and everyone tied at it is returned. `ROW_NUMBER` would return only one person. An alternative without windows is `WHERE salary = (SELECT MAX(salary) FROM salary WHERE salary < (SELECT MAX(salary) FROM salary))`.\n\nAlso mention that window functions need a database that supports them (MySQL 8+, PostgreSQL, SQL Server, Oracle).",
+ "followUps": [
+  "What is the difference between RANK, DENSE_RANK and ROW_NUMBER with an example?",
+  "How would you find the top 3 earners per department?",
+  "What is the difference between WHERE and HAVING, and between ON and WHERE in an outer join?",
+  "What is a self join, and when would you use one?"
+ ]
+}

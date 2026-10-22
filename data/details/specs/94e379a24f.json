@@ -1,0 +1,19 @@
+{
+ "qid": "94e379a24f",
+ "question": "ServiceNow Software Engineer, round with **two medium DSA problems on strings** followed by a high-level design of **Instagram**. Another report (IC-2, 4.5 YOE) also had Design Instagram as the second question in a DSA plus system design round.",
+ "lookingFor": [
+  "Scoping a large product into a core feature set",
+  "Scale estimation and read-heavy workload reasoning",
+  "Feed generation trade-offs (fan-out on write vs read)",
+  "Storage choices for media and metadata, plus caching and CDN",
+  "Communication of trade-offs"
+ ],
+ "answer": "**Requirements.** Functional: upload photos and videos, follow users, view a home feed, like and comment. (Out of scope: DMs, stories, ads; mention but defer.) Non-functional: highly available, low-latency feed, eventual consistency is fine for feeds and counts, durable media. Assume 500M DAU, 100M uploads a day, and read to write of about 100:1 or more.\n\n**Estimation.** 100M photos at about 2 MB is about 200 TB of new media per day, so object storage plus a CDN. Metadata is small by comparison.\n\n**API.** `POST /posts` (returns a pre-signed upload URL), `GET /feed?cursor=`, `POST /follow/{id}`, `POST /posts/{id}/like`.\n\n**Components.**\n- Clients upload media directly to object storage (S3-style) through a pre-signed URL; an async worker generates thumbnails and renditions. Media is served through a CDN.\n- Stateless API servers behind a load balancer.\n- Metadata in a database: `users`, `posts(id, user_id, media_url, caption, ts)`, `follows(follower, followee)`, `likes`, `comments`. A sharded SQL or wide-column store (Cassandra-style) keyed by user id, with post ids time-sortable.\n- Feed service plus a cache (Redis).\n\n**Feed generation, the key trade-off.**\n- *Fan-out on write (push):* when a user posts, append the post id to each follower's precomputed feed in the cache. Reads are fast, but celebrities with millions of followers make writes expensive.\n- *Fan-out on read (pull):* build the feed at read time by merging the followees' recent posts. Writes are cheap, reads are slower.\n- *Hybrid (typical):* push for normal users, pull for celebrities and merge at read time.\nFeeds are ranked by recency or a relevance model; use cursor pagination.\n\n**Other points.** Counters (likes) via asynchronous aggregation; search and hashtags through an inverted index (Elasticsearch-style); notifications through a queue; rate limiting; multi-region replication, with sharding by user id and hot-key handling. Failure cases: CDN miss storms and a cache outage, which fall back to the database.",
+ "followUps": [
+  "How would you handle a celebrity with 100 million followers posting?",
+  "How do you store and count likes at huge scale?",
+  "How would you design the explore or recommendation page?",
+  "Where does consistency matter here and where is eventual consistency acceptable?",
+  "How would you design stories that expire after 24 hours?"
+ ]
+}

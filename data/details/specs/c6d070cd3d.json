@@ -1,0 +1,18 @@
+{
+ "qid": "c6d070cd3d",
+ "question": "In the LLD round for a Senior Software Engineer role (hiring drive) at Walmart, the question was to **design an online grocery delivery system** that supports **both subscription and non-subscription models**.\n\nFollow-ups: **why is a message queue required in this architecture**, and **design the DB schema**. The same loop's HLD round covered Kafka keys and topics, HTTP status code classes (1xx to 5xx) and microservices architecture.",
+ "lookingFor": [
+  "Can you model the order flow and the different customer models (subscribed vs not)?",
+  "Can you justify a message queue with concrete reasons rather than buzzwords?",
+  "Can you design a sensible relational schema with keys and indexes?",
+  "Do you understand Kafka keys, topics and partition ordering?",
+  "Do you know HTTP status code classes and when to use them?"
+ ],
+ "answer": "**Requirements.** Browse catalog, cart, place order, pay, schedule delivery, track status. Subscribed customers get benefits such as free delivery or discounts; others pay delivery fees. Optionally recurring orders.\n\n**Core design.**\n- Entities: `Customer`, `Product`, `Inventory(store, product, qty)`, `Cart`, `Order`, `OrderItem`, `Payment`, `Delivery`, `DeliverySlot`, `Subscription(customer, plan, startDate, endDate, status)`.\n- **Subscription handling with Strategy**: `PricingPolicy` / `DeliveryFeePolicy` interface with `SubscriberPolicy` (free delivery over a threshold, discount) and `StandardPolicy`. `OrderService` asks a `PolicyResolver` which applies based on whether the customer has an active subscription. New plans become new policy classes.\n- Order states: `PLACED -> CONFIRMED -> PACKED -> OUT_FOR_DELIVERY -> DELIVERED`, plus `CANCELLED`.\n\n**Why a message queue.**\n- **Decoupling**: placing an order should not wait for notifications, inventory sync, invoicing and delivery assignment.\n- **Reliability**: if the delivery service is down, events wait in the queue rather than being lost.\n- **Load smoothing** during peak times, and **independent scaling** of consumers.\n- **Fan-out**: one `OrderPlaced` event drives several consumers. Keying messages by order id keeps per-order ordering in Kafka. Mention at-least-once delivery, so consumers must be idempotent.\n\n**Schema (sketch).**\n- `customers(id, ...)`, `subscriptions(id, customer_id, plan, start, end, status)`.\n- `products(id, name, price)`, `inventory(store_id, product_id, qty)`, primary key on both.\n- `orders(id, customer_id, status, total, delivery_fee, slot_id, created_at)`, index on `(customer_id, created_at)`.\n- `order_items(order_id, product_id, qty, unit_price)`, keeping the price at purchase time.\n- `payments(id, order_id, status, ...)`, `deliveries(id, order_id, agent_id, status)`.\n\n**Trade-offs.** Reserving inventory at order time needs an atomic decrement to avoid overselling; denormalize price snapshots into order items.",
+ "followUps": [
+  "How do you avoid selling stock that is no longer available?",
+  "What happens if the same OrderPlaced event is delivered twice?",
+  "What does the message key decide in Kafka, and what about the number of partitions?",
+  "When would you return 400 vs 422 vs 409, and what is the difference between 4xx and 5xx?"
+ ]
+}

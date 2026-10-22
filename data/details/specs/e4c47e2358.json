@@ -1,0 +1,19 @@
+{
+ "qid": "e4c47e2358",
+ "question": "Zomato SDE-1 system design (high-level design) questions reported in two loops: **design a notification system for a food delivery app.** There are multiple channels (push, SMS, email); some notifications go to only one channel and some to several. The system must **avoid sending duplicate notifications**, be **crash resilient**, give **retry guarantees**, and be **fault tolerant** at Zomato scale. The discussion also covered scalability and, in depth, **Kafka, scaling Kafka and its trade-offs**, followed by several follow-up questions.",
+ "lookingFor": [
+  "Structured requirements and a clear separation between event ingestion and delivery.",
+  "Understanding of at-least-once delivery and how idempotency prevents duplicates.",
+  "Retry, backoff, dead-letter queue and crash-recovery design.",
+  "Knowledge of Kafka partitions, consumer groups, offsets and scaling limits.",
+  "Handling third-party channel failures, rate limits and user preferences."
+ ],
+ "answer": "**Requirements.** Send order status updates, promos and OTPs over push, SMS and email. Per notification type define channels and priority (OTPs are urgent and must not wait behind promos). Assume tens of millions of notifications per day with bursts at meal times.\n\n**High-level flow.** Services publish events (e.g. `order_picked_up`) -> **Notification service** looks up user preferences, applies a template and decides channels -> writes a notification record -> publishes to per-channel queues (Kafka topics: push, sms, email, split by priority) -> channel workers call providers (FCM/APNs, an SMS gateway, an email service) -> delivery status is stored.\n\n**Avoiding duplicates.** Queues give at-least-once delivery, so duplicates are possible. Use an **idempotency key** per notification and channel (for example `orderId + eventType + channel`) and a deduplication check (a unique key in a database or Redis `SET NX` with TTL) before sending. Persist the \"sent\" state, ideally with the provider's own idempotency key where supported. True exactly-once to a third party is not possible; aim for effectively-once.\n\n**Crash resilience and retries.** Consumers commit the Kafka offset only after the work is persisted. If a worker crashes, the message is reprocessed, which is safe because of the dedup key. Failed sends are retried with exponential backoff and jitter via retry topics, and finally go to a **dead-letter queue** for inspection. Fall back to another channel (push fails -> SMS) for critical messages.\n\n**Kafka scaling.** Parallelism is bounded by partitions: consumers in a group cannot exceed the number of partitions. Choose a partition key (user or order id) to preserve ordering per user; watch for hot partitions; add partitions up front since changing counts later affects key mapping. Use replication factor 3 with `acks=all` and `min.insync.replicas` for durability, and monitor consumer lag.\n\n**Other points.** Rate limiting per provider, user preferences and quiet hours, template/localisation service, and monitoring of delivery rate and latency.",
+ "followUps": [
+  "How do you guarantee ordering of notifications for the same order?",
+  "What happens if the SMS provider is down for 30 minutes?",
+  "How do you handle a consumer that is slower than the producers (lag)?",
+  "How would you prioritise OTPs over marketing messages?",
+  "Why Kafka rather than a simple queue like SQS or RabbitMQ?"
+ ]
+}

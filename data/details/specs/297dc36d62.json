@@ -1,0 +1,17 @@
+{
+ "qid": "297dc36d62",
+ "question": "Intuit Software Engineer 1, Virtual Technical Round 2 (60 minutes, two senior engineers). After a coding problem, the OOP half covered **abstract classes, pure virtual functions, `new`/`delete`, and the order of constructors and destructors**. The candidate was also given scenarios and asked which OOP concepts apply (sometimes a combination). One open-ended question: **design a human body using OOP principles**, which led to a broader discussion on design thinking.",
+ "lookingFor": [
+  "Clarifying questions before modelling: what is the purpose and scope of the 'human body'?",
+  "Correct choice between inheritance, composition and interfaces, with reasons.",
+  "Sound C++ object-lifetime knowledge: virtual destructors, constructor and destructor order, ownership.",
+  "Ability to discuss extensibility and trade-offs rather than produce one fixed diagram."
+ ],
+ "answer": "**First clarify scope.** There is no single right model; it depends on purpose: an anatomy learning app, a health-monitoring tool, a physiological simulation, or a game character. Pick one (say, a simple simulation where systems interact) and state your assumptions.\n\n**Core C++ facts to have ready.**\n- An **abstract class** has at least one **pure virtual function** (`virtual void update() = 0;`); it cannot be instantiated and defines a contract.\n- Base-class destructors must be `virtual` when deleting through a base pointer, otherwise the derived part is not destroyed (undefined behaviour).\n- **Construction order:** base classes, then members in declaration order, then the derived constructor body. **Destruction** is the exact reverse.\n- `new` allocates and runs the constructor; `delete` runs the destructor and frees. Prefer `std::unique_ptr` or members by value over raw `new`/`delete`.\n\n**A possible model.**\n- `Body` **has** systems: composition (the body owns them and their lifetime). `class Body { std::vector<std::unique_ptr<BodySystem>> systems; };`\n- `BodySystem` (abstract): `update(double dt)`, `status()`. Concrete: `CirculatorySystem`, `RespiratorySystem`, `NervousSystem`, `DigestiveSystem`.\n- `Organ` (abstract) with `functionalState()`; `Heart`, `Lung`, `Brain` extend it. A system **has** organs (composition or aggregation).\n- Inheritance only for true is-a (`Heart` is an `Organ`); behaviour shared across unrelated parts goes into interfaces such as `Measurable`.\n- Systems communicate through events (Observer pattern) rather than direct pointers, for example `Heart` publishes heart rate that `RespiratorySystem` reads.\n\n**Concepts to name:** encapsulation (private organ state), abstraction (system interface), polymorphism (`update()` called through the base), composition over inheritance, single responsibility, and the Open/Closed principle (add a `LymphaticSystem` without changing `Body`).\n\n**Discuss trade-offs:** deep hierarchies are rigid; a body made of data-driven components may scale better; how to model injuries or diseases (a state or strategy per organ).",
+ "followUps": [
+  "What happens if you delete a Derived object through a Base pointer whose destructor is not virtual?",
+  "Can a pure virtual function have a body? Why would you give it one?",
+  "Where would you use composition and where inheritance in your model, and why?",
+  "How would you model a pacemaker or prosthetic without changing the existing classes?"
+ ]
+}

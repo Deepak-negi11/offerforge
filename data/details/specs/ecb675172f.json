@@ -1,0 +1,19 @@
+{
+ "qid": "ecb675172f",
+ "question": "System design round for a Senior Software Engineer at ServiceNow: **build a messaging service**. The task was to design the APIs, the database schema and the queries for the service, and also to **code parts of the logic**. No further details of the exact scope were reported, so clarify whether it is one-to-one chat, group chat, or an asynchronous message queue.",
+ "lookingFor": [
+  "Can you clarify an open-ended prompt and pick a sensible scope?",
+  "Can you design clean APIs and a schema that match the access patterns?",
+  "Do you write correct queries and code for a core piece, such as sending and fetching messages?",
+  "Do you understand delivery guarantees, ordering and pagination?",
+  "Can you scale it and explain the trade-offs?"
+ ],
+ "answer": "**Scope (assumed).** One-to-one and group chat, text messages, delivery and read status, message history. Assume 10M users and 50M messages per day.\n\n**APIs.**\n- `POST /conversations` (participants), `GET /conversations` (the user's list, sorted by last activity)\n- `POST /conversations/{id}/messages` (body, client-generated message id for idempotency)\n- `GET /conversations/{id}/messages?before=<cursor>&limit=50`\n- `POST /messages/{id}/read` or a bulk \"mark read up to message X\"\n- Real-time delivery over WebSocket (or long polling as a fallback).\n\n**Schema (relational flavour).**\n- `users(id, name, ...)`\n- `conversations(id, type, created_at)`\n- `participants(conversation_id, user_id, last_read_message_id)`, primary key on both columns, with an index on `user_id`\n- `messages(id, conversation_id, sender_id, body, created_at)`, index on `(conversation_id, id)`; ids should be time-ordered (snowflake or ULID).\n\n**Key queries.** History page: `SELECT * FROM messages WHERE conversation_id=? AND id < ? ORDER BY id DESC LIMIT 50` (keyset pagination, not OFFSET). Unread count: messages with `id > last_read_message_id`. Conversation list: store `last_message_at` on the conversation or a per-user inbox table to avoid scanning.\n\n**Code part.** Implement `sendMessage`: validate membership, de-duplicate by client id, insert, update the conversation's last-activity time in one transaction, then publish an event so connected recipients' gateways push it.\n\n**Components.** API servers, WebSocket gateways (with a map from user to connection stored in Redis), a message queue for fan-out, the database, and push notifications for offline users.\n\n**Scaling.** Partition messages by `conversation_id` (all messages of a chat on one shard), use a write-optimized store such as Cassandra for history if volume demands, cache recent messages, and treat large groups with fan-out on read.",
+ "followUps": [
+  "How do you guarantee ordering of messages in a conversation?",
+  "How do you deliver a message to a user connected to a different gateway server?",
+  "What changes for a group with 100,000 members?",
+  "How would you add message search?",
+  "Why keyset pagination instead of OFFSET?"
+ ]
+}

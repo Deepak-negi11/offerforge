@@ -1,0 +1,19 @@
+{
+ "qid": "038bd70050",
+ "question": "In a PhonePe Data Scientist first-round SQL section, the reported questions on transaction and user data were:\n\n- On a **transactions table, calculate rankings or running totals using window functions**.\n- Using a **user table joined with a transaction table**, apply **window functions with aggregates**; the query involved **multiple CTEs**.\n\nThe exact schema was not reported, so this write-up assumes `users(user_id, name, signup_date)` and `transactions(txn_id, user_id, amount, txn_date, status)`.",
+ "lookingFor": [
+  "Do you know the difference between `GROUP BY` aggregates and window functions?",
+  "Can you write running totals with correct frame clauses, and rankings with `ROW_NUMBER`, `RANK` and `DENSE_RANK`?",
+  "Can you structure a multi-step query with CTEs for readability?",
+  "Can you join users to transactions without double counting or losing users with no transactions?",
+  "Do you consider ties, NULLs and performance?"
+ ],
+ "answer": "**Running total per user.**\n\n```sql\nSELECT user_id, txn_date, amount,\n       SUM(amount) OVER (\n         PARTITION BY user_id\n         ORDER BY txn_date, txn_id\n         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW\n       ) AS running_total\nFROM transactions\nWHERE status = 'SUCCESS';\n```\n\n`PARTITION BY` restarts the sum for each user, `ORDER BY` sets the sequence (add `txn_id` as a tiebreaker), and the explicit `ROWS` frame avoids the default `RANGE` frame, which treats rows with the same date as peers and gives the same running value to all of them.\n\n**Rankings.** Rank each user's transactions by amount, or rank users by total spend:\n- `ROW_NUMBER()` gives unique numbers (1, 2, 3, 4).\n- `RANK()` gives ties the same rank and then skips (1, 2, 2, 4).\n- `DENSE_RANK()` gives ties the same rank without gaps (1, 2, 2, 3).\n\n**Users joined with transactions, using several CTEs.**\n\n```sql\nWITH user_spend AS (\n  SELECT u.user_id, u.name,\n         COALESCE(SUM(t.amount), 0) AS total_spend,\n         COUNT(t.txn_id)            AS txn_count\n  FROM users u\n  LEFT JOIN transactions t\n    ON t.user_id = u.user_id AND t.status = 'SUCCESS'\n  GROUP BY u.user_id, u.name\n),\nranked AS (\n  SELECT *,\n         DENSE_RANK() OVER (ORDER BY total_spend DESC) AS spend_rank,\n         total_spend * 1.0 / SUM(total_spend) OVER () AS share_of_total\n  FROM user_spend\n)\nSELECT * FROM ranked WHERE spend_rank <= 10;\n```\n\nThe first CTE aggregates per user; the second applies window functions on top of the aggregated rows. Putting the status filter in the `ON` clause of the `LEFT JOIN` keeps users with no successful transactions, while a filter in `WHERE` would turn it into an inner join.\n\n**Pitfalls.** Window functions run after `WHERE`/`GROUP BY`, so you cannot filter on them in the same `SELECT` (use a CTE or subquery, as above). Always define a deterministic `ORDER BY`. Avoid joining before aggregating when it multiplies rows (fan-out).",
+ "followUps": [
+  "What is the difference between `RANK` and `DENSE_RANK` in this query?",
+  "How would you get each user's latest transaction using a window function?",
+  "Why is the status filter in the `ON` clause rather than `WHERE`?",
+  "How would you compute a 7-day moving average of transaction amount?",
+  "When would you use a CTE and when a subquery or temp table?"
+ ]
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "887fd26152",
+ "question": "Adobe Software Engineer, round 2 (system design). **Design the session lifecycle management for a short-form 1-on-1 video platform.** Two users get matched, a **3-minute session** starts, video streams in both directions, and when the timer ends the session tears down. Then **scale it to millions of concurrent matches**, and walk through the abstractions you would introduce and why.",
+ "lookingFor": [
+  "Structuring an unfamiliar problem into clear abstractions and a state machine.",
+  "Understanding of real-time media (signaling versus media path, WebRTC, TURN/SFU).",
+  "Reasoning about timers, failure and cleanup in a distributed setting.",
+  "Capacity estimation and scaling strategy for stateful connections."
+ ],
+ "answer": "**Requirements.** Match two waiting users, run a hard 3-minute two-way video session, end it for both at the deadline, and handle disconnects. Assume 5M concurrent sessions, so 10M video connections. Prioritise low latency and end-to-end reliability of teardown; matching can tolerate a few seconds.\n\n**Abstractions.**\n- `User`/`Presence`: connection plus availability.\n- **Matchmaker**: pulls from waiting pools and pairs users (random or by region, language and filters).\n- **Session**: id, two participants, `startedAt`, `deadline`, state.\n- **Session state machine**: `MATCHED -> CONNECTING -> ACTIVE -> ENDING -> ENDED` (and `FAILED`).\n- **Signaling service**: WebSocket servers to exchange offers/answers and control messages.\n- **Media path**: peer-to-peer WebRTC when NAT permits, else a **TURN relay**. For recording or moderation, route via an SFU.\n- **Timer service**: schedules session end.\n\n**Flow.**\n1. Users join the queue (in Redis, partitioned by region). The matchmaker pops two and creates a Session.\n2. Both are told via signaling; ICE/STUN negotiate the media route, falling back to TURN.\n3. On `ACTIVE`, record a **server-authoritative deadline** (`start + 180s`). Clients show a countdown, but the server decides.\n4. At the deadline, the timer fires and the server sends `END` to both, closes the room and releases resources (relay allocations, cache entries), then writes a final record.\n\n**Timers at scale.** Do not keep millions of in-process timers on one node. Options: a timing wheel in each session-owner node, or a delay queue (Redis sorted set by deadline, Kafka-based delay) with a worker. Sessions are owned by a node chosen by consistent hashing on session id, so its timers and state live together.\n\n**Failure handling.** Heartbeats detect disconnects; the other party gets the session ended early. If a node dies, another node reloads sessions from the store (state plus deadline) and resumes timers, and end events must be idempotent. Clock skew is avoided by using server time only.\n\n**Scaling.** Shard matchmaking by region, add stateless signaling servers behind a load balancer with sticky connections, scale TURN/SFU horizontally, autoscale on concurrent-session count. Bandwidth for media is the dominant cost.",
+ "followUps": [
+  "How do you guarantee the session ends at 3:00 even if the owning server crashes?",
+  "How would you avoid matching a user with the same person repeatedly?",
+  "When would you use an SFU instead of peer-to-peer?",
+  "How would you handle a user whose connection drops and reconnects mid-session?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "a4e0c2e13f",
+ "question": "In a Salesforce MTS (about 2.7 years of experience) LLD round, the candidate was asked to **design tic-tac-toe**: gather requirements, define the entities and APIs, and go deep on the **move API (input and output) and validation**. They were asked for the algorithm to check whether the move wins, first O(N^2) then optimised to **O(1)**, and to **write the code** for it. Then the solution had to be **made scalable**, including **how you would incorporate AI-generated hints for players**.",
+ "lookingFor": [
+  "Can you gather requirements and define entities and APIs for a small system?",
+  "Do you validate moves and handle errors properly?",
+  "Do you know the O(1) win-check using row, column and diagonal counters?",
+  "Can you discuss trade-offs at each decision?",
+  "Can you extend the design for scale and for AI features sensibly?"
+ ],
+ "answer": "**Requirements.** N x N board (default 3), two players alternate, win with a full row, column or diagonal, detect draw, reject invalid moves. Extensions: undo, multiple games, spectators, hints.\n\n**Entities.** `Game` (id, board, players, currentPlayer, status, winner), `Board` (size and counters), `Player`, `Move` (player, row, col), `GameStatus` (IN_PROGRESS, WON, DRAW). `GameService` exposes `createGame`, `makeMove`, `getGame`.\n\n**Move API.** `makeMove(gameId, playerId, row, col)` returns `{status, board, winner?, nextPlayer}` or an error. Validation: game exists and is in progress, it is the caller's turn, the cell is in range and empty.\n\n**O(1) win check.** Keep `rows[N]`, `cols[N]`, `diag`, `antiDiag` counters. For player `p` (+1 or -1), after a move at (r, c): `rows[r] += p; cols[c] += p;` if `r == c` then `diag += p`; if `r + c == N-1` then `antiDiag += p`. If any equals `N` in absolute value, that player has won. A draw is reached when `moves == N*N` with no winner. Memory is O(N) and each move is O(1), compared with rescanning the board in O(N^2).\n\n```java\nint p = player == X ? 1 : -1;\nrows[r] += p; cols[c] += p;\nif (r == c) diag += p;\nif (r + c == n - 1) anti += p;\nif (Math.abs(rows[r]) == n || Math.abs(cols[c]) == n\n    || Math.abs(diag) == n || Math.abs(anti) == n) status = WON;\n```\n\n**Scalability.** Make `GameService` stateless and store game state in Redis or a database, keyed by game id. Protect against concurrent moves with optimistic locking (version number) or a per-game lock. Use WebSockets for live updates. Shard by game id.\n\n**AI hints.** Add a `HintService` behind an interface (Strategy). For tic-tac-toe, minimax with alpha-beta pruning is exact and cheap; for larger boards or natural-language explanations, call a model. Call it asynchronously with a timeout and rate limit, cache by board state, and fall back to a heuristic (win now, block, centre). Never let the hint service change game state.",
+ "followUps": [
+  "How does the counter trick change for a non-square board or for k-in-a-row?",
+  "How would you implement undo?",
+  "How would you prevent two simultaneous moves from the same game being applied?",
+  "How would you implement a computer opponent?"
+ ]
+}

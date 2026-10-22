@@ -1,0 +1,18 @@
+{
+ "qid": "ec48b7335c",
+ "question": "Amazon SDE-1, technical round, open-ended design on **n-ary trees**: what are the edge cases, what behaviour is expected, and how do you handle **concurrent users in a distributed setting**? The exact operations were not reported, so state your assumptions (for example a shared tree such as a folder hierarchy or org chart with add, move, delete and query operations).",
+ "lookingFor": [
+  "Turning an open-ended prompt into requirements and operations.",
+  "Data structure choice for an n-ary tree and its edge cases.",
+  "Concurrency control: locking, versioning, conflicts.",
+  "Distributed design: partitioning, replication, consistency.",
+  "Trade-offs and clear communication of assumptions."
+ ],
+ "answer": "**1. Clarify and assume.** Example: a shared hierarchy (folders, categories or an org chart). Operations: `addNode(parent, node)`, `deleteNode(id)`, `moveNode(id, newParent)`, `getChildren(id)`, `getSubtree(id)`, `getPath(id)`. Questions: read-heavy or write-heavy, maximum depth and fan-out, size, consistency needed, concurrent edits to the same subtree?\n\n**2. Data model.** Each node stores `id`, `parentId`, `name`, `version` and metadata; keep an index `children[id]` (adjacency list). For fast subtree and ancestor queries, consider a closure table (ancestor, descendant, depth), a materialised path, or nested sets (cheap reads, costly writes). Choose based on the read/write ratio.\n\n**3. Edge cases.**\n- Empty tree, a single root, deleting the root or a non-leaf (cascade, re-parent, or reject).\n- Moving a node under its own descendant, which would create a cycle; detect by walking up from the new parent.\n- Duplicate ids or sibling names, a missing parent.\n- Very deep or very wide trees (recursion limits; use iterative traversal).\n- Deleted node still referenced by another request.\n\n**4. Concurrency on one machine.** Use a read-write lock, or finer-grained locking by subtree (lock the path or lock coupling) so unrelated branches proceed in parallel. For a move, lock both the old and new parents in a fixed order (for example by id) to avoid deadlock. Alternatively use optimistic concurrency: each node has a version, writes use compare-and-set and retry on conflict.\n\n**5. Distributed setting.**\n- Store nodes in a database and make each operation a transaction (move: update parent and closure rows atomically).\n- Partition by tree or by subtree root; keep the hot top levels cached.\n- Replicate for availability; decide between strong consistency (single leader per tree) and eventual consistency with conflict resolution (last-writer-wins, or operational transforms for collaborative edits).\n- Use idempotent operations with request ids so retries are safe, and soft-delete with a tombstone so concurrent readers stay consistent.\n- Publish change events for caches and clients.\n\n**6. Trade-offs.** Closure tables give fast reads but a larger write cost for moves of big subtrees; strict locking is simple but limits throughput.",
+ "followUps": [
+  "How do you detect and prevent cycles when moving a node?",
+  "How would you handle two users moving the same node simultaneously?",
+  "How would you shard a tree with millions of nodes?",
+  "What consistency level is acceptable for a folder hierarchy and why?"
+ ]
+}

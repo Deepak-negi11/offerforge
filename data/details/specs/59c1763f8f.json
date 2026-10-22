@@ -1,0 +1,18 @@
+{
+ "qid": "59c1763f8f",
+ "question": "In the Design and Coding round of a ServiceNow SDE-2 interview, a senior software engineer (9 years' experience) asked the candidate to **flatten a multilevel linked list** and then to **design a coffee vending machine**.",
+ "lookingFor": [
+  "Do you clarify requirements and list the machine's behaviours and states?",
+  "Do you model state transitions cleanly (State pattern) instead of nested if-else?",
+  "Is the model extensible for new drinks, ingredients and payment methods?",
+  "Do you handle inventory, change, and failure cases (out of stock, refunds)?",
+  "Can you code the core in a working way and explain the trade-offs?"
+ ],
+ "answer": "**Requirements.** The machine offers drinks (espresso, latte, tea) made from ingredients (water, milk, coffee beans, sugar) with a price; the user selects a drink, pays (coins or cash, possibly card), and receives the drink and change; the machine tracks ingredient stock and cash, can be refilled by an operator, and handles cancellation and failures.\n\n**Core classes**\n- `VendingMachine` (context): holds the current `State`, `Inventory`, `CashBox`, and the menu.\n- `Drink` (name, price, `Map<Ingredient, quantity> recipe`), created with a **Factory** or builder.\n- `Ingredient` and `Inventory` (`hasEnough(recipe)`, `consume(recipe)`, `refill(...)`).\n- `PaymentProcessor` interface with `CashPayment` and `CardPayment` (**Strategy**).\n- `State` interface: `IdleState`, `HasMoneyState`, `DispensingState`, `OutOfServiceState` (**State pattern**). Each state implements `insertMoney()`, `selectDrink()`, `cancel()`, `dispense()` and decides which are valid.\n\n**Flow.**\n1. Idle: user inserts money, machine moves to HasMoney and records the balance.\n2. User selects a drink: check recipe availability in inventory and that the balance covers the price. If not, show a message and stay put.\n3. Dispensing: consume ingredients, dispense, compute change (`balance - price`), return it, then go back to Idle.\n4. Cancel at any time before dispensing returns the balance.\nInvalid actions in a state (such as selecting a drink with no money) are rejected by that state class itself, which removes long conditional chains.\n\n**Details to mention.** Use `BigDecimal` or integer cents for money; change-making needs available coin denominations (greedy works for standard coin systems). Mark a drink unavailable if any ingredient is low. Make dispensing atomic: either all ingredients are consumed and the drink is delivered, or nothing changes and the money is refunded. The machine is single-user at a time, so concurrency is minimal, but guard the shared state if there is a remote refill or monitoring thread.\n\n**Extensibility.** A new drink only needs a recipe, and a new payment type only needs a new strategy (Open/Closed principle).",
+ "followUps": [
+  "Why is the State pattern a good fit here instead of if-else on a status field?",
+  "How would you handle the case where the machine cannot make exact change?",
+  "How would you add a customisation option, such as extra sugar or milk, without a class explosion (Decorator)?",
+  "How would you flatten a multilevel linked list in O(n) time?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "44fedf9bd1",
+ "question": "super.money (Flipkart group) SDE-2, machine-coding round over Google Meet: design and implement a **command-line task manager across multiple users**. Commands: `ADD_TASK <from> <to> <taskName> <category> <hours>` (assign to self or others), `COMPLETE_TASK <user> <taskName>`, `SHOW_TASKS <user> ALL` (also pending or completed), `SHOW_PRODUCTIVITY` (total tasks, completed tasks, completion percentage per user) and `CATEGORY_SUMMARY` (total hours spent per category). The round tested OOP design, data modelling and clean logic.",
+ "lookingFor": [
+  "Modelling users, tasks and categories cleanly.",
+  "A command parser that is separate from business logic.",
+  "Correct aggregation for productivity and category summaries.",
+  "Clear decisions on ambiguous semantics (whose tasks count).",
+  "Extensible, testable design."
+ ],
+ "answer": "**Clarify ambiguity up front.** In `ADD_TASK Alice Bob FixLoginIssue BugFix 3`, the first user assigns and the second user is the assignee. Productivity is almost certainly computed for the assignee (the person who must complete the task), and `COMPLETE_TASK Bob ...` is run by the assignee. Confirm this, and whether task names are unique per user, what an unknown user or duplicate task should print, and whether \"hours spent\" counts all tasks or only completed ones.\n\n**Entities.**\n\n- `User(name, tasks)`.\n- `Task(id, name, assignedBy, assignedTo, category, hours, status)` with status PENDING or COMPLETED.\n- A `TaskService` owning `Map<String, User>` and `Map<String, Integer>` or computed data.\n\n**Commands (command pattern).** A `Command` interface with `execute(args)`, and implementations `AddTaskCommand`, `CompleteTaskCommand`, `ShowTasksCommand`, `ProductivityCommand`, `CategorySummaryCommand`, registered in a `Map<String, Command>`. The `main` loop reads lines, splits tokens and dispatches, so a new command is one new class and parsing stays out of the service.\n\n**Logic.**\n\n- Add: create users on first mention (or validate), create the task, attach it to the assignee.\n- Complete: find the assignee's pending task by name, mark COMPLETED, error if missing or already completed.\n- Show: filter by ALL, PENDING or COMPLETED, in insertion order.\n- Productivity: per user, `total`, `completed`, and `completed * 100.0 / total` formatted with a fixed number of decimals, with a zero guard for no tasks.\n- Category summary: iterate all tasks and sum hours per category in a `Map` (a `TreeMap` for deterministic output order).\n\n**Quality.** Deterministic output ordering (insertion-ordered or sorted maps), consistent formatting, input validation with clear messages, and a few unit tests built directly from the example commands. Mention how persistence or an API layer would plug in.",
+ "followUps": [
+  "How would you add a new command, such as deleting or reassigning a task, with minimal change?",
+  "How would you handle two tasks with the same name for the same user?",
+  "How would the productivity report change if tasks had deadlines?",
+  "How would you keep the aggregates fast for a large number of tasks?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "4e10cdbcd4",
+ "question": "Meesho SDE-3 high-level design round (about 90 minutes). The interviewer began with questions from the resume and asked to walk through the HLD of a recent project, then posed a scenario-based architecture question about storage sizing for a database table. The candidate said the question was unclear: it first sounded like a table with only 2 rows, then the interviewer said one column could be huge. The exact scenario is not fully reported, so this write-up covers how to approach storage sizing and a table with a potentially huge column.",
+ "lookingFor": [
+  "Whether you ask clarifying questions when a scenario is ambiguous.",
+  "Estimating storage from row count, row size and indexes.",
+  "Knowing where large objects should live (object storage versus database).",
+  "Awareness of the performance cost of wide or large-value columns.",
+  "Walking through a recent project's architecture clearly."
+ ],
+ "answer": "**First, clarify.** Ambiguity is the main challenge here, so pin down: expected number of rows now and in a year; the typical and the maximum size of the large column (KBs, MBs, GBs?); the data type (text, JSON, binary file); read and write patterns (how often is it read, is it updated in place, is it always fetched with the row?); and retention and durability needs. State your assumptions out loud if the interviewer cannot give them.\n\n**Sizing method.** Total storage is roughly `rows x average row size`, plus indexes, plus overhead and replication. Example: 2 rows with a 1 GB column is about 2 GB, so row count alone says nothing; the huge column dominates. For 100 million rows of 500 bytes each, it is about 50 GB of raw data, plus perhaps 30-100% for indexes, then multiplied by the replication factor (for example 3 copies) and a growth buffer. Always compute the number rather than saying it is large.\n\n**Design for the huge column.**\n- Do not keep large blobs inside the main row. Put files (images, documents, big JSON) in object storage (S3-like) and store only a key or URL and metadata in the table. Databases handle big values poorly: they bloat the buffer pool and slow scans, replication and backups.\n- If it must live in the database, move it to a separate table (vertical partitioning) keyed by the row id, so queries not needing it stay fast. Many engines also store oversized values out-of-line (TOAST in PostgreSQL, off-page storage in InnoDB), but it still costs on read and write.\n- Avoid `SELECT *`, and stream large values rather than loading them whole into memory.\n- Consider compression, size limits, chunked or multipart uploads, and a lifecycle policy to archive or delete old data.\n\n**Scaling considerations.** Partition or shard by a suitable key as the table grows, use a CDN for frequently read objects, and monitor row and value sizes.\n\n**Project walkthrough.** Prepare a diagram-level talk: requirements, main services, data stores, how it scaled, one failure you met, and one decision you would revisit.",
+ "followUps": [
+  "How would you estimate storage for a table of 500 million rows?",
+  "Why is it a bad idea to store large files directly in a relational database?",
+  "How do you keep a large value consistent with its metadata when stored in object storage?",
+  "When would you partition or shard this table?"
+ ]
+}

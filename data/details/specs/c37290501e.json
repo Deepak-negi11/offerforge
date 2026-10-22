@@ -1,0 +1,19 @@
+{
+ "qid": "c37290501e",
+ "question": "Flipkart SDE-3 Machine Coding round (August 2025; AI tools prohibited). Implement the core of **Flipkart Minutes**, an instant-delivery platform. Requirements as reported: onboard customers and delivery partners; customers place orders for any item (name or ID, always in stock) and can cancel them if not yet picked up; orders are **auto-assigned** to an available delivery partner, otherwise they wait in a **queue** and are assigned as soon as a partner is free; each partner handles one order at a time (ongoing orders can exceed partners); partners pick up and deliver; cancelled orders are never assigned, and cancelling an assigned order frees the partner; **no cancel after pickup**; real-time status for orders and partners; fully **thread-safe**. **Bonus:** notifications (simulated logs), customer ratings, a top-partner dashboard, and **auto-cancel if not picked up within 30 minutes** of creation.",
+ "lookingFor": [
+  "Correct handling of queueing and assignment under concurrent activity.",
+  "A clean state machine and clearly separated services.",
+  "Thread-safety reasoning, including races between cancel, assign and pickup.",
+  "Extensible design (strategies, observers).",
+  "Completeness of a working solution within the time limit."
+ ],
+ "answer": "**Design first (10-15 minutes).** Entities: `Customer`, `DeliveryPartner` (`AVAILABLE`/`BUSY`, deliveries count, ratings), `Order` (id, customerId, itemId, status, partnerId, createdAt). Order states: `PLACED` (waiting in queue), `ASSIGNED`, `PICKED_UP`, `DELIVERED`, `CANCELLED`, with a transition table that rejects illegal moves (so cancel after `PICKED_UP` fails by construction).\n\n**Components.**\n- `OrderService`: place, cancel, pickUp, deliver, status.\n- `PartnerService`: onboard, status, ratings, leaderboard.\n- `Dispatcher`: owns the pending-order queue and the pool of free partners; `tryAssign()` pairs them.\n- `NotificationObserver`: observers subscribe to order events and log messages (Observer pattern).\n- `PartnerSelectionStrategy`: default 'any available' (for example a FIFO of free partners); swappable.\n\n**Key flows.**\n- *Place:* create order, enqueue, call `tryAssign()`.\n- *Partner becomes free (after delivery or when an assigned order is cancelled):* add back to the free pool, call `tryAssign()`.\n- *tryAssign:* while a free partner and a pending order exist, poll the order; if it is `CANCELLED` skip it; otherwise mark `ASSIGNED` and the partner `BUSY`.\n- *Cancel:* allowed in `PLACED` or `ASSIGNED`; if assigned, release the partner and re-run assignment; the queue lazily drops cancelled orders.\n\n**Thread safety.** A single lock (or a small set of locks) around dispatcher state is the simplest correct approach, with per-order checks of status inside the same critical section for cancel, pickUp and assign. Use concurrent maps for registries and keep long work (notifications) outside the lock. State clearly why coarse locking is acceptable here: operations are short and in memory; mention finer-grained options as an improvement.\n\n**Bonus.** Auto-cancel with a `ScheduledExecutorService` that, 30 minutes after creation, cancels any order not yet picked up (also cancel the scheduled task on pickup or delivery). Rating: running average per partner. Dashboard: sort by deliveries then average rating.\n\n**Finish with** a main class or tests that simulate many threads, and verify invariants (one active order per partner).",
+ "followUps": [
+  "What invariants must hold, and how do your tests check them?",
+  "What are the trade-offs of one global lock versus per-order locks?",
+  "How would you assign by nearest partner instead of any partner?",
+  "How would you persist the queue so orders are not lost on restart?",
+  "How does your design prevent starvation of old orders?"
+ ]
+}

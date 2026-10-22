@@ -1,0 +1,17 @@
+{
+ "qid": "e34aaa9091",
+ "question": "Infosys HackWithInfy 2026 interview (offline). In the SQL discussion the candidate was asked: **find the employees with the top-K salaries in each department, without using `LIMIT`.** The expected solutions were subqueries or ranking functions (`DENSE_RANK` / `RANK`). Earlier, on paper, the candidate had coded **Sort Colors** and **Top K Frequent Elements**, and then had to dry-run them and justify the complexity.",
+ "lookingFor": [
+  "Knowledge of window functions and when each ranking function fits.",
+  "Ability to solve the same problem without window functions.",
+  "Clarity about what 'top K' means when salaries tie.",
+  "Handling of edge cases such as departments with fewer than K people."
+ ],
+ "answer": "**First clarify:** does \"top K salaries\" mean the K highest *distinct* salary values (ties share a rank) or the top K *rows*? State your assumption. Assume table `employee(id, name, salary, dept_id)`.\n\n**Solution 1: DENSE_RANK (K highest distinct salaries per department).**\n```\nSELECT dept_id, name, salary\nFROM (\n  SELECT dept_id, name, salary,\n         DENSE_RANK() OVER (PARTITION BY dept_id ORDER BY salary DESC) AS rnk\n  FROM employee\n) t\nWHERE rnk <= :K;\n```\n`PARTITION BY dept_id` restarts the ranking for each department; `ORDER BY salary DESC` gives the highest salary rank 1. `DENSE_RANK` gives tied people the same rank and does not skip numbers, so rank 2 is the second highest distinct salary. Filtering must happen in an outer query because window functions cannot be used in `WHERE` directly.\n\n**Which ranking function?**\n- `DENSE_RANK`: K distinct salary levels, ties included. \n- `RANK`: ties share a rank but the next rank is skipped (1, 1, 3), so fewer salary levels may appear.\n- `ROW_NUMBER`: exactly K rows per department, ties broken arbitrarily unless you add a tiebreaker.\n\n**Solution 2: correlated subquery (no window functions).**\n```\nSELECT e.dept_id, e.name, e.salary\nFROM employee e\nWHERE (SELECT COUNT(DISTINCT e2.salary)\n       FROM employee e2\n       WHERE e2.dept_id = e.dept_id\n         AND e2.salary > e.salary) < :K;\n```\nIt counts how many distinct higher salaries exist in the same department; if fewer than K, the employee is in the top K. This works on older databases but is O(n^2) per department without an index; index `(dept_id, salary)`.\n\n**Edge cases:** departments with fewer than K employees (all are returned), NULL salaries (they sort last in many databases but first in others, so filter them out), and a join to a `department` table if the department name is required.\n\n**Paper coding in the same round:** Sort Colors is one pass with three pointers (Dutch National Flag, O(n) time, O(1) space); Top K Frequent Elements is a hash-map count plus a heap (O(n log k)) or bucket sort (O(n)).",
+ "followUps": [
+  "What is the difference between RANK, DENSE_RANK and ROW_NUMBER with ties?",
+  "How would you find the second highest salary overall?",
+  "How would you optimise this query on a table with 100 million rows?",
+  "Explain Top K Frequent Elements with a min-heap and with bucket sort."
+ ]
+}

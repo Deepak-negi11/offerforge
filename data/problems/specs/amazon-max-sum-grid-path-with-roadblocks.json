@@ -1,0 +1,48 @@
+{
+ "pid": "amazon-max-sum-grid-path-with-roadblocks",
+ "title": "Max-Sum Grid Path with Roadblocks",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a grid of `r` rows and `c` columns of integers. You start at the top-left cell `(0, 0)` and want to reach the bottom-right cell `(r - 1, c - 1)`.\n\n- From a cell you may move **one step right or one step down**.\n- A cell with a **negative** value is a roadblock: you may not step on it (this includes the start and end cells).\n- The sum of a path is the sum of the values of all cells on it, including the first and last cell.\n\nPrint the **maximum** possible path sum. If no valid path exists, print `-1`. (A valid path always has a sum of at least 0, so `-1` is unambiguous.)",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains `c` space-separated integers: the grid values.",
+ "output_format": "Print a single integer: the maximum path sum, or `-1` if the bottom-right cell cannot be reached.",
+ "constraints": [
+  "1 ≤ r, c ≤ 500",
+  "-100 ≤ grid[i][j] ≤ 100 (negative values are roadblocks)"
+ ],
+ "examples": [
+  {
+   "input": "3 3\n1 2 3\n4 -1 6\n7 8 9",
+   "output": "29",
+   "explanation": "The centre cell is blocked. Going down the left side and then right gives 1 + 4 + 7 + 8 + 9 = 29; going along the top and then down gives 1 + 2 + 3 + 6 + 9 = 21."
+  },
+  {
+   "input": "2 3\n0 5 2\n3 -1 4",
+   "output": "11",
+   "explanation": "The only way to avoid the roadblock is 0 -> 5 -> 2 -> 4, which sums to 11."
+  },
+  {
+   "input": "2 2\n5 -3\n-2 7",
+   "output": "-1",
+   "explanation": "Both routes from the top-left to the bottom-right pass through a roadblock."
+  }
+ ],
+ "complexity": {
+  "time": "O(r * c)",
+  "space": "O(c)"
+ },
+ "hints": [
+  "Trying every right/down path is exponential. Think about the best sum for reaching a single cell.",
+  "The best sum to reach (i, j) depends only on the best sums to reach (i-1, j) and (i, j-1), as long as (i, j) itself is not a roadblock.",
+  "Keep dp[i][j] = -1 for unreachable cells. A cell is reachable only if it is not blocked and at least one of its two predecessors is reachable."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    g = [[int(x) for x in data[2 + i * c: 2 + (i + 1) * c]] for i in range(r)]\n    prev = [-1] * c\n    for i in range(r):\n        cur = [-1] * c\n        for j in range(c):\n            v = g[i][j]\n            if v < 0:\n                continue\n            if i == 0 and j == 0:\n                cur[j] = v\n                continue\n            best = -1\n            if prev[j] > best:\n                best = prev[j]\n            if j > 0 and cur[j - 1] > best:\n                best = cur[j - 1]\n            if best >= 0:\n                cur[j] = best + v\n        prev = cur\n    print(prev[c - 1])\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\ng = [[int(x) for x in data[2 + i * c: 2 + (i + 1) * c]] for i in range(r)]\nbest = -1\n\ndef go(i, j, s):\n    global best\n    if g[i][j] < 0:\n        return\n    s += g[i][j]\n    if i == r - 1 and j == c - 1:\n        best = max(best, s)\n        return\n    if i + 1 < r:\n        go(i + 1, j, s)\n    if j + 1 < c:\n        go(i, j + 1, s)\n\ngo(0, 0, 0)\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(g):\n        return str(len(g)) + ' ' + str(len(g[0])) + '\\n' + '\\n'.join(' '.join(map(str, row)) for row in g)\n    def rand(r, c, p, lo=0, hi=100):\n        g = [[-rng.randint(1, 100) if rng.random() < p else rng.randint(lo, hi) for _ in range(c)] for _ in range(r)]\n        return g\n    tests = [fmt([[0]]), fmt([[-5]]), fmt([[7]]), fmt([[1, 2, 3, 4]]), fmt([[1], [2], [3]]), fmt([[0, -1], [-1, 0]]), fmt([[1, -1, 1], [1, 1, 1], [-1, 1, 1]]), fmt([[3, 4], [5, -1]]), fmt([[3, 4], [-1, 5]])]\n    for (r, c) in [(2, 2), (3, 3), (3, 4), (4, 3), (4, 4), (5, 5), (5, 6), (6, 5), (2, 6), (6, 2)]:\n        for p in (0.0, 0.15, 0.3):\n            g = rand(r, c, p)\n            g[0][0] = abs(g[0][0])\n            g[r - 1][c - 1] = abs(g[r - 1][c - 1])\n            tests.append(fmt(g))\n    R = C = 500\n    g = rand(R, C, 0.0)\n    tests.append(fmt(g))\n    g = rand(R, C, 0.05)\n    g[0][0] = 50\n    g[R - 1][C - 1] = 50\n    tests.append(fmt(g))\n    g = rand(R, C, 0.45)\n    g[0][0] = 50\n    g[R - 1][C - 1] = 50\n    tests.append(fmt(g))\n    g = [[100] * C for _ in range(R)]\n    tests.append(fmt(g))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_path_sum(grid: List[List[int]]) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    grid = [[int(x) for x in data[2 + i * c: 2 + (i + 1) * c]] for i in range(r)]\n    print(max_path_sum(grid))\n\n\nmain()\n",
+  "javascript": "function maxPathSum(grid) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst r = t[0], c = t[1]\nconst grid = []\nfor (let i = 0; i < r; i++) grid.push(t.slice(2 + i * c, 2 + (i + 1) * c))\nconsole.log(String(maxPathSum(grid)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxPathSum(vector<vector<int>>& grid) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<vector<int>> grid(r, vector<int>(c));\n    for (int i = 0; i < r; i++)\n        for (int j = 0; j < c; j++) cin >> grid[i][j];\n    cout << maxPathSum(grid) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxPathSum(int[][] grid) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int r = (int) in.nval;\n        in.nextToken();\n        int c = (int) in.nval;\n        int[][] grid = new int[r][c];\n        for (int i = 0; i < r; i++) {\n            for (int j = 0; j < c; j++) {\n                in.nextToken();\n                grid[i][j] = (int) in.nval;\n            }\n        }\n        System.out.println(maxPathSum(grid));\n    }\n}\n"
+ }
+}

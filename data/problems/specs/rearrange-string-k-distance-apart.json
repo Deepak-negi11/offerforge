@@ -1,0 +1,49 @@
+{
+ "pid": "rearrange-string-k-distance-apart",
+ "title": "Rearrange String k Distance Apart",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given a string `s` of lowercase English letters and an integer `k`. Rearrange the characters of `s` so that any two equal characters are at least `k` positions apart: if the same letter occurs at positions `i < j` of the result, then `j - i ≥ k`. For `k = 0` and `k = 1` there is no restriction. If no such arrangement exists, the answer is the empty string.\n\nMany arrangements can be valid, so the one to print is fixed by the following greedy rule. Build the result from left to right. At each position, the **eligible** letters are those that still have unused copies and do not appear among the previous `k - 1` positions. Place the eligible letter with the **most unused copies**; if several letters tie, place the alphabetically smallest of them. If at some position no letter is eligible, no valid arrangement exists (this rule always succeeds when a valid arrangement exists). Print the resulting string.\n\nBecause the empty string cannot be shown on a line, print `-1` when the answer is empty.",
+ "input_format": "The first line contains the string `s`.\nThe second line contains the integer `k`.",
+ "output_format": "Print the rearranged string built by the rule above, or `-1` if no valid arrangement exists.",
+ "constraints": [
+  "1 ≤ |s| ≤ 10^5",
+  "s consists of lowercase English letters",
+  "0 ≤ k ≤ |s|"
+ ],
+ "examples": [
+  {
+   "input": "aabbcc\n3",
+   "output": "abcabc",
+   "explanation": "All three letters have two copies, so ties go to the smallest letter: a, then b (a is blocked), then c. After three positions a is eligible again, and so on, giving abcabc."
+  },
+  {
+   "input": "aaabc\n2",
+   "output": "abaca",
+   "explanation": "a has three copies and must be at least two apart, so it takes positions 0, 2 and 4. At positions 1 and 3 the greedy rule picks b and then c."
+  },
+  {
+   "input": "aaabb\n3",
+   "output": "-1",
+   "explanation": "Three copies of a at distance 3 need positions 0, 3 and 6, so the string would have to be at least 7 long, but it has only 5 characters."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log A)",
+  "space": "O(A)"
+ },
+ "hints": [
+  "Count the letters. At each position you want to place a letter that still has many copies left, otherwise it will be the one that gets stuck at the end.",
+  "Keep the available letters in a max-heap keyed by (remaining count, smaller letter first). After placing a letter it is blocked for the next k - 1 positions.",
+  "Hold used letters in a queue (or, equivalently, look back k positions) and push a letter back into the heap once it becomes eligible again and still has copies. If the heap is empty at some position, print -1."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.read().split()\n    s, k = data[0], int(data[1])\n    n = len(s)\n    cnt = {}\n    for ch in s:\n        cnt[ch] = cnt.get(ch, 0) + 1\n    heap = [(-c, ch) for ch, c in cnt.items()]\n    heapq.heapify(heap)\n    gap = max(k, 1)\n    res = []\n    for i in range(n):\n        if i >= gap:\n            back = res[i - gap]\n            if cnt[back] > 0:\n                heapq.heappush(heap, (-cnt[back], back))\n        if not heap:\n            print(-1)\n            return\n        _, ch = heapq.heappop(heap)\n        cnt[ch] -= 1\n        res.append(ch)\n    print(''.join(res))\n\nmain()\n",
+ "brute": "import sys\nfrom functools import lru_cache\n\ndata = sys.stdin.read().split()\ns, k = data[0], int(data[1])\nn = len(s)\nletters = sorted(set(s))\ngap = max(k, 1)\n\ndef valid(t):\n    for i in range(len(t)):\n        for j in range(i + 1, min(len(t), i + gap)):\n            if t[i] == t[j]:\n                return False\n    return True\n\n# canonical greedy, written as a plain scan\nleft = {c: s.count(c) for c in letters}\nres = ''\nok = True\nfor i in range(n):\n    best = None\n    for c in letters:\n        if left[c] == 0 or c in res[max(0, i - gap + 1):i]:\n            continue\n        if best is None or left[c] > left[best]:\n            best = c\n    if best is None:\n        ok = False\n        break\n    res += best\n    left[best] -= 1\n\nif n <= 12:\n    # exhaustive check that a valid arrangement exists exactly when the greedy succeeds\n    @lru_cache(maxsize=None)\n    def feasible(counts, tail):\n        if sum(counts) == 0:\n            return True\n        for idx, c in enumerate(letters):\n            if counts[idx] and c not in tail:\n                nc = counts[:idx] + (counts[idx] - 1,) + counts[idx + 1:]\n                nt = (tail + c)[-(gap - 1):] if gap > 1 else ''\n                if feasible(nc, nt):\n                    return True\n        return False\n    exists = feasible(tuple(s.count(c) for c in letters), '')\n    if exists != ok:\n        print('MISMATCH')\n        sys.exit(0)\nif ok and not valid(res):\n    print('INVALID')\n    sys.exit(0)\nprint(res if ok else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(s, k):\n        return f\"{s}\\n{k}\"\n    tests = [fmt(\"a\", 0), fmt(\"a\", 1), fmt(\"a\", 2), fmt(\"aa\", 1), fmt(\"aa\", 2), fmt(\"ab\", 2), fmt(\"aab\", 2), fmt(\"aabb\", 4),\n             fmt(\"aaabc\", 3), fmt(\"abcabc\", 6), fmt(\"zzzyyx\", 3)]\n    for n in range(2, 11):\n        for _ in range(3):\n            alpha = \"abcd\"[:rng.randint(1, 4)] if n < 9 else \"abc\"\n            s = \"\".join(rng.choice(alpha) for _ in range(n))\n            tests.append(fmt(s, rng.randint(0, n)))\n    # feasible by construction: take a valid arrangement of balanced letters, then shuffle\n    for _ in range(8):\n        L = rng.randint(2, 6)\n        reps = rng.randint(2, 30)\n        s = list(\"abcdefghijklmnopqrstuvwxyz\"[:L] * reps)\n        rng.shuffle(s)\n        tests.append(fmt(\"\".join(s), rng.randint(2, L)))\n    for _ in range(4):\n        s = \"\".join(rng.choice(\"abcdefghijklmnopqrstuvwxyz\") for _ in range(rng.randint(100, 300)))\n        tests.append(fmt(s, rng.randint(2, 15)))\n    n = 100000\n    letters = \"abcdefghijklmnopqrstuvwxyz\"\n    s = list(letters * (n // 26) + letters[: n % 26])\n    rng.shuffle(s)\n    tests.append(fmt(\"\".join(s), 26))      # tightest feasible case\n    tests.append(fmt(\"\".join(s), 27))      # one more than the alphabet: impossible\n    tests.append(fmt(\"\".join(s), 13))\n    tests.append(fmt(\"\".join(rng.choice(letters) for _ in range(n)), 6))\n    tests.append(fmt(\"a\" * 50000 + \"b\" * 50000, 2))\n    tests.append(fmt(\"a\" * 60000 + \"b\" * 40000, 2))\n    tests.append(fmt(\"a\" * n, 1))\n    tests.append(fmt(\"\".join(rng.choice(\"abcde\") for _ in range(n)), 5))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef rearrange(s: str, k: int) -> str:\n    # Write your solution here\n    # return the arrangement built by the greedy rule, or '' if none exists\n    return ''\n\n\ndef main():\n    data = sys.stdin.read().split()\n    s, k = data[0], int(data[1])\n    res = rearrange(s, k)\n    print(res if res else -1)\n\n\nmain()\n",
+  "javascript": "function rearrange(s, k) {\n  // Write your solution here\n  // return the arrangement built by the greedy rule, or '' if none exists\n  return ''\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst res = rearrange(t[0], parseInt(t[1]))\nconsole.log(res.length > 0 ? res : '-1')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring rearrange(string s, int k) {\n    // Write your solution here\n    // return the arrangement built by the greedy rule, or \"\" if none exists\n    return \"\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s;\n    int k;\n    cin >> s >> k;\n    string res = rearrange(s, k);\n    cout << (res.empty() ? string(\"-1\") : res) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String rearrange(String s, int k) {\n        // Write your solution here\n        // return the arrangement built by the greedy rule, or \"\" if none exists\n        return \"\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String s = br.readLine().trim();\n        int k = Integer.parseInt(br.readLine().trim());\n        String res = rearrange(s, k);\n        System.out.println(res.isEmpty() ? \"-1\" : res);\n    }\n}\n"
+ }
+}

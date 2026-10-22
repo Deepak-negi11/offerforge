@@ -1,0 +1,48 @@
+{
+ "pid": "rotting-oranges",
+ "title": "Rotting Oranges",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A crate of fruit is laid out as an `r × c` grid. Every cell holds one of three values:\n\n- `0`: the cell is empty,\n- `1`: the cell holds a fresh orange,\n- `2`: the cell holds a rotten orange.\n\nRot spreads once per minute: at the end of each minute, every fresh orange that shares a side (up, down, left or right) with a rotten orange becomes rotten. Diagonal neighbours do not count, and rot cannot cross an empty cell.\n\nReturn the **minimum number of minutes** that must pass until no fresh orange remains. If some fresh orange can never rot, return `-1`. If there are no fresh oranges at the start, the answer is `0`.",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains a string of exactly `c` characters, each `0`, `1` or `2`, with no spaces.",
+ "output_format": "Print a single integer: the number of minutes until no fresh orange remains, or `-1` if that never happens.",
+ "constraints": [
+  "1 ≤ r, c ≤ 500",
+  "Every character of the grid is 0, 1 or 2"
+ ],
+ "examples": [
+  {
+   "input": "3 4\n2110\n0110\n1012",
+   "output": "-1",
+   "explanation": "The orange in the bottom-left corner (row 2, column 0) has an empty cell above it and an empty cell to its right, so rot can never reach it. Every other fresh orange does rot, but the answer is still -1."
+  },
+  {
+   "input": "3 5\n21100\n01011\n11112",
+   "output": "4",
+   "explanation": "Cells are written as (row, column), counted from 0. The rotten oranges at (0,0) and (2,4) spread at the same time. Minute 1: (0,1), (1,4) and (2,3) rot. Minute 2: (0,2), (1,1), (1,3) and (2,2). Minute 3: (2,1). Minute 4: (2,0), the last fresh orange, so the answer is 4."
+  },
+  {
+   "input": "2 3\n000\n020",
+   "output": "0",
+   "explanation": "There are no fresh oranges to begin with, so no time needs to pass."
+  }
+ ],
+ "complexity": {
+  "time": "O(r · c)",
+  "space": "O(r · c)"
+ },
+ "hints": [
+  "All rotten oranges spread at the same time, so think of them as the starting layer of one breadth-first search.",
+  "Put every initially rotten cell in the queue at distance 0 and run BFS; the distance at which a fresh cell is first reached is the minute it rots.",
+  "Count the fresh oranges at the start and decrement the count as they rot. If any remain after the BFS, the answer is -1; otherwise it is the largest distance reached."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    g = [list(data[2 + i]) for i in range(r)]\n    q = deque()\n    fresh = 0\n    for i in range(r):\n        row = g[i]\n        for j in range(c):\n            if row[j] == '2':\n                q.append((i, j))\n            elif row[j] == '1':\n                fresh += 1\n    minutes = 0\n    while q and fresh:\n        minutes += 1\n        for _ in range(len(q)):\n            i, j = q.popleft()\n            for ni, nj in ((i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1)):\n                if 0 <= ni < r and 0 <= nj < c and g[ni][nj] == '1':\n                    g[ni][nj] = '2'\n                    fresh -= 1\n                    q.append((ni, nj))\n    print(minutes if fresh == 0 else -1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\ng = [list(data[2 + i]) for i in range(r)]\nt = 0\nwhile True:\n    if not any(ch == '1' for row in g for ch in row):\n        print(t)\n        break\n    nxt = [row[:] for row in g]\n    changed = False\n    for i in range(r):\n        for j in range(c):\n            if g[i][j] == '1':\n                for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n                    a, b = i + di, j + dj\n                    if 0 <= a < r and 0 <= b < c and g[a][b] == '2':\n                        nxt[i][j] = '2'\n                        changed = True\n                        break\n    if not changed:\n        print(-1)\n        break\n    g = nxt\n    t += 1\n",
+ "generator": "def gen(rng):\n    def fmt(g):\n        return f'{len(g)} {len(g[0])}\\n' + '\\n'.join(g)\n\n    def rand_grid(r, c, p0, p2):\n        rows = []\n        for _ in range(r):\n            row = []\n            for _ in range(c):\n                x = rng.random()\n                row.append('0' if x < p0 else ('2' if x < p0 + p2 else '1'))\n            rows.append(''.join(row))\n        return rows\n\n    def serpentine(r, c):\n        # walls on every odd row except one gap alternating sides: one very long path\n        g = [['1'] * c for _ in range(r)]\n        for i in range(1, r, 2):\n            for j in range(c):\n                g[i][j] = '0'\n            g[i][c - 1 if (i // 2) % 2 == 0 else 0] = '1'\n        g[0][0] = '2'\n        return [''.join(row) for row in g]\n\n    tests = [\n        fmt(['0']),\n        fmt(['1']),\n        fmt(['2']),\n        fmt(['21']),\n        fmt(['1111111112']),\n        fmt(['2', '1', '1', '1', '1', '1']),\n        fmt(['111', '111', '111']),\n        fmt(['210', '000', '012']),\n        fmt(['2111', '1111', '1112']),\n    ]\n    for r, c in ((2, 2), (3, 3), (4, 5), (8, 8)):\n        tests.append(fmt(rand_grid(r, c, 0.2, 0.1)))\n    tests.append(fmt(rand_grid(6, 9, 0.35, 0.05)))\n    tests.append(fmt(serpentine(7, 7)))\n    tests.append(fmt(serpentine(499, 500)))\n    tests.append(fmt(rand_grid(500, 500, 0.05, 0.0005)))\n    g = [['1'] * 500 for _ in range(500)]\n    g[250][250] = '2'\n    for i, j in ((0, 499), (1, 498), (0, 498), (1, 499)):\n        g[i][j] = '0'\n    tests.append(fmt([''.join(row) for row in g]))\n    tests.append(fmt(['2' + '1' * 499] + ['1' * 500 for _ in range(499)]))\n    tests.append(fmt(['1' * 499 + '2']))\n    tests.append(fmt(['1'] * 250 + ['2'] + ['1'] * 249))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef oranges_rotting(grid: List[List[int]]) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    grid = [[int(ch) for ch in data[2 + i]] for i in range(r)]\n    print(oranges_rotting(grid))\n\n\nmain()\n",
+  "javascript": "function orangesRotting(grid) {\n  // Write your solution here\n  return -1\n}\n\nconst tok = input.split(/\\s+/).filter(Boolean)\nconst r = Number(tok[0]), c = Number(tok[1])\nconst grid = []\nfor (let i = 0; i < r; i++) grid.push(tok[2 + i].split('').map(Number))\nconsole.log(orangesRotting(grid))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint orangesRotting(vector<vector<int>>& grid) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<vector<int>> grid(r, vector<int>(c));\n    for (int i = 0; i < r; i++) {\n        string row;\n        cin >> row;\n        for (int j = 0; j < c; j++) grid[i][j] = row[j] - '0';\n    }\n    cout << orangesRotting(grid) << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int orangesRotting(int[][] grid) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int r = Integer.parseInt(st.nextToken());\n        int c = Integer.parseInt(st.nextToken());\n        int[][] grid = new int[r][c];\n        for (int i = 0; i < r; i++) {\n            String row = br.readLine().trim();\n            for (int j = 0; j < c; j++) grid[i][j] = row.charAt(j) - '0';\n        }\n        System.out.println(orangesRotting(grid));\n    }\n}\n"
+ }
+}

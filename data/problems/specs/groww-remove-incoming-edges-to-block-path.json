@@ -1,0 +1,50 @@
+{
+ "pid": "groww-remove-incoming-edges-to-block-path",
+ "title": "Remove Incoming Edges to Block Path",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a directed graph with `n` nodes numbered `1` to `n` and `m` directed edges, together with two distinct nodes `A` and `B`. The same edge may appear several times; every copy is a separate edge and has to be removed separately.\n\nYou are allowed to remove edges, but **only edges that point into `B`** (edges of the form `u -> B`). Find the **minimum number of edges you must remove** so that there is no path from `A` to `B` any more.\n\nIf `A` cannot reach `B` in the original graph, the answer is `0`.",
+ "input_format": "The first line contains two integers `n` and `m`.\nThe second line contains two integers `A` and `B`.\nEach of the next `m` lines contains two integers `u` and `v`, describing a directed edge `u -> v`.",
+ "output_format": "Print a single integer: the minimum number of edges into `B` that must be removed.",
+ "constraints": [
+  "2 ≤ n ≤ 10^5",
+  "0 ≤ m ≤ 10^5",
+  "1 ≤ A, B, u, v ≤ n, A ≠ B",
+  "Self-loops and repeated edges are allowed"
+ ],
+ "examples": [
+  {
+   "input": "4 3\n1 4\n1 2\n2 3\n3 2",
+   "output": "0",
+   "explanation": "Starting from node 1 we can only reach nodes 2 and 3. Node 4 is unreachable, so nothing needs to be removed."
+  },
+  {
+   "input": "6 7\n1 6\n1 2\n2 6\n1 6\n3 6\n2 3\n6 4\n4 6",
+   "output": "3",
+   "explanation": "Nodes 1, 2 and 3 are reachable from node 1 without passing through node 6, and each has an edge into 6 (2->6, 1->6, 3->6). Every one of those edges is a complete path, so all three must go. The edge 4->6 does not matter: node 4 can only be reached by going through node 6 first."
+  },
+  {
+   "input": "2 3\n1 2\n1 2\n1 2\n2 1",
+   "output": "2",
+   "explanation": "There are two parallel copies of the edge 1->2. Both point into node 2 and both start at a reachable node, so both are removed. The edge 2->1 points into node 1, which is not allowed to be touched."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Any single edge `u -> B` with `u` reachable from `A` already forms a path from `A` to `B` by itself, and no other removable edge can break it.",
+  "So the answer is the number of edges into `B` whose source `u` is reachable from `A`. Run one DFS/BFS from `A`.",
+  "Be careful with nodes that can only be reached by going through `B` itself: do not expand `B` during the search, otherwise you may count edges that never needed removal."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m, a, b = int(data[0]), int(data[1]), int(data[2]), int(data[3])\n    adj = [[] for _ in range(n + 1)]\n    edges = []\n    for i in range(m):\n        u, v = int(data[4 + 2 * i]), int(data[5 + 2 * i])\n        edges.append((u, v))\n        adj[u].append(v)\n    seen = [False] * (n + 1)\n    seen[a] = True\n    stack = [a]\n    while stack:\n        u = stack.pop()\n        for v in adj[u]:\n            if v != b and not seen[v]:\n                seen[v] = True\n                stack.append(v)\n    print(sum(1 for u, v in edges if v == b and seen[u]))\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import combinations\n\ndata = sys.stdin.read().split()\nn, m, a, b = int(data[0]), int(data[1]), int(data[2]), int(data[3])\nedges = [(int(data[4 + 2 * i]), int(data[5 + 2 * i])) for i in range(m)]\ninc = [i for i, (u, v) in enumerate(edges) if v == b]\n\ndef reach(removed):\n    adj = [[] for _ in range(n + 1)]\n    for i, (u, v) in enumerate(edges):\n        if i not in removed:\n            adj[u].append(v)\n    seen = {a}\n    stack = [a]\n    while stack:\n        u = stack.pop()\n        for v in adj[u]:\n            if v not in seen:\n                seen.add(v)\n                stack.append(v)\n    return b in seen\n\nans = None\nfor r in range(len(inc) + 1):\n    for comb in combinations(inc, r):\n        if not reach(set(comb)):\n            ans = r\n            break\n    if ans is not None:\n        break\nprint(ans)\n",
+ "generator": "def gen(rng):\n    def fmt(n, a, b, edges):\n        s = f\"{n} {len(edges)}\\n{a} {b}\"\n        if edges:\n            s += \"\\n\" + \"\\n\".join(f\"{u} {v}\" for u, v in edges)\n        return s\n    tests = [\n        fmt(4, 1, 4, [(1, 2), (2, 3), (3, 2)]),\n        fmt(2, 1, 2, []),\n        fmt(2, 1, 2, [(1, 2)]),\n        fmt(2, 1, 2, [(1, 2), (1, 2), (1, 2)]),\n        fmt(2, 2, 1, [(1, 2), (1, 2)]),\n        fmt(3, 1, 3, [(3, 1), (1, 3), (3, 3)]),\n        fmt(6, 1, 6, [(1, 2), (2, 6), (1, 6), (3, 6), (2, 3), (6, 4), (4, 6)]),\n    ]\n    for _ in range(60):\n        n = rng.randint(2, 7)\n        m = rng.randint(0, 12)\n        a = rng.randint(1, n)\n        b = rng.randint(1, n)\n        while b == a:\n            b = rng.randint(1, n)\n        edges = []\n        for _ in range(m):\n            if rng.random() < 0.35:\n                edges.append((rng.randint(1, n), b))\n            else:\n                edges.append((rng.randint(1, n), rng.randint(1, n)))\n        tests.append(fmt(n, a, b, edges))\n    # large\n    n = 50000\n    edges = [(i, i + 1) for i in range(1, n - 1)]\n    edges += [(rng.randint(1, n - 1), n) for _ in range(50000)]\n    edges += [(n, rng.randint(1, n - 1)) for _ in range(2)]\n    rng.shuffle(edges)\n    tests.append(fmt(n, 1, n, edges))\n    n = 100000\n    edges = [(rng.randint(1, n), rng.randint(1, n)) for _ in range(100000)]\n    tests.append(fmt(n, 1, 2, edges))\n    edges = [(i, i + 1) for i in range(1, 30001)]\n    edges += [(rng.randint(1, n - 1), n) for _ in range(70000)]\n    rng.shuffle(edges)\n    tests.append(fmt(n, 1, n, edges))\n    edges = [(i, i + 1) for i in range(1, n - 1)]\n    edges += [(n, i) for i in range(1, 2)]\n    tests.append(fmt(n, 1, n, edges + [(n - 1, n)] * 1))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef min_removals(n: int, a: int, b: int, edges: List[Tuple[int, int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m, a, b = int(data[0]), int(data[1]), int(data[2]), int(data[3])\n    edges = [(int(data[4 + 2 * i]), int(data[5 + 2 * i])) for i in range(m)]\n    print(min_removals(n, a, b, edges))\n\n\nmain()\n",
+  "javascript": "function minRemovals(n, a, b, edges) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1], a = t[2], b = t[3]\nconst edges = []\nfor (let i = 0; i < m; i++) edges.push([t[4 + 2 * i], t[5 + 2 * i]])\nconsole.log(minRemovals(n, a, b, edges))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minRemovals(int n, int a, int b, vector<pair<int, int>>& edges) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m, a, b;\n    cin >> n >> m >> a >> b;\n    vector<pair<int, int>> edges(m);\n    for (auto& e : edges) cin >> e.first >> e.second;\n    cout << minRemovals(n, a, b, edges) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minRemovals(int n, int a, int b, int[][] edges) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        in.nextToken();\n        int a = (int) in.nval;\n        in.nextToken();\n        int b = (int) in.nval;\n        int[][] edges = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); edges[i][0] = (int) in.nval;\n            in.nextToken(); edges[i][1] = (int) in.nval;\n        }\n        System.out.println(minRemovals(n, a, b, edges));\n    }\n}\n"
+ }
+}

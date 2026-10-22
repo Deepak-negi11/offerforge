@@ -1,0 +1,49 @@
+{
+ "pid": "makemytrip-reverse-alternate-k-groups-in-linked-list",
+ "title": "Reverse Alternate K Groups in Linked List",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a singly linked list with `n` nodes and an integer `k`. Split the list, from the head, into consecutive groups of `k` nodes; the last group may contain fewer than `k` nodes if `n` is not a multiple of `k`.\n\nReverse the **first** group, leave the **second** group as it is, reverse the **third** group, leave the **fourth** as it is, and so on: every group at an odd position (1st, 3rd, 5th, ...) is reversed, every group at an even position is kept unchanged. If the last group is at an odd position it is reversed even though it has fewer than `k` nodes. Return the head of the resulting list.\n\nSolve it by relinking the nodes of the list in place, using `O(1)` extra space.",
+ "input_format": "The first line contains two integers `n` and `k`.\nThe second line contains `n` integers, the node values from head to tail.",
+ "output_format": "Print the values of the resulting list from head to tail, separated by single spaces.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ k ≤ 10^5",
+  "-10^9 ≤ value ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "8 3\n10 20 30 40 50 60 70 80",
+   "output": "30 20 10 40 50 60 80 70",
+   "explanation": "The groups are [10,20,30], [40,50,60] and [70,80]. The first group is reversed, the second is kept, and the third (shorter, at an odd position) is reversed."
+  },
+  {
+   "input": "4 5\n4 7 1 9",
+   "output": "9 1 7 4",
+   "explanation": "k is larger than the list, so the whole list is one group at the first (odd) position, and it is reversed."
+  },
+  {
+   "input": "5 2\n1 2 3 4 5",
+   "output": "2 1 3 4 5",
+   "explanation": "Groups are [1,2], [3,4], [5]. The first group is reversed to [2,1], the second is kept as [3,4], and the third group [5] is reversed, which leaves it unchanged."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Reversing the first k nodes of a list, and getting back both the new head of that group and the node that follows it, is a standard pointer loop. Start by getting that right.",
+  "Alternate between two modes: reverse up to k nodes, then walk past up to k nodes untouched. Remember the tail of the previous group so you can connect it to the next group's new head.",
+  "The first node of a reversed group becomes its tail; after reversing, link it to whatever comes next. Be careful with a final group shorter than k."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    val = [int(v) for v in data[2:2 + n]]\n    nxt = list(range(1, n + 1))\n    nxt[-1] = -1\n    new_head = -1\n    prev_tail = -1\n    cur = 0\n    flip = True\n    while cur != -1:\n        if flip:\n            start = cur\n            prev = -1\n            c = cur\n            cnt = 0\n            while c != -1 and cnt < k:\n                nx = nxt[c]\n                nxt[c] = prev\n                prev = c\n                c = nx\n                cnt += 1\n            if prev_tail == -1:\n                new_head = prev\n            else:\n                nxt[prev_tail] = prev\n            nxt[start] = c\n            prev_tail = start\n            cur = c\n        else:\n            c = cur\n            cnt = 1\n            while cnt < k and nxt[c] != -1:\n                c = nxt[c]\n                cnt += 1\n            prev_tail = c\n            cur = nxt[c]\n        flip = not flip\n    out = []\n    c = new_head\n    while c != -1:\n        out.append(val[c])\n        c = nxt[c]\n    print(' '.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, k = int(data[0]), int(data[1])\na = [int(v) for v in data[2:2 + n]]\nres = []\nfor g, s in enumerate(range(0, n, k)):\n    chunk = a[s:s + k]\n    if g % 2 == 0:\n        chunk.reverse()\n    res.extend(chunk)\nprint(' '.join(map(str, res)))\n",
+ "generator": "def gen(rng):\n    def fmt(a, k):\n        return f'{len(a)} {k}\\n' + ' '.join(map(str, a))\n    M = 10**9\n    tests = [\n        fmt([7], 1),\n        fmt([7], 3),\n        fmt([1, 2], 1),\n        fmt([1, 2], 2),\n        fmt([1, 2, 3, 4], 2),\n        fmt([1, 2, 3, 4, 5], 2),\n        fmt([4, 7, 1, 9], 5),\n        fmt([10, 20, 30, 40, 50, 60, 70, 80], 3),\n        fmt([-M, M, 0, -5, 5, 1, 2], 3),\n        fmt(list(range(1, 13)), 4),\n        fmt(list(range(1, 12)), 4),\n        fmt([5, 5, 5, 5, 5, 5], 3),\n    ]\n    for n in (3, 5, 8, 12, 20, 30, 40):\n        for kk in (1, 2, 3, 5, n, n + 3):\n            if rng.random() < 0.5:\n                tests.append(fmt([rng.randint(-100, 100) for _ in range(n)], kk))\n    tests.append(fmt([rng.randint(-M, M) for _ in range(100000)], 1))\n    tests.append(fmt([rng.randint(-M, M) for _ in range(100000)], 2))\n    tests.append(fmt([rng.randint(-M, M) for _ in range(100000)], 7))\n    tests.append(fmt([rng.randint(-M, M) for _ in range(100000)], 1000))\n    tests.append(fmt([rng.randint(-M, M) for _ in range(100000)], 50000))\n    tests.append(fmt([rng.randint(-M, M) for _ in range(100000)], 100000))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import Optional\n\n\nclass ListNode:\n    def __init__(self, val: int = 0, next: Optional['ListNode'] = None):\n        self.val = val\n        self.next = next\n\n\ndef reverse_alternate(head: Optional[ListNode], k: int) -> Optional[ListNode]:\n    # Write your solution here\n    return head\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    head = None\n    for v in reversed(data[2:2 + n]):\n        head = ListNode(int(v), head)\n    head = reverse_alternate(head, k)\n    out = []\n    while head:\n        out.append(head.val)\n        head = head.next\n    print(' '.join(map(str, out)))\n\n\nmain()\n",
+  "javascript": "class ListNode {\n  constructor(val, next) {\n    this.val = val === undefined ? 0 : val\n    this.next = next === undefined ? null : next\n  }\n}\n\nfunction reverseAlternate(head, k) {\n  // Write your solution here\n  return head\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nlet head = null\nfor (let i = n - 1; i >= 0; i--) head = new ListNode(t[2 + i], head)\nhead = reverseAlternate(head, k)\nconst out = []\nfor (let c = head; c !== null; c = c.next) out.push(c.val)\nconsole.log(out.join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstruct ListNode {\n    int val;\n    ListNode* next;\n    ListNode(int v = 0, ListNode* n = nullptr) : val(v), next(n) {}\n};\n\nListNode* reverseAlternate(ListNode* head, int k) {\n    // Write your solution here\n    return head;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    ListNode* head = nullptr;\n    for (int i = n - 1; i >= 0; i--) head = new ListNode(a[i], head);\n    head = reverseAlternate(head, k);\n    bool first = true;\n    for (ListNode* c = head; c != nullptr; c = c->next) {\n        if (!first) cout << ' ';\n        cout << c->val;\n        first = false;\n    }\n    cout << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static class ListNode {\n        int val;\n        ListNode next;\n        ListNode(int val, ListNode next) {\n            this.val = val;\n            this.next = next;\n        }\n    }\n\n    static ListNode reverseAlternate(ListNode head, int k) {\n        // Write your solution here\n        return head;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        int[] a = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); a[i] = (int) in.nval;\n        }\n        ListNode head = null;\n        for (int i = n - 1; i >= 0; i--) head = new ListNode(a[i], head);\n        head = reverseAlternate(head, k);\n        StringBuilder sb = new StringBuilder();\n        for (ListNode c = head; c != null; c = c.next) {\n            if (sb.length() > 0) sb.append(' ');\n            sb.append(c.val);\n        }\n        System.out.println(sb);\n    }\n}\n"
+ }
+}

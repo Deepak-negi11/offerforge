@@ -1,0 +1,44 @@
+{
+ "pid": "servicenow-count-arrays-with-given-max-change-cost",
+ "title": "Count Arrays With Given Max-Change Cost",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "For an array `element` of `n` integers, its **cost** is computed like this:\n\n```\ncurrentMax = element[0]\ncost = 0\nfor i = 1 .. n - 1:\n    if element[i] > currentMax:\n        currentMax = element[i]\n        cost += 1\n```\n\nIn other words, the cost is the number of times the running maximum strictly increases after the first element.\n\nYou are given `q` independent queries. Each query gives three integers `n`, `m` and `totalCost`. For each query, count the arrays that satisfy all of the following:\n\n- the array has exactly `n` elements;\n- every element is an integer between `1` and `m` inclusive;\n- the cost of the array equals `totalCost`.\n\nTwo arrays are different if they differ at some index. Print each count modulo `10^9 + 7`.\n\nFor example, with `n = 4`, `m = 4` and `totalCost = 2` there are 30 such arrays, including `[1, 1, 2, 3]`, `[1, 2, 1, 3]`, `[1, 2, 3, 1]`, `[2, 1, 2, 4]` and `[2, 3, 4, 1]`.",
+ "input_format": "The first line contains the integer `q`.\nEach of the next `q` lines contains three integers `n`, `m` and `totalCost`.",
+ "output_format": "Print `q` lines. Line `i` contains the number of arrays for query `i`, modulo `10^9 + 7`.",
+ "constraints": [
+  "1 ≤ q ≤ 10^5",
+  "1 ≤ n, m ≤ 60",
+  "0 ≤ totalCost ≤ 60"
+ ],
+ "examples": [
+  {
+   "input": "1\n4 4 2",
+   "output": "30",
+   "explanation": "Exactly 30 arrays of length 4 with values in 1..4 have two increases of the running maximum, as listed in the statement."
+  },
+  {
+   "input": "3\n2 3 1\n3 3 2\n4 3 2",
+   "output": "3\n1\n6",
+   "explanation": "For `n = 2`, `m = 3` the arrays with one increase are [1,2], [1,3], [2,3], so 3. For `n = 3`, `m = 3` and cost 2 only [1,2,3] works, so 1. For `n = 4`, `m = 3` and cost 2 the records must be 1, 2, 3, so the array is 1, 2, 3 plus one extra element that never exceeds the running maximum: [1,1,2,3], [1,2,2,3], [1,2,1,3], [1,2,3,1], [1,2,3,2], [1,2,3,3], which is 6."
+  }
+ ],
+ "complexity": {
+  "time": "O(N · M · K + q)",
+  "space": "O(N · M · K)"
+ },
+ "hints": [
+  "Think of building the array left to right and keep track of the length so far, the current maximum `j` and the cost so far.",
+  "From state (length, max = j, cost = c) the next element either is at most `j` (j choices, state unchanged except length) or is a new maximum `j' > j` (cost goes up by one). The second case is a sum over all smaller maxima, so keep prefix sums over `j`.",
+  "The DP for all lengths up to 60 and all maxima up to 60 is shared by every query: the number of arrays with values in 1..m is the sum of the states with max ≤ m. Build the table once and answer each query by lookup instead of rerunning the DP per query."
+ ],
+ "reference": "import sys\n\nMOD = 10**9 + 7\nN = 60\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    queries = [(int(data[1 + 3 * i]), int(data[2 + 3 * i]), int(data[3 + 3 * i])) for i in range(q)]\n    # dp[j][c]: arrays of the current length whose maximum is j and cost is c\n    # ans[n][c][m] = number of arrays of length n, values in 1..m, cost c\n    dp = [[0] * (N + 1) for _ in range(N + 1)]\n    for j in range(1, N + 1):\n        dp[j][0] = 1\n    ans = [None] * (N + 1)\n    def record(length, dp):\n        table = [[0] * (N + 1) for _ in range(N + 1)]\n        for c in range(N + 1):\n            run = 0\n            for j in range(1, N + 1):\n                run = (run + dp[j][c]) % MOD\n                table[c][j] = run\n        ans[length] = table\n    record(1, dp)\n    for length in range(2, N + 1):\n        new = [[0] * (N + 1) for _ in range(N + 1)]\n        # prefix sums over max value for each cost\n        pre = [[0] * (N + 1) for _ in range(N + 1)]\n        for c in range(N + 1):\n            run = 0\n            for j in range(1, N + 1):\n                run += dp[j][c]\n                pre[c][j] = run % MOD\n        for j in range(1, N + 1):\n            row = dp[j]\n            nrow = new[j]\n            for c in range(N + 1):\n                v = row[c] * j\n                if c > 0:\n                    v += pre[c - 1][j - 1]\n                nrow[c] = v % MOD\n        dp = new\n        record(length, dp)\n    out = []\n    for n, m, c in queries:\n        out.append(ans[n][c][m])\n    print('\\n'.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import product\n\ndata = sys.stdin.read().split()\nq = int(data[0])\nout = []\nfor i in range(q):\n    n, m, cost = int(data[1 + 3 * i]), int(data[2 + 3 * i]), int(data[3 + 3 * i])\n    count = 0\n    for arr in product(range(1, m + 1), repeat=n):\n        cur = arr[0]\n        total = 0\n        for x in arr[1:]:\n            if x > cur:\n                cur = x\n                total += 1\n        if total == cost:\n            count += 1\n    out.append(count % (10**9 + 7))\nprint('\\n'.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def fmt(qs):\n        return str(len(qs)) + \"\\n\" + \"\\n\".join(f\"{n} {m} {c}\" for n, m, c in qs)\n\n    tests = [fmt([(4, 4, 2)]), fmt([(2, 3, 1), (3, 3, 2), (4, 3, 2)]), fmt([(1, 1, 0)]), fmt([(1, 5, 0), (1, 5, 1)]),\n             fmt([(3, 1, 0), (3, 1, 1)]), fmt([(5, 5, 4), (5, 5, 5), (5, 5, 0)]),\n             fmt([(6, 3, 0), (6, 3, 1), (6, 3, 2), (6, 3, 3)]), fmt([(2, 2, 1)])]\n    for _ in range(30):\n        qs = []\n        for _ in range(rng.randint(1, 6)):\n            while True:\n                n = rng.randint(1, 7)\n                m = rng.randint(1, 6)\n                if m ** n <= 20000:\n                    break\n            qs.append((n, m, rng.randint(0, min(n, m))))\n        tests.append(fmt(qs))\n    N = 60\n    for _ in range(2):\n        tests.append(fmt([(rng.randint(1, N), rng.randint(1, N), rng.randint(0, N)) for _ in range(1000)]))\n    tests.append(fmt([(rng.randint(50, N), rng.randint(50, N), rng.randint(0, N)) for _ in range(100000)]))\n    tests.append(fmt([(N, N, rng.randint(0, 59)) for _ in range(100000)]))\n    tests.append(fmt([(N, N, c) for c in range(0, N + 1)] * 20))\n    tests.append(fmt([(rng.randint(1, N), rng.randint(1, N), rng.randint(0, 12)) for _ in range(100000)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_arrays(queries: List[List[int]]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    queries = [[int(data[1 + 3 * i]), int(data[2 + 3 * i]), int(data[3 + 3 * i])] for i in range(q)]\n    print('\\n'.join(map(str, count_arrays(queries))))\n\n\nmain()\n",
+  "javascript": "function countArrays(queries) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst q = t[0]\nconst queries = []\nfor (let i = 0; i < q; i++) queries.push([t[1 + 3 * i], t[2 + 3 * i], t[3 + 3 * i]])\nconsole.log(countArrays(queries).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> countArrays(vector<array<int, 3>>& queries) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int q;\n    cin >> q;\n    vector<array<int, 3>> queries(q);\n    for (int i = 0; i < q; i++) cin >> queries[i][0] >> queries[i][1] >> queries[i][2];\n    vector<long long> res = countArrays(queries);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] countArrays(int[][] queries) {\n        // Write your solution here\n        return new long[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int q = (int) in.nval;\n        int[][] queries = new int[q][3];\n        for (int i = 0; i < q; i++) {\n            for (int j = 0; j < 3; j++) {\n                in.nextToken();\n                queries[i][j] = (int) in.nval;\n            }\n        }\n        long[] res = countArrays(queries);\n        StringBuilder sb = new StringBuilder();\n        for (long v : res) sb.append(v).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

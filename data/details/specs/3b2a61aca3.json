@@ -1,0 +1,17 @@
+{
+ "qid": "3b2a61aca3",
+ "question": "JPMorgan Chase Software Engineer III (Bengaluru, April 2026), Round 1. Custom sorting: **how do you sort a list of `Person` objects in descending order by name and, if names are equal, in ascending order by salary?** Then **discuss the choice between `Comparable` and `Comparator`.**",
+ "lookingFor": [
+  "Correct multi-key comparator, in both the Java 8 fluent style and the classic form.",
+  "Awareness of the `reversed()` placement pitfall in comparator chains.",
+  "Clear reasoning for Comparable (natural order) versus Comparator (external, multiple orders).",
+  "Care with null handling and with overflow in manual comparisons."
+ ],
+ "answer": "**Java 8 solution (fluent comparator).**\n\n```java\npeople.sort(\n    Comparator.comparing(Person::getName, Comparator.reverseOrder())   // name descending\n              .thenComparingInt(Person::getSalary));                   // salary ascending\n```\n\nEquivalent using `reversed()` on only the first key:\n\n```java\npeople.sort(Comparator.comparing(Person::getName).reversed()\n                      .thenComparingInt(Person::getSalary));\n```\n\n**Pitfall:** placing `.reversed()` at the end (`comparing(name).thenComparing(salary).reversed()`) would reverse the **whole** ordering, making salary descending too. Also, `reversed()` after a lambda key extractor can fail type inference; use method references or the explicit `comparing(keyExtractor, comparator)` form.\n\n**Classic comparator (pre-Java 8 style):**\n\n```java\npeople.sort((a, b) -> {\n    int c = b.getName().compareTo(a.getName());       // swap operands for descending\n    return c != 0 ? c : Integer.compare(a.getSalary(), b.getSalary());\n});\n```\n\nUse `Integer.compare` or `Double.compare`, **not** subtraction (`a - b`), which can overflow. If names can be null, wrap with `Comparator.nullsFirst(...)` or `nullsLast(...)`. The sort for objects (`List.sort`, `Collections.sort`) is stable (TimSort), so equal elements keep their relative order.\n\n**Comparable vs Comparator.**\n- `Comparable<T>` (`compareTo(T other)`) is implemented **by the class itself** and defines one **natural order** (for example by id). It lets `TreeSet`, `TreeMap` and `Collections.sort(list)` work without extra arguments, but you can have only one, and you must be able to modify the class. It should be consistent with `equals`.\n- `Comparator<T>` (`compare(T a, T b)`) is a **separate strategy** object: many orderings (by name, by salary, by both), usable on classes you cannot modify, and composable with `thenComparing`, `reversed` and `nullsFirst`.\n- Practical rule: give a type a `Comparable` only if there is one obvious default order; otherwise supply comparators at the call site.\n\n**Complexity:** O(n log n) comparisons.",
+ "followUps": [
+  "Why does `a.getSalary() - b.getSalary()` make a broken comparator?",
+  "What would you change if some `Person` objects have a null name?",
+  "Is the sort stable, and why does stability matter for multi-key sorts?",
+  "What does 'consistent with equals' mean for a Comparable used in a TreeSet?"
+ ]
+}

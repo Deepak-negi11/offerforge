@@ -1,0 +1,18 @@
+{
+ "qid": "b70fc72ef2",
+ "question": "PhonePe machine coding round for an Android SDE: in **90 minutes**, design and build an **e-commerce app**: manage data across different screens, with the data also **synced with backend servers**. About 4-5 features or criteria were given, and the code had to be scalable and clean. The candidate reported using **MVVM with Clean Architecture**.",
+ "lookingFor": [
+  "Can you structure an Android app in layers with clear responsibilities (UI, ViewModel, domain, data)?",
+  "Do you manage state shared between screens correctly (single source of truth)?",
+  "Do you design offline-first syncing with the backend and handle errors and loading?",
+  "Do you know the Android pieces: ViewModel, Room, Retrofit, coroutines/Flow, DI?",
+  "Can you deliver working code in 90 minutes with sensible scope?"
+ ],
+ "answer": "**Scope first:** typical features are product list, product detail, add to cart, cart screen and checkout/order placement. Say which you will do and mock the backend with a fake API if none is given.\n\n**Architecture (MVVM plus Clean):**\n- **UI layer:** Activities/Fragments or Compose screens that only render state and forward events. No business logic.\n- **ViewModel:** holds `UiState` in a `StateFlow` (loading, success, error), survives configuration changes, and exposes one-shot events separately.\n- **Domain layer:** use cases such as `GetProductsUseCase`, `AddToCartUseCase`, `PlaceOrderUseCase` with pure Kotlin and no Android dependencies (easy to unit test).\n- **Data layer:** `Repository` interfaces in domain, implemented in data with a remote source (Retrofit) and a local source (Room).\n\n**Data across screens:** do not pass objects between screens. Make the **local database the single source of truth**: the cart lives in Room, and every screen observes it with `Flow` (`Flow<List<CartItem>>`). Product list and cart badge then update automatically. Pass only ids through navigation arguments. Use a shared ViewModel scoped to a navigation graph only for short-lived flows like checkout.\n\n**Sync with backend:** read path: show cached data from Room immediately, refresh from the network, write the result into Room. Write path (add to cart, place order): write locally first, mark rows as pending, and push to the server; retry with `WorkManager` when offline, using an idempotency key for the order so a retry does not double order. Decide a conflict rule (server wins for prices and stock).\n\n**Other points:** dependency injection (Hilt), a `Result` wrapper for errors, pagination for the list (Paging 3), image loading with caching, and unit tests for use cases and ViewModels with fake repositories.\n\n**Mistakes to avoid:** business logic in Activities, holding state only in UI, calling the network from the ViewModel directly, and over-building in a 90 minute window.",
+ "followUps": [
+  "Why make Room the single source of truth rather than updating screens from network responses?",
+  "How do you retry a failed order placement without creating a duplicate order?",
+  "What survives a process death and what does not (ViewModel vs SavedStateHandle vs Room)?",
+  "How would you paginate the product list?"
+ ]
+}

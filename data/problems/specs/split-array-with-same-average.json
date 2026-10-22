@@ -1,0 +1,48 @@
+{
+ "pid": "split-array-with-same-average",
+ "title": "Split Array With Same Average",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given an array `a` of `n` non-negative integers. Decide whether the elements can be divided into two **non-empty** groups `A` and `B` (every element goes to exactly one group) such that the average of the values in `A` equals the average of the values in `B`.\n\nPrint `true` if such a split exists and `false` otherwise.\n\nElements are distinguished by position, so equal values at different positions can be placed in different groups. If the array has a single element, no split into two non-empty groups exists.\n\nFor example, `[1, 2, 3, 4]` can be split into `{1, 4}` and `{2, 3}`, both with average 2.5, but `[1, 4, 2]` cannot: the three possible single-element groups have averages 1, 2 and 4, while the remaining two elements average 3, 2.5 and 1.5.\n\nAn important observation: if both groups have the same average, then each also has the same average as the whole array.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` space-separated integers `a[0], ..., a[n-1]`.",
+ "output_format": "Print `true` or `false`.",
+ "constraints": [
+  "1 ≤ n ≤ 30",
+  "0 ≤ a[i] ≤ 10^4"
+ ],
+ "examples": [
+  {
+   "input": "4\n1 2 3 4",
+   "output": "true",
+   "explanation": "The groups {1, 4} and {2, 3} both have average 2.5."
+  },
+  {
+   "input": "3\n4 3 2",
+   "output": "true",
+   "explanation": "The groups {2, 4} and {3} both have average 3."
+  },
+  {
+   "input": "3\n1 4 2",
+   "output": "false",
+   "explanation": "Putting a single element alone gives averages 1, 4 or 2, against 3, 1.5 or 2.5 for the other group. None match."
+  }
+ ],
+ "complexity": {
+  "time": "O(n^2 * S) with bitsets, or O(2^(n/2) * n) meet in the middle",
+  "space": "O(n * S)"
+ },
+ "hints": [
+  "If a group of size `k` has the same average as the whole array, then its sum must be `total * k / n`. This must be an integer, which rules out most values of `k` immediately.",
+  "It is enough to look at groups of size `k` with `1 <= k <= n / 2`: the complement of a valid group is valid too, and one of the two has size at most `n / 2`.",
+  "Compute, for every size `k`, the set of sums reachable by choosing exactly `k` elements (a subset-sum DP over counts). A Python integer used as a bitset, shifted left by each element, makes this fast. Then check the needed sum for each valid `k`."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    total = sum(a)\n    half = n // 2\n    dp = [0] * (half + 1)\n    dp[0] = 1\n    for idx, x in enumerate(a):\n        for k in range(min(idx + 1, half), 0, -1):\n            dp[k] |= dp[k - 1] << x\n    ok = False\n    for k in range(1, half + 1):\n        if total * k % n == 0 and (dp[k] >> (total * k // n)) & 1:\n            ok = True\n            break\n    print('true' if ok else 'false')\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + n]]\ntotal = sum(a)\nok = False\nfor mask in range(1, (1 << n) - 1):\n    s = 0\n    k = 0\n    for i in range(n):\n        if mask >> i & 1:\n            s += a[i]\n            k += 1\n    # average of A = s / k, average of B = (total - s) / (n - k)\n    if s * (n - k) == (total - s) * k:\n        ok = True\n        break\nprint('true' if ok else 'false')\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n    tests = [\n        fmt([5]),\n        fmt([0]),\n        fmt([1, 2, 3, 4]),\n        fmt([4, 3, 2]),\n        fmt([1, 4, 2]),\n        fmt([0, 0]),\n        fmt([1, 2]),\n        fmt([7, 7]),\n        fmt([0, 0, 1]),\n        fmt([1, 1, 1, 1, 1, 1, 1, 1]),\n        fmt([1, 6, 1]),\n        fmt([3, 1]),\n        fmt([18, 0, 16, 2]),\n    ]\n    for n in (3, 4, 5, 6, 7, 8, 9, 10, 12, 14):\n        for _ in range(2):\n            r = rng.choice([5, 20, 100, 10**4])\n            tests.append(fmt([rng.randint(0, r) for _ in range(n)]))\n    # mostly false: primes-ish, large and distinct\n    primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]\n    for _ in range(3):\n        tests.append(fmt(rng.sample(primes, 10)))\n    # n = 30 cases\n    tests.append(fmt([rng.randint(0, 10**4) for _ in range(30)]))\n    tests.append(fmt([10**4] * 30))\n    tests.append(fmt([10**4] * 29 + [9999]))\n    tests.append(fmt([rng.randint(9000, 10**4) for _ in range(30)]))\n    tests.append(fmt([rng.randint(0, 3) for _ in range(30)]))\n    tests.append(fmt([10**4 - i * 7 for i in range(30)]))\n    tests.append(fmt([1] * 29 + [10**4]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef can_split(a: List[int]) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    print('true' if can_split(a) else 'false')\n\n\nmain()\n",
+  "javascript": "function canSplit(a) {\n  // Write your solution here\n  return false\n}\n\nconst tk = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = tk[0]\nconst a = tk.slice(1, 1 + n)\nconsole.log(canSplit(a) ? 'true' : 'false')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool canSplit(vector<int>& a) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    cout << (canSplit(a) ? \"true\" : \"false\") << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean canSplit(int[] a) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] a = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (int) in.nval;\n        }\n        System.out.println(canSplit(a) ? \"true\" : \"false\");\n    }\n}\n"
+ }
+}

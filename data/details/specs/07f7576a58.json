@@ -1,0 +1,19 @@
+{
+ "qid": "07f7576a58",
+ "question": "Databricks new grad coding round, concurrency follow-up: **implement a thread-safe producer-consumer buffer**, using locks, blocking queues and condition handling. Producers add items and consumers remove them, and the buffer has a bounded capacity.",
+ "lookingFor": [
+  "Understanding of race conditions and mutual exclusion.",
+  "Correct use of condition variables or blocking primitives (wait and signal).",
+  "Handling the full and empty cases without busy-waiting.",
+  "Awareness of spurious wakeups, deadlock and lost signals.",
+  "Choosing between hand-rolled and library solutions."
+ ],
+ "answer": "**Problem.** Multiple producer threads call `put(item)` and multiple consumers call `take()` on a bounded buffer of capacity N. `put` must block when full, `take` must block when empty, and the buffer must never be corrupted.\n\n**Hand-rolled solution (one lock, two conditions)** in Java-like pseudocode:\n\n```\nclass BoundedBuffer<T> {\n  Queue<T> q = new ArrayDeque<>();\n  int cap; Lock lock = new ReentrantLock();\n  Condition notFull = lock.newCondition();\n  Condition notEmpty = lock.newCondition();\n\n  void put(T x) throws InterruptedException {\n    lock.lock();\n    try {\n      while (q.size() == cap) notFull.await();\n      q.add(x);\n      notEmpty.signal();\n    } finally { lock.unlock(); }\n  }\n  T take() throws InterruptedException {\n    lock.lock();\n    try {\n      while (q.isEmpty()) notEmpty.await();\n      T x = q.remove();\n      notFull.signal();\n      return x;\n    } finally { lock.unlock(); }\n  }\n}\n```\n\n**Key points to explain:**\n- Always wait in a **`while` loop**, not an `if`, to handle spurious wakeups and the case where another thread consumed the state first.\n- `await` atomically releases the lock and re-acquires it on wake-up, so there is no lost wake-up between checking the condition and sleeping.\n- Use **two conditions** so producers wake only consumers and the reverse; with a single condition you need `signalAll`, which wakes everyone unnecessarily.\n- Release the lock in `finally`.\n\n**Alternatives.** `ArrayBlockingQueue` or `LinkedBlockingQueue` in Java do exactly this; in Python `queue.Queue(maxsize)`. Two semaphores (empty slots and filled slots) plus a mutex also work. For high throughput consider a lock-free ring buffer (single producer, single consumer) or separate locks for head and tail (as `LinkedBlockingQueue` does).\n\n**Extras:** support timeouts (`await(timeout)`), a clean shutdown (poison pill or a closed flag), and fairness. Test with many threads and verify counts and no deadlock.",
+ "followUps": [
+  "Why use while instead of if around await?",
+  "What goes wrong if you call signal before changing the state?",
+  "How would you shut down consumers cleanly?",
+  "How does a lock-free single-producer single-consumer ring buffer work?",
+  "What is the difference between a semaphore and a condition variable?"
+ ]
+}

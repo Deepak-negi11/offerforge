@@ -1,0 +1,19 @@
+{
+ "qid": "b4ef4de783",
+ "question": "Meesho SDE-1 interview (round with a project deep dive). After discussing the candidate's projects, the interviewer asked DBMS questions, then asked to explain the CAP theorem, and finally when you would choose SQL over NoSQL (and the reverse).",
+ "lookingFor": [
+  "Accurate statement of CAP rather than the common slogan 'pick two of three'.",
+  "Ability to apply it to real databases and use cases.",
+  "Understanding of ACID versus BASE and the trade-offs involved.",
+  "Practical judgement choosing a datastore for given workloads.",
+  "Linking the answer back to your own project's database choice."
+ ],
+ "answer": "**CAP theorem.** In a distributed data store, you cannot guarantee all three of:\n- **Consistency**: every read sees the most recent write (linearizability), or an error.\n- **Availability**: every request to a non-failing node gets a non-error response.\n- **Partition tolerance**: the system keeps working when messages between nodes are dropped or delayed.\n\nNetwork partitions happen in real distributed systems, so partition tolerance is not optional. The real choice is what to do *during a partition*: refuse some requests to stay consistent (CP), or answer with possibly stale data to stay available (AP). When there is no partition you can have both; the PACELC extension adds that even then you trade latency against consistency.\n\nRough examples (behaviour depends on configuration): systems like HBase or MongoDB with majority writes lean CP; Cassandra and DynamoDB with eventual consistency settings lean AP. A single-node relational database is not subject to CAP in the same way, since it has no partitions.\n\n**SQL (relational).** Fixed schema, joins, strong ACID transactions, mature tooling. Choose it when data is structured with relationships, correctness matters (payments, orders, inventory), you need ad-hoc queries and joins, and the scale fits a single primary with replicas (vertical scaling plus read replicas, then sharding if needed).\n\n**NoSQL.** A family, not one thing: key-value (Redis, DynamoDB), document (MongoDB), wide-column (Cassandra), graph (Neo4j). Choose it when the schema changes often or is semi-structured, you need very high write throughput or easy horizontal scaling, access patterns are known and simple (lookup by key), or the data is naturally a graph, document or time series. Costs: weaker or limited multi-record transactions, joins done in application code, data denormalised and duplicated, and eventual consistency to reason about.\n\n**ACID versus BASE.** ACID: atomic, consistent, isolated, durable. BASE: basically available, soft state, eventually consistent.\n\n**How to answer the choice question.** Start from access patterns and consistency needs, not from fashion. Many systems use both: SQL as the source of truth for orders, Redis for caching and sessions, a search index for product search. Finish by naming what your own project used and why.",
+ "followUps": [
+  "Is the 'C' in CAP the same as the 'C' in ACID?",
+  "Where does eventual consistency come from, and how can you tighten it (quorum reads and writes)?",
+  "Can SQL databases scale horizontally? How?",
+  "Which database would you pick for a product catalog, and which for payments?",
+  "What are the isolation levels in SQL and which anomaly does each prevent?"
+ ]
+}

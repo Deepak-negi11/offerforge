@@ -1,0 +1,18 @@
+{
+ "qid": "7451bdbd51",
+ "question": "In a phone screen for a **Systems Software Engineer** role at NVIDIA, the questions were: **big endian versus little endian**; **what happens from the OS/kernel perspective when a program is executed**; and a coding exercise to **reverse a string using pointers**, with follow-ups on **parameter passing**.\n\nNo further detail was reported, so prepare each part: byte order, process creation and loading, and a pointer-based string reversal with pass-by-value subtleties.",
+ "lookingFor": [
+  "Do you know byte ordering and where it matters (networking, file formats, memory dumps)?",
+  "Do you understand the exec path: fork/execve, ELF loading, virtual memory, dynamic linking?",
+  "Can you write clean pointer code in C and reason about edge cases?",
+  "Do you understand how arguments are passed in C?"
+ ],
+ "answer": "**Endianness.** It is the order in which the bytes of a multi-byte value are stored in memory. For `0x12345678` at address A: big endian stores `12 34 56 78` (most significant byte at the lowest address), little endian stores `78 56 34 12`. x86 and most ARM systems run little endian; network byte order is big endian (use `htonl/ntohl`). It matters for network protocols, binary file formats and shared memory between different machines. Check it with:\n\n```c\nint x = 1;\nint little = *(unsigned char *)&x == 1;\n```\n\n**What happens when a program is executed (Linux example).**\n1. The shell calls `fork()` to create a child, which then calls `execve(path, argv, envp)`.\n2. The kernel checks that the file exists and is executable, and that permissions allow it, then reads the header and recognises the format (ELF).\n3. It discards the old address space and builds a new one: maps the code (text), data and BSS segments, creates the heap, and sets up the stack with `argc`, `argv`, `envp` and the auxiliary vector. Pages are mapped lazily; they are loaded on demand by page faults.\n4. If the binary is dynamically linked, the kernel also maps the dynamic loader (`ld.so`), which maps shared libraries and performs relocations.\n5. The kernel sets the instruction pointer to the entry point (`_start`), which calls the C runtime (`__libc_start_main`), which calls `main`. When `main` returns, `exit` runs and the kernel reclaims resources; the parent gets the status via `wait`.\n\n**Reverse a string with pointers.**\n\n```c\nvoid reverse(char *s) {\n    if (!s) return;\n    char *l = s, *r = s + strlen(s);\n    while (l < r - 1) {   // r points one past the end\n        char t = *l; *l++ = *--r; *r = t;\n    }\n}\n```\nEquivalent two-pointer swap, O(n) time, O(1) space. Pass a modifiable array (`char buf[] = \"abc\"`); a string literal (`char *s = \"abc\"`) is read-only, so modifying it is undefined behaviour.\n\n**Parameter-passing follow-up.** C is always pass by value: the pointer is copied, so the function can change the characters it points to but not the caller's pointer itself. To change the pointer (for example to allocate), pass `char **`.",
+ "followUps": [
+  "How do you detect endianness at compile time or write portable code?",
+  "What is the difference between fork and exec, and what is copy-on-write?",
+  "What does the dynamic loader do and what are the GOT and PLT?",
+  "Why does modifying a string literal crash?",
+  "How would you reverse the words in a sentence in place?"
+ ]
+}

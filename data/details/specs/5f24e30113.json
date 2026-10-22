@@ -1,0 +1,19 @@
+{
+ "qid": "5f24e30113",
+ "question": "In a Paytm Senior Software Engineer (SDE-2) Hiring Manager round, the candidate was asked a threading question: **using two threads, one holding the odd numbers and one holding the even numbers, print the numbers in sequence** (1, 2, 3, ..., 10).\n\nThe same round also included **finding the Kth node from the end of a linked list** and a discussion of **HTTP status codes in the 3xx (redirection) and 4xx (client error) classes**.",
+ "lookingFor": [
+  "Can you coordinate threads with proper synchronization (wait/notify, locks/conditions, or semaphores)?",
+  "Do you avoid busy-waiting, lost signals and deadlocks?",
+  "Can you generalize the solution (N threads, any range)?",
+  "For the linked list: do you know the two-pointer technique?",
+  "Do you know common 3xx and 4xx status codes and when to use them?"
+ ],
+ "answer": "**Threads printing in order.** The two threads must take turns: odd prints 1, even prints 2, odd prints 3, and so on. A shared flag says whose turn it is, and each thread waits until it is its turn.\n\n```java\nclass Printer {\n    private int next = 1;\n    private final int max;\n    Printer(int max) { this.max = max; }\n\n    synchronized void print(boolean odd) throws InterruptedException {\n        while (next <= max) {\n            while (next <= max && (next % 2 == 1) != odd) wait();\n            if (next > max) break;\n            System.out.println(next++);\n            notifyAll();\n        }\n        notifyAll();\n    }\n}\n// Thread t1 = new Thread(() -> p.print(true));  Thread t2 = new Thread(() -> p.print(false));\n```\n\nHow it works: both threads share one `Printer` object. A thread holds the monitor, checks the turn in a **`while` loop** (not `if`, to guard against spurious wakeups), prints, increments, and calls `notifyAll()` to wake the other one. The `max` check prevents a thread from waiting forever after the last number. Alternatives: `ReentrantLock` with two `Condition`s, or two `Semaphore`s where each thread releases the other's permit after printing. The idea extends to N threads by checking `next % N`.\n\n**If the two arrays are separate** (an odd array and an even array), each thread keeps its own index and prints the next element from its array only on its turn, using the same alternating handoff.\n\n**Kth node from the end.** Move a `fast` pointer K steps ahead, then move `fast` and `slow` together until `fast` reaches the end. `slow` is the answer. This is O(n) time, O(1) space, one pass. Check K greater than the list length.\n\n**HTTP status codes.**\n- **3xx redirection:** 301 Moved Permanently, 302 Found (temporary), 304 Not Modified (use the cache), 307 and 308 (redirect that preserves the method).\n- **4xx client errors:** 400 Bad Request, 401 Unauthorized (not authenticated), 403 Forbidden (authenticated, not allowed), 404 Not Found, 405 Method Not Allowed, 409 Conflict, 429 Too Many Requests.",
+ "followUps": [
+  "Why do you use `while` instead of `if` around `wait()`?",
+  "How would you extend this to three threads printing 1 to 30 in a round-robin fashion?",
+  "Solve the same problem with a `Semaphore` or `ReentrantLock` and `Condition`.",
+  "What is the difference between 401 and 403, and between 301 and 302?",
+  "How would you find the middle node of a linked list in one pass?"
+ ]
+}

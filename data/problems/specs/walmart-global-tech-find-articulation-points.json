@@ -1,0 +1,50 @@
+{
+ "pid": "walmart-global-tech-find-articulation-points",
+ "title": "Find Articulation Points",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given an undirected, connected graph with `n` vertices numbered `0` to `n - 1` and `m` edges. It has no self-loops and no repeated edges.\n\nAn **articulation point** (cut vertex) is a vertex whose removal, together with all edges touching it, leaves the remaining vertices **disconnected**. Find all articulation points of the graph.\n\nPrint them in increasing order. If the graph has no articulation points, print `-1`. (A graph with a single vertex has none.)\n\nTry to find them in a single traversal rather than removing every vertex and testing connectivity again.",
+ "input_format": "The first line contains two integers `n` and `m`.\nEach of the next `m` lines contains two integers `u` and `v` describing an undirected edge between vertices `u` and `v`.",
+ "output_format": "Print the articulation points in increasing order, separated by spaces, or `-1` if there are none.",
+ "constraints": [
+  "1 ≤ n ≤ 5000 (so a recursive DFS never goes deeper than 5000 levels)",
+  "n - 1 ≤ m ≤ 20000",
+  "The graph is connected, has no self-loops and no repeated edges",
+  "0 ≤ u, v < n"
+ ],
+ "examples": [
+  {
+   "input": "5 5\n0 1\n1 2\n2 0\n1 3\n3 4",
+   "output": "1 3",
+   "explanation": "Removing vertex 1 separates {0, 2} from {3, 4}. Removing vertex 3 separates vertex 4 from the rest. Vertices 0 and 2 lie on the triangle 0-1-2, so removing either one leaves the others connected."
+  },
+  {
+   "input": "4 4\n0 1\n1 2\n2 3\n3 0",
+   "output": "-1",
+   "explanation": "In a cycle, removing any single vertex leaves a path, which is still connected."
+  },
+  {
+   "input": "5 4\n0 1\n0 2\n0 3\n0 4",
+   "output": "0",
+   "explanation": "In a star, removing the center isolates every leaf; removing a leaf leaves the others connected through the center."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Running a depth-first search gives every vertex a discovery time. Think about what a back edge lets a subtree 'reach'.",
+  "For each vertex keep low[v], the smallest discovery time reachable from v's subtree using at most one back edge. A non-root vertex u is an articulation point if some DFS child v has low[v] >= disc[u].",
+  "The DFS root is special: it is an articulation point only if it has two or more DFS children."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    adj = [[] for _ in range(n)]\n    for i in range(m):\n        a, b = int(data[2 + 2 * i]), int(data[3 + 2 * i])\n        adj[a].append(b)\n        adj[b].append(a)\n    disc = [-1] * n\n    low = [0] * n\n    parent = [-1] * n\n    isap = [False] * n\n    timer = 0\n    disc[0] = low[0] = 0\n    timer = 1\n    stack = [(0, 0)]\n    rootkids = 0\n    while stack:\n        u, idx = stack.pop()\n        if idx < len(adj[u]):\n            stack.append((u, idx + 1))\n            v = adj[u][idx]\n            if disc[v] == -1:\n                parent[v] = u\n                disc[v] = low[v] = timer\n                timer += 1\n                if u == 0:\n                    rootkids += 1\n                stack.append((v, 0))\n            elif v != parent[u]:\n                if disc[v] < low[u]:\n                    low[u] = disc[v]\n        else:\n            p = parent[u]\n            if p != -1:\n                if low[u] < low[p]:\n                    low[p] = low[u]\n                if p != 0 and low[u] >= disc[p]:\n                    isap[p] = True\n    if rootkids >= 2:\n        isap[0] = True\n    res = [i for i in range(n) if isap[i]]\n    print(' '.join(map(str, res)) if res else -1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nadj = [[] for _ in range(n)]\nfor i in range(m):\n    a, b = int(data[2 + 2 * i]), int(data[3 + 2 * i])\n    adj[a].append(b)\n    adj[b].append(a)\nres = []\nfor x in range(n):\n    start = 0 if x != 0 else (1 if n > 1 else -1)\n    if start == -1:\n        continue\n    seen = [False] * n\n    seen[x] = True\n    seen[start] = True\n    st = [start]\n    cnt = 1\n    while st:\n        u = st.pop()\n        for v in adj[u]:\n            if not seen[v]:\n                seen[v] = True\n                cnt += 1\n                st.append(v)\n    if cnt != n - 1:\n        res.append(x)\nprint(' '.join(map(str, res)) if res else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(n, edges):\n        edges = list(edges)\n        rng.shuffle(edges)\n        edges = [(a, b) if rng.random() < 0.5 else (b, a) for a, b in edges]\n        return f\"{n} {len(edges)}\" + ''.join(f'\\n{a} {b}' for a, b in edges)\n    def relabel(n, edges):\n        perm = list(range(n))\n        rng.shuffle(perm)\n        return [(perm[a], perm[b]) for a, b in edges]\n    def rand_connected(n, extra):\n        es = set()\n        for i in range(1, n):\n            es.add((rng.randrange(i), i))\n        tries = 0\n        while extra > 0 and tries < 10 * extra + 10:\n            tries += 1\n            a, b = rng.randrange(n), rng.randrange(n)\n            if a == b:\n                continue\n            a, b = min(a, b), max(a, b)\n            if (a, b) not in es:\n                es.add((a, b))\n                extra -= 1\n        return sorted(es)\n    def blocks(sizes):\n        # chain/tree of cliques/cycles sharing single vertices\n        es = set()\n        n = 1\n        for s in sizes:\n            attach = rng.randrange(n)\n            verts = [attach] + list(range(n, n + s - 1))\n            n += s - 1\n            if s == 2:\n                es.add((min(verts), max(verts)))\n            elif rng.random() < 0.5:\n                for i in range(s):\n                    a, b = verts[i], verts[(i + 1) % s]\n                    es.add((min(a, b), max(a, b)))\n            else:\n                for i in range(s):\n                    for j in range(i + 1, s):\n                        a, b = verts[i], verts[j]\n                        es.add((min(a, b), max(a, b)))\n        return n, sorted(es)\n    tests = [fmt(1, []), fmt(2, [(0, 1)]), fmt(3, [(0, 1), (1, 2)]), fmt(3, [(0, 1), (1, 2), (0, 2)]),\n             fmt(5, [(0, i) for i in range(1, 5)]), fmt(4, [(0, 1), (1, 2), (2, 3), (3, 0)]),\n             fmt(7, [(0, 1), (1, 2), (2, 0), (2, 3), (3, 4), (4, 5), (5, 3), (5, 6)])]\n    for n in (4, 5, 6, 8, 10, 12, 16, 20):\n        for extra in (0, n // 3, n):\n            tests.append(fmt(n, relabel(n, rand_connected(n, extra))))\n    for _ in range(6):\n        sizes = [rng.randint(2, 4) for _ in range(rng.randint(2, 6))]\n        n, es = blocks(sizes)\n        tests.append(fmt(n, relabel(n, es)))\n    n = 5000\n    tests.append(fmt(n, relabel(n, [(i, i + 1) for i in range(n - 1)])))\n    tests.append(fmt(n, relabel(n, rand_connected(n, 0))))\n    tests.append(fmt(n, relabel(n, rand_connected(n, 300))))\n    tests.append(fmt(n, relabel(n, rand_connected(n, 15000))))\n    sizes = [rng.randint(2, 5) for _ in range(1500)]\n    nn, es = blocks(sizes)\n    tests.append(fmt(nn, relabel(nn, es)))\n    n2 = 5000\n    es = [(i, (i + 1) % n2) for i in range(n2)]\n    tests.append(fmt(n2, relabel(n2, es)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef find_articulation_points(n: int, edges: List[List[int]]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    edges = [[int(data[2 + 2 * i]), int(data[3 + 2 * i])] for i in range(m)]\n    res = find_articulation_points(n, edges)\n    print(' '.join(map(str, res)) if res else -1)\n\n\nmain()\n",
+  "javascript": "function findArticulationPoints(n, edges) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst edges = []\nfor (let i = 0; i < m; i++) edges.push([t[2 + 2 * i], t[3 + 2 * i]])\nconst res = findArticulationPoints(n, edges)\nconsole.log(res.length ? res.join(' ') : '-1')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> findArticulationPoints(int n, vector<pair<int,int>>& edges) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<pair<int,int>> edges(m);\n    for (int i = 0; i < m; i++) cin >> edges[i].first >> edges[i].second;\n    vector<int> res = findArticulationPoints(n, edges);\n    if (res.empty()) { cout << -1 << endl; return 0; }\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] findArticulationPoints(int n, int[][] edges) {\n        // Write your solution here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] edges = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); edges[i][0] = (int) in.nval;\n            in.nextToken(); edges[i][1] = (int) in.nval;\n        }\n        int[] res = findArticulationPoints(n, edges);\n        if (res.length == 0) { System.out.println(-1); return; }\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

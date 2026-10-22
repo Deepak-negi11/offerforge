@@ -1,0 +1,44 @@
+{
+ "pid": "tower-research-build-treap-from-pairs",
+ "title": "Build Treap From Pairs",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given `n` pairs `(x[i], y[i])`, indexed `0` to `n - 1`. Build a binary tree that contains every pair as one node such that:\n\n- the `x` values form a **min-heap**: every node's `x` is smaller than the `x` of each of its children;\n- the `y` values form a **binary search tree**: every `y` in a node's left subtree is smaller than the node's `y`, and every `y` in its right subtree is larger.\n\nAll `x` values are distinct and all `y` values are distinct, so exactly one such tree exists (this is the structure known as a treap or Cartesian tree).\n\nPrint the index of the root node, followed by, for each pair `i` in input order, the index of its left child and the index of its right child (`-1` if the child does not exist).\n\nNote that the tree can be as deep as `n`, so avoid recursion that is deeper than your language allows.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains two integers `x[i]` and `y[i]`.",
+ "output_format": "The first line contains the index of the root. Each of the next `n` lines contains two integers: the index of the left child and the index of the right child of pair `i`, or `-1` for a missing child.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ x[i], y[i] ≤ 10^6",
+  "All x[i] are distinct; all y[i] are distinct"
+ ],
+ "examples": [
+  {
+   "input": "5\n2 5\n1 3\n4 1\n3 4\n5 2",
+   "output": "1\n3 -1\n2 0\n-1 4\n-1 -1\n-1 -1",
+   "explanation": "The smallest x is 1 (pair 1, y = 3), so it is the root. Pairs with y < 3 are pairs 2 and 4; the one with the smaller x is pair 2, which becomes the left child, and pair 4 (y = 2 > 1) hangs to its right. Pairs with y > 3 are pairs 0 and 3; pair 0 has the smaller x and becomes the right child of the root, with pair 3 (y = 4 < 5) as its left child."
+  },
+  {
+   "input": "3\n1 1\n2 2\n3 3",
+   "output": "0\n-1 1\n-1 2\n-1 -1",
+   "explanation": "Both x and y increase with the index, so each pair is the right child of the previous one: the tree is a chain."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Fix the root first: the pair with the smallest x must be the root. Everything with a smaller y goes left and everything with a larger y goes right, and the same rule applies recursively.",
+  "Sort the pairs by y. Then the in-order sequence of the tree is known and only the heap condition on x is left to arrange.",
+  "Insert the pairs in y order while keeping the right spine of the tree on a stack: pop nodes whose x is larger than the new x (the last popped becomes its left child), then attach the new node as the right child of the stack top. This is O(n) after sorting."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    x = [int(data[1 + 2 * i]) for i in range(n)]\n    y = [int(data[2 + 2 * i]) for i in range(n)]\n    order = sorted(range(n), key=lambda i: y[i])\n    left = [-1] * n\n    right = [-1] * n\n    stack = []\n    for i in order:\n        last = -1\n        while stack and x[stack[-1]] > x[i]:\n            last = stack.pop()\n        left[i] = last\n        if stack:\n            right[stack[-1]] = i\n        stack.append(i)\n    out = [str(stack[0])]\n    for i in range(n):\n        out.append(f'{left[i]} {right[i]}')\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\nsys.setrecursionlimit(10000)\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nx = [int(data[1 + 2 * i]) for i in range(n)]\ny = [int(data[2 + 2 * i]) for i in range(n)]\nleft = [-1] * n\nright = [-1] * n\n\ndef build(ids):\n    if not ids:\n        return -1\n    r = min(ids, key=lambda i: x[i])\n    left[r] = build([i for i in ids if y[i] < y[r]])\n    right[r] = build([i for i in ids if y[i] > y[r]])\n    return r\n\nroot = build(list(range(n)))\nprint(root)\nfor i in range(n):\n    print(left[i], right[i])\n",
+ "generator": "def gen(rng):\n    def fmt(xs, ys):\n        return str(len(xs)) + '\\n' + '\\n'.join(f'{a} {b}' for a, b in zip(xs, ys))\n\n    def distinct(n, hi):\n        return rng.sample(range(1, hi + 1), n)\n\n    tests = [fmt([5], [9]), fmt([1, 2], [1, 2]), fmt([1, 2], [2, 1]), fmt([2, 1], [1, 2]),\n             fmt([1, 2, 3], [1, 2, 3]), fmt([1, 2, 3], [3, 2, 1]), fmt([3, 1, 2], [2, 3, 1])]\n    for n in (3, 4, 5, 7, 9, 12, 15, 20):\n        for hi in (n, 30, 1000):\n            if hi >= n:\n                tests.append(fmt(distinct(n, hi), distinct(n, hi)))\n    for n in (6, 10, 16):\n        xs = list(range(1, n + 1))\n        ys = distinct(n, 1000)\n        tests.append(fmt(xs, sorted(ys)))\n        tests.append(fmt(xs, sorted(ys, reverse=True)))\n        tests.append(fmt(xs, [1001 - v for v in sorted(ys)]))\n    N = 10**5\n    H = 10**6\n    xs = sorted(distinct(N, H))\n    ys = sorted(distinct(N, H))\n    tests.append(fmt(xs, ys))                      # right chain, depth n\n    tests.append(fmt(xs, ys[::-1]))                # left chain, depth n\n    tests.append(fmt(distinct(N, H), distinct(N, H)))   # random shape\n    perm = list(range(N))\n    rng.shuffle(perm)\n    tests.append(fmt([xs[i] for i in perm], [ys[i] for i in perm]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef build_treap(x: List[int], y: List[int], left: List[int], right: List[int]) -> int:\n    # Fill left[i] / right[i] with the child indices (-1 if none) and return the root index.\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    x = [int(data[1 + 2 * i]) for i in range(n)]\n    y = [int(data[2 + 2 * i]) for i in range(n)]\n    left = [-1] * n\n    right = [-1] * n\n    root = build_treap(x, y, left, right)\n    out = [str(root)]\n    for i in range(n):\n        out.append(f'{left[i]} {right[i]}')\n    print('\\n'.join(out))\n\n\nmain()\n",
+  "javascript": "function buildTreap(x, y, left, right) {\n  // Fill left[i] / right[i] with the child indices (-1 if none) and return the root index.\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst x = [], y = []\nfor (let i = 0; i < n; i++) {\n  x.push(t[1 + 2 * i])\n  y.push(t[2 + 2 * i])\n}\nconst left = new Array(n).fill(-1)\nconst right = new Array(n).fill(-1)\nconst root = buildTreap(x, y, left, right)\nconst out = [String(root)]\nfor (let i = 0; i < n; i++) out.push(left[i] + ' ' + right[i])\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\n// Fill left[i] / right[i] with the child indices (-1 if none) and return the root index.\nint buildTreap(vector<long long>& x, vector<long long>& y, vector<int>& left, vector<int>& right) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> x(n), y(n);\n    for (int i = 0; i < n; i++) cin >> x[i] >> y[i];\n    vector<int> left(n, -1), right(n, -1);\n    int root = buildTreap(x, y, left, right);\n    cout << root << \"\\n\";\n    for (int i = 0; i < n; i++) cout << left[i] << \" \" << right[i] << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    // Fill left[i] / right[i] with the child indices (-1 if none) and return the root index.\n    static int buildTreap(long[] x, long[] y, int[] left, int[] right) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] x = new long[n], y = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); x[i] = (long) in.nval;\n            in.nextToken(); y[i] = (long) in.nval;\n        }\n        int[] left = new int[n], right = new int[n];\n        Arrays.fill(left, -1);\n        Arrays.fill(right, -1);\n        int root = buildTreap(x, y, left, right);\n        StringBuilder sb = new StringBuilder();\n        sb.append(root).append(\"\\n\");\n        for (int i = 0; i < n; i++) sb.append(left[i]).append(\" \").append(right[i]).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

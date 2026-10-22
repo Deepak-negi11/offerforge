@@ -1,0 +1,19 @@
+{
+ "qid": "1ecb0541de",
+ "question": "In Technical Interview 3 for a 6-month Core Intern role at Tower Research, the interviewer discussed the candidate's project that used **JWT-based authentication**. Questions included: what JWTs are and how they work, how the **signature** verifies authenticity, and which algorithm was used to sign them (the candidate first said RSA, was reminded that RSA is asymmetric, and then correctly said **HmacSHA256**, a symmetric algorithm).\n\nThe interviewer then asked: **design a system to handle user authentication using JWTs at scale**. The candidate designed a single JWT service with Spring MVC and Spring Security, then was asked how to scale to a large number of users and requests (answered with load balancing and database sharding).",
+ "lookingFor": [
+  "Do you understand JWT structure and what the signature does and does not protect?",
+  "Can you contrast symmetric (HMAC) and asymmetric (RSA) signing and when each is appropriate?",
+  "Can you design a stateless authentication system and its scaling story?",
+  "Do you recognise JWT weaknesses: revocation, expiry, storage, key rotation?",
+  "Can you separate scaling the auth service from scaling the data store?"
+ ],
+ "answer": "**JWT basics.** A JWT is three base64url parts: `header.payload.signature`. The header names the algorithm (`HS256`, `RS256`), the payload holds claims (`sub`, `exp`, `iat`, roles), and the signature covers `header.payload`. It is **signed, not encrypted**: anyone can read the payload, so never put secrets in it. The signature gives integrity and authenticity: change one byte and verification fails.\n\n**HMAC versus RSA.**\n\n- **HS256 (HMAC-SHA256, symmetric)**: one shared secret signs and verifies. Fast and simple, but every service that verifies can also forge tokens.\n- **RS256 (RSA, asymmetric)**: a private key signs, a public key verifies. Only the auth service can issue tokens; other services verify with the public key (published as JWKS). Better for many services; slower and keys are bigger.\n\n**Design.**\n\n1. **Login**: `POST /login` checks credentials (password hashed with bcrypt or argon2), and returns a short-lived **access token** (about 15 minutes) and a longer-lived **refresh token**.\n2. **Requests**: the client sends `Authorization: Bearer <token>`; a gateway or filter validates signature, `exp` and claims, with no database or session lookup, so any server can handle any request (stateless).\n3. **Refresh**: `POST /refresh` exchanges a valid refresh token for a new access token. Store refresh tokens (hashed) in a database or Redis so they can be revoked and rotated.\n4. **Revocation**: access tokens cannot be revoked before expiry, so keep them short and add a small denylist (Redis with TTL) for emergencies such as logout or compromised accounts.\n\n**Scaling.**\n\n- Stateless validation means app servers scale horizontally behind a **load balancer**.\n- The load is mostly login and refresh: shard or partition the user and refresh-token stores by user id, cache hot lookups, use read replicas, and rate-limit login to resist brute force.\n- Key management: rotate signing keys using a `kid` header; distribute public keys via JWKS.\n- Security: HTTPS only, httpOnly cookies or secure storage, reject `alg: none`, pin accepted algorithms.",
+ "followUps": [
+  "How do you log a user out if the JWT is stateless?",
+  "Why is storing a JWT in localStorage risky?",
+  "How would you rotate the signing key without logging everyone out?",
+  "When would you choose sessions over JWTs?",
+  "What would you shard on, and how do you avoid hot shards?"
+ ]
+}

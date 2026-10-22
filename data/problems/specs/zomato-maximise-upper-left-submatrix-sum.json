@@ -1,0 +1,48 @@
+{
+ "pid": "zomato-maximise-upper-left-submatrix-sum",
+ "title": "Maximise Upper-Left Submatrix Sum",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a `2N x 2N` matrix of integers. You may perform the following operation any number of times, in any order: choose one row **or** one column and **reverse** it (the first element swaps with the last, the second with the second last, and so on).\n\nAfter performing any sequence of such operations (including none), look at the upper-left `N x N` submatrix, which consists of the cells in rows `0` to `N - 1` and columns `0` to `N - 1`. Find the **maximum possible sum** of the elements of that submatrix.\n\nValues may be negative.",
+ "input_format": "The first line contains the integer `N`.\nEach of the next `2N` lines contains `2N` integers: one row of the matrix.",
+ "output_format": "Print one integer: the maximum possible sum of the upper-left `N x N` submatrix.",
+ "constraints": [
+  "1 ≤ N ≤ 200",
+  "-10^9 ≤ matrix[i][j] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "1\n1 2\n3 4",
+   "output": "4",
+   "explanation": "N = 1, so the upper-left submatrix is a single cell. Reversing a row or column can bring any of the four values into that cell; the best is 4."
+  },
+  {
+   "input": "2\n112 42 83 119\n56 125 56 49\n15 78 101 43\n62 98 114 108",
+   "output": "414",
+   "explanation": "Each upper-left cell can be filled with the largest of the four cells that mirror it: (0,0) from {112, 119, 62, 108} gives 119; (0,1) from {42, 83, 98, 114} gives 114; (1,0) from {56, 49, 15, 43} gives 56; (1,1) from {125, 56, 78, 101} gives 125. The sum is 119 + 114 + 56 + 125 = 414."
+  },
+  {
+   "input": "1\n-5 -2\n-9 -1",
+   "output": "-1",
+   "explanation": "All values are negative; the best cell value is -1."
+  }
+ ],
+ "complexity": {
+  "time": "O(N^2)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Try N = 1 and N = 2 by hand. For a cell (i, j) in the upper-left block, which other cells of the whole matrix could be moved into that position?",
+  "Reversing row i swaps (i, j) with (i, 2N-1-j); reversing column j swaps (i, j) with (2N-1-i, j). So every cell belongs to a group of four mirror-image cells.",
+  "It turns out that each upper-left cell can independently receive the maximum of its group of four. Sum those maxima, and be ready to justify why the choices do not conflict."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    m = 2 * n\n    vals = list(map(int, data[1:1 + m * m]))\n    total = 0\n    for i in range(n):\n        r1 = i * m\n        r2 = (m - 1 - i) * m\n        for j in range(n):\n            k = m - 1 - j\n            total += max(vals[r1 + j], vals[r1 + k], vals[r2 + j], vals[r2 + k])\n    print(total)\n\nmain()\n",
+ "brute": "import sys\nfrom collections import deque\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nm = 2 * n\na = tuple(tuple(int(data[1 + i * m + j]) for j in range(m)) for i in range(m))\nif n <= 2:\n    # exhaustive search over every matrix reachable by reversals\n    seen = {a}\n    dq = deque([a])\n    ans = None\n    while dq:\n        c = dq.popleft()\n        s = sum(c[i][j] for i in range(n) for j in range(n))\n        if ans is None or s > ans:\n            ans = s\n        for k in range(m):\n            r = tuple(tuple(reversed(row)) if i == k else row for i, row in enumerate(c))\n            col = tuple(tuple(c[m - 1 - i][j] if j == k else c[i][j] for j in range(m)) for i in range(m))\n            for x in (r, col):\n                if x not in seen:\n                    seen.add(x)\n                    dq.append(x)\n    print(ans)\nelse:\n    # exhaustive search is too large here; use the known mirror-group result (checked exhaustively above for N <= 2)\n    tot = 0\n    for i in range(n):\n        for j in range(n):\n            tot += max(a[i][j], a[i][m - 1 - j], a[m - 1 - i][j], a[m - 1 - i][m - 1 - j])\n    print(tot)\n",
+ "generator": "def gen(rng):\n    def fmt(n, mat):\n        return str(n) + '\\n' + '\\n'.join(' '.join(map(str, row)) for row in mat)\n    def rand(n, lo, hi):\n        return [[rng.randint(lo, hi) for _ in range(2 * n)] for _ in range(2 * n)]\n    tests = [\n        fmt(1, [[1, 2], [3, 4]]),\n        fmt(2, [[112, 42, 83, 119], [56, 125, 56, 49], [15, 78, 101, 43], [62, 98, 114, 108]]),\n        fmt(1, [[-5, -2], [-9, -1]]),\n        fmt(1, [[0, 0], [0, 0]]),\n        fmt(1, [[-10**9, -10**9], [-10**9, -10**9]]),\n        fmt(1, [[7, -3], [-3, -3]]),\n        fmt(2, [[-1] * 4 for _ in range(4)]),\n        fmt(2, [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]),\n    ]\n    for _ in range(4):\n        tests.append(fmt(1, rand(1, -9, 9)))\n    for _ in range(8):\n        tests.append(fmt(2, rand(2, -20, 20)))\n    for _ in range(4):\n        tests.append(fmt(3, rand(3, -9, 9)))\n    tests.append(fmt(5, rand(5, 0, 5)))\n    tests.append(fmt(30, rand(30, -1000, 1000)))\n    tests.append(fmt(200, rand(200, -10**9, 10**9)))\n    tests.append(fmt(200, [[10**9] * 400 for _ in range(400)]))\n    tests.append(fmt(200, [[-10**9] * 400 for _ in range(400)]))\n    tests.append(fmt(200, rand(200, -10**3, 10**3)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_upper_left_sum(n: int, matrix: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    m = 2 * n\n    matrix = [[int(data[1 + i * m + j]) for j in range(m)] for i in range(m)]\n    print(max_upper_left_sum(n, matrix))\n\n\nmain()\n",
+  "javascript": "function maxUpperLeftSum(n, matrix) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst m = 2 * n\nconst matrix = []\nfor (let i = 0; i < m; i++) matrix.push(t.slice(1 + i * m, 1 + (i + 1) * m))\nconsole.log(String(maxUpperLeftSum(n, matrix)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxUpperLeftSum(int n, vector<vector<long long>>& matrix) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    int m = 2 * n;\n    vector<vector<long long>> matrix(m, vector<long long>(m));\n    for (int i = 0; i < m; i++)\n        for (int j = 0; j < m; j++) cin >> matrix[i][j];\n    cout << maxUpperLeftSum(n, matrix) << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxUpperLeftSum(int n, long[][] matrix) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int m = 2 * n;\n        long[][] matrix = new long[m][m];\n        for (int i = 0; i < m; i++) {\n            for (int j = 0; j < m; j++) {\n                in.nextToken();\n                matrix[i][j] = (long) in.nval;\n            }\n        }\n        System.out.println(maxUpperLeftSum(n, matrix));\n    }\n}\n"
+ }
+}

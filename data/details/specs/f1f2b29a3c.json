@@ -1,0 +1,17 @@
+{
+ "qid": "f1f2b29a3c",
+ "question": "Zoho advanced coding round (off-campus, 2024). **Creative LLD on a web browser**: the candidate was given **three features** to implement and used a **doubly linked list**. The features were not listed in the report; a typical set is visiting a URL, going back and going forward through history.",
+ "lookingFor": [
+  "Can you pick a data structure that matches the access pattern (move back and forward in O(1))?",
+  "Do you handle the rule that a new visit discards the forward history?",
+  "Can you separate the model (history) from the console UI and keep the API small?",
+  "Do you think about edge cases such as moving past the ends?"
+ ],
+ "answer": "**Assumption.** The three features are `visit(url)`, `back(steps)` and `forward(steps)` (and probably `current()`); say this explicitly because the original list is unknown.\n\n**Why a doubly linked list.** Browser history is a sequence with a *cursor*: you move one step toward older or newer pages. Each node has `prev` and `next`, so a single step is O(1), and inserting a new page after the cursor is O(1).\n\n**Structure.**\n\n- `Node(url, prev, next)`\n- `BrowserHistory` with `current` pointing at the active node, created with the home page.\n\n**Operations.**\n\n- `visit(url)`: create a node, link `current.next = node` and `node.prev = current`, then set `current = node`. Setting `current.next` automatically drops all forward history, because the old forward nodes become unreachable and can be garbage-collected (in C++ delete them).\n- `back(steps)`: move `current = current.prev` up to `steps` times, stopping at the oldest page; return the URL.\n- `forward(steps)`: same with `next`, stopping at the newest.\n\nEach step is O(1), so `back(k)` costs O(k) (O(1) per step). Space is O(pages).\n\n**Alternatives.** An `ArrayList` with an index and truncation on visit: moving by k steps is O(1) (just change the index), but a visit that truncates costs O(removed) and array growth may copy. Two stacks (back and forward) are simple and also O(1) per step, but jumping k steps costs O(k) pops and pushes. Say why you chose the list: it matches the cursor model and shows pointer handling, but the array version is the most efficient for large jumps.\n\n**Extras if time allows.** History size limit (drop the oldest node), a tab per browser object (`Browser` holds many `BrowserHistory`), bookmarks, and printing the whole history. Keep UI code in `Main`.\n\n**Edge cases.** Back at the first page, forward at the latest page, duplicate URLs, null or empty URLs.",
+ "followUps": [
+  "How would you support multiple tabs and a closed-tab restore feature?",
+  "How would you cap history at 100 entries and still keep O(1) operations?",
+  "Compare the two-stack, linked-list and array-with-index solutions.",
+  "How would you search history by keyword?"
+ ]
+}

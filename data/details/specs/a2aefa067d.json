@@ -1,0 +1,19 @@
+{
+ "qid": "a2aefa067d",
+ "question": "Razorpay Senior Software Engineer high-level design round (60 minutes): design LeetCode with a focus on the contest leaderboard. The candidate presented a basic CRUD design with some security and caching optimizations, and the interviewer asked many questions near the end, which ran short of time.\n\nDesign the contest platform, and in particular how the live leaderboard ranks participants, how updates are handled at scale during a contest, how it is cached, and how the system is secured.",
+ "lookingFor": [
+  "Scoping the problem and quantifying scale before drawing boxes",
+  "Choosing the right data structure for ranking (sorted sets) rather than SQL ORDER BY at read time",
+  "Handling read-heavy spikes with caching and fan-out control",
+  "Judging submissions safely and asynchronously",
+  "Security and fairness: sandboxing, rate limits, anti-cheating"
+ ],
+ "answer": "**Requirements and scale.** Functional: users register for a contest, view problems, submit code, get a verdict, and see a live leaderboard. Non-functional: the leaderboard is read by far more people than the number of submitters; submissions arrive in bursts at the start and the end of a contest. Assume 100k participants, 10 to 20k concurrent, and tens of thousands of submissions per minute at peak.\n\n**Components.**\n- API gateway and auth, with rate limiting per user.\n- Problem service (read-mostly, served through a CDN and cache).\n- Submission service: validates, stores the submission as PENDING, and enqueues it on a message queue.\n- Judge workers: consume jobs, run code in isolated sandboxes (containers with CPU, memory, time and network limits), compare output with test cases, and write the verdict.\n- Contest and leaderboard service, updated from verdict events.\n- Data: a relational database for users, problems, contests and submissions; an object store for test cases; a cache and ranking store.\n\n**Leaderboard design.** Do not compute `ORDER BY score` from the database on each request. Use a Redis sorted set per contest: score encodes the ranking criteria, for example `solved * K - penaltyTime` (so more solved ranks higher and lower penalty breaks ties). When a verdict event arrives, update the user's score with `ZADD`. Reads use `ZREVRANGE` for the top N page and `ZREVRANK` for a user's own rank, both O(log n). The database remains the source of truth; the sorted set can be rebuilt from submissions.\n\n**Read scaling.** Cache the top pages of the leaderboard as a snapshot refreshed every few seconds (or pushed via WebSocket/SSE), which is acceptable because exact real-time ordering is not required; serve a user's own rank separately. This turns millions of reads into one computation per interval.\n\n**Consistency and correctness.** Process each submission verdict once (idempotency by submission id); only the first accepted solution of a problem counts, with penalties per wrong attempt.\n\n**Security.** Sandbox untrusted code, no network from judges, input size limits, authentication on every call, per-user submission rate limits, plagiarism detection after the contest, and freezing the leaderboard in the last minutes if required.",
+ "followUps": [
+  "How would you rank ties and compute penalties fairly?",
+  "How would you handle the surge at contest start and a judge-queue backlog?",
+  "How would you show a user's own rank when the leaderboard is sharded?",
+  "How do you keep the sandbox safe against malicious code?",
+  "How would you recover the leaderboard if Redis loses its data?"
+ ]
+}

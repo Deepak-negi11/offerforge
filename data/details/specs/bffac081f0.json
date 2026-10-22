@@ -1,0 +1,17 @@
+{
+ "qid": "bffac081f0",
+ "question": "Interview for a Senior Member Technical (Data Engineer) role at D. E. Shaw. The reported item: **draw a class diagram for a payments page**. The same candidate was also asked for a data model of a car-leasing app and SQL joins on an owner-tenant schema in earlier rounds. No further details of the payments requirements were reported, so the question is treated as a general design of the classes behind a payments page.",
+ "lookingFor": [
+  "Translating a UI into domain objects and relationships.",
+  "Correct modelling of states, money and idempotency.",
+  "Separation of concerns: page, service, gateway, persistence.",
+  "Practical data-engineering awareness: auditability and reconciliation."
+ ],
+ "answer": "**Clarify scope.** Is it a customer checkout page, an internal payments dashboard, or a bill-payment page? Which methods (card, UPI, bank transfer, wallet)? Refunds and saved cards? Assume a customer checkout with several payment methods and refunds.\n\n**Layers and classes**\n- *Presentation:* `PaymentPage` (shows amount and methods, collects input, shows result). It holds no business logic.\n- *Service:* `PaymentService` with `initiate(order, method)`, `confirm(paymentId)`, `refund(paymentId, amount)`.\n- *Domain:*\n  - `Payment` (id, orderId, amount, currency, status, createdAt, idempotencyKey)\n  - `PaymentMethod` (interface) implemented by `CardPayment`, `UpiPayment`, `NetBanking`, `Wallet`, each with `authorize()` and `capture()`\n  - `Transaction` (id, payment, type: AUTH/CAPTURE/REFUND, gatewayRef, status, timestamp). A payment has many transactions, which gives an audit trail.\n  - `Refund` (id, payment, amount, reason, status)\n  - `Customer`, `SavedInstrument` (tokenised reference, last four digits only)\n- *Integration:* `PaymentGateway` (interface) with adapters for specific providers.\n\n**Relationships.** Customer 1 to many Payments; Order 1 to many Payments (failed attempts); Payment 1 to many Transactions and Refunds. Payment methods are polymorphic (Strategy); the gateway is injected (dependency inversion).\n\n**Key design points**\n- **State machine:** `CREATED, PENDING, AUTHORIZED, CAPTURED, FAILED, REFUNDED`, with only valid transitions allowed.\n- Represent money as integer minor units or a decimal type with a currency, never a float.\n- An **idempotency key** prevents double charges on retry or double click.\n- Never store raw card numbers or CVV; use tokens from the gateway.\n- Treat gateway callbacks (webhooks) as the source of truth and verify their signature.\n\n**Data-engineering angle.** Keep an append-only transaction table, so you can reconcile with the gateway's settlement files and replay history.",
+ "followUps": [
+  "How do you make sure a customer is not charged twice?",
+  "How would you design the tables for payments, transactions and refunds?",
+  "How would you reconcile your records with the payment provider's settlement report?",
+  "Why use integer minor units instead of floating-point for money?"
+ ]
+}

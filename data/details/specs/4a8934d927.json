@@ -1,0 +1,18 @@
+{
+ "qid": "4a8934d927",
+ "question": "Hiring manager round for an MTS role. The candidate was asked a few behavioral questions, several HLD questions on the **Saga pattern** for distributed transactions and on **non-functional requirements**, and one HLD discussion of a random case study.",
+ "lookingFor": [
+  "Do you understand why distributed transactions are hard and how sagas address that?",
+  "Can you compare orchestration and choreography and handle failure and compensation?",
+  "Can you name and prioritise non-functional requirements and show how they shape design?",
+  "Can you reason about an unfamiliar case study aloud?"
+ ],
+ "answer": "**Saga pattern.** In a microservice system each service owns its database, so one ACID transaction across services is not available (two-phase commit is slow and fragile). A **saga** breaks a business transaction into a sequence of **local transactions**, each in one service. If a step fails, the saga runs **compensating transactions** to undo earlier completed steps (for example \"release inventory\", \"refund payment\"). The result is **eventual consistency**, not isolation.\n\nExample (order): create order (pending), reserve inventory, charge payment, confirm order. If payment fails: release inventory, cancel order.\n\n**Two styles.**\n\n- **Choreography:** services react to each other's events through a broker. Simple and decoupled for short flows, but the flow is implicit and hard to follow and debug as it grows.\n- **Orchestration:** a central orchestrator tells each service what to do and tracks state. The flow is explicit and easy to monitor, at the cost of one more component (which must itself be reliable).\n\n**Practical concerns.**\n\n- Steps and compensations must be **idempotent**, as messages are delivered at least once.\n- Use the **outbox pattern** so the local database update and the event publish are atomic.\n- Persist saga state, add timeouts, and handle failure of a compensation (retry, then alert for manual action).\n- Lack of isolation means other requests may see intermediate states: use \"pending\" statuses and semantic locks.\n\n**Non-functional requirements (NFRs).** Availability, scalability, latency, throughput, consistency, durability, security, observability, maintainability, cost. In a design, rank them for the product (payments favour consistency and durability; a feed favours availability and latency) and show how each choice follows: replication and failover for availability, caching for latency, queues for peaks, encryption and authentication for security, metrics and tracing for observability. Give measurable targets, for example 99.9% availability and p99 latency under 300 ms.\n\n**Case study approach.** Clarify requirements and scale, define APIs and data model, draw the main flow, then deep dive on bottlenecks and failure modes, and state trade-offs.",
+ "followUps": [
+  "Orchestration or choreography: how do you choose?",
+  "What happens if a compensating transaction fails?",
+  "Why not use two-phase commit?",
+  "How does the outbox pattern work and what problem does it solve?",
+  "How would you define and monitor an availability target?"
+ ]
+}

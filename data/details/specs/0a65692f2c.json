@@ -1,0 +1,18 @@
+{
+ "qid": "0a65692f2c",
+ "question": "Technical Interview 2, Airbnb Software Engineer (campus). **Design a vending machine** with the option to **select a product, take cash, and give back the remaining change**. The design must also consider the **expiry date** of products. The round was a design discussion following a projects discussion.",
+ "lookingFor": [
+  "Object-oriented modelling: entities, responsibilities, relationships.",
+  "State machine thinking for machine behaviour.",
+  "Correct money handling and the change-making algorithm.",
+  "Edge cases: out of stock, expired item, insufficient cash, no change.",
+  "Extensibility such as new payment types."
+ ],
+ "answer": "**Requirements.** Users insert cash, select a product, receive the product and any change. Products have a price, quantity and expiry date. Operator can restock. Out of scope unless asked: card payments, networking.\n\n**Main classes.**\n- `Product`: `id`, `name`, `price` (store as integer minor units, not floating point).\n- `Slot`: a slot code, a `Product`, and a queue/list of `Batch` items, where each batch has a quantity and an `expiryDate`. Dispense the earliest non-expired batch first (FEFO).\n- `Inventory`: slots by code; methods `isAvailable(code, now)`, `dispense(code, now)`, `restock(...)`, `removeExpired(now)`.\n- `Coin/Note` denominations and a `CashBox`: counts per denomination; `add`, `canMakeChange(amount)`, `makeChange(amount)`.\n- `VendingMachine`: holds the `Inventory`, `CashBox`, current balance and a `State`.\n\n**State pattern.** States: `Idle`, `HasMoney`, `Dispensing`, and `OutOfService`. Actions: `insertMoney`, `selectProduct`, `cancel`, `dispense`. Each state defines which actions are valid, which keeps the logic clean and avoids deep if-else chains.\n\n**Flow.** Insert money, then select a slot. Validate: slot exists, stock exists and is not expired (compare expiry to the current time, injected through a clock for testing), balance is at least the price, and change can be made. If any check fails, return a clear error and allow a refund. On success: dispense, deduct stock, compute and return change, reset the balance.\n\n**Change algorithm.** Greedy by largest denomination works for standard coin systems, but must be checked against what the cash box actually holds; if greedy fails, a DP approach or refusing the sale may be needed. Decide whether to refuse a sale that cannot be given exact change before accepting money.\n\n**Concurrency and failure:** one user at a time, so serialise operations; handle a jam by refunding; log transactions.",
+ "followUps": [
+  "How would you add card or UPI payments without changing the core logic?",
+  "Why use integers for money?",
+  "How would you handle a product batch that expires while it is in the machine?",
+  "How would you unit-test the change-making logic?"
+ ]
+}

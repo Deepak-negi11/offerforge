@@ -1,0 +1,18 @@
+{
+ "qid": "86504841de",
+ "question": "Uber SDE-2, bar-raiser system design round: **design type-ahead search suggestions like Google Search** (autocomplete as the user types).",
+ "lookingFor": [
+  "Can you gather requirements and scale numbers (queries per second, latency target, freshness) before designing?",
+  "Do you know the data structure behind suggestions (trie with precomputed top-k) and its limits at scale?",
+  "Can you separate the read path (ultra-low latency) from the offline data pipeline?",
+  "Do you cover caching, sharding, personalisation and handling of trending or fresh queries?",
+  "Do you reason about trade-offs, such as staleness against cost?"
+ ],
+ "answer": "**Requirements.** Given a prefix, return the top 5-10 completions ranked by popularity (optionally personalised) in under about 100 ms end to end. Assume hundreds of millions of daily users and a high read QPS (a request per keystroke, so use debouncing on the client), with a much lower write volume. Suggestions can be a few minutes to hours stale.\n\n**API.** `GET /suggest?q=<prefix>&limit=5`.\n\n**Core data structure.** A **trie** where each node stores the top-k completions for its prefix (precomputed), so a lookup is O(length of prefix) with no subtree traversal. Memory is large, so compress (radix tree), keep only prefixes above a frequency threshold and cap prefix length.\n\n**Components.**\n\n1. **Query logging**: search events go to a log stream (e.g. Kafka).\n2. **Aggregation pipeline (offline)**: batch or streaming jobs count query frequencies by time window (with decay so recent queries weigh more), filter spam, offensive content and rare queries.\n3. **Trie builder**: builds the trie with top-k per node and writes a new immutable snapshot to storage periodically (hourly or daily); trending queries use a smaller, faster-updated layer that is merged at read time.\n4. **Suggestion service**: loads the trie snapshot into memory and serves lookups; swap snapshots atomically.\n5. **Cache**: CDN or an in-memory cache for hot prefixes; short prefixes (\"a\", \"ab\") have enormous traffic and are highly cacheable.\n\n**Scaling.** Shard the trie by prefix range (first characters), with replicas for availability; skew is real (some prefixes are hot), so shard by traffic or replicate hot shards. Route by prefix.\n\n**Alternatives.** Elasticsearch/Redis sorted sets per prefix (`ZADD prefix score term`) is simpler but costs more memory and writes.\n\n**Trade-offs.** Freshness vs cost of rebuilding, personalisation vs cacheability, memory vs top-k precomputation. Also cover typo tolerance, multi-language input and content moderation.",
+ "followUps": [
+  "How would you surface trending queries within minutes without rebuilding the whole trie?",
+  "How would you shard the trie, given heavily skewed prefixes?",
+  "How would you add personalisation without losing cacheability?",
+  "How would you filter inappropriate suggestions?"
+ ]
+}

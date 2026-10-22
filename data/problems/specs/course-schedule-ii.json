@@ -1,0 +1,50 @@
+{
+ "pid": "course-schedule-ii",
+ "title": "Course Schedule II",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A degree programme offers `n` courses, labelled `0` to `n - 1`. Some courses depend on others: a dependency pair `a b` means course `a` must be **completed before** course `b` can be started.\n\nYou take courses one at a time. Find an order in which you can take **all** `n` courses so that every dependency is respected, or report that no such order exists (this happens exactly when the dependencies contain a cycle).\n\nMany valid orders can exist, so the answer is made unique by the following rule:\n\n- Among all valid orders, output the **lexicographically smallest** one, i.e. at every step take the smallest-numbered course whose prerequisites are all already completed.\n- If it is impossible to take every course, output `-1`.\n\nA course with no dependencies can be taken at any time. All dependency pairs are distinct and no course depends on itself.",
+ "input_format": "The first line contains two integers `n` and `m`: the number of courses and the number of dependency pairs.\nEach of the next `m` lines contains two integers `a` and `b`, meaning course `a` must be completed before course `b`.",
+ "output_format": "If every course can be taken, print `n` space-separated integers: the lexicographically smallest valid order. Otherwise print `-1`.",
+ "constraints": [
+  "1 ≤ n ≤ 5 · 10^4",
+  "0 ≤ m ≤ 7 · 10^4",
+  "0 ≤ a, b < n and a ≠ b",
+  "All pairs (a, b) are distinct"
+ ],
+ "examples": [
+  {
+   "input": "5 4\n3 1\n1 0\n4 2\n3 2",
+   "output": "3 1 0 4 2",
+   "explanation": "Courses 3 and 4 have no prerequisites, so the smallest, 3, goes first. That frees course 1 (course 2 still waits for 4). The available courses are now {1, 4}; take 1, which frees 0. From {0, 4} take 0, then 4, which finally frees 2."
+  },
+  {
+   "input": "3 3\n0 1\n1 2\n2 0",
+   "output": "-1",
+   "explanation": "Course 0 needs 2, 2 needs 1 and 1 needs 0. No course in this cycle can ever be started, so no complete order exists."
+  },
+  {
+   "input": "3 0",
+   "output": "0 1 2",
+   "explanation": "With no dependencies every order is valid; the lexicographically smallest is 0 1 2."
+  }
+ ],
+ "complexity": {
+  "time": "O((n + m) log n)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Model the courses as a directed graph with an edge a → b for every pair. A valid order is a topological order of that graph.",
+  "Kahn's algorithm repeatedly removes a node whose in-degree is zero. If the process stops before all nodes are removed, there is a cycle.",
+  "To get the lexicographically smallest order, keep the zero in-degree courses in a min-heap instead of a plain queue."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.buffer.read().split()\n    n, m = int(data[0]), int(data[1])\n    adj = [[] for _ in range(n)]\n    indeg = [0] * n\n    for i in range(m):\n        a = int(data[2 + 2 * i])\n        b = int(data[3 + 2 * i])\n        adj[a].append(b)\n        indeg[b] += 1\n    heap = [v for v in range(n) if indeg[v] == 0]\n    heapq.heapify(heap)\n    order = []\n    while heap:\n        v = heapq.heappop(heap)\n        order.append(v)\n        for w in adj[v]:\n            indeg[w] -= 1\n            if indeg[w] == 0:\n                heapq.heappush(heap, w)\n    print(' '.join(map(str, order)) if len(order) == n else -1)\n\nmain()\n",
+ "brute": "import sys, itertools\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nE = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(m)]\n\ndef greedy():\n    done = [False] * n\n    order = []\n    for _ in range(n):\n        pick = -1\n        for v in range(n):\n            if not done[v] and all(done[a] for a, b in E if b == v):\n                pick = v\n                break\n        if pick < 0:\n            return None\n        done[pick] = True\n        order.append(pick)\n    return order\n\nres = None\nif n <= 7:\n    for p in itertools.permutations(range(n)):\n        pos = {v: i for i, v in enumerate(p)}\n        if all(pos[a] < pos[b] for a, b in E):\n            res = list(p)\n            break\nelse:\n    res = greedy()\nprint(-1 if res is None else ' '.join(map(str, res)))\n",
+ "generator": "def gen(rng):\n    def fmt(n, edges):\n        return f'{n} {len(edges)}' + ''.join(f'\\n{a} {b}' for a, b in edges)\n\n    def dag(n, m):\n        perm = list(range(n))\n        rng.shuffle(perm)\n        m = min(m, n * (n - 1) // 2)\n        seen = set()\n        while len(seen) < m:\n            i, j = rng.randrange(n), rng.randrange(n)\n            if i == j:\n                continue\n            if i > j:\n                i, j = j, i\n            seen.add((perm[i], perm[j]))\n        edges = list(seen)\n        rng.shuffle(edges)\n        return edges, perm\n\n    def cyclic(n, m):\n        edges, perm = dag(n, m)\n        if n < 2:\n            return edges\n        i, j = sorted(rng.sample(range(n), 2))\n        back = (perm[j], perm[i])\n        fwd = (perm[i], perm[j])\n        s = set(edges)\n        s.add(fwd)\n        s.add(back)\n        # make sure there is a path i -> j: the direct forward edge provides it\n        edges = list(s)\n        rng.shuffle(edges)\n        return edges\n\n    tests = [\n        fmt(1, []),\n        fmt(2, [(1, 0)]),\n        fmt(2, [(0, 1), (1, 0)]),\n        fmt(6, [(5, 4), (4, 3), (3, 2), (2, 1), (1, 0)]),\n        fmt(5, [(0, 4), (1, 4), (2, 4), (3, 4)]),\n        fmt(4, [(1, 2), (2, 3), (3, 1)]),\n    ]\n    for n in (3, 4, 5, 6, 7, 7):\n        tests.append(fmt(n, dag(n, rng.randint(0, n * (n - 1) // 2))[0]))\n    for n in (3, 5, 7):\n        tests.append(fmt(n, cyclic(n, rng.randint(1, n))))\n    for n in (10, 14):\n        tests.append(fmt(n, dag(n, rng.randint(n, 2 * n))[0]))\n    tests.append(fmt(12, cyclic(12, 15)))\n    tests.append(fmt(50000, dag(50000, 70000)[0]))\n    tests.append(fmt(50000, cyclic(50000, 69998)))\n    down = set()\n    while len(down) < 70000:\n        a, b = rng.randrange(50000), rng.randrange(50000)\n        if a > b:\n            down.add((a, b))\n    down = list(down)\n    rng.shuffle(down)\n    tests.append(fmt(50000, down))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef find_order(n: int, pairs: List[List[int]]) -> List[int]:\n    # Write your solution here\n    # Return the lexicographically smallest valid order, or [] if none exists.\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    pairs = [[int(data[2 + 2 * i]), int(data[3 + 2 * i])] for i in range(m)]\n    order = find_order(n, pairs)\n    print(' '.join(map(str, order)) if order else -1)\n\n\nmain()\n",
+  "javascript": "function findOrder(n, pairs) {\n  // Write your solution here\n  // Return the lexicographically smallest valid order, or [] if none exists.\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst pairs = []\nfor (let i = 0; i < m; i++) pairs.push([t[2 + 2 * i], t[3 + 2 * i]])\nconst order = findOrder(n, pairs)\nconsole.log(order.length ? order.join(' ') : '-1')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> findOrder(int n, vector<pair<int, int>>& pairs) {\n    // Write your solution here\n    // Return the lexicographically smallest valid order, or {} if none exists.\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<pair<int, int>> pairs(m);\n    for (auto& p : pairs) cin >> p.first >> p.second;\n    vector<int> order = findOrder(n, pairs);\n    if (order.empty()) {\n        cout << -1 << '\\n';\n        return 0;\n    }\n    for (size_t i = 0; i < order.size(); i++) cout << order[i] << (i + 1 < order.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] findOrder(int n, int[][] pairs) {\n        // Write your solution here\n        // Return the lexicographically smallest valid order, or an empty array if none exists.\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] pairs = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); pairs[i][0] = (int) in.nval;\n            in.nextToken(); pairs[i][1] = (int) in.nval;\n        }\n        int[] order = findOrder(n, pairs);\n        if (order.length == 0) {\n            System.out.println(-1);\n            return;\n        }\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < order.length; i++) sb.append(order[i]).append(i + 1 < order.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

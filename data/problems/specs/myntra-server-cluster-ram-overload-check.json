@@ -1,0 +1,50 @@
+{
+ "pid": "myntra-server-cluster-ram-overload-check",
+ "title": "Server Cluster RAM Overload Check",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A cluster has a total RAM capacity of `capacity`. You are given `n` jobs. Job `i` needs `ram[i]` units of RAM for the whole time it runs, from `start[i]` (inclusive) to `end[i]` (exclusive), so it occupies the half-open interval `[start[i], end[i])`.\n\nAt any moment, the RAM in use is the sum of `ram[i]` over all jobs whose interval contains that moment. A job that ends at time `t` has released its RAM by time `t`, so it does not overlap with a job that starts at time `t`.\n\nDecide whether the RAM in use **ever exceeds** `capacity`. Using exactly `capacity` is allowed.",
+ "input_format": "The first line contains two integers `n` and `capacity`.\nEach of the next `n` lines contains three integers `ram[i]`, `start[i]` and `end[i]`.",
+ "output_format": "Print `YES` if the RAM in use exceeds `capacity` at some moment, otherwise print `NO`.",
+ "constraints": [
+  "1 ≤ n ≤ 5 × 10^4",
+  "1 ≤ capacity ≤ 10^15",
+  "1 ≤ ram[i] ≤ 10^9",
+  "0 ≤ start[i] < end[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3 10\n4 1 5\n5 2 6\n3 4 8",
+   "output": "YES",
+   "explanation": "At time 4 all three jobs are running: 4 + 5 + 3 = 12, which is more than 10."
+  },
+  {
+   "input": "3 10\n6 0 4\n5 4 9\n4 0 4",
+   "output": "NO",
+   "explanation": "During [0, 4) jobs 0 and 2 use 6 + 4 = 10, exactly the capacity. Job 1 starts at time 4, the moment the others end, so it runs alone using 5."
+  },
+  {
+   "input": "1 5\n6 3 4",
+   "output": "YES",
+   "explanation": "A single job already needs more RAM than the cluster has."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "The RAM in use only changes at a job's start or end time, so only those moments need to be examined.",
+  "Turn every job into two events: +ram at its start and -ram at its end. Sort the events by time.",
+  "At equal times process the releases (negative events) before the new starts, because intervals are half-open. Keep a running total and compare it with the capacity."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, cap = int(data[0]), int(data[1])\n    ev = []\n    for i in range(n):\n        r, s, e = int(data[2 + 3 * i]), int(data[3 + 3 * i]), int(data[4 + 3 * i])\n        ev.append((s, r))\n        ev.append((e, -r))\n    ev.sort()\n    cur = 0\n    for t, d in ev:\n        cur += d\n        if cur > cap:\n            print(\"YES\")\n            return\n    print(\"NO\")\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, cap = int(data[0]), int(data[1])\njobs = [(int(data[2 + 3 * i]), int(data[3 + 3 * i]), int(data[4 + 3 * i])) for i in range(n)]\nbad = False\nfor _, s, _ in jobs:\n    total = sum(r for r, a, b in jobs if a <= s < b)\n    if total > cap:\n        bad = True\nprint(\"YES\" if bad else \"NO\")\n",
+ "generator": "def gen(rng):\n    def fmt(cap, jobs):\n        return f\"{len(jobs)} {cap}\\n\" + \"\\n\".join(f\"{r} {s} {e}\" for r, s, e in jobs)\n\n    def peak(jobs):\n        ev = []\n        for r, s, e in jobs:\n            ev.append((s, r))\n            ev.append((e, -r))\n        ev.sort()\n        cur = best = 0\n        for t, d in ev:\n            cur += d\n            best = max(best, cur)\n        return best\n\n    tests = [\n        fmt(5, [(6, 0, 1)]),\n        fmt(5, [(5, 0, 1)]),\n        fmt(10, [(6, 0, 4), (5, 4, 9), (4, 0, 4)]),\n        fmt(9, [(6, 0, 4), (4, 3, 5)]),\n        fmt(10, [(6, 0, 4), (4, 3, 5)]),\n        fmt(1, [(1, 0, 10**9)]),\n        fmt(10**9, [(10**9, 0, 10**9), (1, 5, 6)]),\n    ]\n    for _ in range(45):\n        n = rng.randint(1, 9)\n        jobs = []\n        for _ in range(n):\n            s = rng.randint(0, 12)\n            e = s + rng.randint(1, 7)\n            jobs.append((rng.randint(1, 9), s, e))\n        p = peak(jobs)\n        cap = rng.choice([p, max(1, p - 1), rng.randint(1, 25)])\n        tests.append(fmt(cap, jobs))\n    for _ in range(6):\n        n = rng.randint(10, 14)\n        jobs = []\n        for _ in range(n):\n            s = rng.randint(0, 10**9 - 1)\n            e = rng.randint(s + 1, 10**9)\n            jobs.append((rng.randint(1, 10**9), s, e))\n        p = peak(jobs)\n        tests.append(fmt(rng.choice([p, max(1, p - 1)]), jobs))\n    n = 50000\n    jobs = []\n    for _ in range(n):\n        s = rng.randint(0, 10**9 - 1)\n        e = rng.randint(s + 1, 10**9)\n        jobs.append((rng.randint(1, 10**9), s, e))\n    p = peak(jobs)\n    tests.append(fmt(p, jobs))\n    tests.append(fmt(p - 1, jobs))\n    jobs = [(10**9, i * 20000, (i + 1) * 20000) for i in range(n)]\n    tests.append(fmt(10**9, jobs))\n    jobs2 = jobs + [(1, 777777777, 777777778)]\n    tests.append(fmt(10**9, jobs2))\n    jobs = [(rng.randint(1, 20000), 0, 10**9) for _ in range(n)]\n    tot = sum(r for r, s, e in jobs)\n    tests.append(fmt(tot, jobs))\n    tests.append(fmt(tot - 1, jobs))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef exceeds_capacity(capacity: int, ram: List[int], start: List[int], end: List[int]) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, capacity = int(data[0]), int(data[1])\n    ram = [int(data[2 + 3 * i]) for i in range(n)]\n    start = [int(data[3 + 3 * i]) for i in range(n)]\n    end = [int(data[4 + 3 * i]) for i in range(n)]\n    print(\"YES\" if exceeds_capacity(capacity, ram, start, end) else \"NO\")\n\n\nmain()\n",
+  "javascript": "function exceedsCapacity(capacity, ram, start, end) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], capacity = t[1]\nconst ram = [], start = [], end = []\nfor (let i = 0; i < n; i++) {\n  ram.push(t[2 + 3 * i])\n  start.push(t[3 + 3 * i])\n  end.push(t[4 + 3 * i])\n}\nconsole.log(exceedsCapacity(capacity, ram, start, end) ? \"YES\" : \"NO\")\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool exceedsCapacity(long long capacity, vector<long long>& ram, vector<long long>& start, vector<long long>& end) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long capacity;\n    cin >> n >> capacity;\n    vector<long long> ram(n), start(n), end(n);\n    for (int i = 0; i < n; i++) cin >> ram[i] >> start[i] >> end[i];\n    cout << (exceedsCapacity(capacity, ram, start, end) ? \"YES\" : \"NO\") << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean exceedsCapacity(long capacity, long[] ram, long[] start, long[] end) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        long capacity = (long) in.nval;\n        long[] ram = new long[n], start = new long[n], end = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); ram[i] = (long) in.nval;\n            in.nextToken(); start[i] = (long) in.nval;\n            in.nextToken(); end[i] = (long) in.nval;\n        }\n        System.out.println(exceedsCapacity(capacity, ram, start, end) ? \"YES\" : \"NO\");\n    }\n}\n"
+ }
+}

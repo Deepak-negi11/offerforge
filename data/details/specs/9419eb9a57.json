@@ -1,0 +1,18 @@
+{
+ "qid": "9419eb9a57",
+ "question": "From the first technical round for a Software Engineer role at Qualcomm, after an explanation of one of the candidate's projects: **how memory is allocated by `malloc` and `calloc`; how `free` differs from `delete`; how `free()` knows how much memory to release; what a process looks like in memory; the difference between global and static variables; the different scopes of variables and when and why each is used; when and how `extern` is used; and what a void pointer is and how it is used.**",
+ "lookingFor": [
+  "Do you understand the allocator and process memory layout rather than just API names?",
+  "Can you explain the difference between C and C++ allocation, and why they must not be mixed?",
+  "Do you know linkage and storage duration (static, extern, scope)?",
+  "Can you use void pointers safely?"
+ ],
+ "answer": "**`malloc` vs `calloc`.** `malloc(n)` returns a block of `n` bytes of **uninitialised** memory. `calloc(count, size)` returns `count * size` bytes **zeroed**, and checks that the multiplication does not overflow. Both return `NULL` on failure and take memory from the **heap** (large requests may use `mmap`). `realloc` resizes a block.\n\n**`free` vs `delete`.** `free` releases memory from `malloc`/`calloc`/`realloc` and runs no destructors. `new` allocates memory and **calls the constructor**; `delete` **calls the destructor** and then frees the memory. `new[]` pairs with `delete[]`. Never mix families (`malloc` with `delete`) since that is undefined behaviour.\n\n**How `free(ptr)` knows the size.** The allocator stores **metadata (a header) just before the returned address**, holding the block size (and flags). `free` reads it, then returns the block to a free list or bins, possibly coalescing with neighbours. This is why freeing a pointer you did not get from `malloc`, or writing before your block, corrupts the heap.\n\n**Process memory layout (low to high addresses).**\n- **Text:** program code (read-only).\n- **Data:** initialised globals and statics.\n- **BSS:** uninitialised (zeroed) globals and statics.\n- **Heap:** grows upward through `malloc`.\n- **Memory-mapped region:** shared libraries and large allocations.\n- **Stack:** grows downward; frames for function calls.\n\n**Global vs static.** A **global** variable has file-wide storage and **external linkage**, so other files can access it. A **static global** has **internal linkage**: visible only in its file. A **static local** keeps its value across calls but is visible only inside the function. All three live in data/BSS, not on the stack.\n\n**Scopes.** Block (inside `{}`), function, file (static), and global. Use the narrowest scope that works to limit coupling and accidental modification.\n\n**`extern`.** Declares that a variable or function is **defined elsewhere** without allocating storage. Put `extern int count;` in a header and define `int count;` once in one `.c` file.\n\n**Void pointer.** `void *` is a generic pointer that can hold the address of any object type but cannot be dereferenced or used in arithmetic without casting (standard C). It is used by `malloc`, `memcpy`, `qsort` comparators and callback contexts. In C, no cast is needed on conversion; C++ requires an explicit cast.",
+ "followUps": [
+  "What happens if you call `free` twice on the same pointer?",
+  "What is the difference between a memory leak and a dangling pointer?",
+  "Why does `malloc` sometimes return memory that is not zeroed, while `calloc` is slower?",
+  "What is a segmentation fault and what causes it?",
+  "What is the effect of `static` on a function?"
+ ]
+}

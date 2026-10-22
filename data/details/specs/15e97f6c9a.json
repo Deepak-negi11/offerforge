@@ -1,0 +1,18 @@
+{
+ "qid": "15e97f6c9a",
+ "question": "Technical Interview 2 (problem-solving, low-level-design style), Airbnb SDE Intern. **Design a call history manager.** Calls appear in chronological order, there should be only **one latest entry per caller**, and each entry stores the caller's **name and phone number**. The reported solution was an application of an LRU cache: design the data structures and the `get` and `put` operations. The interviewer gave hints, and the emphasis was on thinking and discussing time and space complexity.",
+ "lookingFor": [
+  "Reaching an efficient structure by reasoning, not memorising.",
+  "Combining a hash map and a doubly linked list.",
+  "Complexity analysis and edge cases.",
+  "Clean class and method design.",
+  "Responding to hints and communicating the thought process."
+ ],
+ "answer": "**Clarify the requirements.** Each caller is identified by phone number (the key). When a call arrives from a caller who already exists, the old entry is removed and a new one becomes the most recent. History shows most recent first. Possibly a capacity limit (e.g. keep the last N callers).\n\n**Naive approaches.** A list of entries: finding and removing an existing caller is O(n). A sorted structure by timestamp: O(log n) but needs a lookup by caller too. Both are slower than necessary.\n\n**Efficient design: hash map plus doubly linked list (the LRU structure).**\n- `Entry`: `name`, `number`, `timestamp`, with `prev` and `next` pointers.\n- `Map<String number, Entry>` for O(1) lookup.\n- A doubly linked list ordered by recency, with dummy `head` and `tail` sentinels. Head side is most recent.\n\n**Operations.**\n- `addCall(name, number)` (the `put`): if the number is in the map, unlink that node from the list and update its fields; otherwise create a new node (and, if over capacity, remove the node at the tail and delete it from the map). Insert the node right after the head and store it in the map. O(1).\n- `getEntry(number)` (the `get`): return the entry via the map. Whether this should count as a use depends on requirements; clarify.\n- `getHistory(k)`: walk from head and return k entries. O(k).\n- `remove(number)`: unlink and delete from the map. O(1).\n\n**Complexity.** O(1) for add, get and remove, O(n) space.\n\n**Design points.** Hide the structure behind a `CallHistory` class; make `Entry` mostly immutable aside from list links; consider thread safety (a lock or a concurrent structure) if calls arrive from multiple threads; persist to disk (a database table keyed by number and indexed by timestamp) if history must survive restarts.\n\nIn Java, `LinkedHashMap` with access ordering does this, but explain the underlying structure.",
+ "followUps": [
+  "Why is a doubly linked list needed instead of a singly linked list?",
+  "How would you support deleting all calls from one caller or searching by name?",
+  "How would you persist this and keep it in sync with the in-memory structure?",
+  "What changes if the same number can appear with different names?"
+ ]
+}

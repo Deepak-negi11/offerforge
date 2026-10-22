@@ -1,0 +1,19 @@
+{
+ "qid": "3f565632cc",
+ "question": "Intel software engineer technical round (about one hour), reported as a resume-driven interview focused on OS, computer architecture and compiler design, with questions on personal projects and open-source contributions. The candidate was asked to **write basic Flask code** for a project listed on the resume.",
+ "lookingFor": [
+  "Real hands-on knowledge of the framework and the projects you list.",
+  "Ability to write a small web API from memory: routes, methods, JSON, errors.",
+  "Understanding of HTTP basics, status codes and request validation.",
+  "How you structure and test code.",
+  "Honesty about what you built and why."
+ ],
+ "answer": "Be ready to write a minimal, correct Flask app and then discuss it. The interview is checking that your resume is real.\n\n    from flask import Flask, jsonify, request, abort\n\n    app = Flask(__name__)\n    tasks = {}          # in-memory store for the demo\n    next_id = 1\n\n    @app.get(\"/health\")\n    def health():\n        return jsonify(status=\"ok\")\n\n    @app.post(\"/tasks\")\n    def create_task():\n        global next_id\n        data = request.get_json(silent=True) or {}\n        title = data.get(\"title\")\n        if not isinstance(title, str) or not title.strip():\n            return jsonify(error=\"title is required\"), 400\n        task = {\"id\": next_id, \"title\": title.strip(), \"done\": False}\n        tasks[next_id] = task\n        next_id += 1\n        return jsonify(task), 201\n\n    @app.get(\"/tasks/<int:task_id>\")\n    def get_task(task_id):\n        task = tasks.get(task_id)\n        if task is None:\n            abort(404)\n        return jsonify(task)\n\n    if __name__ == \"__main__\":\n        app.run(debug=True)\n\n**What to explain**\n- `@app.get/post` bind URL rules and HTTP methods to view functions; `request` is a context-local object.\n- Return JSON with proper **status codes** (201 for create, 400 for bad input, 404 when missing).\n- Validate input; never trust the client.\n- The dict store is only for the demo. In a real project use a database (SQLAlchemy or plain SQL) and note that a global counter is not safe across multiple worker processes.\n- `debug=True` is for development only; production runs under a WSGI server such as gunicorn.\n- Config via environment variables, blueprints to organise larger apps, and tests with `app.test_client()`.\n\n**Preparing for the rest of the round.** For every project on your resume, be able to describe the problem, your own contribution, the architecture, one bug you debugged and one trade-off. The same round probes OS (processes, memory, scheduling), architecture (caches, pipelining) and compiler basics (lexing, parsing, optimisation phases), so revise those too.",
+ "followUps": [
+  "How would you add authentication to this API?",
+  "How does Flask differ from Django, and when would you choose each?",
+  "How would you test this endpoint?",
+  "What happens if two requests update the same task at the same time?",
+  "How would you deploy it for production?"
+ ]
+}

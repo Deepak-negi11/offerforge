@@ -1,0 +1,18 @@
+{
+ "qid": "76d0b210f7",
+ "question": "In a Salesforce MTS machine-coding round, the candidate had to **implement a ride-sharing simulation**: multiple passengers request rides and available drivers take them. Each passenger must be assigned exactly one driver and no driver may take more than one passenger at a time. If all drivers are busy, passengers wait and get the first available driver; drivers are reassigned immediately after finishing a ride. Guarantee thread safety and prevent race conditions, using `ExecutorService`, manual timeouts to simulate rides, `BlockingQueue`s and concurrent data structures. The candidate's code hit thread exhaustion at the end.",
+ "lookingFor": [
+  "Do you model a resource pool correctly with a blocking queue?",
+  "Do you understand thread safety, race conditions and visibility?",
+  "Can you size and manage thread pools to avoid exhaustion?",
+  "Can you shut down cleanly and avoid deadlock?",
+  "Do you keep the design simple and testable?"
+ ],
+ "answer": "**Core idea: drivers are a pool of resources.** Put free drivers in a `BlockingQueue<Driver>`. A passenger takes a driver with `take()` (blocks while none is free) and returns the driver with `put()` after the ride. The queue gives exactly-once handoff: a driver is in the queue (free) or held by exactly one passenger (busy), so two passengers can never get the same driver. Fairness: `new ArrayBlockingQueue<>(n, true)` or `LinkedBlockingQueue` serves waiting threads in order.\n\n```java\nclass RideService {\n  private final BlockingQueue<Driver> freeDrivers = new LinkedBlockingQueue<>();\n  private final ExecutorService pool;\n  RideService(List<Driver> drivers, int threads) {\n    freeDrivers.addAll(drivers);\n    pool = Executors.newFixedThreadPool(threads);\n  }\n  Future<?> request(Passenger p) {\n    return pool.submit(() -> {\n      Driver d = freeDrivers.take();       // waits if all busy\n      try { d.drive(p); }                  // simulate with Thread.sleep\n      finally { freeDrivers.put(d); }      // always release\n    });\n  }\n}\n```\n\n**Why code like this exhausts threads.** If each passenger request occupies a pool thread while blocked on `take()`, then with more passengers than pool threads the pool is full of waiting passengers, and ride tasks that would free drivers may never get threads (starvation or deadlock). Fixes:\n- Give the passenger pool at least as many threads as passengers (fine for a simulation), or\n- Do not block pool threads: keep a `ConcurrentLinkedQueue` of waiting passengers, and when a driver finishes, assign the next waiting passenger and schedule the ride on a `ScheduledExecutorService` (simulating duration with `schedule()` rather than `sleep`).\n\n**Other points**\n- Use `ConcurrentHashMap` for ride records and `AtomicInteger` for counters.\n- Handle `InterruptedException` properly and call `shutdown()` and `awaitTermination`.\n- Use `finally` to guarantee the driver is returned even if the ride fails.\n- Test with a latch to verify no driver is used twice (track current passenger per driver).",
+ "followUps": [
+  "What if you need the nearest driver instead of the first free one?",
+  "How would you add a timeout so a passenger gives up after waiting too long?",
+  "Why can a fixed thread pool deadlock when tasks wait on other tasks?",
+  "How would you scale this to multiple servers?"
+ ]
+}

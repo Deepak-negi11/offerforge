@@ -1,0 +1,18 @@
+{
+ "qid": "b2e47e0341",
+ "question": "Intel Software Engineering Intern technical interview, operating systems section: **what are interrupts, what types exist, and how does a processor handle an interrupt?** Candidates at Intel were also asked about semaphores versus mutexes, scheduling and the role of the memory management unit.",
+ "lookingFor": [
+  "Correct definition and motivation (versus polling).",
+  "Classification: hardware, software, maskable, exceptions.",
+  "Step-by-step handling sequence including context save and ISR.",
+  "Link to the OS: system calls, timer interrupts, device drivers.",
+  "Clear, ordered explanation."
+ ],
+ "answer": "**Definition.** An interrupt is a signal to the processor that an event needs immediate attention. The CPU suspends the current program, runs a small handler, then resumes. This is more efficient than **polling**, where the CPU repeatedly checks a device.\n\n**Types.**\n\n- **Hardware interrupts** (asynchronous, from devices): keyboard, disk, network card, timer. They can be **maskable** (can be ignored by clearing a flag, signalled on the INTR line) or **non-maskable (NMI)** (for critical events like hardware failure).\n- **Software interrupts / traps**: triggered by an instruction, such as a system call (`int 0x80`, `syscall`), or a debugger breakpoint. They are synchronous.\n- **Exceptions (faults)**: raised by the CPU on errors during execution, such as divide by zero, invalid opcode, or a **page fault**. Some are recoverable (a page fault is handled and the instruction restarts).\n\n**How the CPU handles an interrupt.**\n\n1. A device raises the interrupt line (through an interrupt controller such as the PIC/APIC, which handles priorities).\n2. The CPU finishes the current instruction and checks that interrupts are enabled (not masked).\n3. It **saves the context**: program counter, flags/status register, and usually other registers, on the stack.\n4. It identifies the source and looks up the handler address in the **interrupt vector table** (IDT on x86).\n5. It switches to kernel mode and runs the **Interrupt Service Routine (ISR)**. The ISR should be short; heavy work is deferred to a lower-priority bottom half or thread.\n6. The ISR acknowledges the device and ends with a return-from-interrupt instruction, which **restores the context** and resumes the interrupted program (or the scheduler picks another task).\n\n**Related points.** Interrupts can be nested by priority; while an ISR runs, the same interrupt is typically masked. Timer interrupts drive preemptive scheduling. The ISR must not block or sleep, and shared data touched by an ISR and normal code needs protection against races.",
+ "followUps": [
+  "What is the difference between an interrupt and a trap or exception?",
+  "Why should an ISR be short, and what is the top-half and bottom-half split?",
+  "What is DMA and how does it reduce interrupt load?",
+  "How does a system call use the interrupt mechanism?"
+ ]
+}

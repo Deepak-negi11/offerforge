@@ -1,0 +1,44 @@
+{
+ "pid": "netflix-renyi-divergence-of-serve-speeds",
+ "title": "Renyi Divergence of Serve Speeds",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "Two tennis players each have a histogram of their serve speeds. Both histograms use the same `n` speed bins: `p[i]` is the number of serves player 1 hit in bin `i`, and `q[i]` is the number of serves player 2 hit in bin `i`. Every bin has at least one serve for both players.\n\nTo measure how similar the two serving styles are, first normalize each histogram into a probability distribution:\n\n- `P[i] = p[i] / (p[0] + ... + p[n-1])`\n- `Q[i] = q[i] / (q[0] + ... + q[n-1])`\n\nThen compute the **Renyi divergence** of order `α` of `P` from `Q`:\n\n`D = (1 / (α - 1)) · ln( Σ over i of P[i]^α / Q[i]^(α - 1) )`\n\nwhere `ln` is the natural logarithm and `α` is a positive number different from `1`. The value `D` is never negative.\n\nThe answer is `D` rounded to 3 decimal places. To avoid printing floating-point numbers, print it as an integer number of thousandths: `floor(1000 · D + 0.5)`. For example, `D = 0.3185` is printed as `319`. The tests are chosen so that `1000 · D` never lies close to a rounding boundary.",
+ "input_format": "The first line contains an integer `n` and the decimal number `α`.\nThe second line contains `n` integers `p[0], ..., p[n-1]`.\nThe third line contains `n` integers `q[0], ..., q[n-1]`.",
+ "output_format": "Print a single integer: `D` rounded to 3 decimal places, expressed in thousandths.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ p[i], q[i] ≤ 10^6",
+  "0 < α ≤ 8, α ≠ 1, with at most 2 digits after the decimal point"
+ ],
+ "examples": [
+  {
+   "input": "3 2\n1 1 2\n2 1 1",
+   "output": "318",
+   "explanation": "P = (0.25, 0.25, 0.5) and Q = (0.5, 0.25, 0.25). With α = 2 the sum of P²/Q is 0.125 + 0.25 + 1 = 1.375, and D = ln(1.375) / 1 ≈ 0.31845, which is 318 thousandths."
+  },
+  {
+   "input": "2 0.5\n1 3\n1 1",
+   "output": "69",
+   "explanation": "P = (0.25, 0.75) and Q = (0.5, 0.5). With α = 0.5 each term is sqrt(P·Q), so the sum is sqrt(0.125) + sqrt(0.375) ≈ 0.96593. Then D = ln(0.96593) / (-0.5) ≈ 0.0693, which is 69 thousandths."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Compute the two totals first, then divide each count by its total to get P[i] and Q[i].",
+  "Accumulate the sum of P[i]^α / Q[i]^(α - 1) over all bins. Be careful not to mix up α and α - 1 in the two exponents.",
+  "Finally divide ln(sum) by α - 1 (this is negative for α < 1, but the log is then negative too) and round to thousandths."
+ ],
+ "reference": "import sys, math\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    alpha = float(data[1])\n    p = [int(x) for x in data[2:2 + n]]\n    q = [int(x) for x in data[2 + n:2 + 2 * n]]\n    sp, sq = sum(p), sum(q)\n    total = 0.0\n    for x, y in zip(p, q):\n        total += (x / sp) ** alpha / (y / sq) ** (alpha - 1)\n    d = math.log(total) / (alpha - 1)\n    print(int(math.floor(d * 1000 + 0.5)))\n\nmain()\n",
+ "brute": "import sys, math\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nalpha = float(data[1])\np = [int(x) for x in data[2:2 + n]]\nq = [int(x) for x in data[2 + n:2 + 2 * n]]\nlp, lq = math.log(sum(p)), math.log(sum(q))\nterms = []\nfor x, y in zip(p, q):\n    terms.append(math.exp(alpha * (math.log(x) - lp) - (alpha - 1) * (math.log(y) - lq)))\nd = math.log(math.fsum(terms)) / (alpha - 1)\nprint(int(math.floor(d * 1000 + 0.5)))\n",
+ "generator": "def gen(rng):\n    import math\n\n    def val(alpha, p, q):\n        sp, sq = sum(p), sum(q)\n        total = 0.0\n        for x, y in zip(p, q):\n            total += (x / sp) ** alpha / (y / sq) ** (alpha - 1)\n        return math.log(total) / (alpha - 1) * 1000\n\n    def ok(alpha, p, q):\n        v = val(alpha, p, q)\n        return v >= 1.0 and abs(v - math.floor(v) - 0.5) > 1e-4\n\n    alphas = ['0.01', '0.1', '0.25', '0.5', '0.75', '1.5', '2', '2.5', '3', '4', '5', '7.5', '8', '1.01', '0.99']\n\n    def fmt(a, p, q):\n        return f\"{len(p)} {a}\\n\" + \" \".join(map(str, p)) + \"\\n\" + \" \".join(map(str, q))\n\n    tests = []\n    fixed = [\n        ('2', [1, 1, 2], [2, 1, 1]), ('0.5', [1, 3], [1, 1]), ('3', [1, 1], [1, 3]),\n        ('2', [1], [1000000]), ('8', [1000000, 1], [1, 1000000]), ('0.01', [5, 1, 9], [2, 2, 2]),\n    ]\n    for a, p, q in fixed:\n        if len(p) == 1:\n            tests.append(fmt(a, p, q))\n        elif ok(float(a), p, q):\n            tests.append(fmt(a, p, q))\n    while len(tests) < 60:\n        n = rng.randint(1, 6)\n        m = rng.choice([3, 9, 50])\n        a = rng.choice(alphas)\n        p = [rng.randint(1, m) for _ in range(n)]\n        q = [rng.randint(1, m) for _ in range(n)]\n        if n == 1 or ok(float(a), p, q):\n            tests.append(fmt(a, p, q))\n    N = 10 ** 5\n    made = 0\n    while made < 6:\n        a = rng.choice(['0.5', '2', '3', '8', '0.01', '1.5'])\n        mode = made % 3\n        if mode == 0:\n            p = [rng.randint(1, 10 ** 6) for _ in range(N)]\n            q = [rng.randint(1, 10 ** 6) for _ in range(N)]\n        elif mode == 1:\n            p = [rng.randint(1, 100) for _ in range(N)]\n            q = [rng.randint(90, 110) for _ in range(N)]\n        else:\n            p = [rng.randint(1, 10 ** 6) for _ in range(N)]\n            q = [max(1, x + rng.randint(-(x // 2), x // 2)) for x in p]\n        if ok(float(a), p, q):\n            tests.append(fmt(a, p, q))\n            made += 1\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef renyi(alpha: float, p: List[int], q: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    alpha = float(data[1])\n    p = [int(x) for x in data[2:2 + n]]\n    q = [int(x) for x in data[2 + n:2 + 2 * n]]\n    print(renyi(alpha, p, q))\n\n\nmain()\n",
+  "javascript": "function renyi(alpha, p, q) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0])\nconst alpha = parseFloat(t[1])\nconst p = [], q = []\nfor (let i = 0; i < n; i++) {\n  p.push(parseInt(t[2 + i]))\n  q.push(parseInt(t[2 + n + i]))\n}\nconsole.log(String(renyi(alpha, p, q)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long renyi(double alpha, vector<long long>& p, vector<long long>& q) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    double alpha;\n    cin >> n >> alpha;\n    vector<long long> p(n), q(n);\n    for (int i = 0; i < n; i++) cin >> p[i];\n    for (int i = 0; i < n; i++) cin >> q[i];\n    cout << renyi(alpha, p, q) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long renyi(double alpha, long[] p, long[] q) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        double alpha = in.nval;\n        long[] p = new long[n], q = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            p[i] = (long) in.nval;\n        }\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            q[i] = (long) in.nval;\n        }\n        System.out.println(renyi(alpha, p, q));\n    }\n}\n"
+ }
+}

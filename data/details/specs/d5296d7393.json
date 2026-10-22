@@ -1,0 +1,18 @@
+{
+ "qid": "d5296d7393",
+ "question": "Atlassian SDE-1 (P30) Karat design discussion: a mechanism lets users **upload large XML files that are then processed and analysed**, but **files above about 2 GB exhaust the server's RAM**. A variant says the default hardware does not have enough RAM to hold the entire file, and another asks how to **process a file larger than RAM on a single machine**. The question: **how would you handle it?** The expected answer is a few approaches with trade-offs, in about four to five minutes.",
+ "lookingFor": [
+  "Recognising that the problem is loading the whole file/DOM into memory.",
+  "Streaming and chunked processing as the core idea.",
+  "Knowing SAX/StAX style parsers versus DOM parsers.",
+  "Operating-system awareness: memory-mapped files, disk, back-pressure.",
+  "Scaling beyond one machine and handling failures and retries."
+ ],
+ "answer": "**Root cause:** the code probably reads the entire upload into memory (and a DOM parser can need several times the file size). Fix by never holding the whole file at once.\n\n**Approaches**\n1. **Stream the upload to disk** (or object storage) in chunks instead of buffering it in RAM; use multipart or resumable uploads (for example chunked upload with checksums).\n2. **Use a streaming/event parser:** SAX or StAX (pull parser) instead of DOM. Memory then depends on the largest *record*, not the file. Process each record as it is read: validate, transform and write results out (to a DB in batches or an output file).\n3. **Chunk by record boundaries.** If the XML is a list of repeated elements, split the file at element boundaries and process chunks independently, which also allows parallelism. You cannot split at arbitrary byte offsets because elements span boundaries.\n4. **Back-pressure and bounded buffers:** a reader feeding a bounded queue to workers so memory stays flat.\n5. **Memory-mapped I/O (`mmap`):** lets the OS page data in and out, useful for random access but not required for sequential parsing.\n6. **Aggregate incrementally:** if the analysis is a sum, count or top-N, keep only running state. For things that need sorting or joining, use an **external sort** (sorted runs on disk, then merge) or a database.\n7. **Scale out:** upload to object storage, publish a job to a queue, and let worker nodes process byte ranges or pre-split chunks; checkpoint progress so a failed job resumes rather than restarts.\n8. **Operational limits:** max file size, timeouts, async job status API, and cleaning up temp files.\n\n**Trade-offs:** streaming parsers are harder to write (no random access, state machines) but use constant memory; adding RAM only postpones the problem.",
+ "followUps": [
+  "What is the difference between SAX and DOM parsing?",
+  "How would you make the processing resumable after a crash?",
+  "How would you split an XML file for parallel processing?",
+  "How would you give the user progress feedback for a long-running upload and job?"
+ ]
+}

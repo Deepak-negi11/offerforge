@@ -1,0 +1,44 @@
+{
+ "pid": "bloomberg-longest-prefix-match",
+ "title": "Longest Prefix Match",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A routing table (or a phone-number directory) stores a set of `n` **prefixes**, each a non-empty string of lowercase letters. A lookup takes a string and must find the table entry that matches it best: the **longest prefix match**, which is the longest stored prefix that is also a prefix of the query string.\n\nYou are given the `n` prefixes and then `q` query strings. For each query print the longest stored prefix that the query starts with. If no stored prefix is a prefix of the query, print `NONE`. A prefix may equal the whole query string, and the same prefix may appear more than once in the table.\n\nFor example, with prefixes `ab`, `abc` and `a`, the query `abcd` matches `abc`, the query `abx` matches `ab`, and the query `b` matches nothing.",
+ "input_format": "The first line contains an integer `n`.\nThe next `n` lines each contain one prefix.\nThe next line contains an integer `q`.\nThe next `q` lines each contain one query string.",
+ "output_format": "Print `q` lines: the longest matching stored prefix for each query, or `NONE`.",
+ "constraints": [
+  "1 ≤ n, q ≤ 10^5",
+  "Prefixes and queries are non-empty strings of lowercase English letters",
+  "The total length of all prefixes is at most 5 * 10^5, and so is the total length of all queries"
+ ],
+ "examples": [
+  {
+   "input": "4\nab\nabc\na\nxyz\n5\nabcd\nabx\nb\nxy\nxyzzy",
+   "output": "abc\nab\nNONE\nNONE\nxyz",
+   "explanation": "abcd starts with a, ab and abc; the longest is abc. abx starts with a and ab; the longest is ab. b starts with no stored prefix. xy is shorter than the only prefix xyz starting with x, so nothing matches. xyzzy starts with xyz."
+  },
+  {
+   "input": "3\nnet\nnetwork\nnetwork\n3\nnetworking\nnetwor\nnet",
+   "output": "network\nnet\nnet",
+   "explanation": "Duplicates in the table do not matter. networking starts with network (the longest); networ is too short for network, so it falls back to net; net matches itself exactly."
+  }
+ ],
+ "complexity": {
+  "time": "O(total prefix length + total query length)",
+  "space": "O(total prefix length)"
+ },
+ "hints": [
+  "Checking every stored prefix against every query is far too slow. Think about sharing work between prefixes that begin with the same characters.",
+  "Build a trie of the stored prefixes and mark the nodes where a stored prefix ends.",
+  "To answer a query, walk down the trie one character at a time, remembering the deepest marked node you passed; stop when the next character has no edge. The answer is the query's first `depth` characters."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    root = {}\n    for i in range(1, n + 1):\n        node = root\n        for ch in data[i]:\n            nxt = node.get(ch)\n            if nxt is None:\n                nxt = {}\n                node[ch] = nxt\n            node = nxt\n        node['$'] = True\n    q = int(data[n + 1])\n    out = []\n    for i in range(n + 2, n + 2 + q):\n        s = data[i]\n        node = root\n        best = 0\n        for j, ch in enumerate(s):\n            node = node.get(ch)\n            if node is None:\n                break\n            if '$' in node:\n                best = j + 1\n        out.append(s[:best] if best else 'NONE')\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nprefixes = data[1:1 + n]\nq = int(data[n + 1])\nfor s in data[n + 2:n + 2 + q]:\n    best = ''\n    for p in prefixes:\n        if s.startswith(p) and len(p) > len(best):\n            best = p\n    print(best if best else 'NONE')\n",
+ "generator": "def gen(rng):\n    def fmt(pre, qs):\n        return '%d\\n%s\\n%d\\n%s' % (len(pre), '\\n'.join(pre), len(qs), '\\n'.join(qs))\n    def rs(alpha, lo, hi):\n        return ''.join(rng.choice(alpha) for _ in range(rng.randint(lo, hi)))\n    tests = [\n        fmt(['a'], ['a']),\n        fmt(['a'], ['b', 'ab', 'ba']),\n        fmt(['ab', 'abc', 'a'], ['abcd', 'abx', 'a', 'ax', 'b']),\n        fmt(['abc', 'abc'], ['abc', 'ab']),\n        fmt(['x'], ['xxxxxxxx']),\n    ]\n    for _ in range(40):\n        alpha = rng.choice(['ab', 'abc', 'abcd'])\n        pre = [rs(alpha, 1, 5) for _ in range(rng.randint(1, 6))]\n        qs = []\n        for _ in range(rng.randint(1, 6)):\n            if rng.random() < 0.6:\n                qs.append(rng.choice(pre) + rs(alpha, 0, 4))\n            else:\n                qs.append(rs(alpha, 1, 8))\n        tests.append(fmt(pre, qs))\n    low = 'abcdefghijklmnopqrstuvwxyz'\n    # many short prefixes and queries (naive n*q times out)\n    pre = [rs(low[:8], 1, 5) for _ in range(100000)]\n    pre = [p for p in pre][:100000]\n    qs = [rs(low[:8], 1, 6) for _ in range(100000)]\n    tests.append(fmt(pre, qs))\n    # long chain of prefixes a, aa, aaa, ...\n    k = 700\n    pre = ['a' * i for i in range(1, k + 1)]\n    qs = ['a' * rng.randint(1, 1400) for _ in range(300)] + ['a' * 1400 + 'b' for _ in range(100)]\n    tests.append(fmt(pre, qs))\n    # two-letter alphabet, longer strings, lengths up to 60\n    pre = [rs('ab', 1, 7) for _ in range(40000)]\n    qs = [rs('ab', 1, 7) + rs('ab', 0, 8) for _ in range(40000)]\n    tests.append(fmt(pre, qs))\n    # prefixes are exactly queries' truncations\n    base = [rs(low, 20, 40) for _ in range(5000)]\n    pre = [b[:rng.randint(1, len(b))] for b in base for _ in range(2)][:20000]\n    qs = [b + rs(low, 0, 5) for b in base for _ in range(2)]\n    tests.append(fmt(pre, qs))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef longest_prefix_match(prefixes: List[str], queries: List[str]) -> List[str]:\n    # For each query return the longest prefix that the query starts with, or \"NONE\"\n    # Write your solution here\n    return [\"NONE\"] * len(queries)\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    prefixes = data[1:1 + n]\n    q = int(data[n + 1])\n    queries = data[n + 2:n + 2 + q]\n    print('\\n'.join(longest_prefix_match(prefixes, queries)))\n\n\nmain()\n",
+  "javascript": "function longestPrefixMatch(prefixes, queries) {\n  // For each query return the longest prefix that the query starts with, or \"NONE\"\n  // Write your solution here\n  return queries.map(() => 'NONE')\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0])\nconst prefixes = t.slice(1, 1 + n)\nconst q = parseInt(t[n + 1])\nconst queries = t.slice(n + 2, n + 2 + q)\nconsole.log(longestPrefixMatch(prefixes, queries).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<string> longestPrefixMatch(vector<string>& prefixes, vector<string>& queries) {\n    // For each query return the longest prefix that the query starts with, or \"NONE\"\n    // Write your solution here\n    return vector<string>(queries.size(), \"NONE\");\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, q;\n    cin >> n;\n    vector<string> prefixes(n);\n    for (auto& s : prefixes) cin >> s;\n    cin >> q;\n    vector<string> queries(q);\n    for (auto& s : queries) cin >> s;\n    vector<string> res = longestPrefixMatch(prefixes, queries);\n    string out;\n    for (auto& s : res) out += s + \"\\n\";\n    cout << out;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String[] longestPrefixMatch(String[] prefixes, String[] queries) {\n        // For each query return the longest prefix that the query starts with, or \"NONE\"\n        // Write your solution here\n        String[] res = new String[queries.length];\n        Arrays.fill(res, \"NONE\");\n        return res;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int n = Integer.parseInt(st.nextToken());\n        String[] prefixes = new String[n];\n        for (int i = 0; i < n; i++) prefixes[i] = st.nextToken();\n        int q = Integer.parseInt(st.nextToken());\n        String[] queries = new String[q];\n        for (int i = 0; i < q; i++) queries[i] = st.nextToken();\n        StringBuilder sb = new StringBuilder();\n        for (String s : longestPrefixMatch(prefixes, queries)) sb.append(s).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

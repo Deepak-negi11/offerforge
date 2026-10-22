@@ -1,0 +1,18 @@
+{
+ "qid": "1d547a2e84",
+ "question": "Meesho SDE-1 (new grad, on-campus), Technical Interview 2. The interviewer asked about the **inner implementation of a vector (dynamic array)** and the **complexities of insert, delete and read operations**.",
+ "lookingFor": [
+  "Do you understand capacity vs size and how resizing works?",
+  "Can you explain amortised O(1) append rigorously?",
+  "Do you know the cost of middle insertion and deletion?",
+  "Do you understand iterator invalidation and memory trade-offs?"
+ ],
+ "answer": "**Structure.** A vector holds a pointer to a contiguous heap-allocated array, a **size** (elements in use) and a **capacity** (allocated slots). Contiguity gives fast random access and good cache locality.\n\n**Operations and complexity.**\n- **Read / write by index:** O(1), address = base + index x element size.\n- **Append (push_back):** if `size < capacity`, write at the end, O(1). If full, **grow**: allocate a new array (typically 1.5x or 2x the capacity), copy or move all elements, free the old array, then append. That one step is O(n), but it happens rarely, so append is **amortised O(1)**.\n- **Insert at index i:** shift elements `i..n-1` one step right, O(n) worst and average (O(1) at the end).\n- **Delete at index i:** shift elements left, O(n); delete from the end (pop_back) is O(1).\n- **Search (unsorted):** O(n); binary search is O(log n) if sorted.\n- **Space:** O(capacity), which can be up to about 2x the size with doubling.\n\n**Why amortised O(1).** With doubling, copy costs over n appends are `1 + 2 + 4 + ... + n < 2n`, so the total is O(n) and the average per append is constant. With a growth factor, a larger factor means fewer copies but more wasted memory; many implementations choose 1.5 so freed blocks can be reused.\n\n**Details worth mentioning.**\n- Growing invalidates pointers, references and iterators to elements because the data moves. Inserting or erasing also invalidates iterators at or after the position.\n- Reserve the capacity upfront (`reserve`) when the size is known to avoid repeated reallocation.\n- Shrinking size does not release capacity automatically (`shrink_to_fit`).\n- In C++ with move-friendly types, reallocation uses move construction (`noexcept` matters). In Java, `ArrayList` works the same way, growing by about 1.5x.\n\n**Versus a linked list.** The vector wins on indexing and cache behaviour; a linked list gives O(1) insert and delete given a node, but O(n) to find it and poor locality.",
+ "followUps": [
+  "Why does the growth factor matter, and why is 1.5 sometimes preferred over 2?",
+  "Why is append amortised O(1) and not O(1) worst case?",
+  "What happens to iterators when the vector reallocates?",
+  "When would you use a linked list instead?",
+  "How would you implement a vector with O(1) insertion at the front too?"
+ ]
+}

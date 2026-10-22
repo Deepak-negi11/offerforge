@@ -1,0 +1,18 @@
+{
+ "qid": "19240fbebb",
+ "question": "In a Swiggy SDE-1 interview (third round, face to face), a design-style DSA question: **a server holds a 900 MB file and the client has a maximum of 100 MB of space available. Sort the file on the client.** This is the classic external sorting problem. The interviewer's wording of space (memory versus disk) is not given, so state your assumption.",
+ "lookingFor": [
+  "Do you recognise this as external sorting and that the data cannot fit in memory?",
+  "Can you describe sorted runs and a k-way merge with a heap?",
+  "Can you do the numbers: run count, buffer sizes, number of passes, I/O volume?",
+  "Do you ask whether the 100 MB limit is RAM or total storage and adapt the plan?",
+  "Do you consider the network, sequential I/O, and failure handling?"
+ ],
+ "answer": "**Clarify the constraint.** If 100 MB is the client's **RAM** and it has plenty of disk, use the standard external merge sort. If 100 MB is **all** the client's storage, it cannot hold even a run of output, so it must stream data and rely on the server (see the end).\n\n**External merge sort (100 MB memory, 900 MB data).**\n\n1. **Run generation.** Read the file in chunks that fit in memory (say 90 MB, leaving room for buffers), sort each chunk in memory (quick sort or `std::sort`), and write it as a sorted run on disk. 900 MB gives about 10 runs.\n2. **K-way merge.** Open all 10 runs. Give each an input buffer (about 9 MB each) and use one output buffer. Maintain a **min-heap** of size k holding the current front element of each run; repeatedly pop the smallest, write it to the output buffer, and push the next element from that run. Flush the output when full.\n\n**Complexity.** CPU: run sort is O(N log(N/k)), merge is O(N log k), total O(N log N). I/O: each byte is read and written twice (about 2 x 900 MB reads and 2 x 900 MB writes), sequentially, which is what disks like. If k runs would need more buffers than memory allows, merge in multiple passes (merge 10 at a time, repeat): passes = `ceil(log_k(runs))`. Memory is O(M) with M = 100 MB.\n\n**Refinements.** Larger runs via **replacement selection** (about 2x memory on random data); read big sequential blocks to reduce seeks; use a tournament (loser) tree for faster merging; compress runs; sort records by key and carry offsets for large values.\n\n**If client storage is only 100 MB.** Do range-partitioned passes: first sample the data to pick splitters, then stream the whole file from the server once per key range, keeping only records in the current range (about 90 MB), sort them in memory, emit them in order to the destination, and continue with the next range. About 10 streaming passes over the network, i.e. O(N * passes) transfer, trading bandwidth for space. Another option is to ask the server to produce sorted runs.\n\nFailure handling: write runs to temporary files, delete them after a successful merge, and make the process restartable by checkpointing completed runs.",
+ "followUps": [
+  "How would you choose the number of runs and the buffer size for a given memory budget?",
+  "What is replacement selection and how large are the runs it produces?",
+  "How would you handle the case where the data has many duplicate keys or is already nearly sorted?",
+  "How does this relate to how databases sort data that does not fit in memory?"
+ ]
+}

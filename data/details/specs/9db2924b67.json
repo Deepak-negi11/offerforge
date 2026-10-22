@@ -1,0 +1,19 @@
+{
+ "qid": "9db2924b67",
+ "question": "Technical plus HR round for an Associate Software Engineer at ServiceNow (campus FTE). The interviewer asked for an **SQL query to find the second highest salary from a table**, then wanted it **without using LIMIT**. Follow-up questions covered how huge data is stored in databases, **sharding**, and how apps like Hotstar handle a very high number of viewers, for example during a world cup match (a **traffic spike**).",
+ "lookingFor": [
+  "Do you know several ways to solve second-highest and the trade-offs (ties, no second value)?",
+  "Can you write correct SQL using subqueries or window functions?",
+  "Do you understand sharding and why it is used?",
+  "Can you reason about handling traffic spikes with caching, load balancing and scaling?",
+  "Do you handle edge cases such as duplicate salaries and an empty result?"
+ ],
+ "answer": "**Without LIMIT: a nested max.**\n`SELECT MAX(salary) FROM Employee WHERE salary < (SELECT MAX(salary) FROM Employee);`\nThe inner query finds the highest salary; the outer takes the maximum of everything strictly below it. Duplicates of the top salary are handled because of the strict `<`. If there is no second distinct salary, `MAX` returns NULL, which is usually the desired behaviour.\n\n**Alternatives.**\n- Correlated count: `SELECT DISTINCT salary FROM Employee e1 WHERE 1 = (SELECT COUNT(DISTINCT salary) FROM Employee e2 WHERE e2.salary > e1.salary);` Works for the Nth highest by replacing 1 with N-1, but is slower.\n- Window function: `SELECT salary FROM (SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk FROM Employee) t WHERE rnk = 2;` Use `DENSE_RANK` rather than `RANK` or `ROW_NUMBER` so duplicate salaries do not skew the position.\n\n**Sharding.** Sharding splits a large table horizontally across several database servers, each holding a subset of rows chosen by a shard key (for example user id, using hash or range). It lets storage and throughput scale out, but makes cross-shard joins and transactions harder, and a poorly chosen key creates hot shards. Replication is the other tool: copies for read scaling and availability.\n\n**Traffic spikes (a live match).**\n- Load balancers spread requests over many stateless servers, with autoscaling and pre-warming before known events.\n- A CDN serves the video segments and static content so origin servers see a fraction of the traffic.\n- Cache hot data (Redis) and use read replicas.\n- Queues absorb bursts of writes; rate limiting and graceful degradation (lower video quality, disable non-essential features) protect the system.\n- Capacity planning and load testing ahead of the event.",
+ "followUps": [
+  "How would you find the Nth highest salary?",
+  "What is the difference between RANK, DENSE_RANK and ROW_NUMBER?",
+  "How do you choose a shard key, and what is a hot shard?",
+  "What is the difference between sharding and replication?",
+  "How would you find the second highest salary in each department?"
+ ]
+}

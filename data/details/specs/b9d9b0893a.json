@@ -1,0 +1,18 @@
+{
+ "qid": "b9d9b0893a",
+ "question": "Groww SDE-2 high-level design round (1 hour). **Design a booking aggregator that lets users book movies, cabs and similar services.** The discussion also covered **how to store configuration** and **monitoring**. The reported prompt was short, so assumptions about scope should be stated up front.",
+ "lookingFor": [
+  "Modelling several verticals behind a common abstraction (adapter / plugin design).",
+  "Booking correctness: holds, payments, partial failures, idempotency.",
+  "Dependency on third-party providers: timeouts, fallbacks, circuit breakers.",
+  "A thoughtful configuration management approach.",
+  "Monitoring: which metrics and alerts show the system is healthy."
+ ],
+ "answer": "**Requirements.** Search offerings (movie shows, cab rides), check availability and price, book, pay, cancel or refund, and view bookings. Providers are external (theatres, cab operators) with different APIs. Assume large read traffic on search and much smaller, correctness-critical write traffic on booking.\n\n**Components.**\n- **API gateway** and a **Search service** reading cached or indexed provider data (Elasticsearch or similar).\n- **Provider adapters**: a common `ProviderAdapter` interface (`search`, `hold`, `confirm`, `cancel`) with one adapter per provider or vertical. New services are added by writing an adapter and configuring it.\n- **Booking service** with a state machine: INITIATED, HELD, PAYMENT_PENDING, CONFIRMED, FAILED, CANCELLED.\n- **Payment service**, **notification service**, and a **reconciliation job**.\n\n**Booking flow.** Hold inventory with a short **TTL** (a seat lock for a movie, a driver reservation for a cab), take payment, confirm with the provider. If confirmation fails after payment, run compensating steps (refund): a **saga** rather than a distributed transaction. Use idempotency keys on booking and payment calls.\n\n**Data.** Relational store for bookings and payments (strong consistency), Redis for holds and search caching, and an event stream for notifications and analytics.\n\n**Configuration storage.** Provider settings (endpoint, timeouts, retry policy, commission, enabled flag, feature flags) live in a versioned configuration store (database with a cache, or a config service). Secrets go in a secrets manager, not in config rows. Support hot reload, audit history, rollback, and per-environment values.\n\n**Monitoring.**\n- Per provider: request rate, error rate, latency percentiles (the RED metrics), circuit breaker state.\n- Business: search-to-booking conversion, booking success rate, payment failures, stuck bookings.\n- Distributed tracing across the booking flow, structured logs with booking id, alerts on error spikes, and synthetic checks of each provider.\n\n**Resilience.** Per-provider timeouts and bulkheads, degraded search results if one provider fails, and rate limits to protect providers.",
+ "followUps": [
+  "How do you prevent two users from booking the same seat?",
+  "What happens if payment succeeds but the provider confirmation fails?",
+  "How would you onboard a new provider with minimal code changes?",
+  "Which alerts would you set up first, and why?"
+ ]
+}

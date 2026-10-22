@@ -1,0 +1,18 @@
+{
+ "qid": "70c34cbf8f",
+ "question": "JPMorgan Chase Software Engineer II technical round (DSA plus code review): you are given a **production pull request and asked to review it**, finding bugs and bad practices.\n\nCandidates report the code contained things like **hard-coded API keys or user ids, incorrect or missing error handling, poor naming, weak data hiding, poor reusability, and misuse of `static` and `volatile`**. You are expected to comment on it the way you would on a real PR.",
+ "lookingFor": [
+  "Ability to read unfamiliar code and spot security, correctness and design issues.",
+  "Security awareness: secrets in code, injection, logging of sensitive data.",
+  "Concurrency fundamentals: what `static` and `volatile` do and do not guarantee.",
+  "Quality of feedback: prioritised, specific and constructive.",
+  "Engineering hygiene: error handling, naming, tests, reusability."
+ ],
+ "answer": "**Review in passes, and prioritise (blocker, major, nit).**\n\n1. **Security first**\n   - **Hard-coded secrets** (API keys, passwords, user ids): move to environment variables or a secrets manager, and **rotate** any key that was committed because it remains in history.\n   - Input validation, SQL built by string concatenation (use parameterised queries), sensitive data written to logs, missing authorisation checks.\n2. **Correctness and error handling**\n   - Empty `catch` blocks or catching `Exception` and swallowing it; returning `null` instead of an error; leaking stack traces to callers; not closing resources (use try-with-resources); unchecked `Optional`/null; no timeouts or retries on network calls.\n3. **Concurrency**\n   - **`static` mutable state** is shared by all instances and threads: it makes code hard to test and creates races. Prefer instance state or dependency injection; keep `static` for constants and pure helpers.\n   - **`volatile`** guarantees visibility and ordering, **not atomicity**: `volatile int count; count++` is still a race. Use `AtomicInteger`, `synchronized` or a lock for compound operations. Also check double-checked locking and non-thread-safe collections.\n4. **Design**\n   - **Data hiding:** public fields; returning internal mutable collections (return unmodifiable views or copies); missing validation in setters.\n   - **Reusability:** duplicated blocks, very long methods, a class doing several jobs (single responsibility), hard-coded values that should be configuration.\n   - **Naming and readability:** misleading names, magic numbers, missing comments for non-obvious logic.\n5. **Tests and observability:** are there unit tests for new behaviour and failure paths, and is logging useful and free of secrets?\n\n**How to word a comment:** state the issue, the risk, and a fix. For example: \"Blocker: the API key is committed on line 12. It will be visible in history and to anyone with repo access. Load it from config and rotate it.\"\n\n**Mistakes to avoid:** only nit-picking naming while missing the secret, rewriting everything instead of prioritising, and giving feedback without explaining why.",
+ "followUps": [
+  "Why is `volatile` not enough for a counter, and what would you use instead?",
+  "A secret was already committed: what are the next steps?",
+  "How would you decide whether to block the PR or approve with comments?",
+  "How would you make this class easier to unit test?"
+ ]
+}

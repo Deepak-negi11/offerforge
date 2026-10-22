@@ -1,0 +1,19 @@
+{
+ "qid": "448fd95e7d",
+ "question": "Cognizant GenC Next technical interview (30 minutes, online). SQL part: **explain normalization**, **explain all types of joins**, the **difference between LEFT JOIN and LEFT OUTER JOIN**, and **write a query to find the 2nd highest salary**.",
+ "lookingFor": [
+  "Normalization explained with the problem it solves (anomalies) and the first three normal forms.",
+  "All join types with correct row-level behaviour.",
+  "Knowing LEFT JOIN and LEFT OUTER JOIN are the same (the trick question).",
+  "A correct second-highest-salary query that handles duplicates.",
+  "Clarity with a small example."
+ ],
+ "answer": "**Normalization** organises tables to reduce redundancy and avoid insert, update and delete anomalies by storing each fact once.\n- **1NF:** each column holds atomic values, no repeating groups (no \"phones = 111,222\" in one cell).\n- **2NF:** 1NF plus no partial dependency: every non-key column depends on the whole composite key.\n- **3NF:** 2NF plus no transitive dependency: non-key columns depend only on the key, not on other non-key columns (store `dept_name` in `departments`, not in each employee row).\n- **BCNF** is a stricter 3NF. Over-normalising costs extra joins, so read-heavy systems sometimes denormalise deliberately.\n\n**Joins** (A left table, B right table):\n- `INNER JOIN`: only rows that match in both.\n- `LEFT [OUTER] JOIN`: all rows of A, matching B columns, `NULL` when no match.\n- `RIGHT [OUTER] JOIN`: all rows of B, mirrored.\n- `FULL [OUTER] JOIN`: all rows from both, `NULL` where unmatched (not supported by MySQL).\n- `CROSS JOIN`: Cartesian product, every A row with every B row.\n- `SELF JOIN`: a table joined with itself, for example employee and manager.\n\n**LEFT JOIN vs LEFT OUTER JOIN:** there is **no difference**. `OUTER` is optional noise in the standard syntax, and likewise `JOIN` alone means `INNER JOIN`. Saying so confidently is the right answer.\n\n**Second highest salary:**\n\n```sql\nSELECT MAX(salary) AS second_highest\nFROM employees\nWHERE salary < (SELECT MAX(salary) FROM employees);\n```\n\nThe inner query finds the top salary and the outer query takes the largest value below it, so duplicates of the top value are ignored. It returns `NULL` when no second distinct value exists. Alternative: `DENSE_RANK() OVER (ORDER BY salary DESC)` and select rank 2, or `ORDER BY salary DESC LIMIT 1 OFFSET 1` after `SELECT DISTINCT`. The Nth highest generalises with the window-function version.",
+ "followUps": [
+  "Give an example of a table that violates 2NF and show how to fix it.",
+  "What is the difference between a FULL JOIN and a UNION?",
+  "How do you emulate a FULL OUTER JOIN in MySQL?",
+  "What is the difference between WHERE and ON in a LEFT JOIN?",
+  "When would you denormalise?"
+ ]
+}

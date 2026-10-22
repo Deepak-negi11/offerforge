@@ -1,0 +1,17 @@
+{
+ "qid": "a8a61ef4b8",
+ "question": "Dream11 Senior SDE, HLD round (remote). Design a **payment system** and explain **how requests flow through it**. The interviewer reportedly did not go very deep and wanted to see the candidate's thinking and approach.",
+ "lookingFor": [
+  "Structured requirements and clear request flow.",
+  "Correctness: idempotency, consistency and no double charging.",
+  "Integration with external payment gateways and failure handling.",
+  "Reconciliation, security and auditing."
+ ],
+ "answer": "**Requirements.** Functional: initiate a payment for an order, support multiple methods (UPI, card, wallet) through external gateways, show status, refunds, webhooks and a ledger. Non-functional: **correctness above all** (never double charge or lose money), high availability, auditability, security (PCI DSS scope reduction by tokenising cards and not storing raw card data), and latency for the user.\n\n**Request flow**\n1. Client calls `POST /payments` with the order id, amount, method and an **idempotency key**.\n2. **API gateway** handles authentication and rate limiting.\n3. **Payment service** validates, creates a `payment` record in state `CREATED` (unique on the idempotency key, so retries return the same payment) and chooses a gateway through a routing layer (cost, success rate, fallback).\n4. It calls the **gateway/PSP** with a timeout. Status moves to `PENDING`.\n5. The result arrives synchronously or, more reliably, via a **webhook**, verified by signature. The service updates the status to `SUCCESS` or `FAILED`, writing to the DB and publishing an event (outbox) to a queue.\n6. Downstream consumers (order service, notifications, wallet, accounting) react to events.\n\n**Data model.** `payments` (id, order id, amount, currency, status, gateway, idempotency key, timestamps), `payment_attempts`, `refunds`, and an **append-only double-entry ledger** (`debit`, `credit`). Use a relational DB with transactions.\n\n**Key concerns**\n- **Idempotency** for client retries and duplicate webhooks.\n- **Unknown state** after a timeout: do not assume failure. Query the gateway's status API and reconcile.\n- State machine with allowed transitions only.\n- **Reconciliation:** a daily job compares internal records with gateway settlement files.\n- **Retries and fallback** gateways, circuit breakers.\n- **Security:** TLS, secrets management, audit logs, fraud checks.\n\n**Scale:** stateless services, shard payments by id, queue-based async processing.",
+ "followUps": [
+  "How do you avoid charging twice if the client retries?",
+  "What do you do when the gateway times out?",
+  "How does the ledger work and why double-entry?",
+  "How would you add multiple payment gateways with failover?"
+ ]
+}

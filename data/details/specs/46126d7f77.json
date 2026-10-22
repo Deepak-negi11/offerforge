@@ -1,0 +1,17 @@
+{
+ "qid": "46126d7f77",
+ "question": "MakeMyTrip SDE-1 new-grad technical round. **A website has a single item and many users try to buy it at the same time: how do you manage it?** The interviewer expected some **advanced locking** and wanted to see your thought process. (Two DSA problems followed in the same round.)",
+ "lookingFor": [
+  "Understanding of race conditions and overselling.",
+  "Pessimistic versus optimistic locking trade-offs.",
+  "Atomic operations and transactions at the database level.",
+  "Scaling beyond a single DB: Redis, queues, reservations."
+ ],
+ "answer": "**The problem.** Stock is 1 and many requests read it as 1, then each decrements it, so the item oversells. This is a classic race condition (check-then-act). The fix is to make the check and decrement **atomic**.\n\n**Options**\n1. **In one application process:** `synchronized` or a lock around the purchase. This does not work across several servers, so use the database or a distributed mechanism.\n2. **Pessimistic locking (DB):** `BEGIN; SELECT stock FROM items WHERE id=? FOR UPDATE; if stock>0 UPDATE ...; COMMIT;` The row lock makes requests serialise. Simple and safe but it reduces throughput and can cause lock waits or deadlocks if multiple rows are locked in different orders.\n3. **Atomic conditional update (often best):** `UPDATE items SET stock = stock - 1 WHERE id=? AND stock > 0;` Check the affected row count: 1 means success, 0 means sold out. No explicit lock in app code; the DB handles it.\n4. **Optimistic locking:** keep a `version` column: `UPDATE items SET stock=stock-1, version=version+1 WHERE id=? AND version=?`. If 0 rows change, retry. Good when contention is low, wasteful when thousands compete for one hot item.\n5. **Redis for flash-sale scale:** pre-load stock in Redis and use atomic `DECR` (or a Lua script) so only the first N requests proceed; then create orders asynchronously through a queue. Reconcile with the DB.\n6. **Reservation with expiry:** put the item on hold for a few minutes during payment, with a TTL; release on timeout. This avoids charging for an item that is then gone.\n\n**Also cover** idempotency keys (a user clicking twice), fairness (queueing or a waiting room), and unique constraints on `(user, item)` if limited to one purchase.\n\n**Trade-offs.** Pessimistic locks are safe but slow under contention; optimistic is fast with few conflicts; Redis plus a queue scales but needs reconciliation and careful failure handling. Pick based on traffic: for a single hot item the atomic conditional update or Redis is the usual answer.",
+ "followUps": [
+  "What is the difference between a row lock and a table lock, and the risks of each?",
+  "How would you prevent the same user from buying twice with retries?",
+  "What if Redis says the item is sold but the DB write fails?",
+  "How do isolation levels like read committed affect this problem?"
+ ]
+}

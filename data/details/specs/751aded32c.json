@@ -1,0 +1,19 @@
+{
+ "qid": "751aded32c",
+ "question": "Databricks senior software engineer system design: **design credit card processing for an online game platform**, supporting **refunds, credits and in-game items**. The interviewer spent much of the time on **low-level implementation details of handling concurrent transactions and how failure recovery would work**. (The candidate noted it resembles standard payment-system design breakdowns.)",
+ "lookingFor": [
+  "Correctness of money movement: no double charges, no lost updates.",
+  "Idempotency, retries and exactly-once effects over unreliable networks.",
+  "Concurrency control in the data layer (transactions, locking, optimistic versioning).",
+  "Failure recovery: reconciliation, sagas, and state machines.",
+  "Clean separation between payments, wallet/credits and item grants."
+ ],
+ "answer": "**Requirements.** Players pay by card to buy currency or items; the platform grants items, supports refunds and store credits. Non-functional: strong correctness for money, no double charge, an audit trail, high availability at peak (sales, events). Do not store raw card data; use a payment service provider (PSP) such as Stripe or Adyen (as examples) with tokenisation, which keeps the platform out of most PCI scope.\n\n**Components.** Checkout/Order service, Payment service (talks to the PSP), a **ledger/wallet** service for credits, Inventory (item grants), a webhook handler for PSP events, and a reconciliation job.\n\n**Data model.** `Order(id, user, items, status)`, `Payment(id, order_id, psp_ref, amount, status, idempotency_key)`, `LedgerEntry(id, account, delta, ref)` (append-only, double entry), `Inventory(user, item, qty)`. Money in integer minor units.\n\n**Concurrency.**\n- Each request carries an **idempotency key**; a unique constraint on it makes retries return the original result.\n- Use database transactions with row-level locking (`SELECT ... FOR UPDATE`) or optimistic version checks when changing balances or order status. Never read-modify-write a balance without protection.\n- Model order and payment as a **state machine** (created, authorised, captured, fulfilled, refunded) and allow only valid transitions via compare-and-set updates.\n\n**Failure recovery.**\n- Charge call times out: the outcome is unknown. Record the attempt first, then query the PSP by idempotency key or wait for its webhook; never charge again blindly.\n- Charge succeeds but item grant fails: use an outbox or saga; retry the grant idempotently, or refund as a compensating action.\n- Use a **transactional outbox** to publish events reliably, and a **reconciliation job** comparing PSP records with the ledger to catch drift.\n\n**Refunds and credits:** record a negative ledger entry linked to the original payment, cap total refunds at the captured amount, and revoke items if needed.\n\n**Scale:** shard by user id, keep payment writes on a strongly consistent store, and cache catalog reads.",
+ "followUps": [
+  "How do you guarantee a user is never charged twice on a retry?",
+  "What do you do when the PSP times out and you do not know if the charge happened?",
+  "How would two concurrent purchases from the same wallet be handled?",
+  "How do you design the ledger so balances can be audited?",
+  "How would you handle chargebacks?"
+ ]
+}

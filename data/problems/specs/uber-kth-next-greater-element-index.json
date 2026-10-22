@@ -1,0 +1,49 @@
+{
+ "pid": "uber-kth-next-greater-element-index",
+ "title": "Kth Next Greater Element Index",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `demand` of `n` integers and an integer `k`.\n\nFor every index `i`, look at the elements to the right of `i` (indices `j > i`) in left-to-right order and consider only those with `demand[j] > demand[i]` (strictly greater). The answer for `i` is the **1-based index** `j + 1` of the **k-th** such element. If fewer than `k` such elements exist, the answer for `i` is `-1`.\n\nPrint the answers for all indices, from the first to the last.",
+ "input_format": "The first line contains two integers `n` and `k`.\nThe second line contains `n` integers `demand[0] ... demand[n-1]`.",
+ "output_format": "Print `n` space-separated integers: the answer for each index, in order.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ k ≤ 50",
+  "1 ≤ demand[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "5 2\n3 4 2 6 5",
+   "output": "4 5 5 -1 -1",
+   "explanation": "For index 0 (value 3) the greater elements to the right are 4, 6, 5 (positions 2, 4, 5 in 1-based indexing); the 2nd is 6, at position 4. For index 1 (value 4) they are 6, 5; the 2nd is 5 at position 5. For index 2 (value 2) they are 6, 5; the 2nd is 5 at position 5. Indices 3 and 4 have fewer than two greater elements to their right."
+  },
+  {
+   "input": "4 1\n5 5 5 5",
+   "output": "-1 -1 -1 -1",
+   "explanation": "No element is strictly greater than another, so every answer is -1."
+  },
+  {
+   "input": "6 3\n1 2 3 4 5 6",
+   "output": "4 5 6 -1 -1 -1",
+   "explanation": "For index 0 every later element is greater, so the 3rd one is the value 4 at position 4. The answers shift by one for each following index until fewer than three greater elements remain."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Scanning to the right for every index is O(n^2) in the worst case (for example a decreasing array finds nothing and still scans everything). You need to avoid rescanning.",
+  "Process the elements in decreasing order of value (handling equal values as a group, because equal values do not count as greater). When you reach an element, the already-processed positions are exactly the positions holding strictly greater values.",
+  "Keep those positions in a Fenwick tree (or an order-statistics structure). If `c` of them are at or before index `i`, the answer is the `(c + k)`-th smallest stored position, found by a binary descent on the tree; if fewer than `c + k` positions are stored, the answer is -1."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    order = sorted(range(n), key=lambda i: -a[i])\n    tree = [0] * (n + 1)\n    top = 1\n    while top * 2 <= n:\n        top *= 2\n    res = [-1] * n\n    stored = 0\n    idx = 0\n    while idx < n:\n        j = idx\n        v = a[order[idx]]\n        while j < n and a[order[j]] == v:\n            j += 1\n        for t in range(idx, j):\n            i = order[t]\n            # count stored positions at or before i\n            c = 0\n            p = i + 1\n            while p > 0:\n                c += tree[p]\n                p -= p & -p\n            target = c + k\n            if target <= stored:\n                pos = 0\n                step = top\n                while step:\n                    nxt = pos + step\n                    if nxt <= n and tree[nxt] < target:\n                        pos = nxt\n                        target -= tree[nxt]\n                    step >>= 1\n                res[i] = pos + 1\n        for t in range(idx, j):\n            p = order[t] + 1\n            while p <= n:\n                tree[p] += 1\n                p += p & -p\n        stored += j - idx\n        idx = j\n    print(' '.join(map(str, res)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, k = int(data[0]), int(data[1])\na = [int(x) for x in data[2:2 + n]]\nres = []\nfor i in range(n):\n    cnt = 0\n    ans = -1\n    for j in range(i + 1, n):\n        if a[j] > a[i]:\n            cnt += 1\n            if cnt == k:\n                ans = j + 1\n                break\n    res.append(ans)\nprint(' '.join(map(str, res)))\n",
+ "generator": "def gen(rng):\n    def fmt(a, k):\n        return '%d %d\\n%s' % (len(a), k, ' '.join(map(str, a)))\n    tests = [fmt([1], 1), fmt([1], 50), fmt([3, 4, 2, 6, 5], 2), fmt([5, 5, 5, 5], 1), fmt([1, 2, 3, 4, 5, 6], 3),\n             fmt([6, 5, 4, 3, 2, 1], 1), fmt([1, 2], 1), fmt([1, 2], 2), fmt([2, 1, 2, 1, 2], 1), fmt([10**9, 1, 10**9], 1)]\n    for n in (2, 3, 5, 8, 12, 20, 40):\n        for _ in range(3):\n            hi = rng.choice((3, 10, 1000))\n            tests.append(fmt([rng.randint(1, hi) for _ in range(n)], rng.randint(1, min(50, 6))))\n    N = 100000\n    tests.append(fmt([rng.randint(1, 10**9) for _ in range(N)], 50))\n    tests.append(fmt([rng.randint(1, 10**9) for _ in range(N)], 1))\n    tests.append(fmt([rng.randint(1, 20) for _ in range(N)], 50))\n    tests.append(fmt(list(range(N, 0, -1)), 50))\n    tests.append(fmt(list(range(1, N + 1)), 50))\n    tests.append(fmt([10**9 - i // 3 for i in range(N)], 7))\n    tests.append(fmt([rng.randint(1, 10**9) - (10**9 // 2) * 0 for _ in range(N // 2)] + list(range(N // 2, 0, -1)), 25))\n    tests.append(fmt([5] * N, 50))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef kth_next_greater(demand: List[int], k: int) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    demand = [int(x) for x in data[2:2 + n]]\n    print(' '.join(map(str, kth_next_greater(demand, k))))\n\n\nmain()\n",
+  "javascript": "function kthNextGreater(demand, k) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst demand = t.slice(2, 2 + n)\nconsole.log(kthNextGreater(demand, k).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> kthNextGreater(vector<long long>& demand, int k) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<long long> demand(n);\n    for (int i = 0; i < n; i++) cin >> demand[i];\n    vector<int> res = kthNextGreater(demand, k);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] kthNextGreater(long[] demand, int k) {\n        // Write your solution here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        long[] demand = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            demand[i] = (long) in.nval;\n        }\n        int[] res = kthNextGreater(demand, k);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "6c26aff1cd",
+ "question": "In a second technical round for a Senior Product Engineer role at Sprinklr (a mix of LLD, HLD and Java concepts), the discussion covered:\n\n- **How Kafka works**, with emphasis on **topics and partitions**.\n- The **trade-offs and downsides of database indexes**.\n- A deep dive into a **notification system** from the candidate's resume, with high-level and low-level design questions.\n\nOther parts of the round covered concurrency (semaphores, thread synchronisation) and implementing an LRU cache.",
+ "lookingFor": [
+  "Can you explain Kafka's model (topics, partitions, offsets, consumer groups) accurately?",
+  "Do you understand ordering, parallelism and delivery guarantees?",
+  "Can you describe index costs, not just benefits?",
+  "Can you design a notification system and justify where Kafka and indexes fit?"
+ ],
+ "answer": "**Kafka basics.** Kafka is a distributed, append-only commit log.\n\n- A **topic** is a named stream of records.\n- A topic is split into **partitions**; each partition is an ordered, immutable sequence, and every record has an **offset** in it.\n- A **producer** chooses the partition (by key hash, round-robin, or custom). Records with the same key go to the same partition, so **ordering is guaranteed only within a partition**.\n- A **consumer group** shares a topic: each partition is assigned to at most one consumer in the group, so parallelism is capped by the partition count. Different groups read the same data independently.\n- Consumers track progress by committing offsets. Records stay for a retention period, so they can be replayed.\n- Each partition has a **leader** and **replicas** on other brokers; `acks=all` plus `min.insync.replicas` gives durability. Delivery is at-least-once by default, so consumers should be idempotent (exactly-once needs idempotent producers and transactions).\n\n**Index trade-offs.** An index speeds up reads (lookups, range scans, sorts, joins), but:\n\n- **Writes get slower**: each insert, update or delete must also update every affected index.\n- **Storage**: indexes take disk and memory, and compete for the buffer cache.\n- **Maintenance**: bloat, page splits, rebuilds.\n- **Planner confusion**: too many indexes, low-selectivity columns (booleans), or functions applied to the column (`WHERE lower(email)=...`) mean the index is unused.\n- Composite indexes depend on **column order** (leftmost prefix).\n\nRule of thumb: index for your actual query patterns, check with `EXPLAIN`, and drop unused ones.\n\n**Notification system (outline).** API accepts a send request, validates and writes it to Kafka (topic per channel: email, SMS, push, partitioned by user id to preserve per-user order). Workers consume per channel, apply templates, user preferences, rate limits and dedup (idempotency key), call providers (FCM, SES), and retry with backoff, sending failures to a dead-letter topic. Store status in a database indexed by `(user_id, created_at)` and by notification id.",
+ "followUps": [
+  "How do you choose the number of partitions for a topic?",
+  "What happens during a consumer-group rebalance?",
+  "How do you get effectively exactly-once processing with Kafka?",
+  "What is a covering index, and what is index selectivity?",
+  "How would you prevent duplicate notifications on retries?"
+ ]
+}

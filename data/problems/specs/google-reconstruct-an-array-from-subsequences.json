@@ -1,0 +1,49 @@
+{
+ "pid": "google-reconstruct-an-array-from-subsequences",
+ "title": "Reconstruct an Array from Subsequences",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "There is a hidden array whose elements are all **distinct**. Each of `N` friends remembers some subsequence of it: friend `i` gives you a list of values, in the order in which they appear in the hidden array (the values need not be adjacent in the array).\n\nDecide whether some array is consistent with what every friend remembers, and if so output one. Because many arrays can be consistent, a single canonical answer is required: print the **lexicographically smallest** array that contains exactly the values mentioned by at least one friend, each exactly once, and in which every friend's list appears as a subsequence. Arrays are compared element by element, by numeric value.\n\nIf no consistent array exists (the friends' memories contradict each other, or a friend's list repeats a value), print `-1`.",
+ "input_format": "The first line contains an integer `N`.\nEach of the next `N` lines describes one friend: an integer `L` followed by `L` integers (the remembered values in order).",
+ "output_format": "Print the reconstructed array as space-separated integers on one line, or `-1` if none exists.",
+ "constraints": [
+  "1 ≤ N ≤ 10^5",
+  "1 ≤ L, and the sum of all L is at most 2 · 10^5",
+  "1 ≤ value ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "4\n3 1 4 2\n3 2 5 3\n3 1 2 3\n4 4 2 5 6",
+   "output": "1 4 2 5 3 6",
+   "explanation": "The lists force 1 before 4, 4 before 2, 2 before 5, 5 before 3 and 5 before 6 (also 1 before 2 and 2 before 3). The values 3 and 6 are both free after 5; the smaller one, 3, comes first."
+  },
+  {
+   "input": "2\n2 1 2\n2 2 1",
+   "output": "-1",
+   "explanation": "One friend says 1 comes before 2 and the other says 2 comes before 1."
+  },
+  {
+   "input": "3\n2 5 3\n1 9\n2 3 7",
+   "output": "5 3 7 9",
+   "explanation": "5 must precede 3, and 3 must precede 7. The value 9 has no constraints. At each step choose the smallest value whose requirements are already met: 5 (instead of 9), then 3, then 7, then 9."
+  }
+ ],
+ "complexity": {
+  "time": "O(S log S)",
+  "space": "O(S)"
+ },
+ "hints": [
+  "Turn each friend's list into ordering constraints: every value must come before the next value in that list. What kind of graph does this give?",
+  "A valid array exists exactly when this graph has no cycle, and any topological order is a valid array.",
+  "Run Kahn's algorithm, but keep the nodes with no remaining prerequisites in a min-heap so the smallest value is always taken first. If you cannot place every value, there is a cycle."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.read().split()\n    N = int(data[0])\n    p = 1\n    ids = {}\n    vals = []\n    adj = []\n    indeg = []\n    def get(v):\n        if v not in ids:\n            ids[v] = len(vals)\n            vals.append(v)\n            adj.append([])\n            indeg.append(0)\n        return ids[v]\n    for _ in range(N):\n        L = int(data[p])\n        p += 1\n        prev = -1\n        for t in range(L):\n            x = get(int(data[p + t]))\n            if prev >= 0:\n                adj[prev].append(x)\n                indeg[x] += 1\n            prev = x\n        p += L\n    heap = [(vals[i], i) for i in range(len(vals)) if indeg[i] == 0]\n    heapq.heapify(heap)\n    out = []\n    while heap:\n        v, i = heapq.heappop(heap)\n        out.append(v)\n        for j in adj[i]:\n            indeg[j] -= 1\n            if indeg[j] == 0:\n                heapq.heappush(heap, (vals[j], j))\n    if len(out) != len(vals):\n        print(-1)\n    else:\n        print(' '.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import permutations\n\ndata = sys.stdin.read().split()\nN = int(data[0])\np = 1\nlists = []\nfor _ in range(N):\n    L = int(data[p])\n    lists.append([int(x) for x in data[p + 1:p + 1 + L]])\n    p += 1 + L\nvals = sorted(set(x for l in lists for x in l))\nans = None\nfor perm in permutations(vals):\n    pos = {v: i for i, v in enumerate(perm)}\n    if all(all(pos[l[i]] < pos[l[i + 1]] for i in range(len(l) - 1)) for l in lists):\n        ans = perm\n        break\nprint(-1 if ans is None else ' '.join(map(str, ans)))\n",
+ "generator": "def gen(rng):\n    def fmt(lists):\n        return str(len(lists)) + ''.join('\\n' + str(len(l)) + ' ' + ' '.join(map(str, l)) for l in lists)\n    def sub(arr, lo=1, hi=None):\n        k = rng.randint(min(lo, len(arr)), min(len(arr), hi if hi else len(arr)))\n        idx = sorted(rng.sample(range(len(arr)), k))\n        return [arr[i] for i in idx]\n    tests = [fmt([[7]]), fmt([[3, 1], [1, 2]]), fmt([[1, 2], [2, 1]]), fmt([[1, 1]]), fmt([[5], [3], [9]]),\n             fmt([[1, 4, 2], [2, 5, 3], [1, 2, 3], [4, 2, 5, 6]]), fmt([[1, 2, 3], [3, 1]]),\n             fmt([[10**9, 1], [1, 5]])]\n    for _ in range(30):\n        m = rng.randint(1, 7)\n        base = rng.sample(range(1, 15), m)\n        lists = [sub(base) for _ in range(rng.randint(1, 5))]\n        r = rng.random()\n        if r < 0.3:\n            l = sub(base, 2)\n            if len(l) >= 2:\n                l = l[:]\n                i, j = rng.sample(range(len(l)), 2)\n                l[i], l[j] = l[j], l[i]\n            lists.append(l)\n        elif r < 0.4:\n            l = sub(base)\n            l.append(rng.choice(base))\n            lists.append(l)\n        rng.shuffle(lists)\n        tests.append(fmt(lists))\n    M = 10**5\n    pool = rng.sample(range(1, 10**9), M)\n    chain = [[pool[i], pool[i + 1]] for i in range(M - 1)]\n    rng.shuffle(chain)\n    tests.append(fmt(chain))\n    bad = chain[:]\n    bad.append([pool[-1], pool[0]])\n    rng.shuffle(bad)\n    tests.append(fmt(bad))\n    lists = []\n    total = 0\n    while total < 2 * 10**5 - 3000:\n        l = sub(pool, 50, 3000)\n        lists.append(l)\n        total += len(l)\n    tests.append(fmt(lists))\n    lists = []\n    for _ in range(1000):\n        lists.append(sub(pool, 100, 200))\n    lists.append([pool[0]])\n    tests.append(fmt(lists))\n    perm = pool[:]\n    rng.shuffle(perm)\n    tests.append(fmt([perm[:100000], perm[50000:], perm[::2][:30000]]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef reconstruct(lists: List[List[int]]) -> List[int]:\n    # Write your solution here\n    # Return the array, or [-1] if no consistent array exists.\n    return [-1]\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    p = 1\n    lists = []\n    for _ in range(n):\n        length = int(data[p])\n        lists.append([int(x) for x in data[p + 1:p + 1 + length]])\n        p += 1 + length\n    print(' '.join(map(str, reconstruct(lists))))\n\n\nmain()\n",
+  "javascript": "function reconstruct(lists) {\n  // Write your solution here\n  // Return the array, or [-1] if no consistent array exists.\n  return [-1]\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nlet p = 1\nconst lists = []\nfor (let i = 0; i < n; i++) {\n  const len = t[p]\n  lists.push(t.slice(p + 1, p + 1 + len))\n  p += 1 + len\n}\nconsole.log(reconstruct(lists).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> reconstruct(vector<vector<long long>>& lists) {\n    // Write your solution here\n    // Return the array, or {-1} if no consistent array exists.\n    return {-1};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<vector<long long>> lists(n);\n    for (int i = 0; i < n; i++) {\n        int len;\n        cin >> len;\n        lists[i].resize(len);\n        for (int j = 0; j < len; j++) cin >> lists[i][j];\n    }\n    vector<long long> res = reconstruct(lists);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] reconstruct(long[][] lists) {\n        // Write your solution here\n        // Return the array, or {-1} if no consistent array exists.\n        return new long[]{-1};\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[][] lists = new long[n][];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            int len = (int) in.nval;\n            lists[i] = new long[len];\n            for (int j = 0; j < len; j++) {\n                in.nextToken();\n                lists[i][j] = (long) in.nval;\n            }\n        }\n        long[] res = reconstruct(lists);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

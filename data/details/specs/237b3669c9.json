@@ -1,0 +1,17 @@
+{
+ "qid": "237b3669c9",
+ "question": "Final open-ended question in a D. E. Shaw QTE intern technical round: **what should be tested on the checkout page of an e-commerce website (such as Flipkart)?** The candidate mentioned two people paying when only one item is left, and consistency of the item against the database. This answer covers functional, concurrency, data, payment and non-functional testing.",
+ "lookingFor": [
+  "Systematic thinking: functional, edge, concurrency, security and performance testing.",
+  "Awareness of the hard problems: inventory races, payment failures, idempotency.",
+  "Prioritisation and risk-based testing.",
+  "Ability to turn ideas into concrete test cases and automation."
+ ],
+ "answer": "Structure your answer by area, and say which cases are highest risk (money and stock).\n\n**1. Functional**\n- Cart contents, quantities, prices, taxes, shipping, discounts and coupons are computed correctly; the order total matches the payment amount.\n- Address and contact validation; changing the address or quantity updates the totals.\n- Each payment method: card, UPI, net banking, wallet, cash on delivery.\n- The confirmation page, email or SMS, and the order appearing in \"My orders\".\n\n**2. Concurrency and inventory (the interviewer's hint)**\n- Two users pay for the **last item** at the same time: exactly one order must succeed and the other must fail gracefully or be refunded. This requires atomic stock decrement or reservation (for example `UPDATE ... SET stock = stock - 1 WHERE stock > 0`) rather than read-then-write.\n- Stock reservation expires if the user abandons checkout.\n- Same user double-clicks \"Pay\" or opens two tabs: only one order.\n- The displayed stock, the cart and the database stay consistent, including after cancellations.\n\n**3. Payment**\n- Success, failure, timeout, and **money debited but no confirmation** (callback delayed): the system must reconcile.\n- **Idempotency:** retries and refreshes must not double-charge.\n- Refund and cancellation paths; partial failure between payment and order creation.\n- Card data is never logged or stored in plain text; sensitive fields are masked.\n\n**4. Data and state**\n- Price changes during checkout, expired coupons, items going out of stock, serviceable pincodes.\n- Order state transitions are valid and persisted correctly.\n\n**5. Non-functional**\n- **Security:** authentication, CSRF, tampering with price or quantity in the request, injection.\n- **Performance:** load tests during a sale; behaviour under slow third-party gateways.\n- **Compatibility and accessibility:** browsers, mobile, slow networks, keyboard use.\n- **Resilience:** what happens if the payment gateway or inventory service is down.\n\n**Automation:** unit and API tests for pricing and stock, a few end-to-end UI tests for the main flow, and concurrency tests with parallel requests.",
+ "followUps": [
+  "How would you write an automated test for the last-item race condition?",
+  "How do you guarantee the user is not charged twice if the callback is retried?",
+  "Which tests would you automate, and which would you keep manual?",
+  "How would you test the system during a flash sale?"
+ ]
+}

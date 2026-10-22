@@ -1,0 +1,19 @@
+{
+ "qid": "f7a8156918",
+ "question": "Build an `scp`-like tool that copies a huge file (about 1 TB) from machine 1 to machine 2. The follow-up discussion covered chunking, parallelism, integrity checking and resuming after a failure.",
+ "lookingFor": [
+  "Can you identify the real bottlenecks (network, disk, CPU) instead of just 'send it in chunks'?",
+  "Do you design for failure: resumable transfer and integrity verification?",
+  "Do you understand TCP behaviour on high-latency links and why parallel streams help?",
+  "Do you think about security, bandwidth control and observability?",
+  "Can you separate protocol design from implementation details?"
+ ],
+ "answer": "**Scale check.** 1 TB is 8x10^12 bits; over a 1 Gbps link that is about 8,000 seconds (more than 2 hours) at best, so failures during the transfer are likely and a restart from zero is unacceptable.\n\n**Design:**\n1. **Manifest.** The sender splits the file into fixed-size chunks (for example 8-64 MB) identified by index and offset, and computes a checksum per chunk (SHA-256 or a fast hash such as xxHash plus a final strong hash). It sends metadata first: file size, chunk size and a manifest of checksums (or computes them lazily and sends alongside each chunk).\n2. **Parallel transfer.** Several workers send different chunks over separate TCP connections. Multiple streams help because a single TCP stream is limited by the window size and latency (bandwidth-delay product) and by one CPU core's encryption throughput. Cap the number of streams to avoid disk thrashing.\n3. **Receiver.** Pre-allocate the file and write each chunk at its offset (`pwrite`), so chunks can arrive out of order. It verifies each chunk's checksum and acknowledges it; a bad chunk is requested again.\n4. **Resumption.** The receiver persists a bitmap (or list) of chunks received and verified. After a crash or disconnect the sender asks for that state and sends only missing chunks. This is how rsync-like and bbcp-like tools resume.\n5. **Final integrity.** Compare a whole-file hash (or a hash of per-chunk hashes, a Merkle-style tree) at the end.\n6. **Security.** Run over TLS or an SSH channel; authenticate both ends. Encryption can limit throughput per stream, which is another reason for parallelism.\n\n**Performance notes:** read the source sequentially and in large blocks so the disk is not the bottleneck; use compression only if the data compresses well and CPU is available; use bounded in-flight chunks for backpressure and memory control; optionally rate-limit to protect other traffic.\n\n**Edge cases:** the source file changes during transfer (compare size/mtime or use snapshots), sparse files, full destination disk (check space up front), and timeouts with retries and exponential backoff.",
+ "followUps": [
+  "Why is parallelism with multiple TCP connections faster than one?",
+  "How would you choose the chunk size?",
+  "How does the receiver know a chunk is corrupted, and what does it do?",
+  "What if the file changes while you are copying it?",
+  "How would you extend this to copy to many machines?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "56c41d8360",
+ "question": "Cognizant GenC Next technical interview (SQL/DBMS): **what is an index, and what types of indexing exist?** One candidate explained indexing in general but could not recall the types when asked. The same interview asked about views, joins, and primary/composite keys.",
+ "lookingFor": [
+  "Clear definition of what an index is and the speed-versus-write trade-off.",
+  "Knowing the main types and what distinguishes them.",
+  "Understanding of when an index helps and when it does not.",
+  "Ability to write CREATE INDEX and reason about queries.",
+  "Awareness of the underlying structure (B-tree, hash)."
+ ],
+ "answer": "**Index:** a separate data structure the database maintains on one or more columns so it can find rows **without scanning the whole table**, like a book's index. Reads (`WHERE`, `JOIN`, `ORDER BY`) get faster; the cost is **extra storage** and **slower writes** (`INSERT`, `UPDATE`, `DELETE` must also update the index).\n\n```sql\nCREATE INDEX idx_emp_last ON employees(last_name);\nCREATE UNIQUE INDEX idx_emp_email ON employees(email);\n```\n\n**Types of indexes**\n- **Clustered index:** defines the **physical order** of rows in the table, so there can be only **one** per table. Usually created on the primary key (for example in SQL Server and MySQL InnoDB). Range queries on it are very fast.\n- **Non-clustered (secondary) index:** a separate structure whose entries point to the rows (to the clustered key or row location). A table can have **many**.\n- **Unique index:** enforces uniqueness (created automatically for primary and unique constraints).\n- **Composite (multi-column) index:** on several columns. The **left-most prefix rule** applies: an index on `(a, b)` helps filters on `a` or `a, b`, but generally not on `b` alone.\n- **Covering index:** includes every column a query needs, so the table is not read at all.\n- **Other types by structure:** **B-tree/B+ tree** (default in most databases; good for equality, ranges and sorting), **hash index** (equality only), **bitmap index** (low-cardinality columns, common in data warehouses, for example Oracle), and specialised ones such as full-text and spatial indexes.\n\nAnother classification is **dense** (an entry for every row) versus **sparse** (an entry per block), which is common in textbooks.\n\n**When indexes help:** columns used often in `WHERE`, join keys, and sort columns with high selectivity. **When they do not:** tiny tables, low-selectivity columns (for example gender), columns in functions (`WHERE UPPER(name)=...` without a functional index), and tables with heavy writes. Check with `EXPLAIN` before and after to verify the plan.",
+ "followUps": [
+  "What is the difference between clustered and non-clustered indexes?",
+  "Why does the order of columns in a composite index matter?",
+  "Why can too many indexes hurt performance?",
+  "How would you find out if a query is using an index?"
+ ]
+}

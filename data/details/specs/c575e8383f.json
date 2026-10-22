@@ -1,0 +1,17 @@
+{
+ "qid": "c575e8383f",
+ "question": "In the managerial round for an NVIDIA Compiler Intern role, the interviewer asked computer architecture questions:\n\n- **How does computer memory work?**\n- **How does information travel from secondary memory to the CPU registers?**\n- **What is cache memory, and what are the L1, L2 and L3 caches?**",
+ "lookingFor": [
+  "Do you understand the memory hierarchy and the speed, size and cost trade-off?",
+  "Can you trace a load from disk to registers, including virtual memory and caches?",
+  "Do you know why caches work (locality) and how they are organised?",
+  "Can you connect this to performance of real code?"
+ ],
+ "answer": "**Memory hierarchy.** Memory is arranged so that small, fast, expensive storage sits close to the CPU and large, slow, cheap storage sits far away: registers (under 1 ns, a few hundred bytes), L1/L2/L3 caches (SRAM), main memory (DRAM, around 100 ns), then SSD or HDD (microseconds to milliseconds). It works because of **locality**: temporal (recently used data is used again) and spatial (nearby data is used next).\n\n**From disk to a register.**\n\n1. The program touches a virtual address. The MMU translates it to a physical address using the page table, with the TLB caching recent translations.\n2. If the page is not in RAM (page fault), the OS reads it from secondary storage (through the file system and the device driver, usually using DMA) into a physical frame and updates the page table.\n3. The CPU then needs the data at that physical address: it checks L1, then L2, then L3. On a miss at every level, the memory controller fetches a whole **cache line** (commonly 64 bytes) from DRAM and fills the caches on the way.\n4. A load instruction finally places the requested word into a register, where the ALU can use it.\n\n**Cache memory.** A small, fast SRAM that holds copies of recently used memory. Organisation: lines of fixed size, mapped by address bits (tag, index, offset); direct-mapped, set-associative or fully associative. On a hit data returns in a few cycles; on a miss it is fetched from the next level. Writes use write-through or write-back policies. Replacement is typically an approximation of LRU. In multicore systems, a coherence protocol (such as MESI) keeps private caches consistent.\n\n**L1, L2, L3.** L1 is smallest and fastest, private per core, often split into instruction and data caches (tens of KB). L2 is larger and slower (hundreds of KB to a few MB), usually per core. L3 is larger still (many MB), shared between cores. Exact sizes depend on the processor.\n\n**Why it matters for code.** Iterating a 2D array row by row (contiguous) is much faster than column by column, and structures laid out contiguously beat pointer-chasing.",
+ "followUps": [
+  "What is the difference between a cache hit rate and the average memory access time?",
+  "What is false sharing?",
+  "What does the TLB do and what happens on a TLB miss?",
+  "Why is row-major traversal faster than column-major in C?"
+ ]
+}

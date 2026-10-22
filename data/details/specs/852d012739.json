@@ -1,0 +1,18 @@
+{
+ "qid": "852d012739",
+ "question": "Uber Software Engineer II, HLD round. Design the **backend of an e-commerce website for browsing merchandise**, limited to the browsing experience and excluding purchase. **Popularity data should be used to select and highlight the top items.** The candidate was asked to build an **event processor** for very high volumes of events such as product added to cart, product viewed, product wishlisted and product purchased, and was asked where to store the data and whether to prioritise **consistency or availability**. They used Kafka for event ingestion, MongoDB for the catalogue, and Redis for a leaderboard and cached top-k items. The interviewer also asked for an example of the data stored in MongoDB.",
+ "lookingFor": [
+  "Can you define requirements, scale and a clear popularity metric?",
+  "Do you design a sound event pipeline (ingest, process, aggregate, serve)?",
+  "Do you pick storage per access pattern and justify each choice?",
+  "Can you reason about consistency versus availability for this specific feature?",
+  "Do you cover caching, hot-key and scaling issues?"
+ ],
+ "answer": "**Requirements.** Browse the catalogue by category and show top items by popularity. Assume heavy reads (say 50k QPS) and a much higher event rate (views dominate). Popularity may lag by seconds to minutes.\n\n**Popularity score.** A weighted, time-decayed sum, for example `view*1 + wishlist*3 + cart*5 + purchase*10`, with exponential decay or sliding windows (last hour, day, week) so old items fade. Compute per category and globally.\n\n**Architecture.**\n\n1. **Event ingestion**: clients/services publish events to a log (Kafka), partitioned by `product_id` so one product's events are ordered and one consumer owns its counts. Use an idempotency or event id for deduplication.\n2. **Stream processor** (Flink/Spark Streaming or a consumer service): aggregates counts in short tumbling or sliding windows, applies weights and decay, and writes scores.\n3. **Leaderboard store**: Redis sorted sets per category and window (`ZINCRBY popular:{category}:{window} score product_id`). `ZREVRANGE 0 k-1` returns the top k in O(log n + k).\n4. **Catalogue store**: a document database (MongoDB) or a relational store keyed by product id, holding the product attributes (`{_id, title, category, price, images, stock_status, ...}`); read-heavy, so add replicas and cache.\n5. **Browse API**: reads the top-k ids from Redis, fetches product details with a multi-get (from cache, then DB), and returns the page. Cache the assembled top-k for a few seconds, and place a CDN in front for anonymous traffic.\n6. **Cold storage**: raw events in object storage or a warehouse for batch recomputation, analytics and fixing errors.\n\n**Consistency vs availability.** Choose **availability** with eventual consistency for popularity: a slightly stale or approximate ranking is acceptable, while a browsing outage is not. Stock status and price should come from the authoritative catalogue and be read with stronger consistency (or be re-validated at purchase).\n\n**Scaling and risks.** Hot products (a viral item) overload one Redis key or partition: use local aggregation before writing, shard counters, and batch updates. Consumer lag monitoring, replay from the log, and handling bots that inflate views (rate limiting, filtering).",
+ "followUps": [
+  "How would you prevent bots from manipulating popularity?",
+  "How do you handle a single viral product creating a hot key?",
+  "How would you compute the top items for the last hour using a sliding window?",
+  "How would you make the leaderboard personalised per user?"
+ ]
+}

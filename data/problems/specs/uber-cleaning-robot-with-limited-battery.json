@@ -1,0 +1,49 @@
+{
+ "pid": "uber-cleaning-robot-with-limited-battery",
+ "title": "Cleaning Robot With Limited Battery",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "A cleaning robot works on a rectangular floor of `N × M` tiles. Each tile is either free (`0`) or an obstacle (`1`). Initially every tile is dirty, and the robot stands on the top-left tile `(0, 0)`, which is always free.\n\nThe robot carries a battery with capacity `K`. In one move it steps to one of the four neighbouring tiles (up, down, left, right) that lies inside the floor and is not an obstacle; every move reduces the battery by exactly `1`. The robot cleans every tile it stands on, including the starting tile. It may walk over tiles that are already clean, and cleaning a tile again does not count twice.\n\nThe robot must **end back on `(0, 0)` before the battery runs out**, so the walk may use at most `K` moves in total and must finish at `(0, 0)`. It may also choose not to move at all.\n\nPrint the **maximum number of distinct tiles** the robot can clean.",
+ "input_format": "The first line contains three integers `N`, `M` and `K`.\nEach of the next `N` lines contains `M` integers (`0` or `1`), one row of the floor.",
+ "output_format": "Print one integer: the maximum number of distinct tiles that can be cleaned.",
+ "constraints": [
+  "1 ≤ N · M ≤ 100",
+  "1 ≤ K ≤ 12",
+  "Every floor cell is 0 or 1, and the cell (0, 0) is 0"
+ ],
+ "examples": [
+  {
+   "input": "3 4 6\n0 0 0 0\n0 1 0 1\n0 0 0 0",
+   "output": "4",
+   "explanation": "The robot can walk (0,0) → (1,0) → (2,0) → (2,1) and come back along the same path. That is 6 moves and 4 distinct tiles. No closed walk of at most 6 moves covers 5 tiles: that would need a loop of 6 tiles, and the obstacle at (1,1) breaks every 2×3 block."
+  },
+  {
+   "input": "2 2 4\n0 0\n0 0",
+   "output": "4",
+   "explanation": "Walk around the 2×2 block: (0,0) → (0,1) → (1,1) → (1,0) → (0,0). That is exactly 4 moves and visits all 4 tiles."
+  },
+  {
+   "input": "1 5 3\n0 0 0 0 0",
+   "output": "2",
+   "explanation": "On a single row every excursion has to be retraced, so the number of moves used is even. With a battery of 3 only 2 moves can be used: step right and step back, cleaning 2 tiles."
+  }
+ ],
+ "complexity": {
+  "time": "O(K · S), S = number of distinct (position, cleaned-set) states",
+  "space": "O(S)"
+ },
+ "hints": [
+  "Only tiles within K/2 steps of the start can be part of a closed walk. Compute each tile's shortest distance back to (0, 0) and refuse to step onto a tile from which you could no longer return in time.",
+  "A walk is described by where the robot stands and which tiles it has cleaned so far. Because N·M ≤ 100, the cleaned set fits in a bitmask.",
+  "Advance all walks one move at a time (or run a DFS with the remaining battery), prune with the return distance, and record the number of cleaned tiles whenever the robot is back on (0, 0). Deduplicate identical (position, mask) states at each step."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    d = sys.stdin.read().split()\n    n, m, k = int(d[0]), int(d[1]), int(d[2])\n    g = [[int(d[3 + i * m + j]) for j in range(m)] for i in range(n)]\n    cells = n * m\n    adj = [[] for _ in range(cells)]\n    for i in range(n):\n        for j in range(m):\n            if g[i][j] == 0:\n                for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n                    a, b = i + di, j + dj\n                    if 0 <= a < n and 0 <= b < m and g[a][b] == 0:\n                        adj[i * m + j].append(a * m + b)\n    INF = 10 ** 9\n    dist = [INF] * cells\n    dist[0] = 0\n    dq = deque([0])\n    while dq:\n        u = dq.popleft()\n        for v in adj[u]:\n            if dist[v] == INF:\n                dist[v] = dist[u] + 1\n                dq.append(v)\n    best = 1\n    SH = 7\n    cur = {(1 << 0) << SH | 0}\n    for step in range(k):\n        rem = k - step - 1\n        nxt = set()\n        for key in cur:\n            pos = key & 127\n            mask = key >> SH\n            for q in adj[pos]:\n                if dist[q] <= rem:\n                    nxt.add(((mask | (1 << q)) << SH) | q)\n        cur = nxt\n        for key in cur:\n            if key & 127 == 0:\n                c = bin(key >> SH).count('1')\n                if c > best:\n                    best = c\n    print(best)\n\nmain()\n",
+ "brute": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m, k = int(data[0]), int(data[1]), int(data[2])\n    g = [[int(data[3 + i * m + j]) for j in range(m)] for i in range(n)]\n    # shortest distance back to (0,0), used only to cut hopeless branches\n    INF = 10 ** 9\n    dist = [[INF] * m for _ in range(n)]\n    dist[0][0] = 0\n    q = deque([(0, 0)])\n    while q:\n        x, y = q.popleft()\n        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n            a, b = x + dx, y + dy\n            if 0 <= a < n and 0 <= b < m and g[a][b] == 0 and dist[a][b] == INF:\n                dist[a][b] = dist[x][y] + 1\n                q.append((a, b))\n    best = 1\n    visited = [[0] * m for _ in range(n)]\n    visited[0][0] = 1\n    count = 1\n\n    def walk(x, y, rem):\n        nonlocal best, count\n        if x == 0 and y == 0 and count > best:\n            best = count\n        if rem == 0:\n            return\n        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n            a, b = x + dx, y + dy\n            if 0 <= a < n and 0 <= b < m and g[a][b] == 0 and dist[a][b] <= rem - 1:\n                fresh = visited[a][b] == 0\n                visited[a][b] += 1\n                if fresh:\n                    count += 1\n                walk(a, b, rem - 1)\n                visited[a][b] -= 1\n                if fresh:\n                    count -= 1\n\n    walk(0, 0, k)\n    print(best)\n\nmain()\n",
+ "generator": "def gen(rng):\n    def fmt(g, k):\n        n, m = len(g), len(g[0])\n        return f\"{n} {m} {k}\\n\" + '\\n'.join(' '.join(map(str, r)) for r in g)\n    def rand_grid(n, m, p):\n        g = [[1 if rng.random() < p else 0 for _ in range(m)] for _ in range(n)]\n        g[0][0] = 0\n        return g\n    tests = [\n        fmt([[0, 0, 0, 0], [0, 1, 0, 1], [0, 0, 0, 0]], 6),\n        fmt([[0, 0], [0, 0]], 4),\n        fmt([[0, 0, 0, 0, 0]], 3),\n        fmt([[0, 1], [1, 0]], 5),\n        fmt([[0]], 12),\n        fmt([[0, 0, 0], [0, 0, 0], [0, 0, 0]], 12),\n        fmt([[0, 0, 0], [0, 0, 0], [0, 0, 0]], 7),\n        fmt([[0, 0, 0], [0, 1, 0], [0, 0, 0]], 8),\n        fmt([[0, 0, 0], [0, 1, 0], [0, 0, 0]], 7),\n        fmt([[0] * 100], 12),\n        fmt([[0] for _ in range(100)], 11),\n        fmt([[0] * 50, [0] * 50], 12),\n        fmt([[0, 1, 0, 0], [0, 0, 0, 0], [1, 1, 0, 1]], 12),\n    ]\n    shapes = [(1, 6), (6, 1), (2, 3), (3, 3), (3, 4), (4, 4), (2, 7), (5, 3), (3, 6), (4, 5), (5, 5), (2, 10), (6, 6), (8, 5), (10, 10), (5, 20), (4, 25), (20, 5)]\n    for _ in range(45):\n        n, m = rng.choice(shapes)\n        p = rng.choice([0.0, 0.1, 0.2, 0.3, 0.45])\n        tests.append(fmt(rand_grid(n, m, p), rng.randint(1, 12)))\n    for k in (10, 11, 12):\n        tests.append(fmt([[0] * 10 for _ in range(10)], k))\n    tests.append(fmt(rand_grid(10, 10, 0.12), 12))\n    tests.append(fmt(rand_grid(10, 10, 0.2), 12))\n    tests.append(fmt([[0 if (i + j) % 3 else (1 if i * j % 2 else 0) for j in range(10)] for i in range(10)], 12))\n    tests.append(fmt([[0] * 25 for _ in range(4)], 12))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_cleaned(grid: List[List[int]], k: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m, k = int(data[0]), int(data[1]), int(data[2])\n    grid = [[int(data[3 + i * m + j]) for j in range(m)] for i in range(n)]\n    print(max_cleaned(grid, k))\n\n\nmain()\n",
+  "javascript": "function maxCleaned(grid, k) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1], k = t[2]\nconst grid = []\nfor (let i = 0; i < n; i++) grid.push(t.slice(3 + i * m, 3 + (i + 1) * m))\nconsole.log(maxCleaned(grid, k))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint maxCleaned(vector<vector<int>>& grid, int k) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m, k;\n    cin >> n >> m >> k;\n    vector<vector<int>> grid(n, vector<int>(m));\n    for (int i = 0; i < n; i++)\n        for (int j = 0; j < m; j++) cin >> grid[i][j];\n    cout << maxCleaned(grid, k) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int maxCleaned(int[][] grid, int k) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        int[][] grid = new int[n][m];\n        for (int i = 0; i < n; i++) {\n            for (int j = 0; j < m; j++) {\n                in.nextToken();\n                grid[i][j] = (int) in.nval;\n            }\n        }\n        System.out.println(maxCleaned(grid, k));\n    }\n}\n"
+ }
+}

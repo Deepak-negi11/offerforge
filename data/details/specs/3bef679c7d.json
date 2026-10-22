@@ -1,0 +1,18 @@
+{
+ "qid": "3bef679c7d",
+ "question": "Reported from Round 2 of a Paytm Senior Software Engineer (Backend) interview, January 2026. The low-level design question: **design a wiki management system like Atlassian's Confluence**. The discussion included **requirements specification, database schema design and follow-up questions**. The candidate's account also notes in-depth project discussion and a question about which database was used and why.",
+ "lookingFor": [
+  "Can you extract and prioritise requirements instead of jumping to tables?",
+  "Can you design a relational schema with the right relationships (spaces, pages, versions, permissions)?",
+  "Do you handle page versioning, hierarchy, search, and permissions sensibly?",
+  "Do you consider concurrent editing and conflict handling?",
+  "Can you answer follow-ups on indexing, scale and trade-offs?"
+ ],
+ "answer": "**Requirements.** Functional: create spaces; create, edit and delete pages organised in a hierarchy (parent/child); version history with restore; rich-text content; comments; attachments; full-text search; labels/tags; permissions per space and page; notifications on changes. Non-functional: read-heavy, low latency reads, no lost edits, auditability.\n\n**Core entities and schema (relational).**\n- `users(id, name, email)`\n- `spaces(id, key unique, name, owner_id, created_at)`\n- `pages(id, space_id, parent_id nullable, title, current_version_id, status, created_by, created_at, updated_at)`; index on `(space_id, parent_id)`\n- `page_versions(id, page_id, version_number, content, author_id, created_at, change_note)`; unique `(page_id, version_number)`. Every edit inserts a new row; old versions are immutable.\n- `comments(id, page_id, author_id, parent_comment_id, body, created_at)`\n- `attachments(id, page_id, file_name, storage_key, size, uploaded_by)` (files in object storage, not the database)\n- `labels` and `page_labels(page_id, label_id)`\n- `permissions(subject_type [user|group], subject_id, resource_type [space|page], resource_id, role [VIEW|EDIT|ADMIN])`\n\n**Hierarchy.** Store `parent_id` (adjacency list; simple, and fine with recursive queries) or add a materialised path column for fast subtree queries. Mention the trade-off: moving a subtree means updating all paths.\n\n**Key design points.**\n- **Versioning:** pages point to the current version; reading a page is one join. Large content can be stored as a diff, but full snapshots are simpler.\n- **Concurrent editing:** use optimistic locking (the editor submits the version it started from; if it changed, return a conflict and offer a merge). Real-time collaboration would need OT/CRDT, which is a stretch goal.\n- **Search:** do not use SQL `LIKE`; index the content into a search engine (Elasticsearch/OpenSearch) asynchronously through events, or use database full-text search at small scale.\n- **Permissions:** check on every read; inherit from space to page, allow page-level restriction.\n- **Caching:** cache rendered pages and the page tree; invalidate on edit.\n\n**Class-level view:** `WikiService`, `PageService`, `VersionService`, `PermissionService`, `SearchService`, with repositories behind interfaces.\n\n**Scale:** read replicas, CDN for attachments, sharding by space id if needed.",
+ "followUps": [
+  "How would you retrieve all descendants of a page efficiently?",
+  "How do you handle two users editing the same page at the same time?",
+  "How would you make search results respect page permissions?",
+  "Why did you choose a relational database here, and what would make you reconsider?"
+ ]
+}

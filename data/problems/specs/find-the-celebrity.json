@@ -1,0 +1,48 @@
+{
+ "pid": "find-the-celebrity",
+ "title": "Celebrity Problem Variant",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "At a party there are `n` people, numbered `0` to `n - 1`. A **celebrity** is a person who is known by every other person at the party and who knows nobody else.\n\nYou are given an `n × n` matrix `knows` where `knows[a][b] = 1` if person `a` knows person `b`, and `0` otherwise. A person never needs to be asked about themselves: `knows[i][i] = 0` for all `i`. The relation is not necessarily symmetric.\n\nFind the celebrity and print their number. If there is no celebrity, print `-1`. There can be at most one celebrity, since two celebrities would have to know each other and also not know each other.\n\nThink of `knows[a][b]` as the only question you may ask about the party: \"does `a` know `b`?\". The matrix is given in full, but a good solution looks at only `O(n)` of its entries.\n\n**Follow-up:** in an interview you are often only given a function `knows(a, b)` and asked to minimise the number of calls to it. Can you find the celebrity with at most `3(n - 1)` calls (and fewer with a stack or two-pointer elimination)?",
+ "input_format": "The first line contains the integer `n`.\nEach of the next `n` lines contains `n` space-separated integers (`0` or `1`): row `a` of the matrix.",
+ "output_format": "Print the index of the celebrity, or `-1` if there is none.",
+ "constraints": [
+  "1 ≤ n ≤ 500",
+  "knows[i][j] ∈ {0, 1} and knows[i][i] = 0"
+ ],
+ "examples": [
+  {
+   "input": "3\n0 1 1\n0 0 1\n0 0 0",
+   "output": "2",
+   "explanation": "Persons 0 and 1 both know person 2, and person 2 knows nobody, so 2 is the celebrity."
+  },
+  {
+   "input": "3\n0 1 0\n0 0 1\n1 0 0",
+   "output": "-1",
+   "explanation": "Everyone knows exactly one other person in a cycle, so nobody is free of outgoing knowledge: there is no celebrity."
+  },
+  {
+   "input": "3\n0 1 0\n1 0 0\n0 1 0",
+   "output": "-1",
+   "explanation": "Persons 0 and 2 both know person 1, but person 1 also knows person 0, so 1 is not a celebrity. Person 0 is not known by person 2. Nobody qualifies."
+  }
+ ],
+ "complexity": {
+  "time": "O(n) lookups into the matrix",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Look at a single pair (a, b). If `a` knows `b`, can `a` still be the celebrity? If `a` does not know `b`, can `b` be?",
+  "Each question about a pair eliminates one of the two people. After `n - 1` questions you are left with a single candidate.",
+  "The candidate is only a candidate: verify them by checking that everyone else knows them and that they know nobody."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [data[1 + i * n:1 + (i + 1) * n] for i in range(n)]\n    c = 0\n    for i in range(1, n):\n        if a[c][i] == '1':\n            c = i\n    for i in range(n):\n        if i != c and (a[c][i] == '1' or a[i][c] != '1'):\n            print(-1)\n            return\n    print(c)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [[int(x) for x in data[1 + i * n:1 + (i + 1) * n]] for i in range(n)]\nans = -1\nfor c in range(n):\n    ok = True\n    for j in range(n):\n        if j == c:\n            continue\n        if a[c][j] == 1 or a[j][c] == 0:\n            ok = False\n            break\n    if ok:\n        ans = c\n        break\nprint(ans)\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + '\\n'.join(' '.join(map(str, r)) for r in a)\n    def rand_matrix(n, p):\n        return [[1 if i != j and rng.random() < p else 0 for j in range(n)] for i in range(n)]\n    def planted(n, c, p):\n        a = rand_matrix(n, p)\n        for j in range(n):\n            a[c][j] = 0\n            if j != c:\n                a[j][c] = 1\n        return a\n    tests = [fmt([[0]]), fmt([[0, 1], [0, 0]]), fmt([[0, 0], [0, 0]]), fmt([[0, 1], [1, 0]]),\n             fmt([[0, 1, 0], [1, 0, 0], [0, 1, 0]]), fmt([[0, 1, 1], [0, 0, 1], [0, 0, 0]]),\n             fmt([[0, 0, 0], [0, 0, 0], [0, 0, 0]])]\n    for _ in range(20):\n        n = rng.randint(2, 9)\n        r = rng.random()\n        if r < 0.35:\n            a = planted(n, rng.randrange(n), rng.choice([0.0, 0.3, 0.7, 1.0]))\n        elif r < 0.6:\n            c = rng.randrange(n)\n            a = planted(n, c, 0.5)\n            if rng.random() < 0.5:\n                j = rng.choice([x for x in range(n) if x != c])\n                a[j][c] = 0\n            else:\n                j = rng.choice([x for x in range(n) if x != c])\n                a[c][j] = 1\n        else:\n            a = rand_matrix(n, rng.choice([0.2, 0.5, 0.8]))\n        tests.append(fmt(a))\n    N = 500\n    tests.append(fmt(planted(N, N - 1, 0.5)))\n    tests.append(fmt(planted(N, 0, 1.0)))\n    a = planted(N, 250, 0.5)\n    a[137][250] = 0\n    tests.append(fmt(a))\n    a = planted(N, 250, 0.5)\n    a[250][499] = 1\n    tests.append(fmt(a))\n    tests.append(fmt(rand_matrix(N, 0.9)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef find_celebrity(n: int, knows: List[List[int]]) -> int:\n    # knows[a][b] == 1 means person a knows person b\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    knows = [[int(x) for x in data[1 + i * n:1 + (i + 1) * n]] for i in range(n)]\n    print(find_celebrity(n, knows))\n\n\nmain()\n",
+  "javascript": "function findCelebrity(n, knows) {\n  // knows[a][b] === 1 means person a knows person b\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst knows = []\nfor (let i = 0; i < n; i++) knows.push(t.slice(1 + i * n, 1 + (i + 1) * n))\nconsole.log(findCelebrity(n, knows))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint findCelebrity(int n, vector<vector<int>>& knows) {\n    // knows[a][b] == 1 means person a knows person b\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<vector<int>> knows(n, vector<int>(n));\n    for (int i = 0; i < n; i++)\n        for (int j = 0; j < n; j++) cin >> knows[i][j];\n    cout << findCelebrity(n, knows) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int findCelebrity(int n, int[][] knows) {\n        // knows[a][b] == 1 means person a knows person b\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[][] knows = new int[n][n];\n        for (int i = 0; i < n; i++) {\n            for (int j = 0; j < n; j++) {\n                in.nextToken();\n                knows[i][j] = (int) in.nval;\n            }\n        }\n        System.out.println(findCelebrity(n, knows));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "4acb6518e5",
+ "question": "TCS Prime (NQT) technical interview: **Explain the ACID properties of database transactions.** It was asked in several TCS interviews, sometimes with normalization and NoSQL follow-ups.",
+ "lookingFor": [
+  "Precise definitions of all four properties.",
+  "A concrete example such as a bank transfer.",
+  "Understanding of how databases provide them (logs, locks).",
+  "Awareness of isolation levels and the trade-offs.",
+  "Knowing how ACID relates to NoSQL systems."
+ ],
+ "answer": "**A transaction** is a group of operations treated as one logical unit, for example transferring Rs. 500 from account A to account B: debit A, credit B.\n\n**A - Atomicity: all or nothing.** Either every operation in the transaction is applied or none is. If the system fails after debiting A but before crediting B, the debit is undone. Implemented with an undo log or write-ahead log and rollback.\n\n**C - Consistency: valid state to valid state.** A transaction must leave the database satisfying all rules: primary and foreign keys, unique and check constraints, triggers, and business rules such as \"total money stays the same\" or \"balance cannot be negative\". If a transaction would break a rule, it is aborted.\n\n**I - Isolation: concurrent transactions do not interfere.** The result should be as if transactions ran one after another. Weak isolation allows anomalies:\n- *Dirty read:* seeing uncommitted data.\n- *Non-repeatable read:* the same row reads differently twice in one transaction.\n- *Phantom read:* a repeated query returns new rows.\nIsolation levels (read uncommitted, read committed, repeatable read, serializable) trade strictness for throughput. Databases implement them with locking or multi-version concurrency control (MVCC).\n\n**D - Durability: committed means permanent.** After a commit succeeds, the change survives crashes or power loss. Implemented by writing a log record to disk (write-ahead logging) before acknowledging the commit, then replaying it on recovery.\n\n**Example.**\n```sql\nBEGIN;\nUPDATE account SET balance = balance - 500 WHERE id = 1;\nUPDATE account SET balance = balance + 500 WHERE id = 2;\nCOMMIT;   -- or ROLLBACK on error\n```\n\n**Why it matters.** Banking, orders and payments cannot tolerate partial updates or lost writes.\n\n**Trade-offs.** Strong ACID costs performance and makes horizontal scaling harder; many NoSQL stores relax some guarantees (BASE: eventual consistency) for availability and scale, though several now offer transactions.\n\n**Mistake to avoid.** Confusing \"consistency\" in ACID (valid state) with \"consistency\" in the CAP theorem (all nodes see the same data).",
+ "followUps": [
+  "What are the isolation levels and which anomalies does each allow?",
+  "How does MVCC differ from locking?",
+  "What is a deadlock and how do databases handle it?",
+  "How is consistency in ACID different from consistency in CAP?"
+ ]
+}

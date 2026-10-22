@@ -1,0 +1,17 @@
+{
+ "qid": "804ebeafc3",
+ "question": "In the second technical round for a **System Software Engineer** role at NVIDIA, the questions included: **what is the difference between static and dynamic libraries?** and **what is a static function in C and why is it used?** The round also had basic bit-manipulation programs and an odd-occurring-element problem.",
+ "lookingFor": [
+  "Do you understand linking, loading, and what ends up in the executable?",
+  "Do you know the trade-offs (size, updates, memory sharing, deployment)?",
+  "Do you understand linkage and encapsulation in C?",
+  "Can you explain tooling such as `ar`, `gcc -shared`, `ldd`?"
+ ],
+ "answer": "**Static library (`.a` on Linux, `.lib` on Windows).** An archive of object files. At **link time** the linker copies the needed object code into the executable.\n- Pros: self-contained binary, no runtime dependency or version mismatch, slightly faster start-up, enables whole-program optimisation.\n- Cons: larger executables, every program has its own copy (memory and disk), and fixing a bug in the library requires **relinking and redeploying** each program.\n\n**Dynamic (shared) library (`.so`, `.dll`, `.dylib`).** The executable only records a reference. The **dynamic loader** (`ld.so`) finds and maps the library at load time (or later via `dlopen`) and resolves symbols, usually lazily through the PLT and GOT. Code must be position-independent (`-fPIC`).\n- Pros: smaller executables, one copy of the code is shared in memory between processes, library updates (security fixes) apply without relinking, plug-ins via `dlopen`.\n- Cons: runtime dependency (\"DLL hell\", version conflicts, `LD_LIBRARY_PATH` issues), a small start-up and call overhead, and a missing library means the program does not start.\n\nBuild examples:\n```\ngcc -c util.c && ar rcs libutil.a util.o        # static\ngcc -fPIC -shared -o libutil.so util.c          # dynamic\nldd ./app                                       # list shared dependencies\n```\n\n**Static function in C.** A function declared `static` at file scope has **internal linkage**: it is visible only within its translation unit.\n- *Encapsulation:* it hides helper functions that are not part of the module's public interface.\n- *No name collisions:* two files can each define a `static int helper()` without a linker error.\n- *Optimisation:* the compiler knows all callers, so it can inline or remove it if unused.\nContrast: a `static` local variable keeps its value between calls; that is a different use of the same keyword. Declare helpers `static` by default and expose only what the header needs.",
+ "followUps": [
+  "Why must shared libraries be position-independent?",
+  "What are the GOT and PLT and how does lazy binding work?",
+  "How would you distribute a tool that must run on many Linux distributions?",
+  "What happens if two libraries export the same symbol?"
+ ]
+}

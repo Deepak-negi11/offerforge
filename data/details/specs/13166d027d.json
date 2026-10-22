@@ -1,0 +1,17 @@
+{
+ "qid": "13166d027d",
+ "question": "In the Business Discussion round for a Wipro Project Engineer role, among DBMS questions the candidate was asked to **write a query to find the manager ID from an employee table**. The table structure was not described. A common design has `employee(emp_id, name, manager_id)`, where `manager_id` refers to another employee's `emp_id`.",
+ "lookingFor": [
+  "Do you understand self-referencing tables?",
+  "Can you interpret an ambiguous question and state your assumption?",
+  "Can you write DISTINCT, a self join and a subquery correctly?",
+  "Do you handle NULLs, such as employees with no manager?"
+ ],
+ "answer": "**State the assumption first.** An ambiguous question deserves a clarifying line: \"I'll assume `employee(emp_id, name, manager_id)` where `manager_id` points to the employee's manager in the same table.\"\n\n**1. List the distinct manager IDs:**\n\n```sql\nSELECT DISTINCT manager_id\nFROM employee\nWHERE manager_id IS NOT NULL;\n```\n\n`DISTINCT` removes repeats because one manager has many reports, and the `IS NOT NULL` filter removes the top-level employee who has no manager.\n\n**2. Manager of a particular employee:**\n\n```sql\nSELECT manager_id FROM employee WHERE emp_id = 101;\n```\n\n**3. Manager names with a self join:**\n\n```sql\nSELECT e.name AS employee, m.name AS manager\nFROM employee e\nLEFT JOIN employee m ON e.manager_id = m.emp_id;\n```\n\nThe same table is used twice under aliases `e` and `m`. The LEFT JOIN keeps the top person (manager shown as NULL).\n\n**4. Which employees are managers (subquery):**\n\n```sql\nSELECT emp_id, name FROM employee\nWHERE emp_id IN (SELECT manager_id FROM employee WHERE manager_id IS NOT NULL);\n```\n\n**Why `IS NOT NULL` matters:** `NOT IN` with a NULL in the subquery returns no rows, and `= NULL` never matches; use `IS NULL` / `IS NOT NULL` for comparisons with NULL.\n\nIf the schema differs (for example a separate `department` table with `manager_id`), adapt the same ideas.",
+ "followUps": [
+  "What is a self join? Give another use case.",
+  "How would you list the employees who report to a given manager?",
+  "How would you find the number of direct reports for each manager?",
+  "How would you find the full management chain for an employee?"
+ ]
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "867402e6e4",
+ "question": "In the first technical round of an Oracle on-campus process for Server Tech, the candidate was asked: what is virtual memory, and what is demand paging, along with some basic OS questions. The interviewer then asked how to sort a very big file, big in the sense that it does not fit in memory.",
+ "lookingFor": [
+  "Clear understanding of virtual memory, paging and page faults",
+  "Knowing why demand paging works (locality of reference) and when it breaks (thrashing)",
+  "Recognizing that a file larger than RAM needs external sorting",
+  "Ability to design the algorithm and reason about I/O cost"
+ ],
+ "answer": "**Virtual memory.** An abstraction that gives each process its own large, contiguous address space regardless of physical RAM. The OS and the MMU map virtual pages to physical frames through page tables (with a TLB caching recent translations). Benefits: isolation between processes, programs bigger than RAM, sharing of pages, and simpler allocation.\n\n**Demand paging.** Pages are loaded from disk only when first touched. A page table entry marked invalid triggers a page fault; the OS finds the page on disk, picks a free frame (evicting a victim with a replacement policy such as LRU approximation if none is free), loads the page, updates the table and restarts the instruction. It works because programs show locality of reference. If the working sets of running processes exceed RAM, the system spends most time swapping pages, which is called thrashing.\n\n**Sorting a file that does not fit in memory: external merge sort.**\n1. **Run generation.** Read the file in chunks of size M (what fits in memory), sort each chunk in memory with a normal algorithm, and write each sorted chunk to disk as a run. A file of N bytes gives about N/M runs.\n2. **Merge.** Open the runs and perform a k-way merge using a min-heap holding the current head element of each run. Repeatedly output the smallest element and refill from its run. Use input buffers per run and an output buffer so I/O is sequential and in large blocks.\n3. If there are too many runs to open at once (limited by memory for buffers), merge in several passes, k runs at a time. The number of passes is about log base k of the number of runs.\n\nCost: each pass reads and writes the data once, so the work is O(N log N) comparisons with roughly 2N x (passes + 1) bytes of disk I/O. Disk I/O dominates, so the goal is to minimize passes and keep access sequential.\n\nWhy not just rely on virtual memory and sort in place? A normal sort would touch memory randomly and cause constant page faults (thrashing), which is far slower than designed sequential I/O. Practical tools such as the Unix `sort` command do this chunk-and-merge internally.",
+ "followUps": [
+  "How many passes do you need if you have 100 runs and can merge 10 at a time?",
+  "What page replacement algorithms do you know?",
+  "What is thrashing and how can the OS detect it?",
+  "How would you parallelize an external sort?"
+ ]
+}

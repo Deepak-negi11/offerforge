@@ -1,0 +1,19 @@
+{
+ "qid": "3112d1997c",
+ "question": "Sprinklr Product Engineer (SDE-1), Technical Interview 2. After a discussion of data structures (HashMap internals and collisions), the interviewer moved to operating-system fundamentals and asked: **what is a semaphore, what is a mutex lock, and what is the difference between them?** Then: **what is virtual memory, and what is a context switch?** Related areas reported in the same round and in other Sprinklr interviews: **thread synchronization** and how threads safely share data.",
+ "lookingFor": [
+  "Precise definitions rather than memorised one-liners.",
+  "Ownership: a mutex is held and released by the same thread, a semaphore is a signalling counter.",
+  "Understanding of why synchronization is needed (race conditions, critical sections).",
+  "Link between virtual memory, paging and the cost of a context switch.",
+  "Ability to give a small concrete example, such as producer-consumer."
+ ],
+ "answer": "**Mutex (mutual exclusion lock).** A lock with two states, locked and unlocked. Only one thread may hold it, and the thread that locked it must unlock it. It protects a critical section so shared data is not corrupted by a race condition.\n\n**Semaphore.** An integer counter with two atomic operations: `wait` (P, decrement and block if the value would go below zero) and `signal` (V, increment and wake a waiter).\n- A *binary* semaphore (0 or 1) looks like a mutex.\n- A *counting* semaphore allows up to N concurrent holders, for example a pool of N database connections.\n\n**Key differences**\n- Ownership: a mutex has an owner; a semaphore does not, so one thread can signal what another waits on.\n- Purpose: a mutex gives mutual exclusion; a semaphore is for signalling and for limiting access to a counted resource.\n- Example: in a producer-consumer bounded buffer, a mutex guards the buffer, while two semaphores (`empty` slots and `full` slots) make producers wait when the buffer is full and consumers wait when it is empty.\n- Misuse risks: forgetting to unlock causes deadlock; inconsistent lock order across threads causes deadlock; low-priority threads holding locks can cause priority inversion.\n\n**Virtual memory.** Each process sees its own large, contiguous address space. The OS and the MMU map virtual pages to physical frames through page tables, with the TLB caching recent translations. Pages not currently needed can live on disk, and touching one raises a page fault that the OS services. Benefits: isolation between processes, programs larger than RAM, and simpler memory management.\n\n**Context switch.** The OS saves the state of the running thread or process (registers, program counter, stack pointer) in its control block and loads the state of another. Switching processes also changes the address space, which can flush or invalidate TLB entries and cools the CPU caches; switching threads of the same process is cheaper because the address space is shared. It is pure overhead, so too many threads can hurt throughput.",
+ "followUps": [
+  "Can a semaphore replace a mutex? What can go wrong?",
+  "What are the four conditions for deadlock and how do you prevent them?",
+  "What is a page fault and what is thrashing?",
+  "Why is a thread context switch cheaper than a process context switch?",
+  "What is a race condition? Show a small example and fix it."
+ ]
+}

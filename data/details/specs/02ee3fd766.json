@@ -1,0 +1,18 @@
+{
+ "qid": "02ee3fd766",
+ "question": "Google SWE III infra phone screen (2026), coding round of about 45 minutes where pseudocode was acceptable and the emphasis was on explaining the approach. Problem: **there are sequences of machine processes such as `[A, B, C]` and `[D, E, F]`, where C depends on B which depends on A, and separately F depends on E which depends on D. Determine whether the sequences are valid.** The candidate treated it as **cycle detection on a dependency graph** and explained a DFS approach. The coding part was about 15 minutes, followed by roughly **20 minutes of real-world API design discussion** (topic not reported).",
+ "lookingFor": [
+  "Modelling the problem as a directed graph from the dependency list.",
+  "Correct cycle detection (DFS with three states, or Kahn's algorithm).",
+  "Clarifying what 'valid' means: cycles, missing nodes, duplicate or conflicting orderings.",
+  "Complexity analysis and edge cases.",
+  "Practical API design: resources, errors, versioning, idempotency."
+ ],
+ "answer": "**Clarify 'valid'.** Likely: no circular dependency across all sequences combined. Ask: can sequences share nodes (so `[A,B]` and `[B,A]` together form a cycle)? Can a node depend on itself? Are nodes guaranteed to be defined?\n\n**Approach.**\n1. Build a directed graph: for each consecutive pair `(X, Y)` in a sequence, add an edge `X -> Y` (Y depends on X). Use a dict of adjacency lists.\n2. Detect a cycle with DFS using three states: unvisited, in progress (on the current path), done. Visiting a node marked in progress means a back edge, so a cycle exists and the configuration is invalid.\n3. Run DFS from every unvisited node, because the graph can be disconnected (as with the two independent chains).\n\nPseudocode idea: `visit(n): if state[n]==IN_PROGRESS return cycle; if DONE return ok; state[n]=IN_PROGRESS; for m in adj[n]: if visit(m) is cycle: return cycle; state[n]=DONE`.\n\n**Alternative:** Kahn's algorithm. Compute in-degrees, repeatedly remove zero in-degree nodes; if fewer than all nodes are removed, a cycle exists. It also yields a valid execution order (topological sort), which is useful if the follow-up asks for the order.\n\n**Complexity.** O(V + E) time and O(V + E) space; recursion depth up to V, so mention an iterative version for very deep chains.\n\n**Edge cases.** A single node, a self-loop `[A, A]`, an empty input, duplicate edges, and a cycle that only appears after merging sequences.\n\n**API design discussion tips.** Since the topic was open, prepare a general method: define the resource and use cases, pick the operations and names (for example `POST /deployments`, `GET /deployments/{id}`), request and response schema, status codes and a consistent error format, pagination for lists, idempotency keys for creates, authentication and authorization, versioning and backward compatibility, rate limits, and how you would evolve it. Ask who the clients are before deciding anything.",
+ "followUps": [
+  "How would you return the actual execution order, or the cycle path when invalid?",
+  "What changes if dependencies can be added and removed dynamically?",
+  "How would you design the API for a service that validates and schedules these processes?",
+  "How do you version an API without breaking existing clients?"
+ ]
+}

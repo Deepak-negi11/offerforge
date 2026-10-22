@@ -1,0 +1,19 @@
+{
+ "qid": "be49402417",
+ "question": "Intel graphics software engineer technical round: **write a linked list class with basic operations (insert, delete, search, traverse), then discuss virtual destructors, inheritance and the diamond problem** in C++. The reported prompt does not give more detail, so expect to code live and explain your choices.",
+ "lookingFor": [
+  "Correct C++ pointer handling and memory management (no leaks, no dangling pointers).",
+  "Understanding of the rule of three/five and RAII.",
+  "Knowledge of virtual functions, virtual destructors and polymorphic deletion.",
+  "Understanding of multiple inheritance and the diamond problem with virtual inheritance.",
+  "Ability to explain while coding."
+ ],
+ "answer": "**Linked list.** Keep it small and correct.\n\n    class List {\n        struct Node { int val; Node* next; Node(int v): val(v), next(nullptr) {} };\n        Node* head = nullptr;\n    public:\n        ~List() { while (head) { Node* t = head; head = head->next; delete t; } }\n        List() = default;\n        List(const List&) = delete;            // rule of three/five: avoid shallow copy\n        List& operator=(const List&) = delete;\n        void push_front(int v) { Node* n = new Node(v); n->next = head; head = n; }\n        bool remove(int v) {\n            Node** pp = &head;\n            while (*pp && (*pp)->val != v) pp = &(*pp)->next;\n            if (!*pp) return false;\n            Node* t = *pp; *pp = t->next; delete t; return true;\n        }\n        bool contains(int v) const { for (Node* c = head; c; c = c->next) if (c->val == v) return true; return false; }\n    };\n\nMention: destructor frees nodes, copy is disabled (or deep-copied) to avoid double free, `push_front` is O(1), search and remove O(n). Say you would use `std::unique_ptr` or `std::list` in production.\n\n**Virtual destructor.** If a class is used polymorphically, `delete basePtr` where the destructor is not virtual is undefined behaviour: the derived destructor is skipped, leaking derived resources. Marking the base destructor `virtual` makes deletion dispatch to the most-derived destructor first, then base destructors. Rule: any class with virtual functions meant as a base should have a virtual destructor. Pure virtual destructors are allowed but still need a definition.\n\n**Inheritance.** Public inheritance models \"is-a\"; virtual functions give runtime polymorphism via the vtable and vptr; use `override`; avoid slicing by passing base types by value.\n\n**Diamond problem.** With `B : A`, `C : A`, `D : B, C`, class D contains two A subobjects, so `d.a` is ambiguous and A's state is duplicated. Fix with **virtual inheritance**: `class B : virtual public A`. Then there is one shared A subobject; the most-derived class (D) constructs A directly. Cost: extra indirection, slightly larger objects, and tricky constructor rules. Often a better answer is to prefer composition or interfaces (pure abstract classes) over multiple inheritance of state.",
+ "followUps": [
+  "Why delete the copy constructor instead of leaving the compiler default?",
+  "How would you reverse this list iteratively?",
+  "How are virtual functions implemented (vtable and vptr)?",
+  "Who initialises a virtual base class, and why?",
+  "Can a destructor be pure virtual? What happens if it has no body?"
+ ]
+}

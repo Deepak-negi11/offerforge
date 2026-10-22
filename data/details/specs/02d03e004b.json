@@ -1,0 +1,17 @@
+{
+ "qid": "02d03e004b",
+ "question": "Asked in a Paytm technical round (SDE-1, about 1.5 years of experience): model users and passports in SQL. A user can have several passport entries over time because of cancellation or reissue.\n\nThe candidate had to draw the tables with all fields, mark the keys, and describe the relationship between the user table and the passport table. The interviewer then asked MySQL queries on this design and a few unrelated ones, such as finding the second highest salary and counting unique account numbers.",
+ "lookingFor": [
+  "Correct one-to-many modelling with primary and foreign keys",
+  "Choosing sensible constraints (unique passport number, status, dates)",
+  "Handling history without losing data",
+  "Writing standard interview queries correctly, including edge cases"
+ ],
+ "answer": "**Relationship.** One user has many passports over time: a one-to-many relationship. The foreign key lives on the many side.\n\n```sql\nCREATE TABLE users (\n  user_id    BIGINT PRIMARY KEY AUTO_INCREMENT,\n  name       VARCHAR(100) NOT NULL,\n  email      VARCHAR(255) NOT NULL UNIQUE,\n  dob        DATE NOT NULL\n);\n\nCREATE TABLE passports (\n  passport_id     BIGINT PRIMARY KEY AUTO_INCREMENT,\n  user_id         BIGINT NOT NULL,\n  passport_number VARCHAR(20) NOT NULL UNIQUE,\n  issue_date      DATE NOT NULL,\n  expiry_date     DATE NOT NULL,\n  status          ENUM('ACTIVE','CANCELLED','REISSUED','EXPIRED') NOT NULL,\n  FOREIGN KEY (user_id) REFERENCES users(user_id),\n  INDEX idx_passports_user (user_id)\n);\n```\n\nDesign points to say aloud: a surrogate primary key plus a `UNIQUE` natural key (`passport_number`), because a reissue gets a new number and the old row is kept for history. If only one passport may be active, enforce it with a unique constraint on a generated column or in application logic (MySQL lacks partial indexes). Index the foreign key.\n\n**Queries**\n\nSecond highest salary (handles ties and the \"no second value\" case):\n\n```sql\nSELECT MAX(salary) AS second_highest\nFROM employees\nWHERE salary < (SELECT MAX(salary) FROM employees);\n```\n\nAn alternative is `SELECT DISTINCT salary FROM employees ORDER BY salary DESC LIMIT 1 OFFSET 1`, or `DENSE_RANK()` in MySQL 8.\n\nCount of unique account numbers:\n\n```sql\nSELECT COUNT(DISTINCT account_number) FROM accounts;\n```\n\n`COUNT(DISTINCT ...)` ignores NULLs.\n\nUsers with more than one passport:\n\n```sql\nSELECT user_id, COUNT(*) FROM passports GROUP BY user_id HAVING COUNT(*) > 1;\n```\n\nLatest passport per user: join to `MAX(issue_date)` per user or use `ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY issue_date DESC)`.\n\nMistakes: putting `passport_number` on the users table (it breaks as soon as there are two), or deleting old rows on reissue.",
+ "followUps": [
+  "What if a passport can be shared or has multiple holders? How does the model change?",
+  "How would you enforce at most one ACTIVE passport per user?",
+  "What is the difference between a primary key and a unique key?",
+  "How would you find the Nth highest salary?"
+ ]
+}

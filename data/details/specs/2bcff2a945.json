@@ -1,0 +1,17 @@
+{
+ "qid": "2bcff2a945",
+ "question": "NVIDIA System Software Engineer Internship (on-campus) interview, a C question mixed with operating-systems concepts: every loop iteration takes 1 ms and the loop runs 100 times. Would the program execute for **exactly** 100 ms? Explain using OS concepts.",
+ "lookingFor": [
+  "Not accepting the naive arithmetic: spotting that wall-clock time is not CPU time",
+  "Concrete OS mechanisms: scheduler, preemption, timer granularity",
+  "Distinguishing what makes an iteration take 1 ms (compute vs sleep)",
+  "Knowing how to measure time properly"
+ ],
+ "answer": "**Short answer: no.** 100 x 1 ms is the lower bound at best, and what you observe is wall-clock time that depends on the OS.\n\nReasons, depending on how the 1 ms is produced:\n\n- **If each iteration calls `sleep`/`usleep`/`nanosleep`:** the OS guarantees *at least* the requested time, not exactly. The timer interrupt has a finite resolution (tick of 1 to 10 ms on some systems, finer with high-resolution timers), the thread is woken then has to wait to be scheduled, so each iteration overshoots, and the errors accumulate over 100 iterations (drift).\n- **If the 1 ms is CPU work:** the process can be preempted when its time slice ends or a higher-priority task becomes ready, so wall-clock time includes time spent not running. Other costs: context switches, interrupts, page faults on first touch, cache and TLB misses, CPU frequency changes, and virtualisation or noisy neighbours.\n- **System calls and I/O:** a `printf` in the loop can block or be buffered, adding variable delay.\n- **Clock details:** `clock()` measures CPU time, `gettimeofday` can jump with NTP adjustments, while `clock_gettime(CLOCK_MONOTONIC)` is the right choice for elapsed time.\n\nAlso, \"1 ms per iteration\" is itself an average; individual iterations vary.\n\n**How to do better.** Measure with a monotonic clock, schedule against absolute deadlines (`clock_nanosleep` with `TIMER_ABSTIME`) so errors do not accumulate, and for hard requirements use a real-time scheduling policy (`SCHED_FIFO`) or an RTOS, accepting that a general-purpose OS gives no hard guarantee.",
+ "followUps": [
+  "Why does sleeping for an absolute deadline avoid drift?",
+  "What is the difference between CPU time and wall-clock time, and how do you measure each?",
+  "What is scheduler latency and what affects it?",
+  "How would a real-time OS change this answer?"
+ ]
+}

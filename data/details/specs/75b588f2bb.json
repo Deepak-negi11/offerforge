@@ -1,0 +1,18 @@
+{
+ "qid": "75b588f2bb",
+ "question": "In the low level design round for a Senior Software Engineer (IN4) role at Walmart, the question was to **design a payment processing system that handles credit card transactions with support for multiple payment gateways** such as Stripe and PayPal.\n\nThe report gives no further constraints, so clarify scope: charge, refund, status lookup, how the gateway is selected, and failure handling.",
+ "lookingFor": [
+  "Can you abstract third-party gateways behind a common interface (Adapter / Strategy)?",
+  "Do you model the payment lifecycle and states correctly?",
+  "Do you understand idempotency and why it matters in payments?",
+  "Can you design failure handling: retries, timeouts, fallback to another gateway?",
+  "Do you treat card data and security responsibly (tokenization, PCI scope)?"
+ ],
+ "answer": "**Requirements.** `charge`, `refund`, `getStatus`, support multiple gateways (Stripe, PayPal), select a gateway by rule (region, currency, cost, availability), reliable and safe against duplicate charges.\n\n**Core abstractions.**\n- `interface PaymentGateway { GatewayResponse charge(PaymentRequest r); GatewayResponse refund(String txnId, Money amt); }`.\n- `StripeGateway` and `PayPalGateway` are **adapters**: they convert our `PaymentRequest` to each vendor's API format and map responses and errors back to our own model.\n- `GatewayFactory` or a registry returns the gateway by name; a `GatewaySelectionStrategy` picks one (by currency, merchant config, or health).\n- `PaymentService.pay(request)` orchestrates. `Payment(id, orderId, amount, currency, status, gatewayRef, idempotencyKey)`.\n\n**States.** `CREATED -> PENDING -> SUCCESS | FAILED`, and `SUCCESS -> REFUNDED / PARTIALLY_REFUNDED`. Enforce legal transitions in one place (a small state machine) and persist every transition.\n\n**Reliability.**\n- **Idempotency key** per payment attempt, stored with a unique constraint. A retry from the client returns the stored result instead of charging twice. Pass the key to the gateway if it supports it.\n- **Timeouts and unknown outcomes**: if the gateway call times out, the status is unknown, not failed. Mark it PENDING and reconcile via a status query or webhook.\n- **Retries** with backoff only for safe cases; a **circuit breaker** per gateway, with optional fallback to a second gateway only when the first definitely did not charge.\n- **Webhooks** from gateways update state asynchronously; verify their signatures.\n\n**Security.** Never store raw card numbers or CVV; use the gateway's tokenization or hosted fields so the system stays out of heavy PCI scope. Log no sensitive data.\n\n**Data model.** `payments`, `payment_attempts` (one per gateway call), `refunds`, `gateway_config`.\n\n**Extensibility.** Adding a gateway means one new adapter class and a config entry.",
+ "followUps": [
+  "How do you guarantee a customer is never charged twice?",
+  "What do you do when the gateway times out after the charge may have succeeded?",
+  "How would you choose between gateways dynamically?",
+  "How would you handle partial refunds and reconciliation?"
+ ]
+}

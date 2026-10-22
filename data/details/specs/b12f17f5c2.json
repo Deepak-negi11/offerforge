@@ -1,0 +1,17 @@
+{
+ "qid": "b12f17f5c2",
+ "question": "In the Eternal (Zomato) SDE Intern + FTE Round 1, the interviewer asked: **how would you list nearby restaurants using SQL?**\n\nThe candidate answered the basics (store latitude and longitude, use a bounding box), and the interviewer pushed for more depth: **geo-indexing and PostGIS**.",
+ "lookingFor": [
+  "Can you go from a naive distance query to an indexed, scalable one?",
+  "Do you know the bounding-box pre-filter and why it matters?",
+  "Are you aware of spatial indexes (R-tree/GiST, geohash) and PostGIS functions?",
+  "Do you notice correctness issues such as spherical distance and index usability?"
+ ],
+ "answer": "**Naive approach.** Compute the distance to every row with the haversine formula and sort. This is a full table scan, O(n) per request, and it cannot use a normal index because the expression depends on the user's position.\n\n**Bounding box pre-filter.** First restrict candidates with a simple rectangle around the user:\n\n```\nWHERE lat BETWEEN :lat - :d AND :lat + :d\n  AND lng BETWEEN :lng - :d / cos(radians(:lat)) AND :lng + :d / cos(radians(:lat))\n```\n\nOne degree of latitude is about 111 km; a degree of longitude shrinks by `cos(latitude)`. A B-tree index on `(lat, lng)` can range-scan on `lat` but is not efficient for two-dimensional ranges, so it is only a partial fix. Then apply the exact haversine distance to the small candidate set, order by it and `LIMIT`. Watch for the date line and poles.\n\n**Proper spatial indexing**\n- **PostGIS:** store a `geography(Point,4326)` column and create a GiST index (an R-tree style structure). Query with `ST_DWithin(location, user_point, 3000)` (metres) to filter using the index, and `ORDER BY location <-> user_point LIMIT 20` for k-nearest neighbours with the index.\n- **Geohash / S2 / H3:** encode locations into cell IDs; store the cell in an ordinary indexed column. Query the user's cell and its neighbours, then refine with exact distance. This works in databases without spatial types, and it also helps with caching and sharding by region.\n- MySQL has `SPATIAL` indexes and `ST_Distance_Sphere`; MongoDB has `2dsphere` indexes.\n\n**Beyond distance.** Real discovery also filters by open status, serviceability (delivery radius or delivery time), cuisine and rating, usually served from a search index (Elasticsearch/OpenSearch) or a cache keyed by geo-cell, and ranked rather than only sorted by distance.\n\nSay that you would verify the plan with `EXPLAIN` and test accuracy with known coordinates.",
+ "followUps": [
+  "Why can't a regular B-tree index on (lat, lng) do efficient radius queries?",
+  "How does a geohash work and what is its edge-case problem?",
+  "How would you rank restaurants, not just sort by distance?",
+  "How would you shard restaurant data by region?"
+ ]
+}

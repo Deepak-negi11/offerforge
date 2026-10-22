@@ -1,0 +1,18 @@
+{
+ "qid": "b8f06fd4ed",
+ "question": "Amazon SDE-1 hiring manager round: a **basic LLD plus DSA question similar to the parking lot design**. Return the **most optimal (best) parking spot for vehicles of different sizes**, and **keep track of the availability** of spots.",
+ "lookingFor": [
+  "Clarifying assumptions: what makes a spot best, and size compatibility rules.",
+  "Choosing a data structure that supports fast best-spot and updates.",
+  "Clean class design: Spot, Vehicle, Lot, Ticket.",
+  "Correct handling of release and edge cases.",
+  "Stating time and space complexity."
+ ],
+ "answer": "**Clarify.** What does \"best\" mean? Assume the spot closest to the entrance (lowest distance or index) among those where the vehicle fits. Sizes: small, medium, large; a small vehicle may use a larger spot only if you allow it (state your rule; the simpler one is exact-size first, fall back to larger). One floor or many? Do we need tickets and fees?\n\n**Classes.**\n- `VehicleSize` enum and `Vehicle(plate, size)`.\n- `ParkingSpot(id, size, distance, occupied)`.\n- `ParkingLot`: `park(vehicle)` returns a `Ticket(spotId, plate, entryTime)` or null if full; `leave(ticket)`.\n- Optional `ParkingFloor`, and a `SpotAllocationStrategy` interface to change the policy without touching the lot.\n\n**DSA core.** Keep one **min-heap (priority queue) per size**, ordered by distance, holding *free* spots.\n- `park`: poll the heap for the vehicle's size (and, if empty and allowed, the next larger size). O(log N).\n- `leave`: mark the spot free and push it back into its size's heap. O(log N).\n- Tracking: a `Map<ticketId or plate, Spot>` for O(1) lookup on exit, and a counter or the heap size for availability per size in O(1).\n\n```java\nSpot s = free.get(size).poll();   // best free spot\nif (s == null) return null;       // or try larger size\ns.occupy(vehicle);\nreturn new Ticket(s, vehicle);\n```\n\n**Why a heap, not a scan.** Scanning all spots is O(N) per request; the heap gives O(log N) and keeps the best spot at the top. If spots are indexed 1..N and \"best\" is lowest index, a `TreeSet` works similarly.\n\n**Concurrency.** In a real lot, guard `park` and `leave` with a lock per size heap (or a `PriorityBlockingQueue`) so two cars never get the same spot.\n\n**Mistakes to avoid.** Linear scans, forgetting to return the spot on exit, and not handling a full lot.",
+ "followUps": [
+  "How would you support multiple floors and entrances?",
+  "What if best means nearest to a particular exit?",
+  "How would you handle vehicles that need two adjacent spots?",
+  "How would you make this thread-safe?"
+ ]
+}

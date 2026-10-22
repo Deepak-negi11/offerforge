@@ -1,0 +1,44 @@
+{
+ "pid": "walmart-global-tech-browser-with-10-lru-tabs",
+ "title": "Browser With 10 LRU Tabs",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "Design a browser in which only a limited number of tabs can stay open. When a new tab is opened while the browser is full, the **least recently used** tab is closed automatically. The original interview version allowed 10 open tabs; here the limit is a parameter `C`.\n\nEach tab has a string id. The browser supports two operations:\n\n- `open id`: use the tab `id`. If a tab with this id is already open, it simply becomes the most recently used tab and nothing is closed. Otherwise a new tab is opened as the most recently used one; if that would make more than `C` tabs, the least recently used tab is closed first.\n- `list`: report the open tabs.\n\nFor every `open` operation print the id of the tab that was closed by it, or `none` if no tab was closed. For every `list` operation print the open tabs from the most recently used to the least recently used, separated by spaces, or `empty` if no tab is open.\n\n**Follow-up:** the interviewer first asked to explain and implement the internal working of a `HashMap`, and to explain the data structure, logic and time complexity of the browser. Aim for O(1) per `open`: a hash map combined with a doubly linked list.",
+ "input_format": "The first line contains two integers `n` and `C`.\nEach of the next `n` lines is either `open id` or `list`.",
+ "output_format": "Print one line per operation, in order: for `open` the id of the closed tab or `none`; for `list` the open tabs from most to least recently used, or `empty`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ C ≤ 10^5",
+  "`id` is a non-empty string of at most 8 lowercase letters and digits"
+ ],
+ "examples": [
+  {
+   "input": "8 3\nopen a\nopen b\nopen c\nopen a\nopen d\nlist\nopen e\nlist",
+   "output": "none\nnone\nnone\nnone\nb\nd a c\nc\ne d a",
+   "explanation": "After opening a, b, c the order (most recent first) is c, b, a. Opening a again just moves it to the front: a, c, b. Opening d needs room, so the least recently used tab b is closed, giving d, a, c. Opening e closes c, giving e, d, a."
+  },
+  {
+   "input": "4 1\nopen x\nopen x\nopen y\nlist",
+   "output": "none\nnone\nx\ny",
+   "explanation": "With room for a single tab, re-opening x closes nothing. Opening y closes x, so only y remains."
+  }
+ ],
+ "complexity": {
+  "time": "O(1) per open, O(C) per list",
+  "space": "O(C)"
+ },
+ "hints": [
+  "You need to find a tab by id quickly and also know which tab is the least recently used. Think about which structures give each of those in O(1).",
+  "A hash map from id to a node in a doubly linked list ordered by recency lets you move a node to the front and drop the tail in O(1).",
+  "In Python or JavaScript, an ordered dictionary or `Map` (which preserves insertion order) can play the role of both."
+ ],
+ "reference": "import sys\nfrom collections import OrderedDict\n\ndef main():\n    lines = sys.stdin.read().split('\\n')\n    first = lines[0].split()\n    n, cap = int(first[0]), int(first[1])\n    od = OrderedDict()\n    out = []\n    for i in range(1, n + 1):\n        p = lines[i].split()\n        if p[0] == 'open':\n            t = p[1]\n            if t in od:\n                od.move_to_end(t)\n                out.append('none')\n            else:\n                closed = 'none'\n                if len(od) >= cap:\n                    closed = od.popitem(last=False)[0]\n                od[t] = True\n                out.append(closed)\n        else:\n            out.append(' '.join(reversed(od)) if od else 'empty')\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\nlines = sys.stdin.read().split('\\n')\nfirst = lines[0].split()\nn, cap = int(first[0]), int(first[1])\norder = []  # least recently used first\nout = []\nfor i in range(1, n + 1):\n    p = lines[i].split()\n    if p[0] == 'open':\n        t = p[1]\n        if t in order:\n            order.remove(t)\n            order.append(t)\n            out.append('none')\n        else:\n            closed = 'none'\n            if len(order) == cap:\n                closed = order.pop(0)\n            order.append(t)\n            out.append(closed)\n    else:\n        out.append(' '.join(order[::-1]) if order else 'empty')\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    def fmt(c, ops):\n        return f\"{len(ops)} {c}\\n\" + '\\n'.join(ops)\n\n    tests = [\n        fmt(1, ['list']),\n        fmt(1, ['open a', 'list']),\n        fmt(3, ['open a', 'open b', 'open c', 'open a', 'open d', 'list', 'open e', 'list']),\n        fmt(1, ['open x', 'open x', 'open y', 'list']),\n        fmt(2, ['open a', 'open b', 'open a', 'open c', 'open b', 'list']),\n        fmt(5, ['open a', 'open b', 'list', 'open a', 'list']),\n        fmt(10, [f\"open t{i}\" for i in range(12)] + ['list']),\n    ]\n    for _ in range(60):\n        c = rng.randint(1, 5)\n        pool = [f\"t{i}\" for i in range(rng.randint(1, 9))]\n        ops = []\n        for _ in range(rng.randint(1, 30)):\n            ops.append('list' if rng.random() < 0.2 else f\"open {rng.choice(pool)}\")\n        tests.append(fmt(c, ops))\n    n = 100000\n\n    def big(c, pool_size, n_list):\n        ops = [f\"open t{rng.randrange(pool_size)}\" for _ in range(n)]\n        for p in rng.sample(range(n), n_list):\n            ops[p] = 'list'\n        return fmt(c, ops)\n\n    tests.append(big(50000, 100000, 6))\n    tests.append(big(10, 15, 3000))\n    tests.append(big(100000, 100000, 3))\n    tests.append(big(30000, 40000, 6))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef run(capacity: int, ops: List[List[str]]) -> List[str]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    lines = sys.stdin.read().split('\\n')\n    first = lines[0].split()\n    n = int(first[0])\n    capacity = int(first[1])\n    ops = [lines[1 + i].split() for i in range(n)]\n    print('\\n'.join(run(capacity, ops)))\n\n\nmain()\n",
+  "javascript": "function run(capacity, ops) {\n  // Write your solution here\n  return []\n}\n\nconst lines = input.split('\\n')\nconst first = lines[0].split(/\\s+/).filter(Boolean).map(Number)\nconst n = first[0]\nconst capacity = first[1]\nconst ops = []\nfor (let i = 0; i < n; i++) ops.push(lines[1 + i].split(/\\s+/).filter(Boolean))\nconsole.log(run(capacity, ops).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<string> run(int capacity, vector<vector<string>>& ops) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string line;\n    getline(cin, line);\n    istringstream first(line);\n    int n;\n    first >> n;\n    int capacity;\n    first >> capacity;\n    vector<vector<string>> ops;\n    for (int i = 0; i < n; i++) {\n        getline(cin, line);\n        istringstream ss(line);\n        vector<string> op;\n        string w;\n        while (ss >> w) op.push_back(w);\n        ops.push_back(op);\n    }\n    vector<string> res = run(capacity, ops);\n    for (const string& s : res) cout << s << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<String> run(int capacity, List<String[]> ops) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String[] first = br.readLine().trim().split(\"\\\\s+\");\n        int n = Integer.parseInt(first[0]);\n        int capacity = Integer.parseInt(first[1]);\n        List<String[]> ops = new ArrayList<>();\n        for (int i = 0; i < n; i++) ops.add(br.readLine().trim().split(\"\\\\s+\"));\n        StringBuilder sb = new StringBuilder();\n        for (String s : run(capacity, ops)) sb.append(s).append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

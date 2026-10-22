@@ -1,0 +1,44 @@
+{
+ "pid": "goldman-sachs-wordle-style-digit-feedback",
+ "title": "Wordle-Style Digit Feedback",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A secret 5-digit number is hidden (a number from `10000` to `99999`, so it has no leading zero). You are shown a 5-digit `guess` and a feedback string of five characters, one for each position of the guess, where each character is `G`, `Y` or `B`, in the style of Wordle:\n\n- `G` at position `i`: the digit `guess[i]` is correct and in the correct place, i.e. the secret has `guess[i]` at position `i`.\n- `Y` at position `i`: the digit `guess[i]` is present in the secret, but misplaced: it occurs somewhere in the secret, and not at position `i`.\n- `B` at position `i`: the digit `guess[i]` is incorrect: it does not occur anywhere in the secret.\n\nThe three rules are checked for every position independently, using \"occurs anywhere in the secret\" literally (no counting of repeated digits). For example, if the guess has the same digit at two positions, a `B` for one of them rules that digit out of the secret entirely, so a `G` or `Y` on the other position makes the feedback impossible.\n\nFind **all** secrets consistent with the feedback.",
+ "input_format": "The first line contains the guess (5 digits, first digit non-zero).\nThe second line contains the feedback string of length 5.",
+ "output_format": "On the first line print the number `k` of consistent secrets. If `k > 0`, print on the second line the `k` secrets in increasing order, separated by spaces.",
+ "constraints": [
+  "10000 ≤ guess ≤ 99999",
+  "The feedback string has exactly 5 characters, each `G`, `Y` or `B`",
+  "The number of consistent secrets is at most 90000"
+ ],
+ "examples": [
+  {
+   "input": "12345\nGGYYY",
+   "output": "2\n12453 12534",
+   "explanation": "Positions 0 and 1 are correct, so the secret starts with `12`. The digits 3, 4 and 5 must all be present in the last three positions, with 3 not at position 2, 4 not at position 3 and 5 not at position 4. Only the arrangements `453` and `534` satisfy this, giving 12453 and 12534."
+  },
+  {
+   "input": "11111\nGBGGG",
+   "output": "0",
+   "explanation": "Position 1 says the digit 1 does not occur in the secret, but positions 0, 2, 3 and 4 say it does. No secret is consistent."
+  }
+ ],
+ "complexity": {
+  "time": "O(10^5)",
+  "space": "O(10^5)"
+ },
+ "hints": [
+  "First collect the digits that are ruled out by a `B` anywhere in the feedback. They can appear nowhere in the secret.",
+  "For each position build the list of allowed digits: exactly one digit for `G`, every non-ruled-out digit except the guessed one for `Y`, every non-ruled-out digit for `B`. The first position cannot be `0`.",
+  "Enumerate the combinations of allowed digits (at most 90000 five-digit numbers) and keep those that contain every digit marked `Y`."
+ ],
+ "reference": "import sys\nfrom itertools import product\n\ndef main():\n    guess, fb = sys.stdin.read().split()[:2]\n    absent = {guess[i] for i in range(5) if fb[i] == 'B'}\n    digits = '0123456789'\n    allowed = []\n    for i in range(5):\n        if fb[i] == 'G':\n            allowed.append([guess[i]] if guess[i] not in absent else [])\n        else:\n            opts = [d for d in digits if d not in absent]\n            if fb[i] == 'Y':\n                opts = [d for d in opts if d != guess[i]]\n            allowed.append(opts)\n    allowed[0] = [d for d in allowed[0] if d != '0']\n    yes = [guess[i] for i in range(5) if fb[i] == 'Y']\n    res = []\n    for combo in product(*allowed):\n        if all(d in combo for d in yes):\n            res.append(int(''.join(combo)))\n    res.sort()\n    print(len(res))\n    if res:\n        print(' '.join(map(str, res)))\n\nmain()\n",
+ "brute": "import sys\n\nguess, fb = sys.stdin.read().split()[:2]\nres = []\nfor num in range(10000, 100000):\n    s = str(num)\n    ok = True\n    for i in range(5):\n        if fb[i] == 'G':\n            if s[i] != guess[i]:\n                ok = False\n        elif fb[i] == 'Y':\n            if guess[i] not in s or s[i] == guess[i]:\n                ok = False\n        else:\n            if guess[i] in s:\n                ok = False\n    if ok:\n        res.append(num)\nprint(len(res))\nif res:\n    print(' '.join(map(str, res)))\n",
+ "generator": "def feedback(guess, secret):\n    out = ''\n    for i in range(5):\n        if guess[i] == secret[i]:\n            out += 'G'\n        elif guess[i] in secret:\n            out += 'Y'\n        else:\n            out += 'B'\n    return out\n\ndef gen(rng):\n    tests = [\n        '12345 GGGYY', '12345 GGYYY', '12345 GGGGG', '11111 GBGGG', '12345 YYYYY', '12345 BBBBB',\n        '11111 BBBBB', '90909 GBGBG', '12345 GGGGY', '55555 YYYYY', '10000 GBBBB', '98765 BYYYB',\n    ]\n    for _ in range(50):\n        if rng.random() < 0.7:\n            guess = str(rng.randint(10000, 99999))\n            if rng.random() < 0.4:\n                guess = str(rng.randint(1, 9)) + ''.join(rng.choice('0123') for _ in range(4))\n            secret = str(rng.randint(10000, 99999))\n            if rng.random() < 0.5:\n                secret = ''.join(rng.choice(guess) for _ in range(5))\n                if secret[0] == '0':\n                    secret = '1' + secret[1:]\n            tests.append(guess + ' ' + feedback(guess, secret))\n        else:\n            guess = str(rng.randint(10000, 99999))\n            tests.append(guess + ' ' + ''.join(rng.choice('GYB') for _ in range(5)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef possible_numbers(guess: str, feedback: str) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    guess, feedback = sys.stdin.read().split()[:2]\n    res = possible_numbers(guess, feedback)\n    print(len(res))\n    if res:\n        print(' '.join(map(str, res)))\n\n\nmain()\n",
+  "javascript": "function possibleNumbers(guess, feedback) {\n  // Write your solution here\n  return []\n}\n\nconst parts = input.split(/\\s+/).filter(Boolean)\nconst res = possibleNumbers(parts[0], parts[1])\nconsole.log(res.length)\nif (res.length > 0) console.log(res.join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> possibleNumbers(const string& guess, const string& feedback) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string guess, feedback;\n    cin >> guess >> feedback;\n    vector<int> res = possibleNumbers(guess, feedback);\n    cout << res.size() << \"\\n\";\n    if (!res.empty()) {\n        for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] possibleNumbers(String guess, String feedback) {\n        // Write your solution here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String guess = br.readLine().trim();\n        String feedback = br.readLine().trim();\n        int[] res = possibleNumbers(guess, feedback);\n        StringBuilder sb = new StringBuilder();\n        sb.append(res.length).append(\"\\n\");\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "fadf0d422e",
+ "question": "MakeMyTrip SSE-2 Java Backend, final round. After project architecture discussion and in-depth questions on the **SOLID principles** (pros and cons of each) and **why to prefer composition over inheritance**, plus a question on design patterns (what each does and when to use it), the candidate was asked to **implement text editor cut, copy, paste and write operations using the Command design pattern**.",
+ "lookingFor": [
+  "Knowing the Command pattern's roles and why it fits.",
+  "Clean encapsulation of actions as objects.",
+  "Supporting undo/redo as the natural extension.",
+  "Understanding of SOLID and composition over inheritance.",
+  "Working code with a sensible demo."
+ ],
+ "answer": "**Why Command.** Each editor action becomes an object with `execute()` (and `undo()`), decoupling the invoker (menu, shortcut) from the receiver (the document). This gives undo/redo, macros and logging almost for free, and follows Open/Closed: a new action is a new class.\n\n**Roles.**\n- **Receiver:** `TextEditor` / `Document` holding a `StringBuilder`, a cursor/selection, and primitives like `insert(pos, text)`, `delete(start, end)`, `getText(start, end)`.\n- **Command:** `interface Command { void execute(); void undo(); }`.\n- **Concrete commands:** `WriteCommand(text)`, `CopyCommand`, `CutCommand`, `PasteCommand`.\n- **Invoker:** `EditorController` with a `Deque<Command>` undo stack (and redo stack); `run(cmd)` executes and pushes it.\n- **Shared state:** a `Clipboard` object injected into copy/cut/paste.\n\n**Behaviour.**\n- `WriteCommand`: `execute` inserts text at the cursor; `undo` deletes it.\n- `CopyCommand`: stores the selected text in the clipboard; changes no document state, so it is not pushed on the undo stack (or has an empty undo).\n- `CutCommand`: saves the removed text and range, copies to the clipboard, deletes; `undo` re-inserts the saved text at the saved position.\n- `PasteCommand`: inserts the clipboard text at the cursor; `undo` removes exactly what it inserted (record position and length).\n\nEach command stores what it needs to reverse itself (the \"memento\" of its effect). New executes clear the redo stack.\n\n**Demo.** Write \"Hello World\", select \"World\", cut, paste at the start, then undo twice and print the text after each step.\n\n**SOLID link.** Single responsibility (the editor edits, commands represent actions, the controller manages history), Open/Closed (new commands), Dependency Inversion (the controller depends on the `Command` interface).\n\n**Composition over inheritance.** The controller holds commands and the clipboard by composition, rather than a deep `Editor` subclass hierarchy for each action; behaviour can be combined and swapped at runtime.\n\n**Avoid:** one big `switch` on action type, and commands that do not save enough state to undo.",
+ "followUps": [
+  "How would you implement redo and limit the undo history size?",
+  "How would you implement macro recording using commands?",
+  "How is Command different from Strategy?",
+  "How would you handle multiple users editing at once?"
+ ]
+}

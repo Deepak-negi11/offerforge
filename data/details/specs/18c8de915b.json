@@ -1,0 +1,18 @@
+{
+ "qid": "18c8de915b",
+ "question": "Arcesium Senior Software Engineer (experienced), system design round: **high-level design and API design for a cab booking system** (an Uber or Ola style service).",
+ "lookingFor": [
+  "Clear requirements and back-of-envelope scale.",
+  "Well-designed REST APIs with idempotency and status flow.",
+  "Sound architecture for location tracking and matching.",
+  "Explicit trade-offs and failure handling.",
+  "Realistic scaling and data storage choices."
+ ],
+ "answer": "**Requirements.** Functional: rider books a cab, sees ETA and fare estimate, gets matched, tracks the driver live, pays, rates. Driver goes online or offline, shares location, accepts rides. Non-functional: low-latency matching (seconds), high availability, consistent assignment (no double booking), eventual consistency for maps. Scale assumption: 10 million rides per day (about 120 per second average, a few times higher at peak) and a million drivers sending location every 4-5 seconds (roughly 200K location writes per second).\n\n**APIs (examples)**\n- `POST /v1/rides` with pickup, dropoff, vehicle type and an `Idempotency-Key`; returns `ride_id`, status `REQUESTED`, fare estimate.\n- `GET /v1/rides/{id}` for status and driver details; `POST /v1/rides/{id}/cancel`.\n- `POST /v1/drivers/me/location` (or a WebSocket stream) for driver updates; `POST /v1/rides/{id}/accept` for drivers.\n- `GET /v1/estimates?pickup&dropoff`. Use cursor pagination for ride history, WebSocket or push for live tracking.\n\n**Components**\n- API gateway and auth; **Ride service** (lifecycle state machine); **Matching service**; **Location service** with a geospatial index (geohash/S2 cells in Redis or similar); **Pricing service** (distance, time, demand); **Payment service** integrating a payment gateway; **Notification service**; message queue (Kafka-like) for events.\n- Data: relational DB for rides, users, payments (ACID); key-value or in-memory store for live locations; object store and analytics pipeline for trips history.\n\n**Matching flow.** Rider requests, ride is persisted, matching queries drivers in nearby cells, ranks by ETA, offers to the top driver with a timeout, and on decline moves to the next. Lock the driver with a conditional update (compare-and-set on status) to avoid double assignment.\n\n**Scaling and reliability.** Shard location data by geography; partition ride data by city or ride id; stateless services behind load balancers; retries with idempotent operations; payments through async workflow with reconciliation; fall back to wider search radius when demand is low; multi-region deployment with per-city isolation so a regional failure is contained.",
+ "followUps": [
+  "How do you avoid assigning one driver to two riders?",
+  "How would you support live tracking for millions of active trips?",
+  "How do you handle payment failure after the ride is complete?",
+  "How would you design surge pricing?"
+ ]
+}

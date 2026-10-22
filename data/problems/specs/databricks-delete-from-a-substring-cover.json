@@ -1,0 +1,50 @@
+{
+ "pid": "databricks-delete-from-a-substring-cover",
+ "title": "Delete From a Substring Cover",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "You are given a reference string `ref` and a source string `src`. The source string is not stored directly. Instead it is represented as a **cover**: an ordered list of blocks, where each block is a pair `(l, r)` meaning the substring `ref[l:r]` (indices `l` up to but not including `r`, with `0 ≤ l < r ≤ len(ref)`). `src` is the concatenation of the blocks' substrings in order. Different blocks may overlap in `ref`, and the same part of `ref` may be used by several blocks.\n\nImplement `delete(cover, index)`: remove the character at logical position `index` of `src` (0-indexed, counted over the whole concatenation) and return a valid cover of the new string. The characters of `ref` are never modified.\n\nTo make the answer unique, produce it as follows. Every block that does not contain position `index` is kept exactly as it is, in the same order, and nothing is merged. The block `(l, r)` that contains the position, say at offset `j` inside the block (so the removed character is `ref[l + j]`), is replaced by the non-empty ones among `(l, l + j)` and `(l + j + 1, r)`, in that order. A block of length 1 therefore disappears. The result may be an empty cover when the only character is deleted.\n\n**Follow-up:** keep the cover **maximal**, meaning no two adjacent blocks can be merged into a single block whose text still occurs as a substring of `ref`. After a deletion, blocks that were separated may become mergeable, and splitting a block may create new mergeable neighbours. Describe or implement how `delete` maintains this property. This follow-up is not tested here.",
+ "input_format": "The first line contains the string `ref` (lowercase letters).\nThe second line contains an integer `m`, the number of blocks.\nEach of the next `m` lines contains two integers `l` and `r`, a block.\nThe last line contains the integer `index`.",
+ "output_format": "Print the number `m'` of blocks of the resulting cover on the first line, then `m'` lines each with two integers `l` and `r`. If the cover is empty, print only `0`.",
+ "constraints": [
+  "1 ≤ len(ref) ≤ 10^5",
+  "1 ≤ m ≤ 10^5",
+  "0 ≤ l < r ≤ len(ref) for every block",
+  "0 ≤ index < len(src), where len(src) is the sum of the block lengths and can be as large as 10^10"
+ ],
+ "examples": [
+  {
+   "input": "abcdefgh\n3\n0 3\n5 8\n2 4\n4",
+   "output": "4\n0 3\n5 6\n7 8\n2 4",
+   "explanation": "src is `abc` + `fgh` + `cd` = `abcfghcd`. Position 4 is `g`, the second character of the block (5, 8), at offset 1. The block is replaced by (5, 6) and (7, 8); the other blocks are unchanged."
+  },
+  {
+   "input": "abcdefgh\n3\n0 3\n5 8\n2 4\n3",
+   "output": "3\n0 3\n6 8\n2 4",
+   "explanation": "Position 3 is the first character of the block (5, 8). Its left piece (5, 5) is empty and is dropped, leaving (6, 8)."
+  },
+  {
+   "input": "abcdefgh\n2\n3 4\n6 8\n0",
+   "output": "1\n6 8",
+   "explanation": "The first block has a single character, so deleting it removes the block entirely."
+  }
+ ],
+ "complexity": {
+  "time": "O(m)",
+  "space": "O(m)"
+ },
+ "hints": [
+  "Walk through the blocks keeping a running total of their lengths to find the block that contains the logical index.",
+  "Inside that block, the offset is index minus the total length of all earlier blocks. The block splits into a left part and a right part around that offset.",
+  "Drop empty parts, copy all other blocks unchanged, and remember that total lengths can exceed 32 bits."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    m = int(data[1])\n    blocks = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(m)]\n    index = int(data[2 + 2 * m])\n    out = []\n    rem = index\n    done = False\n    for l, r in blocks:\n        ln = r - l\n        if not done and rem < ln:\n            if rem > 0:\n                out.append((l, l + rem))\n            if rem + 1 < ln:\n                out.append((l + rem + 1, r))\n            done = True\n        else:\n            if not done:\n                rem -= ln\n            out.append((l, r))\n    res = [str(len(out))]\n    res.extend(f'{a} {b}' for a, b in out)\n    print('\\n'.join(res))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nm = int(data[1])\nblocks = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(m)]\nindex = int(data[2 + 2 * m])\nchars = []\nfor b, (l, r) in enumerate(blocks):\n    for p in range(l, r):\n        chars.append((b, p))\ndel chars[index]\nout = []\nfor b, p in chars:\n    if out and out[-1][0] == b and out[-1][2] == p:\n        out[-1][2] = p + 1\n    else:\n        out.append([b, p, p + 1])\nprint(len(out))\nfor b, l, r in out:\n    print(l, r)\n",
+ "generator": "def gen(rng):\n    def fmt(ref, blocks, index):\n        return ref + '\\n' + str(len(blocks)) + '\\n' + '\\n'.join(f'{l} {r}' for l, r in blocks) + '\\n' + str(index)\n\n    def letters(n):\n        return ''.join(rng.choice('abc') for _ in range(n))\n\n    tests = []\n    tests.append(fmt('a', [(0, 1)], 0))\n    tests.append(fmt('abcdefgh', [(0, 3), (5, 8), (2, 4)], 4))\n    tests.append(fmt('abcdefgh', [(0, 3), (5, 8), (2, 4)], 3))\n    tests.append(fmt('abcdefgh', [(3, 4), (6, 8)], 0))\n    tests.append(fmt('abcdef', [(0, 3), (3, 6)], 2))\n    tests.append(fmt('abcdef', [(0, 3), (3, 6)], 3))\n    tests.append(fmt('abcdef', [(0, 6)], 5))\n    tests.append(fmt('abcdef', [(0, 6)], 0))\n    tests.append(fmt('ab', [(0, 1), (1, 2), (0, 2), (0, 1)], 4))\n    for _ in range(40):\n        L = rng.randint(1, 12)\n        m = rng.randint(1, 6)\n        blocks = []\n        for _ in range(m):\n            l = rng.randrange(L)\n            r = rng.randint(l + 1, min(L, l + rng.choice([1, 2, 4, 12])))\n            blocks.append((l, r))\n        total = sum(r - l for l, r in blocks)\n        tests.append(fmt(letters(L), blocks, rng.randrange(total)))\n    L = 100000\n    ref = letters(L)\n    m = 100000\n    blocks = []\n    for _ in range(m):\n        l = rng.randrange(L)\n        r = rng.randint(l + 1, min(L, l + 20))\n        blocks.append((l, r))\n    total = sum(r - l for l, r in blocks)\n    tests.append(fmt(ref, blocks, total - 1))\n    tests.append(fmt(ref, blocks, total // 2))\n    blocks = [(0, L)] * m\n    tests.append(fmt(ref, blocks, m * L - 1))\n    tests.append(fmt(ref, blocks, rng.randrange(m * L)))\n    blocks = [(rng.randrange(L), 0) for _ in range(m)]\n    blocks = [(l, l + 1) for l, _ in blocks]\n    tests.append(fmt(ref, blocks, rng.randrange(m)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef delete(ref: str, blocks: List[List[int]], index: int) -> List[List[int]]:\n    # Write your solution here\n    return blocks\n\n\ndef main():\n    data = sys.stdin.read().split()\n    ref = data[0]\n    m = int(data[1])\n    blocks = [[int(data[2 + 2 * i]), int(data[3 + 2 * i])] for i in range(m)]\n    index = int(data[2 + 2 * m])\n    res = delete(ref, blocks, index)\n    out = [str(len(res))]\n    for l, r in res:\n        out.append(f\"{l} {r}\")\n    print(\"\\n\".join(out))\n\n\nmain()\n",
+  "javascript": "function deleteFromCover(ref, blocks, index) {\n  // Write your solution here\n  return blocks\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst ref = t[0]\nconst m = Number(t[1])\nconst blocks = []\nfor (let i = 0; i < m; i++) blocks.push([Number(t[2 + 2 * i]), Number(t[3 + 2 * i])])\nconst index = Number(t[2 + 2 * m])\nconst res = deleteFromCover(ref, blocks, index)\nconst out = [String(res.length)]\nfor (const [l, r] of res) out.push(l + ' ' + r)\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<pair<int,int>> deleteFromCover(const string& ref, vector<pair<int,int>>& blocks, long long index) {\n    // Write your solution here\n    return blocks;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string ref;\n    int m;\n    cin >> ref >> m;\n    vector<pair<int,int>> blocks(m);\n    for (auto& b : blocks) cin >> b.first >> b.second;\n    long long index;\n    cin >> index;\n    vector<pair<int,int>> res = deleteFromCover(ref, blocks, index);\n    cout << res.size() << \"\\n\";\n    for (auto& b : res) cout << b.first << \" \" << b.second << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<int[]> deleteFromCover(String ref, List<int[]> blocks, long index) {\n        // Write your solution here\n        return blocks;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        String ref = st.nextToken();\n        int m = Integer.parseInt(st.nextToken());\n        List<int[]> blocks = new ArrayList<>();\n        for (int i = 0; i < m; i++) {\n            int l = Integer.parseInt(st.nextToken());\n            int r = Integer.parseInt(st.nextToken());\n            blocks.add(new int[]{l, r});\n        }\n        long index = Long.parseLong(st.nextToken());\n        List<int[]> res = deleteFromCover(ref, blocks, index);\n        StringBuilder sb = new StringBuilder();\n        sb.append(res.size()).append(\"\\n\");\n        for (int[] b : res) sb.append(b[0]).append(\" \").append(b[1]).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

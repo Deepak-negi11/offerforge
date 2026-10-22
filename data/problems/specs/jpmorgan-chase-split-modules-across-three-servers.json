@@ -1,0 +1,48 @@
+{
+ "pid": "jpmorgan-chase-split-modules-across-three-servers",
+ "title": "Split Modules Across Three Servers",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given an integer array `difficulty` of length `n`, where `difficulty[i]` is the difficulty of the `i`-th software module.\n\nYou must distribute **all** modules among three different servers, called Server 1, Server 2 and Server 3. The distribution must satisfy:\n\n- every server receives **at least one** module, and\n- every module is assigned to **exactly one** server.\n\nAfter the distribution, one module is selected from each server. Let `d1`, `d2` and `d3` be the difficulties of the modules selected from Server 1, Server 2 and Server 3. The **deployment difficulty** of that selection is `|d1 - d2| + |d2 - d3|`.\n\nFor a given distribution, its **minimum deployment difficulty** is the smallest deployment difficulty over all possible ways to select one module from each server. Choose the distribution that makes this minimum as large as possible, and print that maximum value.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` space-separated integers: `difficulty[0], ..., difficulty[n-1]`.",
+ "output_format": "Print a single integer: the maximum possible minimum deployment difficulty.",
+ "constraints": [
+  "3 ≤ n ≤ 10^5",
+  "1 ≤ difficulty[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3\n1 4 9",
+   "output": "13",
+   "explanation": "Each server gets exactly one module. Putting 4 on Server 2 gives |1-4| + |4-9| = 8 or the symmetric 8. Putting 9 on Server 2 with 1 and 4 on the others gives 8 + 5 = 13, which is the best of all six assignments."
+  },
+  {
+   "input": "4\n10 1 6 8",
+   "output": "14",
+   "explanation": "Server 2 gets {1}, Server 1 gets {6, 8}, Server 3 gets {10}. The selections are (6,1,10) with 5 + 9 = 14 and (8,1,10) with 7 + 9 = 16, so the minimum is 14. No distribution does better."
+  },
+  {
+   "input": "7\n3 5 20 20 23 27 29",
+   "output": "39",
+   "explanation": "Server 2 gets {3, 5}, Server 1 gets {20, 20, 23, 27}, Server 3 gets {29}. For d2 = 3 the closest partners cost 17 + 26 = 43, and for d2 = 5 they cost 15 + 24 = 39, so the minimum is 39, and no distribution beats it."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "For a fixed distribution, once d2 is fixed the best (smallest) choices of d1 and d3 are the elements of Server 1 and Server 3 closest to d2. So the minimum deployment difficulty is the minimum over d2 in Server 2 of (distance to Server 1) + (distance to Server 3).",
+  "Sort the difficulties. To keep every d2 far from the other two servers, think about which server should hold the extreme values and whether Server 2 should be a contiguous block of the sorted order. Try small arrays by brute force to see the pattern.",
+  "Server 2 should be a prefix or a suffix of the sorted array, one of the other servers a single extreme element at the opposite end, and the third server everything else. Evaluate each split point in O(1) after sorting."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = sorted(int(x) for x in data[1:1 + n])\n    best = -1\n    # Server 2 = a prefix a[0..i-1]; one other server = {a[n-1]}; the rest in between.\n    for i in range(1, n - 1):\n        best = max(best, a[n - 1] + a[i] - 2 * a[i - 1])\n    # Server 2 = a suffix a[i..n-1]; one other server = {a[0]}; the rest in between.\n    for i in range(2, n):\n        best = max(best, 2 * a[i] - a[i - 1] - a[0])\n    print(best)\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import product\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + n]]\nbest = -1\nfor lab in product(range(3), repeat=n):\n    groups = [[], [], []]\n    for i in range(n):\n        groups[lab[i]].append(a[i])\n    if not all(groups):\n        continue\n    worst = None\n    for d2 in groups[1]:\n        c = min(abs(x - d2) for x in groups[0]) + min(abs(x - d2) for x in groups[2])\n        if worst is None or c < worst:\n            worst = c\n    if worst > best:\n        best = worst\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n    tests = [fmt([1, 1, 1]), fmt([5, 5, 5, 5]), fmt([1, 4, 9]), fmt([9, 4, 1]), fmt([1, 1, 2]), fmt([2, 1, 2]),\n             fmt([1, 2, 3, 4]), fmt([1, 1, 1, 10 ** 9]), fmt([1, 10 ** 9, 10 ** 9, 10 ** 9]),\n             fmt([1, 2, 3, 4, 5, 6, 7, 8])]\n    for n in (3, 4, 5, 6, 7, 8, 9):\n        for _ in range(3):\n            hi = rng.choice([6, 30, 10 ** 9])\n            tests.append(fmt([rng.randint(1, hi) for _ in range(n)]))\n    for _ in range(4):\n        n = rng.randint(7, 9)\n        tests.append(fmt([rng.choice([1, 2, 50, 51, 100, 10 ** 9]) for _ in range(n)]))\n    tests.append(fmt([rng.randint(1, 10 ** 9) for _ in range(60)]))\n    tests.append(fmt([rng.randint(1, 5) for _ in range(300)]))\n    N = 10 ** 5\n    tests.append(fmt([rng.randint(1, 10 ** 9) for _ in range(N)]))\n    tests.append(fmt([10 ** 9] * N))\n    tests.append(fmt([rng.choice([1, 2, 10 ** 9 - 1, 10 ** 9]) for _ in range(N)]))\n    tests.append(fmt(sorted(rng.randint(1, 10 ** 9) for _ in range(N))))\n    tests.append(fmt([int(1.0002 ** i) + rng.randint(0, 3) for i in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_min_difficulty(difficulty: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    difficulty = [int(x) for x in data[1:1 + n]]\n    print(max_min_difficulty(difficulty))\n\n\nmain()\n",
+  "javascript": "function maxMinDifficulty(difficulty) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst difficulty = t.slice(1, 1 + n)\nconsole.log(maxMinDifficulty(difficulty))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxMinDifficulty(vector<long long>& difficulty) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> difficulty(n);\n    for (int i = 0; i < n; i++) cin >> difficulty[i];\n    cout << maxMinDifficulty(difficulty) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxMinDifficulty(long[] difficulty) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] difficulty = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); difficulty[i] = (long) in.nval;\n        }\n        System.out.println(maxMinDifficulty(difficulty));\n    }\n}\n"
+ }
+}

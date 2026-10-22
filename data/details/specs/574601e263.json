@@ -1,0 +1,18 @@
+{
+ "qid": "574601e263",
+ "question": "In the second (face-to-face) round for an experienced engineer role at Texas Instruments, the interviewer had a deep discussion on the **function call stack**: how does a function know where to return after it executes, and what data is stored in the function's stack frame? Then: **what is a link register?** and **what is the Harvard CPU architecture?** (the candidate said they could not answer the last one because it is hardware-oriented).",
+ "lookingFor": [
+  "Do you understand the call/return mechanism at machine level?",
+  "Can you list what a stack frame contains and why?",
+  "Do you know the ARM-style link register and how it differs from pushing the return address?",
+  "Can you explain Harvard vs von Neumann architectures at a basic level?",
+  "Can you relate hardware details to software behaviour (stack overflow, buffer overflow)?"
+ ],
+ "answer": "**How a function knows where to return**\nWhen a function is called, the CPU must remember the address of the instruction after the call. On x86 the `call` instruction pushes that **return address** onto the stack and `ret` pops it into the program counter. On ARM, `bl` (branch with link) puts the return address into the **link register (LR)** instead, and a plain return is `bx lr`.\n\n**What a stack frame holds**\nA frame is the block of stack space used by one call. Depending on the ABI and compiler it contains:\n- the return address (or the saved LR, if the function makes further calls),\n- the saved frame pointer,\n- callee-saved registers the function uses,\n- local variables and spilled temporaries,\n- arguments that did not fit in registers,\n- alignment padding.\n\nThe stack usually grows toward lower addresses. On return, the frame is released by moving the stack pointer back. This is why returning a pointer to a local variable is a bug, and why overflowing a local buffer can overwrite the return address (the basis of stack smashing).\n\n**Link register**\nLR is a register that holds the return address of the current function. A *leaf* function (one that calls nothing) can just return through LR with no memory access. A *non-leaf* function must save LR on the stack before making its own call, because that call overwrites LR, and restore it before returning. This makes simple calls fast.\n\n**Harvard architecture**\n- **Harvard:** separate memories and buses for instructions and data, so an instruction fetch and a data access can happen in the same cycle. Common in DSPs and microcontrollers.\n- **von Neumann:** one shared memory and bus for both; simpler, but fetch and data access compete (the \"von Neumann bottleneck\").\n- Most modern CPUs are *modified Harvard*: a unified main memory, but separate L1 instruction and data caches.",
+ "followUps": [
+  "What happens to the stack if recursion is too deep, and how can embedded systems guard against it?",
+  "What is the difference between caller-saved and callee-saved registers?",
+  "Why can a leaf function be faster than a non-leaf function on ARM?",
+  "How does a debugger build a backtrace from the stack?"
+ ]
+}

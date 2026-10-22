@@ -1,0 +1,49 @@
+{
+ "pid": "amazon-implement-topological-sort",
+ "title": "Implement Topological Sort",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a directed graph with `n` vertices numbered `0` to `n - 1` and `m` directed edges. An edge `u v` means that `u` must appear before `v`.\n\nA **topological order** is an ordering of all `n` vertices in which, for every edge `u v`, vertex `u` appears before vertex `v`. A graph has a topological order if and only if it contains no directed cycle.\n\nA graph can have many topological orders, so the answer is defined to be the **lexicographically smallest** one: comparing two orders from left to right, the one with the smaller vertex at the first position where they differ wins.\n\nPrint that order. If the graph contains a cycle (a self-loop `u u` counts as a cycle), print `-1` instead. Edges may be repeated.\n\nTry to explain your approach and dry-run it on the examples by hand before you code it, as you would in an interview.",
+ "input_format": "The first line contains two integers `n` and `m`.\nEach of the next `m` lines contains two integers `u` and `v` describing the directed edge `u -> v`.",
+ "output_format": "Print the `n` vertices of the lexicographically smallest topological order as space-separated integers on one line, or `-1` if the graph has a cycle.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ m ≤ 1.5 · 10^5",
+  "0 ≤ u, v < n"
+ ],
+ "examples": [
+  {
+   "input": "4 3\n3 0\n0 1\n2 1",
+   "output": "2 3 0 1",
+   "explanation": "Vertices 2 and 3 have no incoming edges; the smaller, 2, goes first. After removing it, vertex 3 is still the only free vertex (vertex 1 still waits for 0), so 3 comes next, then 0, which frees vertex 1."
+  },
+  {
+   "input": "3 3\n0 1\n1 2\n2 1",
+   "output": "-1",
+   "explanation": "Vertices 1 and 2 form a cycle, so after vertex 0 is placed no vertex is free and no valid order exists."
+  },
+  {
+   "input": "3 0",
+   "output": "0 1 2",
+   "explanation": "There are no constraints, so the smallest order is simply sorted."
+  }
+ ],
+ "complexity": {
+  "time": "O((n + m) log n)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Count incoming edges (in-degree) for every vertex. A vertex with in-degree 0 can be placed next.",
+  "Repeatedly remove a vertex with in-degree 0 and decrease the in-degree of its neighbours (Kahn's algorithm).",
+  "To get the lexicographically smallest order, keep the currently free vertices in a min-heap. If fewer than n vertices get removed, there is a cycle."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    adj = [[] for _ in range(n)]\n    indeg = [0] * n\n    for i in range(m):\n        u = int(data[2 + 2 * i])\n        v = int(data[3 + 2 * i])\n        adj[u].append(v)\n        indeg[v] += 1\n    heap = [v for v in range(n) if indeg[v] == 0]\n    heapq.heapify(heap)\n    order = []\n    while heap:\n        u = heapq.heappop(heap)\n        order.append(u)\n        for v in adj[u]:\n            indeg[v] -= 1\n            if indeg[v] == 0:\n                heapq.heappush(heap, v)\n    print(' '.join(map(str, order)) if len(order) == n else -1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nedges = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(m)]\nremoved = [False] * n\norder = []\nok = True\nfor _ in range(n):\n    pick = -1\n    for v in range(n):\n        if removed[v]:\n            continue\n        if all(removed[u] for (u, w) in edges if w == v):\n            pick = v\n            break\n    if pick == -1:\n        ok = False\n        break\n    removed[pick] = True\n    order.append(pick)\nprint(' '.join(map(str, order)) if ok else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(n, edges):\n        return f\"{n} {len(edges)}\\n\" + '\\n'.join(f'{u} {v}' for u, v in edges)\n\n    def dag(n, m):\n        perm = list(range(n))\n        rng.shuffle(perm)\n        edges = []\n        for _ in range(m):\n            i = rng.randrange(n - 1)\n            j = rng.randrange(i + 1, n)\n            edges.append((perm[i], perm[j]))\n        return perm, edges\n\n    tests = [\n        fmt(1, []), fmt(1, [(0, 0)]), fmt(2, [(0, 1)]), fmt(2, [(1, 0)]), fmt(3, []),\n        fmt(2, [(0, 1), (0, 1)]), fmt(3, [(0, 1), (1, 2), (2, 0)]), fmt(4, [(3, 0), (0, 1), (2, 1)]),\n        fmt(3, [(0, 1), (1, 2), (2, 1)]),\n    ]\n    for _ in range(14):\n        n = rng.randint(2, 12)\n        perm, edges = dag(n, rng.randint(0, 2 * n))\n        tests.append(fmt(n, edges))\n    for _ in range(8):\n        n = rng.randint(2, 10)\n        perm, edges = dag(n, rng.randint(1, 2 * n))\n        edges.append((rng.randrange(n), rng.randrange(n)))\n        rng.shuffle(edges)\n        tests.append(fmt(n, edges))\n    # large\n    n = 100000\n    perm, edges = dag(n, 150000)\n    tests.append(fmt(n, edges))\n    perm = list(range(n))\n    rng.shuffle(perm)\n    edges = [(perm[i], perm[i + 1]) for i in range(n - 1)]\n    for _ in range(150000 - len(edges)):\n        i = rng.randrange(n - 1)\n        j = rng.randrange(i + 1, n)\n        edges.append((perm[i], perm[j]))\n    rng.shuffle(edges)\n    tests.append(fmt(n, edges))\n    perm, edges = dag(n, 149999)\n    edges.append((perm[-1], perm[0]))\n    rng.shuffle(edges)\n    tests.append(fmt(n, edges))\n    perm, edges = dag(20000, 40000)\n    tests.append(fmt(20000, edges))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef lexical_topo_order(n: int, edges: List[List[int]]) -> List[int]:\n    # Write your solution here\n    # Return [-1] if the graph contains a cycle.\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    edges = [[int(data[2 + 2 * i]), int(data[3 + 2 * i])] for i in range(m)]\n    print(' '.join(map(str, lexical_topo_order(n, edges))))\n\n\nmain()\n",
+  "javascript": "function lexicalTopoOrder(n, edges) {\n  // Write your solution here\n  // Return [-1] if the graph contains a cycle.\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst edges = []\nfor (let i = 0; i < m; i++) edges.push([t[2 + 2 * i], t[3 + 2 * i]])\nconsole.log(lexicalTopoOrder(n, edges).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> lexicalTopoOrder(int n, vector<pair<int, int>>& edges) {\n    // Write your solution here\n    // Return {-1} if the graph contains a cycle.\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<pair<int, int>> edges(m);\n    for (int i = 0; i < m; i++) cin >> edges[i].first >> edges[i].second;\n    vector<int> order = lexicalTopoOrder(n, edges);\n    for (size_t i = 0; i < order.size(); i++) cout << order[i] << (i + 1 < order.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] lexicalTopoOrder(int n, int[][] edges) {\n        // Write your solution here\n        // Return new int[]{-1} if the graph contains a cycle.\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] edges = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); edges[i][0] = (int) in.nval;\n            in.nextToken(); edges[i][1] = (int) in.nval;\n        }\n        int[] order = lexicalTopoOrder(n, edges);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < order.length; i++) sb.append(order[i]).append(i + 1 < order.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

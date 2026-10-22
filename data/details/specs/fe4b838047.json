@@ -1,0 +1,18 @@
+{
+ "qid": "fe4b838047",
+ "question": "In an Amazon SDE-2 Bar Raiser round (with Leadership Principles on Insist on the Highest Standards and Deliver Results), the technical question was:\n\n**Design a distributed rate limiter.**\n\nThe interviewer started with the **token bucket** algorithm logic and then moved into implementation: **how do you handle concurrency using Redis Lua scripts to ensure atomicity?**",
+ "lookingFor": [
+  "Knowledge of rate limiting algorithms and trade-offs (token bucket, leaky bucket, fixed and sliding window)",
+  "Understanding why read-modify-write across clients is racy, and how a Redis Lua script gives atomicity",
+  "Distributed concerns: sharding, failure of the store, latency overhead, clock handling",
+  "Clear requirements: limits per user, API key or IP; accuracy versus performance",
+  "Operational thinking: configuration, metrics, headers, failure modes"
+ ],
+ "answer": "**Requirements:** limit requests per client (user, API key, IP) per endpoint; low added latency (a few ms); works across many API servers; accuracy within a small tolerance; define behaviour when the limiter is down (fail open or closed).\n\n**Placement:** in the API gateway or a middleware in front of services, calling a shared Redis store. Return HTTP 429 with `Retry-After` and rate-limit headers.\n\n**Token bucket**\n- Each key has a bucket with capacity `C` (allowed burst) and refill rate `r` tokens per second. State: `tokens` and `last_refill`.\n- On a request: `tokens = min(C, tokens + (now - last_refill) * r)`; if `tokens >= 1`, subtract one and allow, otherwise reject.\n- Simple, memory-light (two fields per key), allows bursts. Alternatives: sliding window (more precise, more memory), fixed window (boundary burst problem), leaky bucket (smooths output).\n\n**Concurrency problem**\n- If each server does `GET` then computes then `SET`, two servers can read the same tokens and both allow, over-admitting.\n- Fix: run the whole read, refill, check and write as a **Lua script** with `EVAL`/`EVALSHA`. Redis executes a script atomically, with no other command interleaved, so the logic behaves as one operation.\n\n```lua\n-- KEYS[1]=bucket, ARGV: capacity, rate, now, cost\nlocal b = redis.call('HMGET', KEYS[1], 'tokens', 'ts')\nlocal tokens = tonumber(b[1]) or tonumber(ARGV[1])\nlocal ts = tonumber(b[2]) or tonumber(ARGV[3])\ntokens = math.min(ARGV[1], tokens + (ARGV[3]-ts)*ARGV[2])\nlocal ok = tokens >= tonumber(ARGV[4])\nif ok then tokens = tokens - ARGV[4] end\nredis.call('HSET', KEYS[1], 'tokens', tokens, 'ts', ARGV[3])\nredis.call('EXPIRE', KEYS[1], 3600)\nreturn ok and 1 or 0\n```\n\n**Scaling and trade-offs**\n- Shard keys across Redis nodes (the script touches one key, so it works in Redis Cluster); replicate for availability.\n- Time: pass `now` from one trusted source or use Redis `TIME` to avoid clock skew between app servers.\n- Hot keys: local in-memory pre-limits, or batch token grants per server, trading accuracy for fewer round trips.\n- Failure: fail open for non-critical APIs, closed for abuse-sensitive ones; add a short timeout.\n- Monitor rejection rates; make limits configurable per tier.",
+ "followUps": [
+  "What happens if Redis fails or becomes slow? Fail open or closed?",
+  "How would you rate limit globally across several regions?",
+  "Compare token bucket with sliding window counter. When is each better?",
+  "How would you reduce Redis load for extremely hot keys?"
+ ]
+}

@@ -1,0 +1,48 @@
+{
+ "pid": "zoho-shortest-path-in-a-grid",
+ "title": "Shortest Path in a Grid",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a grid with `r` rows and `c` columns. Each cell is either open (`.`) or blocked (`#`). You are also given a **source** cell and a **destination** cell, as 0-indexed `(row, column)` pairs.\n\nIn one move you can step from a cell to the cell directly **up, down, left or right** of it, as long as the new cell is inside the grid and open. Diagonal moves are not allowed.\n\nPrint the minimum number of moves needed to go from the source to the destination, or `-1` if the destination cannot be reached. If the source or the destination cell is itself blocked, the answer is `-1`. If the source and destination are the same open cell, the answer is `0`.",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains a string of `c` characters, each `.` (open) or `#` (blocked).\nThe next line contains the source `sr sc`.\nThe last line contains the destination `dr dc`.",
+ "output_format": "Print a single integer: the minimum number of moves, or `-1` if the destination is unreachable.",
+ "constraints": [
+  "1 ≤ r, c ≤ 500",
+  "0 ≤ sr, dr < r and 0 ≤ sc, dc < c"
+ ],
+ "examples": [
+  {
+   "input": "3 4\n..#.\n.##.\n....\n0 0\n0 3",
+   "output": "7",
+   "explanation": "The direct route along row 0 is cut by the blocked cell at (0,2). Go down the left column to row 2, walk right along row 2, then go up the right column: (0,0) → (1,0) → (2,0) → (2,1) → (2,2) → (2,3) → (1,3) → (0,3), which is 7 moves."
+  },
+  {
+   "input": "2 3\n.#.\n.#.\n0 0\n0 2",
+   "output": "-1",
+   "explanation": "The middle column is fully blocked, so the right side cannot be reached."
+  },
+  {
+   "input": "1 1\n.\n0 0\n0 0",
+   "output": "0",
+   "explanation": "The source and destination are the same open cell, so no moves are needed."
+  }
+ ],
+ "complexity": {
+  "time": "O(r · c)",
+  "space": "O(r · c)"
+ },
+ "hints": [
+  "Every move costs the same (one step), so the shortest path in moves is a shortest path in an unweighted graph whose nodes are the open cells.",
+  "Use breadth-first search from the source with a queue, recording the distance to each cell the first time you reach it.",
+  "Mark cells visited when you push them (not when you pop them), handle blocked or out-of-range neighbours, and remember the special cases where the source or destination is blocked."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    g = data[2:2 + r]\n    sr, sc, dr, dc = (int(x) for x in data[2 + r:6 + r])\n    if g[sr][sc] == '#' or g[dr][dc] == '#':\n        print(-1)\n        return\n    W = c + 2\n    dist = [-2] * ((r + 2) * W)\n    for i in range(r):\n        row = g[i]\n        base = (i + 1) * W + 1\n        for j in range(c):\n            if row[j] == '.':\n                dist[base + j] = -1\n    s = (sr + 1) * W + sc + 1\n    t = (dr + 1) * W + dc + 1\n    dist[s] = 0\n    q = deque([s])\n    while q:\n        u = q.popleft()\n        if u == t:\n            break\n        du = dist[u] + 1\n        for v in (u - W, u + W, u - 1, u + 1):\n            if dist[v] == -1:\n                dist[v] = du\n                q.append(v)\n    print(dist[t])\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\ng = data[2:2 + r]\nsr, sc, dr, dc = (int(x) for x in data[2 + r:6 + r])\nINF = 10 ** 9\ndist = [[INF] * c for _ in range(r)]\nif g[sr][sc] == '.':\n    dist[sr][sc] = 0\nchanged = True\nwhile changed:\n    changed = False\n    for i in range(r):\n        for j in range(c):\n            if g[i][j] != '.':\n                continue\n            for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n                a, b = i + di, j + dj\n                if 0 <= a < r and 0 <= b < c and g[a][b] == '.' and dist[a][b] + 1 < dist[i][j]:\n                    dist[i][j] = dist[a][b] + 1\n                    changed = True\nans = dist[dr][dc] if g[dr][dc] == '.' else INF\nprint(ans if ans < INF else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(g, s, d):\n        return f\"{len(g)} {len(g[0])}\\n\" + '\\n'.join(g) + f\"\\n{s[0]} {s[1]}\\n{d[0]} {d[1]}\"\n    def rand_grid(r, c, p):\n        return [''.join('#' if rng.random() < p else '.' for _ in range(c)) for _ in range(r)]\n    def open_cell(g, cell):\n        i, j = cell\n        row = g[i]\n        g[i] = row[:j] + '.' + row[j + 1:]\n    tests = [fmt(['.'], (0, 0), (0, 0)), fmt(['#'], (0, 0), (0, 0)), fmt(['.#.'], (0, 0), (0, 2)), fmt(['..', '#.'], (0, 0), (1, 0)),\n             fmt(['#.', '..'], (0, 0), (1, 1)), fmt(['....'], (0, 0), (0, 3)), fmt(['.', '.', '.', '.'], (3, 0), (0, 0)), fmt(['.#', '#.'], (0, 0), (1, 1))]\n    for _ in range(45):\n        r, c = rng.randint(1, 7), rng.randint(1, 7)\n        g = rand_grid(r, c, rng.choice([0.0, 0.15, 0.3, 0.45]))\n        s = (rng.randrange(r), rng.randrange(c))\n        d = (rng.randrange(r), rng.randrange(c))\n        if rng.random() < 0.8:\n            open_cell(g, s)\n            open_cell(g, d)\n        tests.append(fmt(g, s, d))\n    R = C = 500\n    tests.append(fmt(['.' * C] * R, (0, 0), (R - 1, C - 1)))\n    g = rand_grid(R, C, 0.25)\n    open_cell(g, (0, 0)); open_cell(g, (R - 1, C - 1))\n    tests.append(fmt(g, (0, 0), (R - 1, C - 1)))\n    g = rand_grid(R, C, 0.35)\n    s, d = (rng.randrange(R), rng.randrange(C)), (rng.randrange(R), rng.randrange(C))\n    open_cell(g, s); open_cell(g, d)\n    tests.append(fmt(g, s, d))\n    R2 = 499\n    g = []\n    for i in range(R2):\n        if i % 2 == 0:\n            g.append('.' * C)\n        else:\n            gap = C - 1 if (i // 2) % 2 == 0 else 0\n            row = ['#'] * C\n            row[gap] = '.'\n            g.append(''.join(row))\n    tests.append(fmt(g, (0, 0), (R2 - 1, C - 1)))\n    g = [('.' * 250 + '#' + '.' * 249) for _ in range(R)]\n    tests.append(fmt(g, (0, 0), (R - 1, C - 1)))\n    g = rand_grid(R, C, 0.1)\n    s, d = (0, 0), (R - 1, 0)\n    open_cell(g, s); open_cell(g, d)\n    tests.append(fmt(g, s, d))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef shortest_path(grid: List[str], sr: int, sc: int, dr: int, dc: int) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    grid = data[2:2 + r]\n    sr, sc, dr, dc = (int(x) for x in data[2 + r:6 + r])\n    print(shortest_path(grid, sr, sc, dr, dc))\n\n\nmain()\n",
+  "javascript": "function shortestPath(grid, sr, sc, dr, dc) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst r = Number(t[0]), c = Number(t[1])\nconst grid = t.slice(2, 2 + r)\nconst [sr, sc, dr, dc] = t.slice(2 + r, 6 + r).map(Number)\nconsole.log(String(shortestPath(grid, sr, sc, dr, dc)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint shortestPath(vector<string>& grid, int sr, int sc, int dr, int dc) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<string> grid(r);\n    for (int i = 0; i < r; i++) cin >> grid[i];\n    int sr, sc, dr, dc;\n    cin >> sr >> sc >> dr >> dc;\n    cout << shortestPath(grid, sr, sc, dr, dc) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int shortestPath(String[] grid, int sr, int sc, int dr, int dc) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int r = Integer.parseInt(st.nextToken());\n        int c = Integer.parseInt(st.nextToken());\n        String[] grid = new String[r];\n        for (int i = 0; i < r; i++) grid[i] = br.readLine().trim();\n        st = new StringTokenizer(br.readLine());\n        int sr = Integer.parseInt(st.nextToken());\n        int sc = Integer.parseInt(st.nextToken());\n        st = new StringTokenizer(br.readLine());\n        int dr = Integer.parseInt(st.nextToken());\n        int dc = Integer.parseInt(st.nextToken());\n        System.out.println(shortestPath(grid, sr, sc, dr, dc));\n    }\n}\n"
+ }
+}

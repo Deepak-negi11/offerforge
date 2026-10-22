@@ -1,0 +1,51 @@
+{
+ "pid": "paypal-print-all-subordinates-of-a-hod",
+ "title": "Print All Subordinates of a HOD",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "A college keeps its reporting structure as a set of relationships between staff members. There are `n` staff members numbered `0` to `n - 1`: heads of department (HODs), professors who report to a HOD, and assistant professors who report to a professor. You are given `m` relationships `a b`, meaning that staff member `b` reports **directly** to staff member `a`.\n\nEach staff member has at most one direct superior and no one is (directly or indirectly) their own superior, so the relationships form one or more hierarchies; a HOD is someone with no superior. You are also given a staff member `h` (normally a HOD).\n\nPrint everyone who works under `h`: all staff who report to `h` directly, plus everyone who reports to them, and so on at every level. `h` itself is not included. Print the numbers in increasing order. If nobody works under `h`, print `-1`.",
+ "input_format": "The first line contains two integers `n` and `m`.\nEach of the next `m` lines contains two integers `a` and `b` (`b` reports directly to `a`).\nThe last line contains the integer `h`.",
+ "output_format": "Print the staff numbers under `h` in increasing order, separated by spaces, or `-1` if there are none.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ m ≤ n - 1",
+  "0 ≤ a, b, h < n",
+  "each staff member appears as `b` at most once, and the relationships contain no cycle",
+  "the chain of command is at most 5000 levels deep"
+ ],
+ "examples": [
+  {
+   "input": "8 6\n0 1\n0 2\n1 3\n1 4\n2 5\n7 6\n0",
+   "output": "1 2 3 4 5",
+   "explanation": "Staff 1 and 2 report to HOD 0. Staff 3 and 4 report to 1, and staff 5 reports to 2. Staff 6 belongs to the other HOD, 7, so it is not included."
+  },
+  {
+   "input": "8 6\n0 1\n0 2\n1 3\n1 4\n2 5\n7 6\n7",
+   "output": "6",
+   "explanation": "HOD 7 has a single subordinate, staff 6."
+  },
+  {
+   "input": "8 6\n0 1\n0 2\n1 3\n1 4\n2 5\n7 6\n3",
+   "output": "-1",
+   "explanation": "Staff 3 has nobody reporting to them."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Store, for each staff member, the list of people who report directly to them.",
+  "Start from h and visit everyone reachable by following these lists downwards (DFS or BFS). Use an explicit stack or queue to avoid deep recursion.",
+  "Collect the visited staff (excluding h), sort them, and print -1 when the list is empty."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    kids = [[] for _ in range(n)]\n    p = 2\n    for _ in range(m):\n        a, b = int(data[p]), int(data[p + 1])\n        p += 2\n        kids[a].append(b)\n    h = int(data[p])\n    out = []\n    stack = list(kids[h])\n    while stack:\n        x = stack.pop()\n        out.append(x)\n        stack.extend(kids[x])\n    out.sort()\n    print(' '.join(map(str, out)) if out else -1)\n\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nparent = {}\np = 2\nfor _ in range(m):\n    a, b = int(data[p]), int(data[p + 1])\n    p += 2\n    parent[b] = a\nh = int(data[p])\nout = []\nfor x in range(n):\n    y = x\n    while y in parent:\n        y = parent[y]\n        if y == h:\n            out.append(x)\n            break\nprint(' '.join(map(str, out)) if out else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(n, edges, h, shuffle=True):\n        if shuffle:\n            perm = list(range(n))\n            rng.shuffle(perm)\n            edges = [(perm[a], perm[b]) for a, b in edges]\n            h = perm[h]\n            rng.shuffle(edges)\n        lines = [str(n) + ' ' + str(len(edges))] + [str(a) + ' ' + str(b) for a, b in edges] + [str(h)]\n        return '\\n'.join(lines)\n\n    ex = [(0, 1), (0, 2), (1, 3), (1, 4), (2, 5), (7, 6)]\n    tests = [\n        fmt(1, [], 0, False),\n        fmt(2, [(0, 1)], 0, False),\n        fmt(2, [(0, 1)], 1, False),\n        fmt(3, [], 2, False),\n        fmt(8, ex, 0, False),\n        fmt(8, ex, 7, False),\n        fmt(8, ex, 3, False),\n        fmt(5, [(0, 1), (1, 2), (2, 3), (3, 4)], 0, False),\n        fmt(5, [(0, 1), (1, 2), (2, 3), (3, 4)], 2, False),\n        fmt(5, [(4, 3), (3, 2), (2, 1), (1, 0)], 4, False),\n    ]\n    for _ in range(40):\n        n = rng.randint(1, 25)\n        edges = []\n        for i in range(1, n):\n            if rng.random() < 0.85:\n                edges.append((rng.randrange(i), i))\n        h = rng.randrange(n)\n        tests.append(fmt(n, edges, h))\n    # max cases\n    n = 100000\n    # three-level college: HODs -> professors -> assistant professors\n    hods = 8\n    profs = 2000\n    edges = []\n    for p in range(hods, hods + profs):\n        edges.append((rng.randrange(hods), p))\n    for a in range(hods + profs, n):\n        edges.append((rng.randrange(hods, hods + profs), a))\n    tests.append(fmt(n, edges, 0))\n    tests.append(fmt(n, edges, 3))\n    # a chain of 4999 people with everyone else reporting to the last one\n    chain = 4999\n    edges = [(i, i + 1) for i in range(chain - 1)]\n    edges += [(chain - 1, i) for i in range(chain, n)]\n    tests.append(fmt(n, edges, 0))\n    tests.append(fmt(n, edges, chain // 2))\n    # random recursive tree\n    edges = [(rng.randrange(i), i) for i in range(1, n)]\n    tests.append(fmt(n, edges, 0))\n    # star\n    edges = [(0, i) for i in range(1, n)]\n    tests.append(fmt(n, edges, 0))\n    tests.append(fmt(n, edges, 5))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef subordinates(n: int, edges: List[Tuple[int, int]], h: int) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    edges = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(m)]\n    h = int(data[2 + 2 * m])\n    res = subordinates(n, edges, h)\n    print(' '.join(map(str, res)) if res else -1)\n\n\nmain()\n",
+  "javascript": "function subordinates(n, edges, h) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst edges = []\nfor (let i = 0; i < m; i++) edges.push([t[2 + 2 * i], t[3 + 2 * i]])\nconst h = t[2 + 2 * m]\nconst res = subordinates(n, edges, h)\nconsole.log(res.length ? res.join(' ') : '-1')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> subordinates(int n, vector<pair<int, int>>& edges, int h) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<pair<int, int>> edges(m);\n    for (int i = 0; i < m; i++) cin >> edges[i].first >> edges[i].second;\n    int h;\n    cin >> h;\n    vector<int> res = subordinates(n, edges, h);\n    if (res.empty()) {\n        cout << -1 << endl;\n        return 0;\n    }\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] subordinates(int n, int[][] edges, int h) {\n        // Write your solution here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] edges = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken();\n            edges[i][0] = (int) in.nval;\n            in.nextToken();\n            edges[i][1] = (int) in.nval;\n        }\n        in.nextToken();\n        int h = (int) in.nval;\n        int[] res = subordinates(n, edges, h);\n        if (res.length == 0) {\n            System.out.println(-1);\n            return;\n        }\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

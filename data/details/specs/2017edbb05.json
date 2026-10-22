@@ -1,0 +1,19 @@
+{
+ "qid": "2017edbb05",
+ "question": "Mastercard AI Engineer (SWE-1, about 1.4 years of experience), GenAI deep-dive round of about 60 minutes. Roughly 30 minutes went on two topics: the **RAG pipeline** (ingestion, chunking, embeddings, vector databases, retrieval, context construction, generation and evaluation, with practical choices such as chunking strategy and retrieval quality) and **MCP (Model Context Protocol)** architecture (host, client, server, tools and resources, how components communicate, and use in agentic applications). Related questions touched LangChain, Google ADK, agents, tool calling and workflows.",
+ "lookingFor": [
+  "Can you explain each RAG stage and the choices at each?",
+  "Do you know how to measure and improve retrieval and answer quality?",
+  "Do you understand MCP roles and how it standardises tool access?",
+  "Can you relate it to a system you actually built?",
+  "Awareness of failure modes: hallucination, stale data, injection, cost and latency."
+ ],
+ "answer": "**RAG pipeline.** Retrieval-Augmented Generation grounds an LLM in your own data.\n1. **Ingestion**: load documents (PDF, HTML, DB), clean, extract text and metadata, keep access-control info.\n2. **Chunking**: split into pieces. Size is a trade-off: small chunks give precise matches but lose context; large ones dilute relevance. Use overlap, split along structure (headings, paragraphs) and attach metadata.\n3. **Embeddings**: convert chunks to vectors with an embedding model; the same model must embed queries.\n4. **Vector store**: index (HNSW or IVF) in a vector DB (pgvector, Pinecone, FAISS and similar) with metadata filters.\n5. **Retrieval**: embed the query, take top-k by similarity; improve with hybrid search (BM25 plus vectors), query rewriting, and a reranker.\n6. **Context construction and generation**: assemble the best chunks within the token budget, instruct the model to answer only from them and cite sources, or say it does not know.\n7. **Evaluation**: measure retrieval (recall@k, MRR) and generation (faithfulness/groundedness, answer relevance) on a labelled question set; use LLM-as-judge with human spot checks; monitor latency and cost.\nCommon fixes for poor answers: better chunking, hybrid retrieval, reranking, metadata filters, fresher indexes.\n\n**MCP.** An open protocol for connecting AI applications to tools and data.\n- **Host**: the AI application (IDE, chat app, agent) that manages the model and user.\n- **Client**: a connector inside the host that keeps one connection to one server.\n- **Server**: a program exposing **tools** (actions the model can call), **resources** (readable data) and **prompts** (templates).\n- Messages use JSON-RPC 2.0 over stdio (local) or HTTP-based transports (remote). The client discovers capabilities, the model chooses a tool, the host executes it via the client.\n- Benefit: one standard instead of custom integration per tool. Risks: prompt injection through tool output, over-broad permissions; require user approval, scope access and authenticate remote servers.",
+ "followUps": [
+  "How would you choose chunk size and overlap?",
+  "How do you evaluate a RAG system without labelled data?",
+  "What is hybrid search and when does it help?",
+  "How does MCP differ from plain function/tool calling?",
+  "How would you defend against prompt injection through retrieved documents?"
+ ]
+}

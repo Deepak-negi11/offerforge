@@ -1,0 +1,18 @@
+{
+ "qid": "b45ad2678d",
+ "question": "In a Technical Interview for a Software Developer (new grad) role at Tower Research, the candidate was asked: **how are system calls made at the assembly level, and how are I/O operations like `cout` translated at a low level?** The same interview also asked: **what are static and shared libraries**, and what are the trade-offs of each?",
+ "lookingFor": [
+  "Do you know what crosses the user/kernel boundary and why?",
+  "Can you describe the calling convention for a system call?",
+  "Can you trace a high-level I/O call down to `write`?",
+  "Do you understand linking models and their trade-offs?"
+ ],
+ "answer": "**System call mechanism.** User code cannot run privileged instructions or touch hardware, so it asks the kernel via a controlled entry:\n\n1. Put the **system call number** in a register (on x86-64 Linux, `rax`; `write` is 1) and the arguments in registers (`rdi, rsi, rdx, r10, r8, r9`).\n2. Execute a trap instruction: `syscall` on x86-64 (older 32-bit Linux used `int 0x80`; other systems use `sysenter`, `svc` on ARM).\n3. The CPU switches to kernel mode and jumps to the kernel's entry point, which saves registers and looks up the handler in the **system call table**.\n4. The kernel validates arguments (for example that the user pointer is valid), performs the work, puts the return value (or negative errno) in `rax`, and returns to user mode with `sysret`.\n\nIn practice user code calls a **libc wrapper** (`write()`), which contains this assembly stub.\n\n**From `cout` to the kernel.** `std::cout << \"hi\"` calls `ostream::operator<<`, which writes into the stream buffer (`streambuf`). The buffer is flushed (on `std::endl`, when full, or at exit; when attached to a terminal it is often line-buffered) by calling `write(1, buf, n)` on file descriptor 1 (stdout). The kernel looks up the file descriptor in the process's table, finds the file object (terminal, pipe or file), and calls the driver's write routine. This is why many small unbuffered writes are slow: each costs a mode switch.\n\n**Static vs shared libraries.**\n\n- **Static (`.a`)**: object code is copied into the executable at link time. Pros: self-contained, no runtime dependency problems, can allow whole-program optimization and slightly faster calls. Cons: larger binaries, duplicated in memory across programs, and security fixes need relinking.\n- **Shared (`.so`, `.dll`)**: linked at load time by the dynamic loader; the code is shared in memory among processes, and can be updated independently. Cons: dependency/version issues (\"DLL hell\"), startup cost for symbol resolution, and calls through the PLT/GOT add a small indirection.",
+ "followUps": [
+  "What is the cost of a system call and how can you reduce it?",
+  "What is vDSO and why is `gettimeofday` often faster than a real syscall?",
+  "What does the PLT/GOT do in dynamic linking?",
+  "What is the difference between user mode and kernel mode?",
+  "Why does `printf` sometimes not appear before a crash?"
+ ]
+}

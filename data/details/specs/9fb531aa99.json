@@ -1,0 +1,19 @@
+{
+ "qid": "9fb531aa99",
+ "question": "Groww SDE intern round (HR plus technical). Candidate was asked to go deep on their own project: **explain the OTP lifecycle in your project**, **how would you handle multiple users**, **how did you ensure concurrency**, **how did you implement chats**, and **how does the system behave when multiple requests arrive at the same time**. There were several follow-ups on each answer.",
+ "lookingFor": [
+  "Real understanding of the flows you built, not just the framework you used.",
+  "Security awareness in authentication flows such as OTP.",
+  "Knowledge of concurrent request handling and shared-state problems.",
+  "Ability to reason about real-time communication (WebSockets, polling).",
+  "Honesty about limitations and what you would improve."
+ ],
+ "answer": "**OTP lifecycle: describe every state.**\n1. *Request:* the user submits email or phone; the server rate-limits per user and per IP.\n2. *Generate:* a random numeric code from a cryptographically secure generator (not `Math.random`), typically 6 digits.\n3. *Store:* save a **hash** of the code with an expiry (for example 5 minutes) and an attempt counter, in a database or a cache such as Redis with TTL.\n4. *Deliver:* send through an SMS or email provider, preferably asynchronously through a queue.\n5. *Verify:* compare in constant time, increment attempts, lock after a few failures, and **delete the OTP on success** so it is single-use.\n6. *Expire/resend:* new OTP invalidates the old one, with a cooldown between resends.\nExplain which of these your project actually did and which you would add.\n\n**Multiple users.** Keep the server stateless (sessions in a token or shared store) so you can run several instances, use connection pooling for the database, and index the columns used for lookups. Scoping each request by the authenticated user stops data from mixing.\n\n**Concurrency and simultaneous requests.** Node.js handles I/O concurrently on one thread, but race conditions still appear at the data layer. Name your case: two requests updating the same record (lost update), or two OTP verifications at once. Fixes: atomic operations (`INCR`, `$inc`, conditional `UPDATE`), transactions, optimistic versioning, unique indexes and idempotency keys.\n\n**Chat.** Typically WebSockets (for example Socket.IO): the client opens a persistent connection, the server maps userId to socket, saves each message to the database, and pushes it to the recipient's socket (or a room). Offline users fetch history on reconnect. To scale across servers, use a pub/sub layer such as Redis so every node can deliver to any user.\n\n**Be honest:** describe what you built and its limits, then give one concrete improvement for each.",
+ "followUps": [
+  "How would you prevent brute-forcing of OTPs?",
+  "What happens to chat messages if the recipient is offline?",
+  "How would you scale your chat across multiple server instances?",
+  "Show me a scenario in your code where a race condition could occur and how you would fix it.",
+  "WebSockets versus long polling: when would you use each?"
+ ]
+}

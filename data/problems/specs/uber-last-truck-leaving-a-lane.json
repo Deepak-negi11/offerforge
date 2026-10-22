@@ -1,0 +1,50 @@
+{
+ "pid": "uber-last-truck-leaving-a-lane",
+ "title": "Last Truck Leaving a Lane",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A lane of length `L` is the segment from `(0, 0)` to `(L, 0)`. There are `n` trucks on it. Truck `i` starts at coordinate `x[i]` with `0 < x[i] < L` (all starting coordinates are different) and moves with a constant velocity `v[i]`, a non-zero integer. If `v[i] > 0` the truck moves to the right, otherwise to the left.\n\nA truck that reaches coordinate `0` or coordinate `L` has left the lane and is no longer part of the simulation. Whenever two trucks meet at the same coordinate inside the lane, they **collide**, and the two trucks **exchange their velocities** (and therefore also their directions). Collisions take no time, and several trucks may meet at the same point at once.\n\nFind the time at which the **last truck leaves the lane**.\n\nBecause the answer can be fractional, print it as an irreducible fraction `p/q` with `p ≥ 1` and `q ≥ 1` (print `15/1`, not `15`).",
+ "input_format": "The first line contains two integers `n` and `L`.\nThe second line contains `n` integers `x[0] ... x[n-1]`.\nThe third line contains `n` integers `v[0] ... v[n-1]`.",
+ "output_format": "Print the time at which the last truck leaves, as a reduced fraction `p/q`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "2 ≤ L ≤ 10^9",
+  "0 < x[i] < L, all x[i] distinct (so n ≤ L - 1)",
+  "1 ≤ |v[i]| ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "2 10\n2 6\n2 -1",
+   "output": "6/1",
+   "explanation": "The trucks meet at time 4/3 at coordinate 14/3 and swap velocities. The left truck now moves left at speed 1 and leaves at time 4/3 + 14/3 = 6; the right truck moves right at speed 2 and leaves at time 4. The last truck leaves at time 6."
+  },
+  {
+   "input": "1 10\n3\n2",
+   "output": "7/2",
+   "explanation": "A single truck needs (10 - 3) / 2 = 7/2 time units to reach coordinate 10."
+  },
+  {
+   "input": "3 20\n5 10 15\n2 -3 4",
+   "output": "15/2",
+   "explanation": "A collision only swaps velocities, which is the same as the trucks passing through each other. Treating the trucks as independent, they would leave at times 15/2, 10/3 and 5/4, so the last departure is at 15/2."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Simulating collisions one by one is hopeless for n = 10^5. Think about what a collision changes if you ignore the identities of the trucks.",
+  "Swapping velocities when two trucks meet looks exactly the same as the two trucks passing through each other. So the set of times at which something leaves the lane is the same as if there were no collisions.",
+  "Compute the time each truck would need if it ignored all the others: (L - x) / v for v > 0, and x / |v| for v < 0. The answer is the maximum, compared exactly with cross-multiplication and printed as a reduced fraction."
+ ],
+ "reference": "import sys\nfrom math import gcd\n\ndef main():\n    data = sys.stdin.read().split()\n    n, L = int(data[0]), int(data[1])\n    x = data[2:2 + n]\n    v = data[2 + n:2 + 2 * n]\n    bn, bd = 0, 1\n    for i in range(n):\n        xi, vi = int(x[i]), int(v[i])\n        if vi > 0:\n            num, den = L - xi, vi\n        else:\n            num, den = xi, -vi\n        if num * bd > bn * den:\n            bn, bd = num, den\n    g = gcd(bn, bd)\n    print(f\"{bn // g}/{bd // g}\")\n\nmain()\n",
+ "brute": "import sys\nfrom fractions import Fraction\n\ndata = sys.stdin.read().split()\nn, L = int(data[0]), int(data[1])\nx = [Fraction(int(t)) for t in data[2:2 + n]]\nv = [int(t) for t in data[2 + n:2 + 2 * n]]\ntrucks = sorted(zip(x, v))\npos = [p for p, _ in trucks]\nvel = [w for _, w in trucks]\nt = Fraction(0)\nlast = Fraction(0)\nwhile pos:\n    cand = []\n    for i in range(len(pos)):\n        if vel[i] > 0:\n            cand.append((L - pos[i]) / vel[i])\n        else:\n            cand.append(pos[i] / (-vel[i]))\n    for i in range(len(pos) - 1):\n        if vel[i] > vel[i + 1]:\n            cand.append((pos[i + 1] - pos[i]) / (vel[i] - vel[i + 1]))\n    dt = min(cand)\n    t += dt\n    pos = [p + w * dt for p, w in zip(pos, vel)]\n    inside = [i for i in range(len(pos)) if 0 < pos[i] < L]\n    if len(inside) < len(pos):\n        last = t\n    pos = [pos[i] for i in inside]\n    vel = [vel[i] for i in inside]\n    changed = True\n    while changed:\n        changed = False\n        for i in range(len(pos) - 1):\n            if pos[i] == pos[i + 1] and vel[i] > vel[i + 1]:\n                vel[i], vel[i + 1] = vel[i + 1], vel[i]\n                changed = True\nprint(f\"{last.numerator}/{last.denominator}\")\n",
+ "generator": "def gen(rng):\n    def fmt(L, x, v):\n        return f\"{len(x)} {L}\\n\" + ' '.join(map(str, x)) + '\\n' + ' '.join(map(str, v))\n    def nz(lo, hi):\n        while True:\n            a = rng.randint(lo, hi)\n            if a != 0:\n                return a\n    tests = [fmt(10, [2, 6], [2, -1]), fmt(10, [3], [2]), fmt(20, [5, 10, 15], [2, -3, 4]),\n             fmt(2, [1], [1]), fmt(2, [1], [-1]), fmt(10**9, [1], [-1]), fmt(10**9, [10**9 - 1], [1]),\n             fmt(10, [1, 2, 3, 4], [1, 1, 1, 1]), fmt(10, [1, 2, 3, 4], [-1, -1, -1, -1]),\n             fmt(12, [3, 6, 9], [1, -1, 1]), fmt(12, [3, 6, 9], [-2, 3, -4]),\n             fmt(10**9, [1, 10**9 - 1], [10**9, -10**9]), fmt(7, [1, 2, 3, 4, 5, 6], [6, 5, 4, -4, -5, -6])]\n    for n in (2, 3, 4, 5, 6, 7):\n        for _ in range(4):\n            L = rng.randint(n + 1, 40)\n            x = rng.sample(range(1, L), n)\n            v = [nz(-6, 6) for _ in range(n)]\n            tests.append(fmt(L, x, v))\n    for _ in range(4):\n        n = rng.randint(1, 6)\n        L = rng.randint(n + 1, 10**9)\n        x = rng.sample(range(1, L), n)\n        v = [nz(-10**9, 10**9) for _ in range(n)]\n        tests.append(fmt(L, x, v))\n    n = 100000\n    L = 10**9\n    tests.append(fmt(L, rng.sample(range(1, L), n), [nz(-10**9, 10**9) for _ in range(n)]))\n    tests.append(fmt(L, rng.sample(range(1, L), n), [nz(-3, 3) for _ in range(n)]))\n    tests.append(fmt(L, rng.sample(range(1, L), n), [rng.choice([-1, 1]) for _ in range(n)]))\n    tests.append(fmt(L, list(range(1, n + 1)), [rng.choice([-7, 7, 999999937, -999999937]) for _ in range(n)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef last_exit_time(length: int, x: List[int], v: List[int]) -> str:\n    # Write your solution here: return the time as a reduced fraction \"p/q\"\n    return \"0/1\"\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, length = int(data[0]), int(data[1])\n    x = [int(t) for t in data[2:2 + n]]\n    v = [int(t) for t in data[2 + n:2 + 2 * n]]\n    print(last_exit_time(length, x, v))\n\n\nmain()\n",
+  "javascript": "function lastExitTime(length, x, v) {\n  // Write your solution here: return the time as a reduced fraction \"p/q\"\n  return \"0/1\"\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], length = t[1]\nconst x = t.slice(2, 2 + n)\nconst v = t.slice(2 + n, 2 + 2 * n)\nconsole.log(lastExitTime(length, x, v))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring lastExitTime(long long length, vector<long long>& x, vector<long long>& v) {\n    // Write your solution here: return the time as a reduced fraction \"p/q\"\n    return \"0/1\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long length;\n    cin >> n >> length;\n    vector<long long> x(n), v(n);\n    for (int i = 0; i < n; i++) cin >> x[i];\n    for (int i = 0; i < n; i++) cin >> v[i];\n    cout << lastExitTime(length, x, v) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String lastExitTime(long length, long[] x, long[] v) {\n        // Write your solution here: return the time as a reduced fraction \"p/q\"\n        return \"0/1\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        long length = (long) in.nval;\n        long[] x = new long[n], v = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            x[i] = (long) in.nval;\n        }\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            v[i] = (long) in.nval;\n        }\n        System.out.println(lastExitTime(length, x, v));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "65b264d042",
+ "question": "In the design round for a Software Engineer III (Java backend) role at Walmart, after a project discussion the candidate was asked to write fully working code for an LRU Cache where each operation has O(1) time complexity. As a follow-up, they were asked to modify the code to use generics for the key and value types.",
+ "lookingFor": [
+  "Choosing the right data structure combination: hash map plus doubly linked list",
+  "Correct pointer manipulation and edge cases, written as working code",
+  "Generalising the class with generics cleanly",
+  "Awareness of thread safety and what changes in a concurrent setting",
+  "Testing mentally with a sequence of operations"
+ ],
+ "answer": "**Idea.** An LRU cache evicts the least recently used entry when full. Use a `HashMap<K, Node>` for O(1) lookup and a doubly linked list ordered by recency (head = most recent, tail = least recent) for O(1) move and remove. Dummy head and tail nodes remove null checks.\n\n**Generic implementation.**\n\n    import java.util.*;\n\n    class LRUCache<K, V> {\n        private class Node {\n            K key; V val; Node prev, next;\n            Node(K k, V v) { key = k; val = v; }\n        }\n        private final int capacity;\n        private final Map<K, Node> map = new HashMap<>();\n        private final Node head = new Node(null, null), tail = new Node(null, null);\n\n        LRUCache(int capacity) {\n            this.capacity = capacity;\n            head.next = tail; tail.prev = head;\n        }\n        V get(K key) {\n            Node n = map.get(key);\n            if (n == null) return null;\n            remove(n); addFront(n);\n            return n.val;\n        }\n        void put(K key, V val) {\n            Node n = map.get(key);\n            if (n != null) { n.val = val; remove(n); addFront(n); return; }\n            if (map.size() == capacity) {\n                Node lru = tail.prev;\n                remove(lru); map.remove(lru.key);\n            }\n            n = new Node(key, val);\n            map.put(key, n); addFront(n);\n        }\n        private void remove(Node n) { n.prev.next = n.next; n.next.prev = n.prev; }\n        private void addFront(Node n) {\n            n.next = head.next; n.prev = head;\n            head.next.prev = n; head.next = n;\n        }\n    }\n\n**Why it works.** `get` and `put` do a constant number of hash lookups and pointer updates, so each is O(1). The node stores its key so the map entry can be removed on eviction. Hit: move to front. Insert when full: evict `tail.prev`.\n\n**Edge cases.** Capacity of 1, updating an existing key (must not evict), `get` on a missing key, and capacity 0 or negative (reject in the constructor).\n\n**Shortcut to mention:** in Java, `LinkedHashMap` with `accessOrder=true` and an overridden `removeEldestEntry` gives LRU in a few lines, but interviewers usually want the manual version.\n\n**Thread safety:** simplest is `synchronized` methods, since even `get` mutates the list; for higher throughput use sharding or a library such as Caffeine.",
+ "followUps": [
+  "How would you make this thread-safe without a single global lock?",
+  "How would you add a TTL (expiry) to each entry?",
+  "What changes for an LFU cache and how do you keep it O(1)?",
+  "How would you test this class?"
+ ]
+}

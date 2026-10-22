@@ -1,0 +1,49 @@
+{
+ "pid": "minimum-cost-for-tickets",
+ "title": "Minimum Cost For Tickets",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You plan to travel on a given set of days of the year, listed in strictly increasing order. Travel passes come in three kinds:\n\n- a **1-day** pass that costs `c1` and covers one day,\n- a **7-day** pass that costs `c7` and covers 7 consecutive days,\n- a **30-day** pass that costs `c30` and covers 30 consecutive days.\n\nA pass bought for day `d` covers days `d, d + 1, ...` up to its length. You may buy any number of passes, in any mix, and passes may overlap. The prices are arbitrary: a longer pass is not guaranteed to be cheaper per day, or even to cost more than a shorter one.\n\nReturn the minimum total cost needed so that every travel day is covered by at least one pass.\n\n**Follow-up:** some interviewers restrict every travel day to the range `1` to `30`. The same idea works, and the table you fill shrinks accordingly.",
+ "input_format": "The first line contains an integer `n`, the number of travel days.\nThe second line contains `n` strictly increasing integers: the travel days.\nThe third line contains three integers `c1 c7 c30`.",
+ "output_format": "Print a single integer: the minimum total cost.",
+ "constraints": [
+  "1 ≤ n ≤ 365",
+  "1 ≤ days[i] ≤ 365, strictly increasing",
+  "1 ≤ c1, c7, c30 ≤ 1000"
+ ],
+ "examples": [
+  {
+   "input": "6\n3 4 5 9 10 28\n4 12 30",
+   "output": "20",
+   "explanation": "Buy a 7-day pass on day 3 (covers days 3 to 9) for 12, which handles days 3, 4, 5 and 9. Then buy 1-day passes for days 10 and 28 at 4 each. Total 12 + 4 + 4 = 20. A single 30-day pass would cost 30, and seven 1-day passes would cost 24."
+  },
+  {
+   "input": "5\n1 2 3 4 5\n9 3 1",
+   "output": "1",
+   "explanation": "The 30-day pass is the cheapest of all and covers every travel day, so a single purchase for 1 is enough."
+  },
+  {
+   "input": "3\n1 15 30\n2 20 25",
+   "output": "6",
+   "explanation": "The longer passes are too expensive here: three 1-day passes cost 2 + 2 + 2 = 6, which beats the 30-day pass at 25."
+  }
+ ],
+ "complexity": {
+  "time": "O(D)",
+  "space": "O(D)"
+ },
+ "hints": [
+  "Think of the cheapest way to cover every travel day up to some day `d`. What does that depend on?",
+  "Let `dp[d]` be that minimum cost. If `d` is not a travel day, `dp[d] = dp[d - 1]`. Otherwise try each pass ending on day `d`.",
+  "For a travel day `d`, `dp[d] = min(dp[d-1] + c1, dp[d-7] + c7, dp[d-30] + c30)`, treating indices below 0 as 0."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    days = list(map(int, data[1:1 + n]))\n    c1, c7, c30 = map(int, data[1 + n:4 + n])\n    last = days[-1]\n    travel = set(days)\n    dp = [0] * (last + 1)\n    for d in range(1, last + 1):\n        if d not in travel:\n            dp[d] = dp[d - 1]\n        else:\n            dp[d] = min(dp[d - 1] + c1, dp[max(0, d - 7)] + c7, dp[max(0, d - 30)] + c30)\n    print(dp[last])\n\nmain()\n",
+ "brute": "import sys\nfrom functools import lru_cache\n\ndata = sys.stdin.read().split()\nn = int(data[0])\ndays = list(map(int, data[1:1 + n]))\nc1, c7, c30 = map(int, data[1 + n:4 + n])\n\n@lru_cache(maxsize=None)\ndef f(i):\n    # cheapest cost to cover days[i:], starting a pass on days[i]\n    if i >= n:\n        return 0\n    best = None\n    for length, cost in ((1, c1), (7, c7), (30, c30)):\n        j = i\n        while j < n and days[j] < days[i] + length:\n            j += 1\n        v = cost + f(j)\n        if best is None or v < best:\n            best = v\n    return best\n\nprint(f(0))\n",
+ "generator": "def gen(rng):\n    def fmt(days, c):\n        return f\"{len(days)}\\n{' '.join(map(str, days))}\\n{c[0]} {c[1]} {c[2]}\"\n    tests = [\n        fmt([1], (5, 7, 9)),\n        fmt([365], (1, 1000, 1000)),\n        fmt([1, 2, 3, 4, 5, 6, 7], (3, 7, 100)),\n        fmt([1, 30], (10, 5, 4)),\n        fmt([1, 8, 15, 22, 29, 36], (2, 7, 15)),\n        fmt(list(range(1, 31)), (3, 10, 25)),\n    ]\n    for _ in range(40):\n        n = rng.randint(1, 12)\n        days = sorted(rng.sample(range(1, rng.choice([15, 40, 70]) + 1), n))\n        c = (rng.randint(1, 20), rng.randint(1, 40), rng.randint(1, 80))\n        tests.append(fmt(days, c))\n    tests.append(fmt(list(range(1, 366)), (rng.randint(1, 1000), rng.randint(1, 1000), rng.randint(1, 1000))))\n    tests.append(fmt(list(range(1, 366)), (2, 7, 15)))\n    tests.append(fmt(sorted(rng.sample(range(1, 366), 200)), (rng.randint(1, 1000), rng.randint(1, 1000), rng.randint(1, 1000))))\n    tests.append(fmt(sorted(rng.sample(range(1, 366), 120)), (3, 11, 40)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_cost(days: List[int], costs: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    days = [int(x) for x in data[1:1 + n]]\n    costs = [int(x) for x in data[1 + n:4 + n]]\n    print(min_cost(days, costs))\n\n\nmain()\n",
+  "javascript": "function minCost(days, costs) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst days = t.slice(1, 1 + n)\nconst costs = t.slice(1 + n, 4 + n)\nconsole.log(String(minCost(days, costs)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minCost(vector<int>& days, vector<int>& costs) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> days(n), costs(3);\n    for (int i = 0; i < n; i++) cin >> days[i];\n    for (int i = 0; i < 3; i++) cin >> costs[i];\n    cout << minCost(days, costs) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minCost(int[] days, int[] costs) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] days = new int[n];\n        int[] costs = new int[3];\n        for (int i = 0; i < n; i++) { in.nextToken(); days[i] = (int) in.nval; }\n        for (int i = 0; i < 3; i++) { in.nextToken(); costs[i] = (int) in.nval; }\n        System.out.println(minCost(days, costs));\n    }\n}\n"
+ }
+}

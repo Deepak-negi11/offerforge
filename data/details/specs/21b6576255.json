@@ -1,0 +1,18 @@
+{
+ "qid": "21b6576255",
+ "question": "Design an API to fetch a user's wallet (money) transaction history in a **paginated** manner, and implement the backend and SQL, not just explain it.\n\nDiscuss **offset vs cursor-based pagination**, the cursor design (`createdAt` plus transaction id), **composite indexes**, the API contract and the SQL queries. Then a new constraint is added: the history comes from **three independent tables**. Discuss `JOIN` vs `UNION ALL` vs querying each table separately and **merging in the application layer**, and how pagination works across several sources.\n\nA follow-up: apart from offset and cursor, what other way can you paginate?",
+ "lookingFor": [
+  "Do you know why offset pagination breaks at scale and under concurrent inserts?",
+  "Can you design a stable cursor with a tie-breaker and a matching index?",
+  "Can you reason about pagination across multiple sources and choose between SQL and application merging?",
+  "Can you write the query and handler cleanly and describe the API contract?",
+  "Do you consider scale, consistency and edge cases?"
+ ],
+ "answer": "**API contract.** `GET /wallet/transactions?limit=20&cursor=<opaque>` returns `{items: [...], next_cursor: \"...\" | null}`. The cursor is an opaque (base64) encoding of `(created_at, id)` of the last item. Cap `limit` (for example 100).\n\n**Why not offset.** `OFFSET n` makes the database read and discard n rows, so deep pages get slow (O(n)), and inserts between requests shift rows, causing duplicates or skips. Page-number pagination is just offset with `offset = (page-1) * limit`, which is fine for small, static data but has the same problems.\n\n**Cursor (keyset) pagination.** Order by `created_at DESC, id DESC`. `id` is the tie-breaker, because timestamps can collide. Next page:\n\n```sql\nSELECT id, amount, type, created_at\nFROM wallet_txn\nWHERE user_id = :uid\n  AND (created_at, id) < (:cursor_ts, :cursor_id)\nORDER BY created_at DESC, id DESC\nLIMIT :limit + 1;\n```\n\nFetching `limit + 1` rows tells you whether another page exists without a count query. Supporting index: `(user_id, created_at DESC, id DESC)`, so the query is an index range scan with no sort. If row-value comparison is unsupported, expand it to `created_at < :ts OR (created_at = :ts AND id < :id)`.\n\n**Three tables.**\n- **JOIN** is wrong, because the tables are separate event streams, not related rows of the same entity.\n- **`UNION ALL`** of the three (selecting a common column set plus a `source` column), then the same `ORDER BY ... LIMIT` over the union. Each branch can use its own index and apply the cursor filter and `LIMIT` before the union, so each reads at most `limit` rows. Use `UNION ALL`, not `UNION`, to avoid a needless dedupe.\n- **Application merge**: query each table with the cursor and `LIMIT n`, then do a k-way merge (a heap) and take the top n. This helps when the tables live in different databases or services. The cursor must record the position per source, or you can reuse the single global `(created_at, id)` pair if ids are globally unique and ordered.\n\n**Edge cases.** Tie-breaking, newly inserted rows (cursor pagination stays stable), tampered cursors (validate), authorisation by user, and deleted rows.",
+ "followUps": [
+  "How does the cursor behave when two transactions share the same timestamp?",
+  "How would you provide a total count or jump to page 50 efficiently?",
+  "How would you paginate if the three sources live in different services?",
+  "How would you support filtering by transaction type along with pagination?"
+ ]
+}

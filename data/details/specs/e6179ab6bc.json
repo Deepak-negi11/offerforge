@@ -1,0 +1,19 @@
+{
+ "qid": "e6179ab6bc",
+ "question": "Google ML Engineer (L4/L5), virtual ML system design round. **Design a Google Reviews-like system.** The discussion covered an **NLP pipeline for reviews**, a **deep dive into BERT**, the **trade-offs between LLMs and smaller models** (latency, cost, quality), and **unsupervised techniques for clustering and summarisation**. The candidate described it as a strong back-and-forth with deep discussion of modelling choices.",
+ "lookingFor": [
+  "Can you frame an open-ended product as concrete ML tasks with metrics?",
+  "Depth of understanding of BERT and transformer encoders, not just name-dropping.",
+  "Ability to reason about LLM vs small-model trade-offs under latency and cost budgets.",
+  "Familiarity with unsupervised methods (embeddings, clustering, summarisation).",
+  "Awareness of data quality, abuse, evaluation and monitoring in production."
+ ],
+ "answer": "**1. Clarify and scope.** Reviews are user-generated text with ratings for places. ML tasks: spam/fake-review detection, policy and toxicity filtering, sentiment and aspect extraction (food, service, price), topic clustering, and a short summary per place. Assume millions of places, a high write rate for new reviews and a much higher read rate. State assumptions out loud, then pick metrics per task: precision/recall for spam (precision matters because wrongly removing real reviews hurts users), macro-F1 for aspects, human-rated faithfulness for summaries.\n\n**2. Pipeline.** Ingest, then language ID and normalisation, then cheap rule/heuristic filters, then classifier models, then enrichment (aspects, embeddings) stored per review, then offline or near-real-time aggregation per place, then serving. Run light models synchronously on write and heavy ones asynchronously.\n\n**3. BERT deep dive.** BERT is a bidirectional transformer encoder pretrained with masked language modelling (and next-sentence prediction in the original). For classification you fine-tune with a head on the [CLS] representation; for token tasks (aspect spans) you use per-token outputs. Limits: a 512-token window, WordPiece tokenisation, and quadratic attention cost. Distilled or quantised variants cut latency.\n\n**4. LLM vs smaller model.** A fine-tuned small encoder is cheap, fast and predictable for high-volume classification. An LLM gives better zero-shot generalisation and abstractive summaries but costs more per call and is slower. A practical design is a cascade: small model for the bulk, LLM only for hard or low-confidence cases and for summaries (cached per place and refreshed when enough new reviews arrive).\n\n**5. Unsupervised clustering and summarisation.** Embed reviews (sentence embeddings), cluster with k-means or HDBSCAN (or BERTopic-style topic modelling), label clusters by representative terms or an LLM. Summarise per cluster: extractive (pick central sentences) is safer; abstractive reads better but needs grounding checks against hallucination.\n\n**6. Risks.** Label noise, fake-review adversaries, language/region drift, bias towards popular places. Monitor drift, keep a human-labelled eval set, and A/B test.",
+ "followUps": [
+  "How would you detect coordinated fake reviews that look individually normal?",
+  "How do you handle multilingual and code-mixed reviews?",
+  "How would you evaluate summary quality and detect hallucinations?",
+  "When would you fine-tune an LLM versus prompt it?",
+  "How would you pick the number of clusters?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "52aff6018a",
+ "question": "In a ServiceNow Associate Software Engineer Technical Interview 2, after queue-using-two-stacks, deque, and reverse-linked-list questions, you were asked basic questions about **garbage collection in C++ and heap memory**, then to **explain how the heap data structure is implemented and write code to build a heap from a given array**, with the focus on the heapify function.",
+ "lookingFor": [
+  "Do you separate the heap data structure from heap memory (a common confusion)?",
+  "Can you write a correct sift-down (heapify) with index formulas and boundary checks?",
+  "Do you know why bottom-up build is O(n)?",
+  "Can you answer the C++ memory question accurately (no built-in GC, RAII, smart pointers)?",
+  "Do you test with a small array?"
+ ],
+ "answer": "**Two different 'heaps.'** The **heap data structure** is a complete binary tree with the heap property, stored in an array. **Heap memory** is the region the runtime gives you for dynamic allocation (`new`/`malloc`, `delete`/`free`), as opposed to the stack, which holds local variables and call frames. Same word, unrelated ideas.\n\n**Garbage collection in C++.** C++ has no built-in garbage collector. Memory from `new` must be released with `delete` (or `new[]`/`delete[]`). Forgetting causes leaks, and double deletes or use-after-free cause undefined behaviour. The idiom is **RAII**: tie lifetime to an object, using `std::unique_ptr` (sole ownership), `std::shared_ptr` (reference counted; beware cycles, use `weak_ptr`), and containers like `std::vector`. Java, Python and Go use GC (tracing or reference counting) instead.\n\n**Heap implementation.** Use an array. For index `i` (0-based): parent `(i-1)//2`, children `2i+1`, `2i+2`. Min-heap: each parent is at most its children.\n\n**Heapify (sift-down) and build:**\n\n```python\ndef heapify(a, n, i):                 # restore heap property at i, assuming subtrees are heaps\n    smallest = i\n    l, r = 2*i + 1, 2*i + 2\n    if l < n and a[l] < a[smallest]: smallest = l\n    if r < n and a[r] < a[smallest]: smallest = r\n    if smallest != i:\n        a[i], a[smallest] = a[smallest], a[i]\n        heapify(a, n, smallest)        # or loop to avoid recursion\n\ndef build_heap(a):\n    n = len(a)\n    for i in range(n // 2 - 1, -1, -1):   # last non-leaf down to the root\n        heapify(a, n, i)\n```\nStart from `n//2 - 1` because indexes `n//2 .. n-1` are leaves (already valid heaps). Processing bottom-up ensures both subtrees are heaps whenever we sift a node.\n\n**Complexity.** One heapify is O(log n) (O(height of the node)). Building is **O(n)**, not O(n log n): about `n/2^(h+1)` nodes have height `h` and cost O(h) each, and `sum h/2^(h+1)` converges. Space O(1) extra (O(log n) if recursive). Example: `[5, 3, 8, 1, 2]` becomes `[1, 2, 8, 3, 5]` as a min-heap.",
+ "followUps": [
+  "Why is build-heap O(n) while n successive inserts cost O(n log n)?",
+  "How is heap sort built on top of heapify, and is it stable?",
+  "What is the difference between stack and heap memory, and what are typical failure modes of each?",
+  "What are the cycle problems with shared_ptr and how does weak_ptr solve them?"
+ ]
+}

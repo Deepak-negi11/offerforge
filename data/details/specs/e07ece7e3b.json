@@ -1,0 +1,17 @@
+{
+ "qid": "e07ece7e3b",
+ "question": "CRED SDE-1 Backend (lateral), Round 1 HackerRank machine coding, **1 hour** to design and write the complete code (or clone it and use your own IDE). The task: **build a payments system that accepts different kinds of payments such as UPI and net banking**, and **depending on the amount, disable some payment types, and give preference to payment types depending on the category of the transaction**. Expectations were to **use design patterns** and **pass the test cases**; questions were asked once the code was done. The candidate was rejected as a \"lean hire\".",
+ "lookingFor": [
+  "Applying Strategy and Factory (or similar) sensibly under time limits.",
+  "Rule-driven design that adds new modes or rules without editing core code.",
+  "Clear handling of conflicting rules and ordering.",
+  "Readable code and ability to defend design choices."
+ ],
+ "answer": "**Core idea.** Two separate concerns: (1) how each payment mode is executed, and (2) which modes are allowed and in what order for a given transaction. Keep them apart.\n\n**Entities.**\n- `PaymentMode` interface: `pay(Transaction)`, implemented by `UpiPayment`, `NetBankingPayment`, `CardPayment`, `WalletPayment`. (**Strategy**.)\n- `Transaction`: id, amount, category (grocery, travel, bills...), user.\n- `PaymentModeFactory` or a registry map to get a mode by type. (**Factory**.)\n\n**Rules as small classes.**\n- `EligibilityRule`: `boolean isAllowed(PaymentType, Transaction)`. Examples: \"UPI not allowed above the limit\", \"cash-on-delivery only below X\". Combine rules with AND.\n- `PreferenceRule` or a `PriorityStrategy`: returns an ordered list of types for a category, for example travel prefers cards, bills prefer UPI.\n- Add rules via a list or config so a new rule is a new class, not an edit (**Open-Closed**; optionally a **Chain of Responsibility** where each rule filters or reorders).\n\n**Flow in `PaymentService`.**\n1. Start from all registered modes.\n2. Filter by eligibility rules for the amount.\n3. Sort by the category's preference order, with stable tie-breaks.\n4. Return the available, ordered options; `pay()` validates that the chosen mode is in that list, then delegates to the mode.\n\n**Edge cases.** No mode allowed (return a clear error), amount zero or negative, unknown category (fall back to a default order), boundary amounts (>= vs >), conflicting rules (define precedence: eligibility first, preference second).\n\n**Time plan for 60 minutes.** 10 minutes reading and choosing assumptions, 35 minutes core classes and the flow, 10 minutes tests and edge cases, 5 minutes cleanup. Mention the patterns by name and justify each in one line, as questions follow.",
+ "followUps": [
+  "How would you add a new payment mode with its own rules?",
+  "How would you load the rules from configuration or a database?",
+  "How do you handle a payment failure and fall back to the next mode?",
+  "Why Strategy over a big if-else chain?"
+ ]
+}

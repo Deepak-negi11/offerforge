@@ -1,0 +1,17 @@
+{
+ "qid": "c2f193d836",
+ "question": "System design round for an SDE-1 on a data platform. You have an **append-only table** with an **incrementing id, a timestamp and a payload**. Design how to **purge data older than 30 days**. One answer was partitioning by day; the interviewer's expected answer was **binary search on the monotonic id**. You were also asked **why large data is split into parts before uploading to S3**.",
+ "lookingFor": [
+  "Can you spot and exploit structure (id and timestamp both increase together)?",
+  "Do you know several purge strategies and their costs (batch delete, partition drop)?",
+  "Do you think about locking, replication lag, vacuum/bloat and load during deletion?",
+  "Do you know practical object-storage behaviour (multipart upload, parallelism, retries)?"
+ ],
+ "answer": "**Key observation.** The table is append-only, so `id` increases with time and `timestamp` is monotonic in `id`. The rows older than 30 days are therefore exactly a **prefix of the id range**.\n\n**Binary search on id.** Binary search over `[min_id, max_id]` to find the smallest id whose timestamp is `>= now - 30 days`. Each probe is a primary-key lookup, so finding the boundary costs O(log n) cheap reads, instead of scanning the table by timestamp (which would need an index on the timestamp). Then delete `WHERE id < boundary`.\n\n**Deleting safely.** One huge `DELETE` holds locks, produces a big transaction log, lags replicas and bloats the table (in Postgres, dead tuples need vacuum). So delete in batches: `DELETE ... WHERE id < :boundary AND id >= :start LIMIT/range` in chunks of a few thousand ids, with pauses, run off-peak, and track progress by id so a crash can resume.\n\n**Alternatives.**\n- **Partition by day** (range partitions). Purging is `DROP PARTITION`, a metadata operation that is instant and leaves no bloat. This is usually the best production design, at the cost of partition management (creating future partitions) and the need to include the partition key in queries and unique keys.\n- **TTL-capable stores** (for example some NoSQL databases) delete on their own.\n- **Archive first**: export old rows to cheap storage (S3) before deleting if they are needed later.\n\nBe honest in an interview: partitioning is good operationally; the binary search answer is the clever one when you cannot change the schema.\n\n**Why split data before an S3 upload.**\n- **Reliability**: a single huge upload that fails must restart from zero; with parts, only the failed part is retried.\n- **Throughput**: parts upload in parallel over several connections.\n- **Limits**: a single PUT is capped (5 GB); multipart upload supports objects up to 5 TB.\n- **Memory**: stream chunks instead of holding the entire file in memory.\n- **Downstream use**: smaller files can be processed in parallel by engines such as Spark or Athena.",
+ "followUps": [
+  "What is the complexity of finding the boundary, and how does it compare with an index on timestamp?",
+  "What if ids are not strictly monotonic with time (multiple writers, clock skew)?",
+  "How would you purge without affecting production traffic or replicas?",
+  "How does S3 multipart upload work, and how do you clean up failed uploads?"
+ ]
+}

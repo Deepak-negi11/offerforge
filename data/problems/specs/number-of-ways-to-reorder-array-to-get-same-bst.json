@@ -1,0 +1,49 @@
+{
+ "pid": "number-of-ways-to-reorder-array-to-get-same-bst",
+ "title": "Number of Ways to Reorder Array to Get Same BST",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given a permutation `nums` of the integers `1` to `n`. Inserting its elements one by one, from left to right, into an initially empty binary search tree (smaller values go to the left subtree, larger values to the right subtree) produces a particular tree shape.\n\nCount how many **other** orderings of the same `n` numbers would produce exactly the same tree, shape and values included. The original ordering itself is **not** counted.\n\nFor example, for `[2, 3, 1]` the tree has `2` at the root, `1` on its left and `3` on its right. The ordering `[2, 1, 3]` builds the same tree, and no other ordering does, so the answer is `1`.\n\nThe answer can be large, so print it modulo `1000000007` (`10^9 + 7`).",
+ "input_format": "The first line contains the integer `n`.\nThe second line contains `n` space-separated integers: the permutation `nums`.",
+ "output_format": "Print a single integer: the number of other orderings that build the same BST, modulo `1000000007`.",
+ "constraints": [
+  "1 ≤ n ≤ 1000",
+  "`nums` is a permutation of `1..n`",
+  "The tree built from `nums` has depth at most 1000, so a recursive solution stays within the recursion limits"
+ ],
+ "examples": [
+  {
+   "input": "3\n2 3 1",
+   "output": "1",
+   "explanation": "Value 2 is the root, 1 goes left and 3 goes right. Only the order of 1 and 3 is free, and swapping them gives the other ordering `[2, 1, 3]`, so there is exactly 1 other way."
+  },
+  {
+   "input": "5\n3 4 5 1 2",
+   "output": "5",
+   "explanation": "The root is 3. The left side holds `1, 2` and the right side holds `4, 5`, each in a fixed internal order. Choosing which 2 of the 4 later positions belong to the left side gives `C(4, 2) = 6` interleavings, including the original order, so the answer is 6 - 1 = 5."
+  },
+  {
+   "input": "3\n1 2 3",
+   "output": "0",
+   "explanation": "Every element goes to the right of the previous one, so the root must come first, then 2, then 3. No other ordering builds this tree."
+  }
+ ],
+ "complexity": {
+  "time": "O(n^2)",
+  "space": "O(n^2)"
+ },
+ "hints": [
+  "The first element is the root. Every later element smaller than it goes into the left subtree and every larger one into the right subtree, and each side keeps its original relative order.",
+  "The two sides can be interleaved arbitrarily, as long as each side's own order is kept. If the sides have sizes `a` and `b`, there are `C(a + b, a)` interleavings.",
+  "The count for a tree is `C(a + b, a) × ways(left) × ways(right)`, where `ways` of an empty or single-node tree is 1. Remember to subtract the original ordering from the final total."
+ ],
+ "reference": "import sys\n\nMOD = 10 ** 9 + 7\nsys.setrecursionlimit(10000)\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    nums = list(map(int, data[1:1 + n]))\n    C = [[1] * (i + 1) for i in range(n + 1)]\n    for i in range(2, n + 1):\n        for j in range(1, i):\n            C[i][j] = (C[i - 1][j - 1] + C[i - 1][j]) % MOD\n\n    def ways(a):\n        if len(a) <= 2:\n            return 1\n        root = a[0]\n        left = [x for x in a if x < root]\n        right = [x for x in a if x > root]\n        return C[len(left) + len(right)][len(left)] * ways(left) % MOD * ways(right) % MOD\n\n    print((ways(nums) - 1) % MOD)\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import permutations\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nnums = list(map(int, data[1:1 + n]))\n\ndef shape(a):\n    left, right = {}, {}\n    root = a[0]\n    for x in a[1:]:\n        cur = root\n        while True:\n            if x < cur:\n                if cur in left:\n                    cur = left[cur]\n                else:\n                    left[cur] = x\n                    break\n            else:\n                if cur in right:\n                    cur = right[cur]\n                else:\n                    right[cur] = x\n                    break\n    return (root, tuple(sorted(left.items())), tuple(sorted(right.items())))\n\ntarget = shape(nums)\ncount = 0\nfor p in permutations(nums):\n    if shape(p) == target:\n        count += 1\nprint((count - 1) % (10 ** 9 + 7))\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n\n    def bst_order(lo, hi):\n        # insertion order of a perfectly balanced BST over lo..hi\n        out = []\n        q = [(lo, hi)]\n        h = 0\n        while h < len(q):\n            a, b = q[h]\n            h += 1\n            if a > b:\n                continue\n            m = (a + b) // 2\n            out.append(m)\n            q.append((a, m - 1))\n            q.append((m + 1, b))\n        return out\n\n    tests = [fmt([1]), fmt([1, 2]), fmt([2, 1]), fmt([2, 1, 3]), fmt([3, 4, 5, 1, 2]), fmt([1, 2, 3]), fmt([3, 2, 1]),\n             fmt([2, 3, 1]), fmt([4, 2, 6, 1, 3, 5, 7])]\n    for n in (3, 4, 5, 6, 7, 8):\n        for _ in range(4):\n            a = list(range(1, n + 1))\n            rng.shuffle(a)\n            tests.append(fmt(a))\n    tests.append(fmt(list(range(1, 8))))\n    tests.append(fmt(list(range(8, 0, -1))))\n    tests.append(fmt([4, 2, 6, 1, 3, 5, 7, 8]))\n    n = 1000\n    a = list(range(1, n + 1))\n    rng.shuffle(a)\n    tests.append(fmt(a))\n    tests.append(fmt(list(range(1, n + 1))))\n    tests.append(fmt(bst_order(1, n)))\n    # long chain with a bushy tail: zig-zag then balanced\n    z = []\n    lo, hi = 1, 400\n    while lo <= hi:\n        z.append(lo)\n        lo += 1\n        if lo <= hi:\n            z.append(hi)\n            hi -= 1\n    tests.append(fmt(z + bst_order(401, n)))\n    b = bst_order(1, n)\n    tests.append(fmt(b[:500] + sorted(b[500:])))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef num_of_ways(nums: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    nums = [int(x) for x in data[1:1 + n]]\n    print(num_of_ways(nums))\n\n\nmain()\n",
+  "javascript": "function numOfWays(nums) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst nums = t.slice(1, 1 + n)\nconsole.log(numOfWays(nums))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long numOfWays(vector<int>& nums) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> nums(n);\n    for (int i = 0; i < n; i++) cin >> nums[i];\n    cout << numOfWays(nums) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long numOfWays(int[] nums) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] nums = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            nums[i] = (int) in.nval;\n        }\n        System.out.println(numOfWays(nums));\n    }\n}\n"
+ }
+}

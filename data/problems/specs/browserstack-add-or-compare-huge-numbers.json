@@ -1,0 +1,49 @@
+{
+ "pid": "browserstack-add-or-compare-huge-numbers",
+ "title": "Add or Compare Huge Numbers",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "A machine can only store small integers in a register: imagine that the largest value a register holds is `9999`, i.e. 4 decimal digits. You are given two non-negative integers `a` and `b` as decimal strings that are far too long to fit in a register, and an `action`:\n\n- `add`: print the decimal representation of `a + b`, without leading zeros.\n- `compare`: print `-1` if `a < b`, `0` if `a = b`, and `1` if `a > b`.\n\nThe strings contain only digits and have no leading zeros, except that the number zero is written as `0`. Do not rely on a built-in arbitrary-precision integer type: process the digits as a string, digit by digit with a carry or in chunks of 4 digits (a chunk always fits a register, and the sum of two chunks plus a carry stays below `20000`). For `compare`, think about what the lengths of the strings already tell you.\n\n**Follow-up:** interviewers also asked how the approach changes when the registers hold 10 digits instead of 4, and for numbers written in a different base (for example binary or hexadecimal digits).",
+ "input_format": "The first line contains the action: `add` or `compare`.\nThe second line contains the string `a`.\nThe third line contains the string `b`.",
+ "output_format": "For `add`, print the sum as a decimal string. For `compare`, print `-1`, `0` or `1`.",
+ "constraints": [
+  "action is `add` or `compare`",
+  "1 ≤ |a|, |b| ≤ 10^5 digits",
+  "a and b contain only digits 0-9 and have no leading zeros (the number zero is `0`)"
+ ],
+ "examples": [
+  {
+   "input": "add\n99999999\n1",
+   "output": "100000000",
+   "explanation": "Adding 1 to eight 9s makes the carry ripple through every digit (or every 4-digit chunk), producing a 1 followed by eight zeros."
+  },
+  {
+   "input": "compare\n12345678\n99999999",
+   "output": "-1",
+   "explanation": "Both numbers have 8 digits, so compare them from the most significant digit: 1 < 9, hence `a < b`."
+  },
+  {
+   "input": "compare\n123456789\n99999999",
+   "output": "1",
+   "explanation": "`a` has 9 digits and `b` has 8. Without leading zeros, the longer number is larger."
+  }
+ ],
+ "complexity": {
+  "time": "O(|a| + |b|)",
+  "space": "O(|a| + |b|)"
+ },
+ "hints": [
+  "Do it the way you add on paper: start from the last digits, add them with the carry, write `sum % 10`, carry `sum // 10`, and keep going until both strings and the carry are exhausted.",
+  "To mimic a 4-digit register, take chunks of 4 digits from the right of each string, add the chunk values and the carry, keep `sum % 10000` (zero-padded to 4 digits unless it is the leading chunk) and carry `sum // 10000`.",
+  "For comparing, there is no need to add anything: a number with more digits is larger, and for equal lengths the first differing digit from the left decides (plain string comparison works)."
+ ],
+ "reference": "import sys\n\ndef add(a, b):\n    i, j = len(a), len(b)\n    carry = 0\n    parts = []\n    while i > 0 or j > 0 or carry:\n        x = int(a[max(0, i - 4):i]) if i > 0 else 0\n        y = int(b[max(0, j - 4):j]) if j > 0 else 0\n        i = max(0, i - 4)\n        j = max(0, j - 4)\n        s = x + y + carry\n        carry = s // 10000\n        parts.append(s % 10000)\n    return str(parts[-1]) + ''.join('%04d' % p for p in reversed(parts[:-1]))\n\ndef compare(a, b):\n    if len(a) != len(b):\n        return -1 if len(a) < len(b) else 1\n    return -1 if a < b else (1 if a > b else 0)\n\ndef main():\n    act, a, b = sys.stdin.read().split()\n    print(add(a, b) if act == 'add' else compare(a, b))\n\nmain()\n",
+ "brute": "import sys\n\nact, a, b = sys.stdin.read().split()\nx, y = int(a), int(b)\nif act == 'add':\n    print(x + y)\nelse:\n    print(-1 if x < y else (1 if x > y else 0))\n",
+ "generator": "def gen(rng):\n    def num(k):\n        if k == 1:\n            return str(rng.randint(0, 9))\n        return str(rng.randint(1, 9)) + ''.join(rng.choice('0123456789') for _ in range(k - 1))\n    def fmt(act, a, b):\n        return f'{act}\\n{a}\\n{b}'\n    tests = []\n    for act in ('add', 'compare'):\n        tests += [fmt(act, '0', '0'), fmt(act, '0', '5'), fmt(act, '9', '1'), fmt(act, '9999', '1'), fmt(act, '10000', '9999'),\n                  fmt(act, '12345678', '99999999'), fmt(act, '123456789', '99999999'), fmt(act, '100000000', '100000000'),\n                  fmt(act, '12349999', '99991111'), fmt(act, '99999', '99999')]\n    for _ in range(14):\n        for act in ('add', 'compare'):\n            tests.append(fmt(act, num(rng.randint(1, 14)), num(rng.randint(1, 14))))\n    n = 100000\n    nines = '9' * n\n    tests.append(fmt('add', nines, '1'))\n    tests.append(fmt('add', num(n), num(n)))\n    tests.append(fmt('add', num(n), num(n // 3)))\n    a = num(n)\n    tests.append(fmt('compare', a, a))\n    tests.append(fmt('compare', a[:-1] + ('1' if a[-1] != '1' else '2'), a))\n    tests.append(fmt('compare', num(n), num(n - 1)))\n    tests.append(fmt('add', nines, nines))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef perform(a: str, b: str, action: str) -> str:\n    # Write your solution here\n    return \"\"\n\n\ndef main():\n    data = sys.stdin.read().split()\n    action, a, b = data[0], data[1], data[2]\n    print(perform(a, b, action))\n\n\nmain()\n",
+  "javascript": "function perform(a, b, action) {\n  // Write your solution here\n  return ''\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconsole.log(perform(t[1], t[2], t[0]))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring perform(const string& a, const string& b, const string& action) {\n    // Write your solution here\n    return \"\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string action, a, b;\n    cin >> action >> a >> b;\n    cout << perform(a, b, action) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String perform(String a, String b, String action) {\n        // Write your solution here\n        return \"\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        String action = st.nextToken();\n        String a = st.nextToken();\n        String b = st.nextToken();\n        System.out.println(perform(a, b, action));\n    }\n}\n"
+ }
+}

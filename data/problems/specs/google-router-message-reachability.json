@@ -1,0 +1,50 @@
+{
+ "pid": "google-router-message-reachability",
+ "title": "Router Message Reachability",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A network has `n` wireless routers. Each router has a unique name and a fixed position `(x, y)` on a 2D plane, and every router has the same wireless range `R`: two routers can communicate directly when the Euclidean distance between them is **at most** `R`.\n\nWhen a router receives a message it forwards it to every router within its range, and those routers forward it in turn, so a message can travel across several hops. For example, with range 10, a router at `(0, 0)` reaches a router at `(0, 8)`, which can pass the message on to a router at `(0, 17)`, while a router at `(11, 0)` is out of range of all three and never receives it.\n\nRouter `source` sends a message. Decide whether router `target` eventually receives it. A router always counts as reaching itself.",
+ "input_format": "The first line contains two integers `n` and `R`.\nEach of the next `n` lines contains a router name (a string with no spaces) and two integers `x` and `y`.\nThe last line contains two names: `source` and `target`, both of which appear in the list.",
+ "output_format": "Print `YES` if `target` can receive the message sent by `source`, otherwise print `NO`.",
+ "constraints": [
+  "1 ≤ n ≤ 1000",
+  "1 ≤ R ≤ 10^6",
+  "-10^6 ≤ x, y ≤ 10^6",
+  "Names are unique and consist of 1 to 10 letters or digits"
+ ],
+ "examples": [
+  {
+   "input": "4 10\nA 0 0\nB 0 8\nC 0 17\nD 11 0\nA B",
+   "output": "YES",
+   "explanation": "A and B are 8 apart, which is within the range of 10, so A reaches B directly."
+  },
+  {
+   "input": "4 10\nA 0 0\nB 0 8\nC 0 17\nD 11 0\nA C",
+   "output": "YES",
+   "explanation": "A is 17 away from C, too far for a direct hop, but A reaches B (distance 8) and B reaches C (distance 9), so B relays the message to C."
+  },
+  {
+   "input": "4 10\nA 0 0\nB 0 8\nC 0 17\nD 11 0\nA D",
+   "output": "NO",
+   "explanation": "D is at distance 11 from A, about 13.6 from B and about 20.2 from C. No router that can receive the message is within range of D."
+  }
+ ],
+ "complexity": {
+  "time": "O(n^2)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Think of the routers as the nodes of a graph. Which pairs of routers should have an edge?",
+  "Compare squared distances with `R * R` so you never need a square root or floating point.",
+  "Run a BFS or DFS from the source over this implicit graph; the target is reachable exactly when the search visits it."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\n\ndef main():\n    d = sys.stdin.read().split()\n    n, R = int(d[0]), int(d[1])\n    names, xs, ys = [], [], []\n    for i in range(n):\n        names.append(d[2 + 3 * i])\n        xs.append(int(d[3 + 3 * i]))\n        ys.append(int(d[4 + 3 * i]))\n    idx = {nm: i for i, nm in enumerate(names)}\n    s, t = idx[d[2 + 3 * n]], idx[d[3 + 3 * n]]\n    R2 = R * R\n    unseen = [i for i in range(n) if i != s]\n    dq = deque([s])\n    reached = {s}\n    while dq and t not in reached:\n        u = dq.popleft()\n        ux, uy = xs[u], ys[u]\n        rest = []\n        for v in unseen:\n            dx = xs[v] - ux\n            dy = ys[v] - uy\n            if dx * dx + dy * dy <= R2:\n                reached.add(v)\n                dq.append(v)\n            else:\n                rest.append(v)\n        unseen = rest\n    print(\"YES\" if t in reached else \"NO\")\n\n\nmain()\n",
+ "brute": "import sys\n\nd = sys.stdin.read().split()\nn, R = int(d[0]), int(d[1])\npts = {}\nfor i in range(n):\n    pts[d[2 + 3 * i]] = (int(d[3 + 3 * i]), int(d[4 + 3 * i]))\nsrc, dst = d[2 + 3 * n], d[3 + 3 * n]\nhave = {src}\nchanged = True\nwhile changed:\n    changed = False\n    for a in list(have):\n        for b in pts:\n            if b not in have:\n                if (pts[a][0] - pts[b][0]) ** 2 + (pts[a][1] - pts[b][1]) ** 2 <= R * R:\n                    have.add(b)\n                    changed = True\nprint(\"YES\" if dst in have else \"NO\")\n",
+ "generator": "def gen(rng):\n    import string\n    def fmt(R, pts, s, t):\n        lines = [f\"{len(pts)} {R}\"] + [f\"{nm} {x} {y}\" for nm, x, y in pts]\n        lines.append(f\"{s} {t}\")\n        return \"\\n\".join(lines)\n    def names(n, maxlen=6):\n        seen, out = set(), []\n        while len(out) < n:\n            L = rng.randint(1, maxlen)\n            nm = ''.join(rng.choice(string.ascii_letters + string.digits) for _ in range(L))\n            if nm not in seen:\n                seen.add(nm)\n                out.append(nm)\n        return out\n    base = [(\"A\", 0, 0), (\"B\", 0, 8), (\"C\", 0, 17), (\"D\", 11, 0)]\n    tests = [fmt(10, base, \"A\", \"B\"), fmt(10, base, \"A\", \"C\"), fmt(10, base, \"A\", \"D\"), fmt(10, base, \"D\", \"C\")]\n    tests.append(fmt(5, [(\"x\", 3, 3)], \"x\", \"x\"))\n    tests.append(fmt(5, [(\"a\", 0, 0), (\"b\", 3, 4)], \"a\", \"b\"))\n    tests.append(fmt(5, [(\"a\", 0, 0), (\"b\", 3, 5)], \"a\", \"b\"))\n    tests.append(fmt(1, [(\"a\", -1, 0), (\"b\", 0, 0), (\"c\", 1, 0)], \"a\", \"c\"))\n    tests.append(fmt(1000000, [(\"p\", -1000000, -1000000), (\"q\", 1000000, 1000000)], \"p\", \"q\"))\n    tests.append(fmt(1000000, [(\"p\", -1000000, -1000000), (\"q\", 0, 0), (\"r\", 1000000, 1000000)], \"r\", \"p\"))\n    for _ in range(40):\n        n = rng.randint(2, 9)\n        R = rng.randint(1, 6)\n        nm = names(n, 3)\n        pts = [(nm[i], rng.randint(-10, 10), rng.randint(-10, 10)) for i in range(n)]\n        s, t = rng.choice(nm), rng.choice(nm)\n        tests.append(fmt(R, pts, s, t))\n    # long chains with spacing exactly R (inclusive range), shuffled\n    n = 1000\n    nm = names(n, 8)\n    xs = [i * 1000 - 500000 for i in range(n)]\n    pts = [(nm[i], xs[i], 0) for i in range(n)]\n    order = list(range(n))\n    rng.shuffle(order)\n    tests.append(fmt(1000, [pts[i] for i in order], nm[0], nm[n - 1]))\n    tests.append(fmt(1000, [pts[i] for i in order], nm[n - 1], nm[0]))\n    # same chain with one gap that is one unit too wide\n    pts2 = [(nm[i], xs[i] + (1 if i >= 500 else 0), 0) for i in range(n)]\n    tests.append(fmt(1000, [pts2[i] for i in order], nm[0], nm[n - 1]))\n    # a zig-zag chain on a diagonal\n    pts3 = [(nm[i], -500000 + i * 600, (i % 2) * 800) for i in range(n)]\n    tests.append(fmt(1000, [pts3[i] for i in order], nm[0], nm[n - 1]))\n    # random dense cloud\n    pts4 = [(nm[i], rng.randint(-10000, 10000), rng.randint(-10000, 10000)) for i in range(n)]\n    tests.append(fmt(1000, pts4, nm[3], nm[500]))\n    tests.append(fmt(300, pts4, nm[7], nm[900]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef can_reach(names: List[str], xs: List[int], ys: List[int], r: int, source: str, target: str) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    d = sys.stdin.read().split()\n    n, r = int(d[0]), int(d[1])\n    names = [d[2 + 3 * i] for i in range(n)]\n    xs = [int(d[3 + 3 * i]) for i in range(n)]\n    ys = [int(d[4 + 3 * i]) for i in range(n)]\n    source, target = d[2 + 3 * n], d[3 + 3 * n]\n    print(\"YES\" if can_reach(names, xs, ys, r, source, target) else \"NO\")\n\n\nmain()\n",
+  "javascript": "function canReach(names, xs, ys, r, source, target) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0]), r = parseInt(t[1])\nconst names = [], xs = [], ys = []\nfor (let i = 0; i < n; i++) {\n  names.push(t[2 + 3 * i])\n  xs.push(parseInt(t[3 + 3 * i]))\n  ys.push(parseInt(t[4 + 3 * i]))\n}\nconsole.log(canReach(names, xs, ys, r, t[2 + 3 * n], t[3 + 3 * n]) ? 'YES' : 'NO')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool canReach(vector<string>& names, vector<long long>& xs, vector<long long>& ys, long long r, string source, string target) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long r;\n    cin >> n >> r;\n    vector<string> names(n);\n    vector<long long> xs(n), ys(n);\n    for (int i = 0; i < n; i++) cin >> names[i] >> xs[i] >> ys[i];\n    string source, target;\n    cin >> source >> target;\n    cout << (canReach(names, xs, ys, r, source, target) ? \"YES\" : \"NO\") << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean canReach(String[] names, long[] xs, long[] ys, long r, String source, String target) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int n = Integer.parseInt(st.nextToken());\n        long r = Long.parseLong(st.nextToken());\n        String[] names = new String[n];\n        long[] xs = new long[n], ys = new long[n];\n        for (int i = 0; i < n; i++) {\n            names[i] = st.nextToken();\n            xs[i] = Long.parseLong(st.nextToken());\n            ys[i] = Long.parseLong(st.nextToken());\n        }\n        String source = st.nextToken(), target = st.nextToken();\n        System.out.println(canReach(names, xs, ys, r, source, target) ? \"YES\" : \"NO\");\n    }\n}\n"
+ }
+}

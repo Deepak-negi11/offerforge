@@ -1,0 +1,49 @@
+{
+ "pid": "zoho-course-order-with-kahn-s-algorithm",
+ "title": "Course Order With Kahn's Algorithm",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A university offers `n` courses numbered `0` to `n - 1`. There are `m` prerequisite pairs: a pair `u v` means course `u` must be completed **before** course `v` can be taken. Pairs may repeat.\n\nYou want to take all the courses one at a time, in some order, so that every prerequisite is respected (a valid order is a topological order of the prerequisite graph). Because there are usually many valid orders, print the one that is **lexicographically smallest**: among all valid orders, the first position where two orders differ should hold the smaller course number.\n\nIf the prerequisites contain a cycle (including a course that is a prerequisite of itself), no valid order exists and you must print `-1`.\n\nThis is exactly what Kahn's algorithm produces when it repeatedly removes the available course (in-degree zero) with the smallest number.",
+ "input_format": "The first line contains two integers `n` and `m`.\nEach of the next `m` lines contains two integers `u` and `v`: course `u` is a prerequisite of course `v`.",
+ "output_format": "Print the `n` course numbers in the chosen order, separated by single spaces, or `-1` if no valid order exists.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ m ≤ 10^5",
+  "0 ≤ u, v < n"
+ ],
+ "examples": [
+  {
+   "input": "4 3\n3 0\n1 2\n2 0",
+   "output": "1 2 3 0",
+   "explanation": "Courses 1 and 3 have no prerequisites; take the smaller one, 1. That frees course 2, so the available courses are {2, 3}; take 2. Course 0 still waits for course 3, so take 3, and finally 0."
+  },
+  {
+   "input": "3 3\n0 1\n1 2\n2 1",
+   "output": "-1",
+   "explanation": "Courses 1 and 2 are prerequisites of each other, so neither can ever be taken."
+  },
+  {
+   "input": "3 0",
+   "output": "0 1 2",
+   "explanation": "With no prerequisites every order is valid, and the lexicographically smallest is ascending."
+  }
+ ],
+ "complexity": {
+  "time": "O((n + m) log n)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Count for every course how many prerequisites are still unmet (its in-degree). Courses with in-degree 0 can be taken now.",
+  "Repeatedly take an available course, then reduce the in-degree of every course that depends on it; a course that reaches 0 becomes available.",
+  "Keep the available courses in a min-heap so the smallest number is always taken first. If you finish with fewer than n courses taken, there is a cycle."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.buffer.read().split()\n    n, m = int(data[0]), int(data[1])\n    adj = [[] for _ in range(n)]\n    indeg = [0] * n\n    for i in range(m):\n        u = int(data[2 + 2 * i])\n        v = int(data[3 + 2 * i])\n        adj[u].append(v)\n        indeg[v] += 1\n    heap = [i for i in range(n) if indeg[i] == 0]\n    heapq.heapify(heap)\n    order = []\n    while heap:\n        u = heapq.heappop(heap)\n        order.append(u)\n        for v in adj[u]:\n            indeg[v] -= 1\n            if indeg[v] == 0:\n                heapq.heappush(heap, v)\n    print(' '.join(map(str, order)) if len(order) == n else -1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nedges = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(m)]\ndone = [False] * n\norder = []\nwhile len(order) < n:\n    pick = -1\n    for c in range(n):\n        if done[c]:\n            continue\n        if all(done[u] for (u, v) in edges if v == c):\n            pick = c\n            break\n    if pick == -1:\n        break\n    done[pick] = True\n    order.append(pick)\nprint(' '.join(map(str, order)) if len(order) == n else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(n, edges):\n        return f'{n} {len(edges)}\\n' + '\\n'.join(f'{u} {v}' for u, v in edges)\n    def dag(n, m, cyc=0):\n        perm = list(range(n))\n        rng.shuffle(perm)\n        edges = []\n        if n >= 2:\n            for _ in range(m):\n                i = rng.randrange(n - 1)\n                j = rng.randint(i + 1, n - 1)\n                edges.append((perm[i], perm[j]))\n        for _ in range(cyc):\n            if n >= 2:\n                j = rng.randrange(1, n)\n                i = rng.randrange(0, j)\n                edges.append((perm[j], perm[i]))\n        rng.shuffle(edges)\n        return edges\n    tests = [fmt(1, []), fmt(1, [(0, 0)]), fmt(3, []), fmt(2, [(0, 1), (1, 0)]), fmt(2, [(1, 0)]),\n             fmt(4, [(3, 0), (1, 2), (2, 0)]), fmt(3, [(0, 1), (1, 2), (2, 1)]), fmt(3, [(0, 1), (0, 1), (1, 2)]),\n             fmt(5, [(4, 3), (3, 2), (2, 1), (1, 0)])]\n    for _ in range(30):\n        n = rng.randint(2, 9)\n        m = rng.randint(0, 12)\n        tests.append(fmt(n, dag(n, m)))\n    for _ in range(14):\n        n = rng.randint(2, 9)\n        m = rng.randint(1, 10)\n        tests.append(fmt(n, dag(n, m, rng.randint(1, 2))))\n    N = 100000\n    tests.append(fmt(N, dag(N, 100000)))\n    tests.append(fmt(N, dag(N, 60000)))\n    perm = list(range(N))\n    rng.shuffle(perm)\n    chain = [(perm[i], perm[i + 1]) for i in range(N - 1)]\n    tests.append(fmt(N, chain))\n    tests.append(fmt(N, chain + [(perm[N - 1], perm[N - 3])]))\n    tests.append(fmt(N, [(0, v) for v in range(1, N)]))\n    tests.append(fmt(N, [(v, N - 1) for v in range(N - 1)] + [(N - 1, 5)]))\n    w = 300\n    layered = []\n    for i in range(N - w):\n        layer = i // w\n        j = (layer + 1) * w + rng.randrange(w)\n        if j < N:\n            layered.append((i, j))\n    tests.append(fmt(N, layered))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef course_order(n: int, edges: List[Tuple[int, int]]) -> List[int]:\n    # Write your solution here\n    # Return the lexicographically smallest valid order, or an empty list if there is a cycle.\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    edges = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(m)]\n    order = course_order(n, edges)\n    print(' '.join(map(str, order)) if order else -1)\n\n\nmain()\n",
+  "javascript": "function courseOrder(n, edges) {\n  // Write your solution here\n  // Return the lexicographically smallest valid order, or an empty array if there is a cycle.\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst edges = []\nfor (let i = 0; i < m; i++) edges.push([t[2 + 2 * i], t[3 + 2 * i]])\nconst order = courseOrder(n, edges)\nconsole.log(order.length ? order.join(' ') : '-1')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> courseOrder(int n, vector<pair<int, int>>& edges) {\n    // Write your solution here\n    // Return the lexicographically smallest valid order, or an empty vector if there is a cycle.\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<pair<int, int>> edges(m);\n    for (int i = 0; i < m; i++) cin >> edges[i].first >> edges[i].second;\n    vector<int> order = courseOrder(n, edges);\n    if (order.empty()) {\n        cout << -1 << \"\\n\";\n    } else {\n        for (size_t i = 0; i < order.size(); i++) cout << order[i] << (i + 1 < order.size() ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] courseOrder(int n, int[][] edges) {\n        // Write your solution here\n        // Return the lexicographically smallest valid order, or an empty array if there is a cycle.\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] edges = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); edges[i][0] = (int) in.nval;\n            in.nextToken(); edges[i][1] = (int) in.nval;\n        }\n        int[] order = courseOrder(n, edges);\n        if (order.length == 0) {\n            System.out.println(-1);\n            return;\n        }\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < order.length; i++) sb.append(order[i]).append(i + 1 < order.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

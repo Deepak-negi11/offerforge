@@ -1,0 +1,19 @@
+{
+ "qid": "5024ebcf66",
+ "question": "Oracle GSC Associate Consultant (internship plus full-time, campus) techno-managerial round. The interviewer gave a **real-world scenario and asked for an SQL query using joins**, followed by a few **DBMS questions**. The exact scenario was not reported; a typical version is used below: customers, orders and products, asking for customers with their order totals, including customers with no orders.",
+ "lookingFor": [
+  "Do you know INNER, LEFT, RIGHT and FULL joins and when each is correct?",
+  "Can you translate a business question into tables, keys and conditions?",
+  "Can you combine joins with GROUP BY, HAVING and aggregates correctly?",
+  "Do you handle NULLs and avoid common mistakes such as filtering in WHERE after a LEFT JOIN?",
+  "Do you understand keys, relationships and normalisation basics?"
+ ],
+ "answer": "**Assumed schema (the real one was not reported).**\n`customers(customer_id, name, city)`, `orders(order_id, customer_id, order_date, amount)`.\n\n**Question 1: list each customer with their number of orders and total spend, including customers who never ordered.**\n\n```sql\nSELECT c.customer_id,\n       c.name,\n       COUNT(o.order_id)          AS order_count,\n       COALESCE(SUM(o.amount), 0) AS total_spent\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.customer_id\nGROUP BY c.customer_id, c.name\nORDER BY total_spent DESC;\n```\n\nExplanation: `LEFT JOIN` keeps every customer even with no matching order; unmatched rows have NULL order columns. `COUNT(o.order_id)` counts only non-NULL values, so customers with no orders get 0, whereas `COUNT(*)` would wrongly give 1. `COALESCE` turns the NULL sum into 0.\n\n**Question 2: customers who have never ordered.**\n\n```sql\nSELECT c.name\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.customer_id\nWHERE o.order_id IS NULL;\n```\n\n(`NOT EXISTS` is an equivalent alternative.)\n\n**Common pitfalls.** Putting a filter on the right-side table in `WHERE` after a LEFT JOIN turns it into an inner join; put it in the `ON` clause instead. Joining on non-unique columns multiplies rows. Always qualify column names.\n\n**Join types in one line each.** INNER: only matching rows. LEFT: all left rows plus matches. RIGHT: the mirror image. FULL: all rows from both. CROSS: every combination.\n\n**Likely DBMS follow-ups.** Primary versus foreign key, one-to-many and many-to-many relationships (with a junction table), ACID, normalisation up to 3NF, and indexes (speed reads, cost writes).\n\n**Tip.** Ask which tables and columns exist, say your assumptions, then write the query and test it mentally with a small example including a customer with no orders.",
+ "followUps": [
+  "What is the difference between WHERE and HAVING?",
+  "How would you find the top 3 customers by spend in each city?",
+  "What is a self join? Give an example.",
+  "What is normalisation, and what does 3NF mean?",
+  "How does an index speed up a join, and when might it not help?"
+ ]
+}

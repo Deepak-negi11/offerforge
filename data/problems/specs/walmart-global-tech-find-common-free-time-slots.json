@@ -1,0 +1,49 @@
+{
+ "pid": "walmart-global-tech-find-common-free-time-slots",
+ "title": "Find Common Free Time Slots",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "Three students share a day that runs from time `0` to time `T`. Each student gives a list of **busy** intervals `[start, end)`: the student is busy from `start` up to, but not including, `end`. The intervals of one student may overlap or touch each other and are not sorted.\n\nFind every time slot during which **all three** students are free. Report the free slots as maximal intervals `[a, b)` with `0 ≤ a < b ≤ T`: no two reported slots may overlap or touch, and each slot must be as long as possible. Slots must be printed in increasing order of start time. A slot of length zero is never reported.\n\nTimes are integers. Because intervals are half-open, a student who is busy until time `5` and a student who becomes busy at time `5` leave no gap between them.\n\nOutput the number of free slots, followed by the slots themselves.",
+ "input_format": "The first line contains the integer `T`.\nThen the schedules of the three students follow, one after another. A schedule starts with a line containing the integer `m` (the number of busy intervals, possibly `0`), followed by `m` lines each containing two integers `start` and `end`.",
+ "output_format": "The first line contains `k`, the number of common free slots. Each of the next `k` lines contains two integers `a b`, one free slot, in increasing order. If `k` is `0`, print only `0`.",
+ "constraints": [
+  "1 ≤ T ≤ 10^9",
+  "0 ≤ m ≤ 3 · 10^4 for each student",
+  "0 ≤ start < end ≤ T"
+ ],
+ "examples": [
+  {
+   "input": "10\n2\n1 3\n6 8\n1\n2 5\n1\n7 9",
+   "output": "3\n0 1\n5 6\n9 10",
+   "explanation": "Together the students are busy during [1, 5) and [6, 9). The common free slots are [0, 1), [5, 6) and [9, 10)."
+  },
+  {
+   "input": "5\n1\n0 3\n1\n3 5\n0",
+   "output": "0",
+   "explanation": "Student 1 is busy until 3 and student 2 from 3 on, so the day is fully covered with no gap, and there is no free slot."
+  },
+  {
+   "input": "12\n3\n4 6\n0 2\n5 7\n1\n1 3\n2\n10 12\n9 10",
+   "output": "2\n3 4\n7 9",
+   "explanation": "After merging, the busy time is [0, 3), [4, 7) and [9, 12). The free slots are [3, 4) and [7, 9)."
+  }
+ ],
+ "complexity": {
+  "time": "O(M log M), M = total number of intervals",
+  "space": "O(M)"
+ },
+ "hints": [
+  "A moment is free for all three students exactly when it is not covered by the union of the three busy lists.",
+  "Put all busy intervals into one list and sort by start time (or sort each student's list and merge with three pointers).",
+  "Sweep with a variable cur = the end of everything covered so far: when the next interval starts after cur, the gap [cur, start) is a common free slot. Finish with the gap [cur, T) if any."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    T = int(data[0])\n    pos = 1\n    iv = []\n    for _ in range(3):\n        m = int(data[pos]); pos += 1\n        for _ in range(m):\n            iv.append((int(data[pos]), int(data[pos + 1])))\n            pos += 2\n    iv.sort()\n    free = []\n    cur = 0\n    for s, e in iv:\n        if s > cur:\n            free.append((cur, s))\n        if e > cur:\n            cur = e\n    if cur < T:\n        free.append((cur, T))\n    out = [str(len(free))] + [f\"{a} {b}\" for a, b in free]\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nT = int(data[0])\npos = 1\nbusy = [[False] * T for _ in range(3)]\nfor st in range(3):\n    m = int(data[pos]); pos += 1\n    for _ in range(m):\n        s, e = int(data[pos]), int(data[pos + 1]); pos += 2\n        for t in range(s, e):\n            busy[st][t] = True\nallfree = [not (busy[0][t] or busy[1][t] or busy[2][t]) for t in range(T)]\nres = []\nt = 0\nwhile t < T:\n    if allfree[t]:\n        u = t\n        while u < T and allfree[u]:\n            u += 1\n        res.append((t, u))\n        t = u\n    else:\n        t += 1\nprint(len(res))\nfor a, b in res:\n    print(a, b)\n",
+ "generator": "def gen(rng):\n    def fmt(T, sts):\n        lines = [str(T)]\n        for iv in sts:\n            lines.append(str(len(iv)))\n            lines.extend(f'{s} {e}' for s, e in iv)\n        return '\\n'.join(lines)\n    def rand_iv(T, m, maxlen):\n        res = []\n        for _ in range(m):\n            s = rng.randint(0, T - 1)\n            e = min(T, s + rng.randint(1, maxlen))\n            res.append((s, e))\n        return res\n    tests = [fmt(1, [[], [], []]), fmt(1, [[(0, 1)], [], []]), fmt(5, [[(0, 5)], [(0, 5)], [(0, 5)]]),\n             fmt(10, [[(1, 3), (6, 8)], [(2, 5)], [(7, 9)]]), fmt(6, [[(0, 2), (2, 4)], [(4, 6)], []]),\n             fmt(8, [[], [], []]), fmt(8, [[(0, 3)], [(3, 5)], [(5, 8)]]), fmt(8, [[(1, 2)], [(1, 2)], [(1, 2)]]),\n             fmt(7, [[(1, 4), (2, 3)], [(0, 1)], [(5, 6)]])]\n    for T in (4, 8, 12, 20, 30):\n        for _ in range(3):\n            tests.append(fmt(T, [rand_iv(T, rng.randint(0, 4), max(1, T // 4)) for _ in range(3)]))\n    T = 10**9\n    tests.append(fmt(T, [rand_iv(T, 30000, 10**4) for _ in range(3)]))\n    tests.append(fmt(T, [rand_iv(T, 30000, 2 * 10**4) for _ in range(3)]))\n    tests.append(fmt(T, [rand_iv(T, 30000, 10**9) for _ in range(3)]))\n    # short slots tiled so that the three students together leave many separate gaps\n    sts = [[], [], []]\n    for k in range(30000):\n        for j in range(3):\n            s = k * 30000 + j * 8000\n            sts[j].append((s, s + 7000 + rng.randint(0, 900)))\n    for j in range(3):\n        rng.shuffle(sts[j])\n    tests.append(fmt(T, sts))\n    # adjacent intervals that together leave no gap at all\n    sts = [[], [], []]\n    for k in range(30000):\n        for j in range(3):\n            sts[j].append(((3 * k + j) * 10000, (3 * k + j + 1) * 10000))\n    for j in range(3):\n        rng.shuffle(sts[j])\n    tests.append(fmt(T, sts))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef common_free(T: int, schedules: List[List[Tuple[int, int]]]) -> List[Tuple[int, int]]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    T = int(data[0])\n    pos = 1\n    schedules = []\n    for _ in range(3):\n        m = int(data[pos])\n        pos += 1\n        iv = []\n        for _ in range(m):\n            iv.append((int(data[pos]), int(data[pos + 1])))\n            pos += 2\n        schedules.append(iv)\n    res = common_free(T, schedules)\n    out = [str(len(res))] + [str(a) + ' ' + str(b) for a, b in res]\n    print('\\n'.join(out))\n\n\nmain()\n",
+  "javascript": "function commonFree(T, schedules) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst T = t[0]\nlet pos = 1\nconst schedules = []\nfor (let s = 0; s < 3; s++) {\n  const m = t[pos++]\n  const iv = []\n  for (let k = 0; k < m; k++) {\n    iv.push([t[pos], t[pos + 1]])\n    pos += 2\n  }\n  schedules.push(iv)\n}\nconst res = commonFree(T, schedules)\nconst out = [String(res.length)]\nfor (const [a, b] of res) out.push(a + ' ' + b)\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<pair<long long, long long>> commonFree(long long T, vector<vector<pair<long long, long long>>>& schedules) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    long long T;\n    cin >> T;\n    vector<vector<pair<long long, long long>>> schedules(3);\n    for (int s = 0; s < 3; s++) {\n        int m;\n        cin >> m;\n        schedules[s].resize(m);\n        for (int k = 0; k < m; k++) cin >> schedules[s][k].first >> schedules[s][k].second;\n    }\n    auto res = commonFree(T, schedules);\n    cout << res.size() << \"\\n\";\n    for (auto& p : res) cout << p.first << \" \" << p.second << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<long[]> commonFree(long T, long[][][] schedules) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        long T = (long) in.nval;\n        long[][][] schedules = new long[3][][];\n        for (int s = 0; s < 3; s++) {\n            in.nextToken();\n            int m = (int) in.nval;\n            schedules[s] = new long[m][2];\n            for (int k = 0; k < m; k++) {\n                in.nextToken(); schedules[s][k][0] = (long) in.nval;\n                in.nextToken(); schedules[s][k][1] = (long) in.nval;\n            }\n        }\n        List<long[]> res = commonFree(T, schedules);\n        StringBuilder sb = new StringBuilder();\n        sb.append(res.size()).append('\\n');\n        for (long[] p : res) sb.append(p[0]).append(' ').append(p[1]).append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

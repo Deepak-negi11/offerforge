@@ -1,0 +1,18 @@
+{
+ "qid": "9c40c42838",
+ "question": "In a system-design style round for a Software Engineer 2 role at PayPal, the interviewer first dug into the candidate's current project and stack. They then asked the candidate to **design snapshot management for a multitenant application, where snapshots are stored when the user prompts it**, and several designs were discussed until one was agreed.\n\nNext, the candidate was asked to **design a search feature like searching merge requests in Git**, then to optimize it (about ten minutes of discussion). The interviewer also asked for the **types, pros and cons of the producer-consumer approach in communication between servers**.",
+ "lookingFor": [
+  "Can you clarify what a snapshot is and design the flow, storage and restore path?",
+  "Do you handle tenant isolation, quotas and security?",
+  "Can you design an efficient search with indexing, filters and permissions?",
+  "Do you understand queues, delivery guarantees and backpressure?",
+  "Do you reason about trade-offs rather than listing technologies?"
+ ],
+ "answer": "**Snapshot management (assume a snapshot is a point-in-time copy of a tenant's data or configuration).**\n\n*Requirements:* user-triggered create, list, restore, delete; tenant isolation; consistent snapshots; retention limits; large snapshots without blocking the app.\n\n*API:* `POST /tenants/{t}/snapshots`, `GET /tenants/{t}/snapshots`, `POST .../{id}/restore`, `DELETE .../{id}`.\n\n*Design:* the API validates the request and quota, writes a `snapshot` row (`id, tenant_id, status, size, created_at, location, expires_at`), and enqueues a job. A worker takes a consistent read (database snapshot isolation or a copy-on-write storage snapshot, falling back to a brief quiesce), writes the data to **object storage** under a tenant prefix, and marks it `READY`. Prefer **incremental** snapshots (store only changed blocks or rows) to save space. Isolation: tenant id on every row and path, per-tenant encryption keys, per-tenant quotas and rate limits. Restore runs as another async job with a pre-restore safety snapshot. Retention uses TTL and a cleanup job.\n\n**Merge-request-style search.** Store MRs in the primary database, and index into a search engine (an inverted index such as Elasticsearch or OpenSearch) with fields title, description, author, labels, status, project, updated time. Update the index through events or change data capture, so the index is eventually consistent. Support filters (status, author, label) as exact-match terms, full text on title and description, sort by updated time, **cursor pagination**, and enforce permissions by filtering on project or tenant ids. Optimizations: keep only searchable fields in the index, shard by tenant or project, cache frequent queries, and use prefix or n-gram analyzers for type-ahead.\n\n**Producer-consumer.** Types: point-to-point work queue (each message processed by one consumer) and publish-subscribe (many consumers), with push or pull delivery. Pros: decoupling, buffering of bursts, independent scaling, retries. Cons: eventual consistency, **at-least-once delivery means duplicates** (make consumers idempotent), ordering only per partition, backpressure and lag to monitor, dead-letter handling, and extra operational complexity.",
+ "followUps": [
+  "How do you guarantee a consistent snapshot while the tenant is writing?",
+  "How would you stop one noisy tenant from slowing the others?",
+  "How do you keep the search index in sync and detect drift?",
+  "Kafka versus a classic queue: when do you choose which?"
+ ]
+}

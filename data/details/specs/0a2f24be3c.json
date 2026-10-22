@@ -1,0 +1,17 @@
+{
+ "qid": "0a2f24be3c",
+ "question": "Dream11 SDE-2, round 2 (database plus high-level design). Design a **job scheduler** where clients can schedule **one-time or recurring jobs** and **receive callbacks** when the jobs run.",
+ "lookingFor": [
+  "Requirements gathering and scale assumptions.",
+  "Reliable, scalable triggering of jobs at the right time.",
+  "Failure handling: retries, duplicates, missed runs.",
+  "Data model and partitioning of the schedule."
+ ],
+ "answer": "**Requirements.** Functional: create, update, cancel and list jobs; one-time (run at T) and recurring (cron expression or interval); on firing, call the client's callback (HTTP webhook, or publish to a queue); status and run history. Non-functional: high availability, no lost jobs, timely execution (for example within a few seconds of schedule), horizontal scalability, and a clear delivery guarantee (at-least-once, with idempotency keys). Assume, for example, tens of millions of jobs and thousands of firings per second at peaks.\n\n**API.** `POST /jobs {callbackUrl, payload, runAt | cron, retryPolicy}`, `GET /jobs/{id}`, `DELETE /jobs/{id}`, and `GET /jobs/{id}/runs`.\n\n**Data model.** `jobs(job_id, client_id, schedule, payload, callback, status, next_run_at)`; `job_runs(run_id, job_id, scheduled_at, started_at, status, attempt)`. Index on `next_run_at`. Partition by job id or time bucket.\n\n**Components**\n1. **API service** writes jobs to the database (a sharded SQL or a NoSQL store).\n2. **Scheduler / poller.** Workers each own a shard (range of partitions) and periodically fetch jobs with `next_run_at <= now + window`, then push them to a queue (Kafka or SQS). Alternatives: a timing wheel or delay queue in memory for the near-term window, with the database for the long term.\n3. **Executor workers** consume from the queue, call the callback with a timeout, record the result, and retry with exponential backoff. After max retries go to a dead-letter queue.\n4. **Recurring jobs:** after each trigger, compute and store the next `next_run_at`.\n\n**Correctness**\n- Avoid two schedulers firing the same job: claim rows with an atomic update (`status = claimed`), optimistic locking, or lease/leader election per shard (ZooKeeper or etcd).\n- Delivery is at-least-once, so send an idempotency key (`run_id`) to callbacks.\n- Recover missed runs after downtime by processing everything overdue.\n- Handle time zones and daylight saving for cron.\n\n**Scaling:** shard by job id, add workers, rate-limit per client, and separate fast and slow callbacks.",
+ "followUps": [
+  "How do you prevent a job from running twice?",
+  "How would you support jobs scheduled seconds apart at very high volume?",
+  "What happens if the scheduler is down for ten minutes?",
+  "How do you handle a client whose callback is slow or failing?"
+ ]
+}

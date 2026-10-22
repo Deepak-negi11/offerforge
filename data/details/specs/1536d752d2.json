@@ -1,0 +1,18 @@
+{
+ "qid": "1536d752d2",
+ "question": "Netflix phone screen for a Software Engineer role. **Implement an in-memory cache with TTL (time-to-live) expiry.** Then **extend it to LRU eviction** when the cache is full, and finally **make it safe for concurrent use**. The reporter noted the concurrency part could be explained rather than coded. Variants of this question also ask you to write tests and to handle rolling (gradual) cache invalidation.",
+ "lookingFor": [
+  "Clarifying requirements first: API (get/put/delete), capacity, TTL per key or global, time source.",
+  "Choosing the right data structures so get and put stay O(1).",
+  "Correct expiry semantics, including lazy versus active cleanup.",
+  "Awareness of concurrency hazards and a sensible locking strategy.",
+  "Testability, for example an injectable clock instead of real sleeps."
+ ],
+ "answer": "**Clarify first.** Capacity, per-entry or global TTL, what `get` returns on a miss or expired key, and whether time is injectable for tests.\n\n**Step 1: TTL.** Keep a hash map from key to `(value, expires_at)`. On `get`, if `now >= expires_at`, delete the entry and report a miss (lazy expiry). Lazy expiry alone lets dead entries sit in memory, so add either a background sweeper or a min-heap ordered by `expires_at` that you drain on each operation. Heap entries can be stale after an update, so check that the heap entry still matches the map before evicting.\n\n**Step 2: LRU.** Add a doubly linked list ordered by recency plus the hash map pointing at list nodes. `get` moves the node to the head, `put` inserts at the head and evicts the tail when over capacity. Both are O(1). In Python an `OrderedDict` with `move_to_end` and `popitem(last=False)` gives the same behaviour.\n\n    class Cache:\n        def __init__(self, cap, clock=time.monotonic):\n            self.d, self.cap, self.clock = OrderedDict(), cap, clock\n        def get(self, k):\n            v = self.d.get(k)\n            if v is None or self.clock() >= v[1]:\n                self.d.pop(k, None); return None\n            self.d.move_to_end(k); return v[0]\n        def put(self, k, val, ttl):\n            self.d[k] = (val, self.clock() + ttl); self.d.move_to_end(k)\n            if len(self.d) > self.cap: self.d.popitem(last=False)\n\nPrefer expired entries as eviction victims before live LRU ones.\n\n**Step 3: concurrency.** Even `get` mutates recency order, so reads are writes. Simplest correct option: one mutex around every operation. Next step: shard the keyspace by hash into N independent caches, each with its own lock, to cut contention. Mention approximating LRU (sampling, or buffering recency updates as Caffeine does) and a background sweeper thread that must take the same lock.\n\n**Tests.** Inject a fake clock; test expiry boundary, eviction order, update refreshing TTL, capacity 1, and a multi-threaded stress test.\n\n**Rolling invalidation.** Add a version or generation number per key group, or jitter TTLs, so entries expire gradually and avoid a thundering herd of misses.",
+ "followUps": [
+  "How would you avoid a cache stampede when a hot key expires?",
+  "What are the trade-offs of a global lock versus lock striping?",
+  "How would you test the expiry logic without sleeping?",
+  "How would you extend this to a distributed cache?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "c449263285",
+ "question": "Design a recommendation system for the homepage of an e-commerce site in the style of Amazon.\n\nThe candidate, interviewing for an SDE-2 role at Uber, first framed it as a Top-K problem: track item view counts and purchase counts in a stream processor (Flink), keep sorted sets, and read recommendations from them in real time. The interviewer then probed **scale estimation**, **which engagement signals to use beyond views and purchases**, **per-country recommendation sets**, and **how the design could be extended** later.",
+ "lookingFor": [
+  "Can you turn a vague product problem into requirements, scale numbers and a clear read/write path?",
+  "Do you do back-of-the-envelope estimation (users, QPS, storage) and use it to drive choices?",
+  "Do you know richer engagement signals and how to separate offline training from online serving?",
+  "Can you handle localisation (per-country catalogues, regulations, language) in the data model?",
+  "Is the design extensible: cold start, new signals, A/B tests, new surfaces?"
+ ],
+ "answer": "**Requirements.** Show a personalised and a popular-items homepage within roughly 100-200 ms; recommendations may be minutes stale; availability matters more than perfect freshness. Assume 100M daily users, about 5 homepage loads each: 500M loads/day, about 6K QPS average and roughly 20K QPS at peak. Storing 50 item ids per user is about 50 x 8 B x 100M = 40 GB, which fits in a sharded cache.\n\n**Signals.** Beyond views and purchases: clicks, add-to-cart, wishlist, search queries, dwell time, ratings and reviews, returns (a negative signal), hides or \"not interested\", price and stock, recency and seasonality. Weight them: a purchase counts far more than a view.\n\n**Architecture.**\n1. Event ingestion: clients emit events to Kafka; Flink aggregates them into counters per item, per country and per category in sliding windows.\n2. Candidate generation (offline, batch): co-purchase or collaborative filtering, item embeddings, \"recently viewed\" and category affinity produce a few hundred candidates per user.\n3. Ranking: a lightweight model (for example gradient-boosted trees) scores candidates using user, item and context features from a feature store; then business filters (stock, country availability, already bought, diversity).\n4. Serving: precomputed lists in Redis keyed by `user:country`; fall back to country-level trending (sorted sets via `ZINCRBY`) for new or anonymous users (cold start).\n\n**Per-country.** Partition counters, candidate pools and caches by country; filter by shipping and legal availability; run models globally but features and fallbacks locally.\n\n**Trade-offs.** Precompute versus real-time (cost versus freshness); pure popularity is simple but not personalised; feedback loops reduce diversity, so add exploration. Measure click-through, conversion, revenue per session via A/B tests.\n\n**Extensibility.** Add new signals as new event types and features; expose a recommender service interface so other surfaces (email, product page) reuse it.",
+ "followUps": [
+  "How would you handle a brand-new user or a brand-new item?",
+  "How do you keep the sorted sets bounded and correct when Flink restarts or events arrive late?",
+  "How would you evaluate a new ranking model offline and online?",
+  "How would you stop the system from showing the same popular items to everybody?"
+ ]
+}

@@ -1,0 +1,49 @@
+{
+ "pid": "samsung-align-stars-on-a-cylinder",
+ "title": "Align Stars on a Cylinder",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "A cylinder is made of `N` rows. Each row is a ring of `M` sections numbered `0` to `M - 1`, where section `M - 1` is next to section `0`. Every section either holds a star (`S`) or is blank (`_`). Every row has **at least one** star, and may have several.\n\nIn a single move you choose **one row** and rotate it by exactly one section, either to the left or to the right. The row wraps around, so a star pushed off the left end reappears at the right end (and the other way round).\n\nFind the minimum total number of moves after which the stars of all rows can be vertically aligned: there is some column that holds a star in **every** row. Extra stars in other columns do not matter.",
+ "input_format": "The first line contains two integers `N` and `M`.\nEach of the next `N` lines contains a string of length `M` made of `S` and `_` with no spaces.",
+ "output_format": "Print a single integer: the minimum number of moves.",
+ "constraints": [
+  "1 ≤ N ≤ 1000",
+  "1 ≤ M ≤ 1000",
+  "Each row consists only of `S` and `_` and contains at least one `S`."
+ ],
+ "examples": [
+  {
+   "input": "5 12\n_S________S_\n___________S\nS___________\n__S_________\n___________S",
+   "output": "5",
+   "explanation": "Align on the last column. Row 1 has a star in column 10, so one move to the right. Row 3 has its star in column 0, which is one move to the left (wrapping around). Row 4 has its star in column 2, which needs 3 moves to the left. Rows 2 and 5 are already there. Total 1 + 1 + 3 = 5."
+  },
+  {
+   "input": "2 5\nS____\n__S__",
+   "output": "2",
+   "explanation": "The stars are in columns 0 and 2. Moving either one two steps costs 2, and so does moving each of them one step to column 1."
+  },
+  {
+   "input": "3 4\nSSSS\n_S__\n__S_",
+   "output": "1",
+   "explanation": "Row 1 already has a star everywhere. Rotating row 3 by one step puts its star under the star of row 2, so one move is enough."
+  }
+ ],
+ "complexity": {
+  "time": "O(N · M)",
+  "space": "O(M)"
+ },
+ "hints": [
+  "Try every column c as the target column. The rows are independent once c is fixed.",
+  "For a fixed row and column, the cheapest way to bring a star to c is the star with the smallest circular distance min(|p - c|, M - |p - c|).",
+  "Computing that nearest-star distance for every column of a row takes O(M) with a forward and a backward sweep around the ring (or by filling the gaps between consecutive stars), so adding the rows up per column gives O(N · M) overall."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    cache = {}\n\n    def tri(length):\n        t = cache.get(length)\n        if t is None:\n            t = [min(j, length - j) for j in range(length)]\n            cache[length] = t\n        return t\n\n    total = [0] * m\n    for r in range(n):\n        row = data[2 + r]\n        pos = [i for i, ch in enumerate(row) if ch == 'S']\n        k = len(pos)\n        seg = []\n        for idx in range(k):\n            a = pos[idx]\n            b = pos[idx + 1] if idx + 1 < k else pos[0] + m\n            seg += tri(b - a)\n        p0 = pos[0]\n        d = seg[m - p0:] + seg[:m - p0]\n        total = [x + y for x, y in zip(total, d)]\n    print(min(total))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nrows = data[2:2 + n]\nbest = None\nfor c in range(m):\n    cost = 0\n    for row in rows:\n        cost += min(min((i - c) % m, (c - i) % m) for i in range(m) if row[i] == 'S')\n    if best is None or cost < best:\n        best = cost\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(rows):\n        return str(len(rows)) + ' ' + str(len(rows[0])) + '\\n' + '\\n'.join(rows)\n    def row(m, p):\n        r = ['S' if rng.random() < p else '_' for _ in range(m)]\n        if 'S' not in r:\n            r[rng.randrange(m)] = 'S'\n        return ''.join(r)\n    tests = [\n        fmt(['S']),\n        fmt(['S', 'S', 'S']),\n        fmt(['SSSS', 'SSSS']),\n        fmt(['S____', '__S__']),\n        fmt(['S_______', '____S___']),\n        fmt(['S_S_', '_S_S', 'S___']),\n        fmt(['_S__', '__S_', '___S', 'S___']),\n        fmt(['S' + '_' * 9, '_' * 5 + 'S' + '_' * 4, '_' * 3 + 'S' + '_' * 6]),\n    ]\n    for _ in range(20):\n        n = rng.randint(1, 5)\n        m = rng.randint(1, 12)\n        tests.append(fmt([row(m, rng.choice([0.1, 0.25, 0.5])) for _ in range(n)]))\n    for _ in range(4):\n        n = rng.randint(30, 60)\n        m = rng.randint(30, 60)\n        tests.append(fmt([row(m, 0.05) for _ in range(n)]))\n    tests.append(fmt([row(1000, 0.0005) for _ in range(1000)]))\n    tests.append(fmt([row(1000, 0.3) for _ in range(1000)]))\n    tests.append(fmt([row(999, 0.01) for _ in range(1000)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_moves(rows: List[str]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    rows = data[2:2 + n]\n    print(min_moves(rows))\n\n\nmain()\n",
+  "javascript": "function minMoves(rows) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = Number(t[0]), m = Number(t[1])\nconst rows = t.slice(2, 2 + n)\nconsole.log(String(minMoves(rows)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minMoves(vector<string>& rows) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<string> rows(n);\n    for (int i = 0; i < n; i++) cin >> rows[i];\n    cout << minMoves(rows) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minMoves(String[] rows) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int n = Integer.parseInt(st.nextToken());\n        int m = Integer.parseInt(st.nextToken());\n        String[] rows = new String[n];\n        for (int i = 0; i < n; i++) rows[i] = br.readLine().trim();\n        System.out.println(minMoves(rows));\n    }\n}\n"
+ }
+}

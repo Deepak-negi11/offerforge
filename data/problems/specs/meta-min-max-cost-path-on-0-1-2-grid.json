@@ -1,0 +1,48 @@
+{
+ "pid": "meta-min-max-cost-path-on-0-1-2-grid",
+ "title": "Min-Max Cost Path on 0-1-2 Grid",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a grid with `r` rows and `c` columns. Every cell holds a value `0`, `1` or `2`: the **cost to enter** that cell. You start in the top-left cell `(0, 0)` and want to reach the bottom-right cell `(r - 1, c - 1)`. In one move you can go to any of the four side-adjacent cells (up, down, left, right), and you may revisit cells.\n\nThe cost of a path is **not** the sum of the costs on it. It is the **largest** entry cost among the cells the path enters. The starting cell is never entered, so its value does not count; if `r = c = 1` no move is needed and the cost is `0`.\n\nPrint the minimum possible cost of a path from the top-left cell to the bottom-right cell.\n\n**Follow-up:** The interviewer asked for a solution that does not use a heap (priority queue). Since the only possible costs are `0`, `1` and `2`, think about what a plain queue can do for you.",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains `c` integers, each `0`, `1` or `2`: the cost to enter each cell of that row.",
+ "output_format": "Print a single integer: the minimum possible path cost.",
+ "constraints": [
+  "1 ≤ r, c ≤ 600",
+  "grid[i][j] ∈ {0, 1, 2}"
+ ],
+ "examples": [
+  {
+   "input": "3 3\n0 0 2\n0 1 1\n1 2 1",
+   "output": "1",
+   "explanation": "Go down to (1, 0), right to (1, 1), (1, 2), then down to (2, 2). The cells entered cost 0, 1, 1, 1, so the path costs 1. A cost of 0 is impossible because both neighbours of the goal, (1, 2) and (2, 1), cost at least 1 and every path must enter one of them."
+  },
+  {
+   "input": "3 3\n0 0 2\n0 2 2\n2 2 0",
+   "output": "2",
+   "explanation": "The goal's neighbours (1, 2) and (2, 1) both cost 2, and every route must enter one of them, so the cost is at least 2. It is exactly 2."
+  },
+  {
+   "input": "2 3\n2 0 0\n1 1 0",
+   "output": "0",
+   "explanation": "The start's value (2) does not count. Moving right, right, then down enters only cells of cost 0."
+  }
+ ],
+ "complexity": {
+  "time": "O(r · c)",
+  "space": "O(r · c)"
+ },
+ "hints": [
+  "The cost of a path is its maximum cell cost, so ask a yes/no question instead: can I reach the goal using only cells of cost at most t?",
+  "There are only three possible answers, 0, 1 and 2. Try t = 0, then t = 1, then t = 2, each with an ordinary BFS/DFS that refuses cells costing more than t.",
+  "The first t for which the goal is reachable is the answer. No heap is needed, and t = 2 always works."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    if r == 1 and c == 1:\n        print(0)\n        return\n    W = c + 2\n    g = [3] * ((r + 2) * W)\n    for i in range(r):\n        base = (i + 1) * W + 1\n        for j in range(c):\n            g[base + j] = int(data[2 + i * c + j])\n    start = W + 1\n    goal = r * W + c\n    for t in range(3):\n        seen = bytearray(len(g))\n        seen[start] = 1\n        stack = [start]\n        found = False\n        while stack:\n            u = stack.pop()\n            if u == goal:\n                found = True\n                break\n            for v in (u - 1, u + 1, u - W, u + W):\n                if not seen[v] and g[v] <= t:\n                    seen[v] = 1\n                    stack.append(v)\n        if found:\n            print(t)\n            return\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\ng = [[int(data[2 + i * c + j]) for j in range(c)] for i in range(r)]\nINF = 10**9\nbest = [[INF] * c for _ in range(r)]\nbest[0][0] = 0\nchanged = True\nwhile changed:\n    changed = False\n    for i in range(r):\n        for j in range(c):\n            for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n                a, b = i + di, j + dj\n                if 0 <= a < r and 0 <= b < c and best[a][b] < INF:\n                    cand = max(best[a][b], g[i][j])\n                    if (i, j) != (0, 0) and cand < best[i][j]:\n                        best[i][j] = cand\n                        changed = True\nprint(best[r - 1][c - 1])\n",
+ "generator": "def gen(rng):\n    def fmt(g):\n        return str(len(g)) + ' ' + str(len(g[0])) + '\\n' + '\\n'.join(' '.join(map(str, row)) for row in g)\n\n    def rnd(r, c, w):\n        return [[rng.choices((0, 1, 2), w)[0] for _ in range(c)] for _ in range(r)]\n\n    tests = [\n        fmt([[2]]),\n        fmt([[0]]),\n        fmt([[1, 2]]),\n        fmt([[0], [2], [1]]),\n        fmt([[0, 2], [2, 0]]),\n        fmt([[0, 1, 0, 1, 0]]),\n        fmt([[2, 2, 2], [2, 2, 2], [2, 2, 2]]),\n        fmt([[0, 0, 2], [0, 1, 1], [1, 2, 1]]),\n        fmt([[0, 0, 2], [0, 2, 2], [2, 2, 0]]),\n    ]\n    for _ in range(40):\n        r = rng.randint(1, 9)\n        c = rng.randint(1, 9)\n        w = rng.choice(((1, 1, 1), (5, 2, 1), (1, 3, 1), (2, 2, 6), (6, 1, 3), (1, 1, 8)))\n        tests.append(fmt(rnd(r, c, w)))\n\n    def snake(n, blocker):\n        g = [[2] * n for _ in range(n)]\n        for i in range(0, n, 2):\n            for j in range(n):\n                g[i][j] = 0\n        for i in range(1, n, 2):\n            g[i][n - 1 if (i // 2) % 2 == 0 else 0] = 0\n        if blocker is not None:\n            i = (n // 2) // 2 * 2\n            g[i][n // 2] = blocker\n        g[0][0] = 2\n        return g\n\n    N = 600\n    tests.append(fmt(snake(N - 1, None)))\n    tests.append(fmt(snake(N - 1, 1)))\n    tests.append(fmt(snake(N - 1, 2)))\n    tests.append(fmt(rnd(N, N, (60, 25, 15))))\n    tests.append(fmt(rnd(N, N, (30, 40, 30))))\n    tests.append(fmt(rnd(N, N, (45, 30, 25))))\n    tests.append(fmt(rnd(1, N, (3, 2, 1))))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_cost(grid: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    grid = [[int(data[2 + i * c + j]) for j in range(c)] for i in range(r)]\n    print(min_cost(grid))\n\n\nmain()\n",
+  "javascript": "function minCost(grid) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst r = t[0], c = t[1]\nconst grid = []\nfor (let i = 0; i < r; i++) {\n  grid.push(t.slice(2 + i * c, 2 + (i + 1) * c))\n}\nconsole.log(minCost(grid))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minCost(vector<vector<int>>& grid) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<vector<int>> grid(r, vector<int>(c));\n    for (int i = 0; i < r; i++)\n        for (int j = 0; j < c; j++) cin >> grid[i][j];\n    cout << minCost(grid) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minCost(int[][] grid) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int r = (int) in.nval;\n        in.nextToken();\n        int c = (int) in.nval;\n        int[][] grid = new int[r][c];\n        for (int i = 0; i < r; i++)\n            for (int j = 0; j < c; j++) {\n                in.nextToken();\n                grid[i][j] = (int) in.nval;\n            }\n        System.out.println(minCost(grid));\n    }\n}\n"
+ }
+}

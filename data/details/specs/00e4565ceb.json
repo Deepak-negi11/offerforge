@@ -1,0 +1,17 @@
+{
+ "qid": "00e4565ceb",
+ "question": "Texas Instruments Software Engineer (New Grad) on-campus technical round, following the endianness question. The interviewer asked: **What is the cache coherence problem?** Is your code prone to it? He then gave an API and asked **where in the code it could be called to remove the coherence problem**, and asked about **cache invalidation** with another API to place in the code.",
+ "lookingFor": [
+  "Understanding of why stale data appears: multiple caches or a DMA engine and CPU.",
+  "Knowing cache clean (flush) versus invalidate and when each is needed.",
+  "Applying the idea to code order: before or after a read or write.",
+  "Awareness of hardware coherence versus manual software management."
+ ],
+ "answer": "**The problem.** When more than one agent can see the same memory, each may hold its own cached copy and the copies can disagree. Examples:\n- **Multicore:** core A writes a value into its cache while core B still holds the old value. Most multicore CPUs solve this in hardware with a coherence protocol (MESI and variants), but only for CPU caches.\n- **CPU and DMA or a peripheral (common on embedded SoCs):** DMA writes to RAM, bypassing the CPU cache, so the CPU may read a stale cached copy. Or the CPU writes to its write-back cache, and DMA reads old data from RAM. Here coherence is often **not** handled by hardware, so software must do it.\n\n**Operations.**\n- **Clean / flush:** write dirty cache lines back to main memory. Use **before** a device or another agent reads the memory (CPU produced data).\n- **Invalidate:** discard cached lines so the next read fetches from memory. Use **before** the CPU reads data that a device or another agent wrote.\n- Some APIs combine both (clean and invalidate).\n\n**Where to place the calls (the typical answer to the API question).**\n\n```c\n// CPU fills a buffer, then DMA transmits it\nfill(buf);\ncache_clean(buf, len);         // flush: make RAM up to date\nstart_dma_tx(buf, len);\n\n// DMA receives into a buffer, then CPU reads it\nstart_dma_rx(buf, len);\nwait_for_dma_done();\ncache_invalidate(buf, len);    // drop stale lines\nprocess(buf);\n```\nInvalidate must happen **after** the DMA has finished (and ideally also before starting, so earlier dirty lines are not later written back over new data), and buffers should be cache-line aligned and sized in whole lines, so neighbouring data is not affected.\n\n**Alternatives.** Mark the region non-cacheable (MPU/MMU attributes), or use a hardware-coherent interconnect. Say honestly whether your own code is exposed: it is, if it shares buffers with DMA or another core and has no such operations.",
+ "followUps": [
+  "What is the difference between cache flush and cache invalidate?",
+  "How does the MESI protocol work at a high level?",
+  "What is false sharing and how do you avoid it?",
+  "Why must DMA buffers be cache-line aligned?"
+ ]
+}

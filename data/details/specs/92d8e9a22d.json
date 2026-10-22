@@ -1,0 +1,19 @@
+{
+ "qid": "92d8e9a22d",
+ "question": "Atlassian system-design round (Senior / Principal). **Design a web scraper (crawler).** You are given an initial set of URLs. For each, scrape all reachable nested URLs, find the **images** on every page, and return the list of image URLs **against the parent URL**.\n\nThe reported APIs were: `POST /jobs` with a list of URLs returning a job id; `GET /jobs/{job_id}/status` returning counts such as completed and in-progress; and `GET /jobs/{job_id}/results` returning a map from each URL to its image URLs. The interviewers asked **multiple follow-ups**, digging into one area such as avoiding duplicates, truncating the crawl and failure handling.",
+ "lookingFor": [
+  "Scopes the problem: depth limits, same-domain or not, scale, freshness, politeness.",
+  "A clean job model and asynchronous architecture behind the three APIs.",
+  "URL frontier, deduplication and cycle handling done correctly.",
+  "Failure handling: retries, timeouts, dead-letter queues, partial results.",
+  "Good judgement on scaling, politeness (robots.txt, rate limits) and storage choices."
+ ],
+ "answer": "**Requirements and assumptions.** Submit a job with seed URLs; crawl linked pages (assume same registered domain and a max depth or page cap, to truncate the crawl); extract image URLs (`img src`, `srcset`, optionally CSS backgrounds); results are queryable per seed or per page. Assume millions of pages per job at most, jobs run for minutes to hours, results are eventually complete. Respect robots.txt and per-host rate limits.\n\n**APIs.** `POST /jobs` (returns `job_id`, 202 Accepted), `GET /jobs/{id}/status` (counts: queued, in-progress, completed, failed), `GET /jobs/{id}/results` (paginated, because results can be large).\n\n**Components.**\n- **API service** and a **job store** (relational DB or DynamoDB-like): job id, status, limits.\n- **URL frontier:** a distributed queue (Kafka, SQS) partitioned by host so one host maps to one worker group, enabling politeness delays.\n- **Crawler workers (stateless):** fetch with timeout and size limit, parse HTML, extract images and links, resolve relative URLs, normalise.\n- **Dedup store:** a set of visited normalised URLs per job (Redis set, or a Bloom filter in front of a persistent store). Normalise: lowercase host, strip fragments, sort params, resolve `..`. Without this, cycles loop forever.\n- **Result store:** `(job_id, page_url) -> image URLs`, in a key-value or document store; status counters kept as atomic increments.\n\n**Flow.** Seeds are enqueued with depth 0. A worker takes a URL, checks and sets the visited flag atomically, fetches, saves images, and enqueues new links at depth+1 (if under limits). The job completes when the frontier for that job is empty and nothing is in flight.\n\n**Failure handling.** Retries with backoff on 5xx and timeouts, a cap on attempts, then a dead-letter queue and a failed counter. Idempotent processing (visited flag plus upserts) makes redelivery safe. Heartbeat or visibility timeouts recover work from crashed workers.\n\n**Trade-offs and scaling.** Exact vs probabilistic dedup (Bloom filter can wrongly skip a page); BFS versus DFS; per-host throttling versus speed; add workers horizontally; cache DNS and robots.txt; avoid crawler traps with depth, page and URL-length caps; sandbox and bound parsing of untrusted content.",
+ "followUps": [
+  "How do you avoid duplicate pages with different URLs but the same content?",
+  "How would you scale to a billion pages and many concurrent jobs?",
+  "How do you decide a job is finished in a distributed crawl?",
+  "How do you handle JavaScript-rendered pages and images?",
+  "How do you stay polite to the sites you crawl?"
+ ]
+}

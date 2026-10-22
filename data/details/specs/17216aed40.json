@@ -1,0 +1,17 @@
+{
+ "qid": "17216aed40",
+ "question": "Apple, GPU Design Verification Intern, one-hour first-round screen. It covered the resume, **fork/join in SystemVerilog, a toggle detector in SystemVerilog, and shifting all the 1 bits of a 32-bit number to the most significant end** (for example `0000...0101` becomes `1100...0000`). The bit-manipulation question is the one this write-up focuses on; the specific wording of the other questions was not reported in detail.",
+ "lookingFor": [
+  "Bit-manipulation fluency: popcount, masks, shifts.",
+  "Handling edge cases such as zero set bits and all 32 bits set.",
+  "Knowledge of language pitfalls: shifting by the full word width, signed versus unsigned.",
+  "Basic SystemVerilog concepts relevant to verification: fork/join variants and sequential logic."
+ ],
+ "answer": "**Idea.** The order of the set bits does not matter, only how many there are. If a 32-bit value has `c` set bits, the answer is `c` ones followed by `32 - c` zeros.\n\n**Steps.**\n1. Count set bits (popcount). Kernighan's loop is neat: `while (n) { n &= n - 1; c++; }` which runs once per set bit. In SystemVerilog, `$countones(n)` does it.\n2. Build the result: `((1 << c) - 1) << (32 - c)`. Ones in the low `c` bits are moved to the top.\n\n**Edge cases.**\n- `c == 0`: the answer is 0.\n- `c == 32`: `1 << 32` overflows a 32-bit value, so use a 64-bit intermediate or special-case it (answer `0xFFFFFFFF`).\n- In C or C++ shifting a 32-bit value by 32 is undefined, so guard it. Use `uint32_t`, since right shifts of signed values may sign-extend.\n\n    uint32_t pushToMsb(uint32_t n) {\n        int c = __builtin_popcount(n);          /* or Kernighan's loop */\n        if (c == 0) return 0;\n        return 0xFFFFFFFFu << (32 - c);         /* c = 32 shifts by 0: fine */\n    }\n\nExample: `n = 0b0101` has 2 set bits, so the result is `0xC0000000`. Complexity O(1) with a hardware popcount, or O(c) with the loop; O(1) extra space. An alternative that avoids counting: loop 32 times, shift the number right and shift ones in from the left, but counting is simpler.\n\n**Related SystemVerilog points.**\n- `fork ... join` waits for all child processes, `join_any` waits for the first one, `join_none` continues immediately.\n- A toggle detector is sequential: register the previous value each clock edge (`always_ff @(posedge clk) prev <= in;`) and flag a toggle when `in != prev` (or `in ^ prev`).",
+ "followUps": [
+  "How would you implement popcount without a loop using bit tricks?",
+  "How would you reverse the bits of a 32-bit number?",
+  "What is the difference between `join`, `join_any` and `join_none`?",
+  "How would you write a rising-edge-only detector instead of any-edge toggle?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "b5bf4079db",
+ "question": "Razorpay machine coding round (SDE-2 / Senior Software Engineer, about 1.5 hours, language of your choice): after a brief approach discussion, **implement a working in-memory SQL-like database in roughly 50 minutes.** Reported features: create/drop database, create/drop table, columns of type int, string or boolean, a primary key or **composite primary key**, insert/update/delete rows, **create index** (including on multiple fields), **transactions**, and **safe behaviour under concurrent operations**. One candidate finished everything except transactions and multi-column indexes; another was advised to sanitise inputs such as empty column names.",
+ "lookingFor": [
+  "Data-modelling judgement: how rows, schemas and indexes are stored.",
+  "Constraint enforcement: types, primary-key uniqueness, validation.",
+  "Concurrency design with sensible lock granularity.",
+  "Prioritising features so something complete works first.",
+  "Awareness of transaction and isolation semantics."
+ ],
+ "answer": "**Plan the order:** (1) databases and tables with schemas, (2) insert/select/update/delete with type and primary-key checks, (3) concurrency, (4) indexes, (5) transactions. Get a working vertical slice before adding the rest.\n\n**Model:**\n- `Database(name, tables: Map<String, Table>)`; a top-level `Catalog` holds databases.\n- `Column(name, type: INT|STRING|BOOL, nullable)`; `Schema(columns, primaryKey: List<String>)`.\n- `Table(schema, rows: Map<PKKey, Row>, indexes: Map<indexName, Index>)`. Store rows keyed by the primary key, where `PKKey` is a list of the PK column values (with correct equals/hashCode). This gives O(1) primary-key lookup and uniqueness checks.\n- `Row`: a map or array of values aligned to the schema.\n\n**Operations:**\n- Insert: validate types and non-null, build the PK, reject duplicates, put the row, update every index.\n- Update: reject changes that violate types or the PK; if indexed columns change, remove the old index entry and add the new one.\n- Delete: remove from the rows map and the indexes.\n- Select with a `WHERE column = value`: use an index if one exists, else scan.\n\n**Indexes.** A hash index (`Map<key, Set<PKKey>>`) suits equality; a sorted structure (`TreeMap`) supports range queries. A multi-column index just uses a composite key (an ordered list of values), and the query planner can use it only for a leftmost-prefix match.\n\n**Concurrency.** Simplest: one `ReadWriteLock` per table (readers share, writers exclusive), plus a lock on the catalog for DDL. Lock tables in a fixed order to avoid deadlock if operations span tables. Say what you would do next: row-level locks or MVCC.\n\n**Transactions.** Simple version: a transaction takes the needed table write locks, records an *undo log* of each change, and on rollback replays it in reverse; commit discards the log. This gives isolation by locking and atomicity by undo.\n\n**Input validation:** empty or duplicate names, unknown table or column, wrong type, null in a PK.",
+ "followUps": [
+  "How would you support range queries and ORDER BY efficiently?",
+  "What isolation level does your locking approach give, and what anomalies remain?",
+  "How would you make the database durable after a crash (write-ahead log)?",
+  "How would you choose between a hash index and a B-tree index?"
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "qid": "87764f1e01",
+ "question": "In Round 1 (DSA plus HLD) of an Oracle SMTS Backend loop, the candidate was asked to design a healthcare data ingestion pipeline capable of processing millions of records efficiently. The discussion covered data ingestion, queue or message broker selection, storage strategy, the processing pipeline, fault tolerance, scalability, monitoring and alerting, and handling failed or unprocessed records.",
+ "lookingFor": [
+  "Clarifying requirements: sources, formats, volume, latency, ordering and sensitivity of the data",
+  "Choosing a broker and justifying it against alternatives",
+  "Designing for failure: retries, dead-letter handling, idempotency, replay",
+  "Storage choices matched to access patterns",
+  "Security and compliance awareness for health data",
+  "Metrics and alerting that show the pipeline is healthy"
+ ],
+ "answer": "**Clarify first.** Who sends data (hospital systems, labs, devices), in what format (HL7, FHIR JSON, CSV), batch or streaming, \"millions\" per hour or per day (say 5M records per hour is about 1,400 per second average, with bursts several times higher), allowed latency (minutes), and ordering needs (per patient). Records are sensitive health data, so assume encryption in transit and at rest, access control and audit logs.\n\n**Components:**\n1. **Ingestion API / connectors:** authenticated REST or file/SFTP endpoints behind a load balancer. Validate cheaply (schema, required fields), assign an ingest id, and publish to the broker immediately; do not process inline. Large files are stored in object storage and a message points to them.\n2. **Message broker:** a partitioned log such as Kafka (examples only: Pulsar, Kinesis). Reasons: durable, replayable, high throughput, consumer groups for scaling. Partition by patient or source id to keep per-patient ordering. Compare with RabbitMQ or SQS, which are simpler for task queues but have weaker replay.\n3. **Processing workers:** stateless consumers that parse, normalize to a canonical schema, de-identify where needed, enrich, and deduplicate using a natural key plus an idempotent write (upsert).\n4. **Storage:** raw immutable copy in object storage (for replay and audit); curated records in a relational or document store for queries; analytics in a warehouse or columnar format. Partition by date and tenant.\n5. **Failure handling:** retry with exponential backoff for transient errors; after N attempts send to a **dead-letter queue** with the error reason and original payload. Provide a tool to inspect, fix and replay. Commit offsets only after the write succeeds (at-least-once) and rely on idempotency for effectively once results.\n\n**Scaling:** add partitions and consumers, autoscale on consumer lag, batch writes, backpressure and rate limits per source.\n\n**Fault tolerance:** replicated broker and storage across zones, stateless workers, checkpointing.\n\n**Monitoring:** ingest rate, end-to-end latency, consumer lag, error and DLQ rates, data-quality checks (record counts in versus out), with alerts on lag and DLQ growth.",
+ "followUps": [
+  "How do you guarantee no record is lost and none is processed twice?",
+  "How would you handle a poison message that always fails?",
+  "How do you keep per-patient ordering while scaling consumers?",
+  "How would you handle schema changes from a source system?"
+ ]
+}

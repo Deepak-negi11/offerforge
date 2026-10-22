@@ -1,0 +1,50 @@
+{
+ "pid": "cred-token-pairs-covering-all-characters",
+ "title": "Token Pairs Covering All Characters",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A payments team stores `n` tokens `A[1] ... A[n]`, each a string of lowercase letters and digits. They also have a set `B` of `m` **distinct** characters.\n\nCount the pairs of tokens `(i, j)` with `i < j` such that the two tokens **together** contain every character of `B`. Characters of a token that are not in `B` are ignored, and a character may appear in either token or both. The pair `(x, y)` and the pair `(y, x)` are the same pair, and a token is never paired with itself. Two different positions holding equal strings are different tokens, so they can form a pair.\n\nPrint the number of such pairs.",
+ "input_format": "The first line contains two integers `m` and `n`.\nThe second line contains a string of exactly `m` distinct characters: the set `B`.\nEach of the next `n` lines contains one token.",
+ "output_format": "Print a single integer: the number of valid pairs.",
+ "constraints": [
+  "1 ≤ m ≤ 10",
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ length of each token ≤ 12",
+  "tokens and B consist of lowercase letters and digits; the characters of B are distinct"
+ ],
+ "examples": [
+  {
+   "input": "3 5\nab1\nhyap1\nbba2\nzxc2oi\naa1bfd\niouy1",
+   "output": "6",
+   "explanation": "B = {a, b, 1}. The valid pairs are (hyap1, bba2), (hyap1, aa1bfd), (bba2, aa1bfd), (bba2, iouy1), (zxc2oi, aa1bfd) and (aa1bfd, iouy1). For example hyap1 has `a` and `1`, and bba2 adds `b`. The pair (hyap1, iouy1) fails because no `b` appears in either."
+  },
+  {
+   "input": "3 4\n123\n12\n3\n1\n23",
+   "output": "3",
+   "explanation": "The tokens cover {1,2}, {3}, {1} and {2,3}. The pairs ({1,2}, {3}), ({1,2}, {2,3}) and ({1}, {2,3}) cover all of 1, 2, 3; every other pair misses a character."
+  },
+  {
+   "input": "1 4\nq\nabc\nqq\nxyz\nzq",
+   "output": "5",
+   "explanation": "With B = {q}, a pair is valid when at least one of its tokens contains `q`. Of the 6 possible pairs only (abc, xyz) has no `q`, so 5 pairs are valid."
+  }
+ ],
+ "complexity": {
+  "time": "O(n · L + 4^m)",
+  "space": "O(2^m)"
+ },
+ "hints": [
+  "Only the characters of B matter. Represent each token by an m-bit mask saying which characters of B it contains.",
+  "Many tokens share the same mask. Count how many tokens have each mask, giving an array of size 2^m.",
+  "Two tokens work when mask_a | mask_b equals the full mask. Loop over pairs of distinct masks (at most 4^m of them, small for m ≤ 10), multiply their counts, and handle pairs of equal masks separately with c * (c - 1) / 2."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    m = int(data[0])\n    n = int(data[1])\n    b = data[2]\n    pos = {c: i for i, c in enumerate(b)}\n    full = (1 << m) - 1\n    size = 1 << m\n    cnt = [0] * size\n    for tok in data[3:3 + n]:\n        mask = 0\n        for ch in set(tok):\n            p = pos.get(ch)\n            if p is not None:\n                mask |= 1 << p\n        cnt[mask] += 1\n    nz = [a for a in range(size) if cnt[a]]\n    total = 0\n    for x in range(len(nz)):\n        a = nz[x]\n        ca = cnt[a]\n        if a == full:\n            total += ca * (ca - 1) // 2\n        for y in range(x + 1, len(nz)):\n            c = nz[y]\n            if (a | c) == full:\n                total += ca * cnt[c]\n    print(total)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nm = int(data[0])\nn = int(data[1])\nb = set(data[2])\ntoks = [set(t) for t in data[3:3 + n]]\ncount = 0\nfor i in range(n):\n    for j in range(i + 1, n):\n        if b <= (toks[i] | toks[j]):\n            count += 1\nprint(count)\n",
+ "generator": "def gen(rng):\n    pool = 'abcdefghijklmnopqrstuvwxyz0123456789'\n    def fmt(b, toks):\n        return f'{len(b)} {len(toks)}\\n{b}\\n' + '\\n'.join(toks)\n    tests = [\n        fmt('ab1', ['hyap1', 'bba2', 'zxc2oi', 'aa1bfd', 'iouy1']),\n        fmt('123', ['12', '3', '1', '23']),\n        fmt('q', ['abc', 'qq', 'xyz', 'zq']),\n        fmt('a', ['a', 'a']),\n        fmt('a', ['b']),\n        fmt('ab', ['a', 'b']),\n        fmt('xy', ['xy', 'xy', 'xy', 'yx']),\n        fmt('abc', ['zzz', 'yyy']),\n    ]\n    for _ in range(40):\n        small = pool[:rng.randint(4, 9)]\n        m = rng.randint(1, min(4, len(small)))\n        b = ''.join(rng.sample(small, m))\n        n = rng.randint(2, 12)\n        toks = [''.join(rng.choice(small) for _ in range(rng.randint(1, 4))) for _ in range(n)]\n        tests.append(fmt(b, toks))\n    N = 10**5\n    b = ''.join(rng.sample(pool, 10))\n    noise = [c for c in pool if c not in b][:6]\n    def rnd_tok(cs, lo, hi):\n        return ''.join(rng.choice(cs) for _ in range(rng.randint(lo, hi)))\n    tests.append(fmt(b, [rnd_tok(list(b) + noise, 1, 12) for _ in range(N)]))\n    tests.append(fmt(b, [rnd_tok(list(b), 1, 4) for _ in range(N)]))\n    tests.append(fmt(b, [rng.choice(b) for _ in range(N)]))\n    tests.append(fmt(b, [b] * N))\n    tests.append(fmt(b, [''.join(rng.sample(b, rng.randint(5, 10))) + rnd_tok(noise, 0, 2) for _ in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_pairs(chars: str, tokens: List[str]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    m = int(data[0])\n    n = int(data[1])\n    chars = data[2]\n    tokens = data[3:3 + n]\n    print(count_pairs(chars, tokens))\n\n\nmain()\n",
+  "javascript": "function countPairs(chars, tokens) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst m = Number(t[0])\nconst n = Number(t[1])\nconst chars = t[2]\nconst tokens = t.slice(3, 3 + n)\nconsole.log(String(countPairs(chars, tokens)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countPairs(const string& chars, vector<string>& tokens) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int m, n;\n    cin >> m >> n;\n    string chars;\n    cin >> chars;\n    vector<string> tokens(n);\n    for (auto& s : tokens) cin >> s;\n    cout << countPairs(chars, tokens) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countPairs(String chars, String[] tokens) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        String[] t = new String(System.in.readAllBytes()).trim().split(\"\\\\s+\");\n        int m = Integer.parseInt(t[0]);\n        int n = Integer.parseInt(t[1]);\n        String chars = t[2];\n        String[] tokens = new String[n];\n        for (int i = 0; i < n; i++) tokens[i] = t[3 + i];\n        System.out.println(countPairs(chars, tokens));\n    }\n}\n"
+ }
+}

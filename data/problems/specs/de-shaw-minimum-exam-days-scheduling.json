@@ -1,0 +1,50 @@
+{
+ "pid": "de-shaw-minimum-exam-days-scheduling",
+ "title": "Minimum Exam Days Scheduling",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A university has `n` courses, numbered `0` to `n - 1`, and `s` students. Each student has enrolled in one or more courses and must sit the exam for every course they enrolled in. A student can take at most **one exam per day**, and every course has exactly one exam, held on a single day.\n\nYou are building the exam timetable. Two courses **conflict** if at least one student is enrolled in both of them, and conflicting courses must be held on different days. Courses that do not conflict may share a day. Every course must be scheduled, including courses nobody enrolled in.\n\nFind the **minimum number of days** needed for the whole timetable.\n\nFor example, with student 1 taking {M, P} and student 2 taking {M, C}, the courses P and C do not conflict, so the timetable is Day 1: {M} and Day 2: {P, C}, which takes 2 days.\n\nIn graph terms, courses are nodes, two courses are joined by an edge if some student takes both, and the answer is the smallest number of colours needed to colour the nodes so that adjacent nodes differ (the chromatic number). Note that this is not a topological-sort level count: the graph is undirected and has no ordering.",
+ "input_format": "The first line contains two integers `n` and `s`.\nEach of the next `s` lines describes one student: an integer `k` followed by `k` distinct course numbers (0-indexed) that the student takes.",
+ "output_format": "Print a single integer: the minimum number of exam days.",
+ "constraints": [
+  "1 ≤ n ≤ 12",
+  "1 ≤ s ≤ 1000",
+  "1 ≤ k ≤ n for every student",
+  "course numbers are distinct within a student and lie in [0, n - 1]"
+ ],
+ "examples": [
+  {
+   "input": "3 2\n2 0 1\n2 0 2",
+   "output": "2",
+   "explanation": "Courses 0 and 1 conflict, and courses 0 and 2 conflict, but courses 1 and 2 do not. Day 1 holds course 0 and day 2 holds courses 1 and 2."
+  },
+  {
+   "input": "4 3\n3 0 1 2\n2 2 3\n1 1",
+   "output": "3",
+   "explanation": "Courses 0, 1 and 2 are pairwise in conflict (one student takes all three), so at least 3 days are needed. Course 3 conflicts only with course 2, so it can share a day with course 0 or 1."
+  },
+  {
+   "input": "3 1\n1 1",
+   "output": "1",
+   "explanation": "There are no conflicts, so all three courses can be held on the same day."
+  }
+ ],
+ "complexity": {
+  "time": "O(3^n + s * n^2)",
+  "space": "O(2^n)"
+ },
+ "hints": [
+  "Build the conflict graph first: for each student, mark every pair of their courses as conflicting. Then the problem is to partition the courses into the fewest groups with no conflicting pair inside a group.",
+  "Precompute, for every subset of courses (as a bitmask), whether it is conflict-free (an independent set).",
+  "Let `dp[mask]` be the fewest days needed for the courses in `mask`. To fill it, enumerate the submasks of `mask` that are conflict-free and contain the lowest course of `mask`, giving `dp[mask] = min(dp[mask ^ sub] + 1)`."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, s = int(data[0]), int(data[1])\n    pos = 2\n    adj = [0] * n\n    for _ in range(s):\n        k = int(data[pos])\n        cs = [int(x) for x in data[pos + 1:pos + 1 + k]]\n        pos += 1 + k\n        m = 0\n        for c in cs:\n            m |= 1 << c\n        for c in cs:\n            adj[c] |= m & ~(1 << c)\n    full = (1 << n) - 1\n    indep = [True] * (1 << n)\n    for mask in range(1, 1 << n):\n        low = (mask & -mask).bit_length() - 1\n        rest = mask & (mask - 1)\n        indep[mask] = indep[rest] and (adj[low] & rest) == 0\n    INF = 99\n    dp = [INF] * (1 << n)\n    dp[0] = 0\n    for mask in range(1, 1 << n):\n        low = mask & -mask\n        rest = mask ^ low\n        sub = rest\n        best = INF\n        while True:\n            cand = sub | low\n            if indep[cand]:\n                v = dp[mask ^ cand] + 1\n                if v < best:\n                    best = v\n            if sub == 0:\n                break\n            sub = (sub - 1) & rest\n        dp[mask] = best\n    print(dp[full])\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, s = int(data[0]), int(data[1])\npos = 2\nconf = [[False] * n for _ in range(n)]\nfor _ in range(s):\n    k = int(data[pos])\n    cs = [int(x) for x in data[pos + 1:pos + 1 + k]]\n    pos += 1 + k\n    for a in cs:\n        for b in cs:\n            if a != b:\n                conf[a][b] = True\n\ndef colorable(k):\n    col = [-1] * n\n    def go(v, used):\n        if v == n:\n            return True\n        for c in range(min(k, used + 1)):\n            if all(not (conf[v][u] and col[u] == c) for u in range(v)):\n                col[v] = c\n                if go(v + 1, max(used, c + 1)):\n                    return True\n                col[v] = -1\n        return False\n    return go(0, 0)\n\nk = 1\nwhile not colorable(k):\n    k += 1\nprint(k)\n",
+ "generator": "def gen(rng):\n    def fmt(n, studs):\n        return f'{n} {len(studs)}\\n' + '\\n'.join(f'{len(st)} ' + ' '.join(map(str, st)) for st in studs)\n    def from_edges(n, edges, extra=0):\n        studs = [[a, b] for a, b in edges]\n        rng.shuffle(studs)\n        for _ in range(extra):\n            k = rng.randint(1, min(n, 3))\n            studs.append(rng.sample(range(n), k))\n        if not studs:\n            studs = [[0]]\n        return fmt(n, studs)\n    def rand_graph(n, p):\n        return [(a, b) for a in range(n) for b in range(a + 1, n) if rng.random() < p]\n    tests = [\n        fmt(1, [[0]]),\n        fmt(3, [[0, 1], [0, 2]]),\n        fmt(4, [[0, 1, 2], [2, 3], [1]]),\n        fmt(3, [[1]]),\n        fmt(2, [[0, 1]]),\n        fmt(5, [[0, 1], [1, 2], [2, 3], [3, 4], [4, 0]]),\n        fmt(12, [list(range(12))]),\n        fmt(12, [[i] for i in range(12)]),\n        fmt(12, [[i, (i + 1) % 12] for i in range(12)]),\n    ]\n    for n in range(2, 9):\n        for _ in range(2):\n            tests.append(from_edges(n, rand_graph(n, rng.choice([0.2, 0.4, 0.6])), extra=rng.randint(0, 3)))\n    for p in (0.1, 0.2, 0.3, 0.5, 0.7, 0.9):\n        tests.append(from_edges(12, rand_graph(12, p), extra=rng.randint(0, 5)))\n    # Mycielski-style hard graph: Grotzsch graph has chromatic number 4 on 11 nodes\n    g = [(0, 1), (0, 4), (1, 2), (2, 3), (3, 4)]\n    for i in range(5):\n        g.append((i + 5, (i + 1) % 5))\n        g.append((i + 5, (i + 4) % 5))\n        g.append((i + 5, 10))\n    tests.append(fmt(12, [list(e) for e in g]))\n    # 1000 students with small random enrolments on 12 courses\n    studs = []\n    for _ in range(1000):\n        k = rng.choice([1, 1, 2, 2, 3])\n        studs.append(rng.sample(range(12), k))\n    tests.append(fmt(12, studs))\n    # sparse conflicts, many students, answer small but all 3^12 transitions run\n    studs = [[a, b] for a, b in rand_graph(12, 0.25)] * 40\n    tests.append(fmt(12, studs[:1000]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_exam_days(n: int, students: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, s = int(data[0]), int(data[1])\n    pos = 2\n    students = []\n    for _ in range(s):\n        k = int(data[pos])\n        students.append([int(x) for x in data[pos + 1:pos + 1 + k]])\n        pos += 1 + k\n    print(min_exam_days(n, students))\n\n\nmain()\n",
+  "javascript": "function minExamDays(n, students) {\n  // Write your solution here\n  return 0\n}\n\nconst tk = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = tk[0], s = tk[1]\nlet pos = 2\nconst students = []\nfor (let i = 0; i < s; i++) {\n  const k = tk[pos]\n  students.push(tk.slice(pos + 1, pos + 1 + k))\n  pos += 1 + k\n}\nconsole.log(String(minExamDays(n, students)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minExamDays(int n, vector<vector<int>>& students) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, s;\n    cin >> n >> s;\n    vector<vector<int>> students(s);\n    for (int i = 0; i < s; i++) {\n        int k;\n        cin >> k;\n        students[i].resize(k);\n        for (int j = 0; j < k; j++) cin >> students[i][j];\n    }\n    cout << minExamDays(n, students) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minExamDays(int n, List<int[]> students) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int s = (int) in.nval;\n        List<int[]> students = new ArrayList<>();\n        for (int i = 0; i < s; i++) {\n            in.nextToken();\n            int k = (int) in.nval;\n            int[] cs = new int[k];\n            for (int j = 0; j < k; j++) {\n                in.nextToken();\n                cs[j] = (int) in.nval;\n            }\n            students.add(cs);\n        }\n        System.out.println(minExamDays(n, students));\n    }\n}\n"
+ }
+}

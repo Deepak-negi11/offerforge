@@ -1,0 +1,17 @@
+{
+ "qid": "4214102c2e",
+ "question": "Juspay SDE, system interview (Technical Interview 2). The interviewer asked OS and hardware questions, reported as: **single-core vs multi-core CPUs; how can a single-core machine run a music player and an IDE at the same time (context switching); clock speed and CPU cycles; and how multithreading works on a single core.** The same round also covered the candidate's projects (an API endpoint, JWT authentication) and one DSA problem (Set Matrix Zeroes).",
+ "lookingFor": [
+  "Correct distinction between concurrency and parallelism.",
+  "Understanding of what a context switch saves, restores and costs.",
+  "Link between clock speed, cycles and actual performance.",
+  "Ability to reason about threads vs processes from first principles."
+ ],
+ "answer": "**Single-core vs multi-core.** A core executes one instruction stream at a time (ignoring hardware threads such as hyper-threading, which share a core's units). A single-core CPU gives only *concurrency* (interleaving); a multi-core CPU gives *parallelism* (several tasks truly running at the same instant).\n\n**Music player and IDE on one core.** The OS scheduler time-slices the CPU. Each runnable thread gets a short quantum (typically a few milliseconds). A timer interrupt fires, the kernel saves the running thread's state, picks another runnable thread, and restores that thread's state. Switching thousands of times per second makes both applications appear simultaneous. Audio playback is mostly waiting on I/O and uses small buffers, so it needs only brief CPU slices.\n\n**Context switch**\n- Saved and restored: program counter, registers, stack pointer, and the thread's control-block state; between processes, also the memory mapping (page table).\n- Cost: the save/restore itself, plus indirect costs: the CPU caches and the TLB are cold for the incoming task (a process switch is costlier than a thread switch within the same process, since the address space is unchanged). Too many switches waste time that should go to useful work.\n- Triggers: quantum expiry, blocking on I/O, a higher-priority task becoming ready, or a voluntary yield.\n\n**Clock speed and cycles.** Clock speed (GHz) is how many cycles per second the CPU clock ticks. An instruction takes one or more cycles, and modern CPUs complete several instructions per cycle via pipelining and superscalar execution (IPC). So performance is roughly clock speed x IPC; a higher GHz alone does not guarantee a faster CPU. Cache misses and memory waits stall cycles.\n\n**Multithreading on one core.** Threads share the process's memory but have their own stacks and registers. On one core they are interleaved, not parallel, so there is no speedup for CPU-bound work. They still help when threads block on I/O (another thread runs meanwhile) and they keep a UI responsive. Shared data still needs synchronization, since the scheduler can preempt a thread in the middle of an update.",
+ "followUps": [
+  "What is the difference between a process context switch and a thread context switch?",
+  "Why might adding more threads make a CPU-bound program slower?",
+  "What is a time quantum and how does it affect Round Robin scheduling?",
+  "What is the difference between concurrency and parallelism?"
+ ]
+}

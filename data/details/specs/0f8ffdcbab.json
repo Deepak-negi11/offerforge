@@ -1,0 +1,17 @@
+{
+ "qid": "0f8ffdcbab",
+ "question": "In a Bloomberg SDE Intern interview the candidate discussed which data structure to use for a telephone lookup that must be efficient both ways: looking up a number by name and looking up a name by phone number.",
+ "lookingFor": [
+  "Choosing hash maps for O(1) exact-match lookups",
+  "Thinking about both directions and keeping them consistent",
+  "Handling duplicates and the one-to-many case",
+  "Knowing when a trie or ordered tree is the better fit (prefix and range queries)"
+ ],
+ "answer": "**Basic answer: two hash maps.** Keep `name_to_number` and `number_to_name`. Each lookup is **O(1) average**; insert and delete update both maps. Space is O(n), twice the entries.\n\n```python\nclass Directory:\n    def __init__(self):\n        self.by_name, self.by_number = {}, {}\n\n    def add(self, name, number):\n        self.by_name.setdefault(name, set()).add(number)\n        self.by_number[number] = name\n\n    def number_of(self, name):  return self.by_name.get(name, set())\n    def name_of(self, number):  return self.by_number.get(number)\n```\n\n**Clarify the data model before choosing.**\n- Is a name unique? Real people share names, and one person can have several numbers. Then `name -> set of numbers`. A phone number normally maps to one owner, so `number -> name` is many-to-one.\n- Normalise numbers (strip spaces, country code) and names (case) before using them as keys.\n- On update or delete, change **both** maps so they never disagree (a single class owns both).\n\n**When a hash map is not enough**\n- **Prefix search / autocomplete** (\"Joh...\"): a **trie** over names, O(L) per lookup where L is the key length, and it can list all keys under a prefix. The same works for number prefixes (area codes).\n- **Sorted listing or range queries**: a balanced BST (Java `TreeMap`, C++ `std::map`) gives O(log n) lookups and ordered iteration.\n- **Fuzzy matching** needs different structures (edit distance, n-grams).\n\n**Trade-offs:** hash maps are fastest for exact matches but unordered and need good hash functions; a trie spends more memory but supports prefix queries; trees give order at O(log n). In a database this would be two indexes on one table (a unique index on the number, an index on the name), not two copies of the data.\n\n**Worst case:** hash collisions can degrade to O(n) per lookup in a poor implementation; Java 8+ `HashMap` converts long buckets into trees, giving O(log n).",
+ "followUps": [
+  "How would you add autocomplete by name prefix?",
+  "What if two people have the same name?",
+  "How do you keep the two maps consistent under concurrent updates?",
+  "How would you store this if it doesn't fit in memory?"
+ ]
+}

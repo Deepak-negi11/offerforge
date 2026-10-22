@@ -1,0 +1,18 @@
+{
+ "qid": "629d885d89",
+ "question": "Microsoft SDE-1 system design round (the last of three one-hour rounds: DSA, OOD, system design): **design a subscription service with a family-invitation feature**. The author found it relatively easy, so the focus is a clean data model and invite flow rather than extreme scale.",
+ "lookingFor": [
+  "Modeling plans, subscriptions, members and invitations.",
+  "Designing a safe invitation lifecycle.",
+  "Enforcing business rules (seat limits, one family per user).",
+  "Consistency and concurrency on shared state.",
+  "Clear APIs and sensible, not over-engineered, architecture."
+ ],
+ "answer": "**Clarify.** A user buys a subscription (e.g. a plan with up to 6 seats). The owner can invite family members by email or user id; invitees accept or decline; the owner can remove members; members get plan benefits while the subscription is active. Questions to ask: can a user belong to more than one family, is there a limit on seats, how long do invites last, what happens at cancellation or non-payment?\n\n**Entities.**\n- `User(id, email, ...)`\n- `Plan(id, name, price, maxMembers)`\n- `Subscription(id, ownerId, planId, status, renewalDate)`\n- `FamilyMember(subscriptionId, userId, role, joinedAt)` with a unique constraint on `userId` (if one family only)\n- `Invitation(id, subscriptionId, inviteeEmail/userId, token, status, expiresAt)`; statuses PENDING, ACCEPTED, DECLINED, EXPIRED, REVOKED\n\n**APIs.**\n- `POST /subscriptions` (purchase), `GET /subscriptions/{id}`\n- `POST /subscriptions/{id}/invitations`, `POST /invitations/{token}/accept`, `/decline`, `DELETE /invitations/{id}`\n- `DELETE /subscriptions/{id}/members/{userId}`, `POST /subscriptions/{id}/leave`\n\n**Rules enforced server side.** Only the owner invites; pending plus active members must not exceed `maxMembers`; the invitee must not already be in another family; tokens are random, single use and expiring. Check seat count and insert inside **one transaction** (lock the subscription row) so two simultaneous accepts cannot exceed the limit; add a unique index on the member's user id as a second guard.\n\n**Architecture.** A simple service in front of a relational DB (transactions matter), with an entitlement check that other services call (cached with short TTL, invalidated by events). A Notification service sends invite emails asynchronously via a queue. A scheduled job expires old invitations. Billing and renewal are separate; a cancelled or lapsed subscription removes entitlements for all members after the grace period.\n\n**Scale.** The load is small; use read replicas and cache entitlements, shard by subscription id only if needed.\n\n**Mistakes to avoid:** forgetting race conditions on seat limits, guessable invite links, and missing the edge cases at cancellation.",
+ "followUps": [
+  "How do you prevent two accepts from exceeding the seat limit?",
+  "What happens to members when the owner cancels?",
+  "How would you let a member switch to another family?",
+  "How would you protect invite links from abuse?"
+ ]
+}

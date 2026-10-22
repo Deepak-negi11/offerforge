@@ -1,0 +1,48 @@
+{
+ "pid": "count-submatrices-with-all-ones",
+ "title": "Count Submatrices With All Ones",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given a binary grid with `r` rows and `c` columns, where every cell is `0` or `1`. Count the number of **submatrices** in which every cell is `1`.\n\nA submatrix is a contiguous rectangle of cells, described by a top row, a bottom row, a left column and a right column. Submatrices at different positions are counted separately, even if they have the same size, and a single cell is a `1 x 1` submatrix.\n\nThe brute-force approach checks every rectangle and is `O(n^4)` or worse for an `n x n` grid; aim for a solution that is linear in the number of cells.",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains a string of exactly `c` characters, each `0` or `1`, with no spaces.",
+ "output_format": "Print a single integer: the number of submatrices consisting only of ones.",
+ "constraints": [
+  "1 ≤ r, c ≤ 700",
+  "Each cell is `0` or `1`"
+ ],
+ "examples": [
+  {
+   "input": "2 3\n110\n111",
+   "output": "12",
+   "explanation": "1x1: 5 ones. 1x2: one in the top row and two in the bottom row, giving 3. 1x3: 1 (bottom row). 2x1: columns 0 and 1, giving 2. 2x2: columns 0-1, giving 1. A 2x3 rectangle contains a zero. Total 5 + 3 + 1 + 2 + 1 = 12."
+  },
+  {
+   "input": "1 4\n1011",
+   "output": "4",
+   "explanation": "There are three single ones and one 1x2 rectangle covering the last two cells."
+  },
+  {
+   "input": "3 3\n111\n111\n111",
+   "output": "36",
+   "explanation": "Every rectangle qualifies: there are 6 ways to choose a row range and 6 ways to choose a column range, so 6 * 6 = 36."
+  }
+ ],
+ "complexity": {
+  "time": "O(r · c)",
+  "space": "O(c)"
+ },
+ "hints": [
+  "Count rectangles by their bottom-right corner. Keep, for each column, the height of the consecutive ones ending at the current row.",
+  "For a fixed bottom-right corner (i, j), the number of rectangles is the sum over widths w = 1, 2, ... of min(height[j], ..., height[j-w+1]). Doing this directly costs O(c) per cell, which is too slow for 700 x 700.",
+  "Let `cnt[j]` be the count for the corner in column j. Find the nearest column p to the left with `height[p] < height[j]` using a monotonic stack. Then `cnt[j] = cnt[p] + height[j] * (j - p)`, because beyond p the answer is already counted by p's value."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    h = [0] * c\n    total = 0\n    for i in range(r):\n        row = data[2 + i]\n        for j in range(c):\n            h[j] = h[j] + 1 if row[j] == '1' else 0\n        stack = []\n        cnt = [0] * c\n        for j in range(c):\n            hj = h[j]\n            while stack and h[stack[-1]] >= hj:\n                stack.pop()\n            if stack:\n                p = stack[-1]\n                cnt[j] = cnt[p] + hj * (j - p)\n            else:\n                cnt[j] = hj * (j + 1)\n            stack.append(j)\n            total += cnt[j]\n    print(total)\n\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\ng = [data[2 + i] for i in range(r)]\ntotal = 0\nfor r1 in range(r):\n    for r2 in range(r1, r):\n        for c1 in range(c):\n            for c2 in range(c1, c):\n                ok = True\n                for i in range(r1, r2 + 1):\n                    for j in range(c1, c2 + 1):\n                        if g[i][j] != '1':\n                            ok = False\n                            break\n                    if not ok:\n                        break\n                if ok:\n                    total += 1\nprint(total)\n",
+ "generator": "def gen(rng):\n    def fmt(g):\n        return f'{len(g)} {len(g[0])}\\n' + '\\n'.join(g)\n\n    def rand_grid(r, c, p):\n        return [''.join('1' if rng.random() < p else '0' for _ in range(c)) for _ in range(r)]\n\n    tests = [fmt(['1']), fmt(['0']), fmt(['11']), fmt(['1', '1']), fmt(['110', '111']), fmt(['1011']),\n             fmt(['111', '111', '111']), fmt(['000', '000']), fmt(['101', '010', '101'])]\n    for _ in range(40):\n        r = rng.randint(1, 7)\n        c = rng.randint(1, 7)\n        tests.append(fmt(rand_grid(r, c, rng.choice([0.3, 0.6, 0.85, 1.0]))))\n    n = 700\n    tests.append(fmt(['1' * n] * n))\n    tests.append(fmt(rand_grid(n, n, 0.97)))\n    tests.append(fmt(rand_grid(n, n, 0.5)))\n    # staircase-like heights\n    tests.append(fmt([''.join('1' if j <= i else '0' for j in range(n)) for i in range(n)]))\n    tests.append(fmt([''.join('1' if (i + j) % 700 != 0 else '0' for j in range(n)) for i in range(n)]))\n    tests.append(fmt(rand_grid(300, 700, 0.9)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_submatrices(grid: List[str]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    grid = data[2:2 + r]\n    print(count_submatrices(grid))\n\n\nmain()\n",
+  "javascript": "function countSubmatrices(grid) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst r = Number(t[0])\nconst grid = t.slice(2, 2 + r)\nconsole.log(String(countSubmatrices(grid)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countSubmatrices(vector<string>& grid) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<string> grid(r);\n    for (int i = 0; i < r; i++) cin >> grid[i];\n    cout << countSubmatrices(grid) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countSubmatrices(String[] grid) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int r = Integer.parseInt(st.nextToken());\n        int c = Integer.parseInt(st.nextToken());\n        String[] grid = new String[r];\n        for (int i = 0; i < r; i++) grid[i] = br.readLine().trim();\n        System.out.println(countSubmatrices(grid));\n    }\n}\n"
+ }
+}

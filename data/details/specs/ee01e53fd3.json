@@ -1,0 +1,19 @@
+{
+ "qid": "ee01e53fd3",
+ "question": "Oracle OCI SMTS (IC3), final loop round, roughly 20-30 minutes left. The prompt as reported: a large multinational food company wants a system that displays in-store menu items for each of its locations. It must be **managed centrally**, support **scheduled promotions**, let **each location have a different price** for its menu items, and be able to offer **breakfast, lunch and dinner** menus.\n\nDesign this content management system. The candidate noted that fitting the whole design into the short time was the hard part.",
+ "lookingFor": [
+  "Can you turn a vague product prompt into clear requirements and a time-boxed plan?",
+  "Do you model data well: central catalogue, per-location overrides, time-based menus and promotions?",
+  "Can you resolve 'which price and which menu is active right now' deterministically?",
+  "Do you reason about read-heavy traffic, caching and pushing updates to many stores?",
+  "Do you prioritise: sketch the core first, then go deep on one or two areas?"
+ ],
+ "answer": "**Time-box first.** With about 20 minutes, spend 3 on requirements, 5 on data model and APIs, 7 on the core flow, and the rest on scale and trade-offs.\n\n**Requirements and assumptions.** Central admins manage a catalogue of items. Each location (store) can override price and availability. Menus are time-based (breakfast, lunch, dinner) and promotions are scheduled with start and end times. In-store screens only read. Assume tens of thousands of stores, millions of screen reads per day, rare writes, and that a promo going live on time matters more than instant consistency.\n\n**Entities.**\n- `Item` (id, name, description, image, base_price)\n- `Menu` (id, daypart, items) and `DaypartSchedule` (location or region, daypart, start and end time, timezone)\n- `Location` (id, region, timezone)\n- `PriceOverride` (location or region, item, price, effective_from, effective_to)\n- `Promotion` (id, rule such as percent off or fixed price, item or menu scope, locations, start, end, status)\n\nUse a hierarchy for overrides: global, then region, then location. The most specific active rule wins.\n\n**Components.** An admin service writes to a relational store (Postgres or Oracle DB) because the data is relational and write volume is low. Writes go through a draft, review, publish workflow. On publish, the service builds a resolved menu snapshot per location and daypart and writes it to a versioned object store or cache. A CDN or regional cache serves the snapshots. Store devices poll with an ETag, or subscribe to a push channel for change notices.\n\n**Resolving what is shown.** Given location and local time, pick the active daypart, take its items, apply the most specific price override, then apply the best active promotion. Evaluate it at publish time for known schedule boundaries, and have a scheduler pre-compute the next snapshot just before a boundary so stores switch at the right moment.\n\n**Trade-offs.** Pre-computed snapshots give fast, offline-tolerant reads but need regeneration when the base data changes. Computing on read is simpler but adds latency and load. Handle stale devices by caching the last snapshot locally. Add audit logs, role-based access, and a rollback to the previous version.\n\n**Scaling.** Reads scale through the CDN. Writes are rare and can be queued. Partition by region and publish in waves for safety.",
+ "followUps": [
+  "How would you handle a promotion that must start at exactly 11:00 local time in many time zones?",
+  "What happens if a store loses connectivity when a menu change is published?",
+  "How would you let a franchise owner set prices but forbid them from going below a floor?",
+  "Would you pre-compute menus or compute them on request, and why?",
+  "How would you support A/B testing of menu layouts?"
+ ]
+}

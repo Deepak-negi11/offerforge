@@ -1,0 +1,49 @@
+{
+ "pid": "ola-pair-sum",
+ "title": "Pair Sum",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `a` of `n` integers and a target `S`. Find **all pairs of array elements whose sum equals `S`** and report them in sorted order.\n\nA pair is written as two values `x y` with `x ≤ y` and `x + y = S`. It is reported when the array contains the value `x` at one index and the value `y` at a **different** index (so for `x = y` the value must occur at least twice). Each distinct pair of values is reported **once**, even if it can be formed from several pairs of indices. The pairs are listed in increasing order of `x`.",
+ "input_format": "The first line contains two integers `n` and `S`.\nThe second line contains `n` integers `a[0] ... a[n-1]`.",
+ "output_format": "On the first line print `m`, the number of distinct pairs. Then print `m` lines, each containing a pair `x y`, sorted by increasing `x`. If there are no pairs, print only `0`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "-10^9 ≤ a[i] ≤ 10^9",
+  "-2 · 10^9 ≤ S ≤ 2 · 10^9"
+ ],
+ "examples": [
+  {
+   "input": "6 7\n5 1 4 6 2 3",
+   "output": "3\n1 6\n2 5\n3 4",
+   "explanation": "1+6, 2+5 and 3+4 all equal 7. They are printed with the smaller value first, in increasing order of that value."
+  },
+  {
+   "input": "5 6\n3 3 3 1 5",
+   "output": "2\n1 5\n3 3",
+   "explanation": "The value 3 occurs three times, so the pair 3 3 is valid, but it is printed only once. The pair 1 5 is also valid."
+  },
+  {
+   "input": "3 10\n1 2 3",
+   "output": "0",
+   "explanation": "No two elements add up to 10."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Checking every pair of indices costs O(n^2). For a value `x`, what single value `y` would complete the pair?",
+  "Count the occurrences of every value in a hash map so you can ask whether `S - x` is present in O(1).",
+  "Walk the distinct values in increasing order and only consider `x ≤ S - x`. When `x == S - x`, require a count of at least 2. This also gives the sorted output for free."
+ ],
+ "reference": "import sys\nfrom collections import Counter\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, s = int(data[0]), int(data[1])\n    cnt = Counter(int(x) for x in data[2:2 + n])\n    res = []\n    for a in sorted(cnt):\n        b = s - a\n        if a < b:\n            if b in cnt:\n                res.append((a, b))\n        elif a == b:\n            if cnt[a] >= 2:\n                res.append((a, b))\n        else:\n            break\n    out = [str(len(res))]\n    out.extend('%d %d' % p for p in res)\n    print('\\n'.join(out))\n\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, s = int(data[0]), int(data[1])\na = [int(x) for x in data[2:2 + n]]\nfound = set()\nfor i in range(n):\n    for j in range(i + 1, n):\n        if a[i] + a[j] == s:\n            found.add((min(a[i], a[j]), max(a[i], a[j])))\nres = sorted(found)\nprint('\\n'.join([str(len(res))] + ['%d %d' % p for p in res]))\n",
+ "generator": "def gen(rng):\n    def fmt(a, s):\n        return f'{len(a)} {s}\\n' + ' '.join(map(str, a))\n    tests = [fmt([5, 1, 4, 6, 2, 3], 7), fmt([3, 3, 3, 1, 5], 6), fmt([1, 2, 3], 10), fmt([4], 8), fmt([4, 4], 8),\n             fmt([1, 5], 6), fmt([0, 0, 0], 0), fmt([-3, 3, -3, 3, 0], 0), fmt([10**9, -10**9], 0),\n             fmt([10**9, 10**9], 2 * 10**9), fmt([-10**9, -10**9, 10**9], -2 * 10**9)]\n    for _ in range(50):\n        n = rng.randint(1, 14)\n        r = rng.choice([3, 6, 10])\n        a = [rng.randint(-r, r) for _ in range(n)]\n        tests.append(fmt(a, rng.randint(-r, r)))\n    for _ in range(6):\n        n = rng.randint(2, 20)\n        a = [rng.randint(-10**9, 10**9) for _ in range(n)]\n        s = rng.choice(a) + rng.choice(a)\n        tests.append(fmt(a, s))\n    # max-size tests\n    S = 123456789\n    vals = rng.sample(range(-10**9 + 1000, 10**9 - 1000), 50000)\n    a = []\n    for v in vals:\n        a.append(v)\n        w = S - v\n        if abs(w) <= 10**9:\n            a.append(w)\n        else:\n            a.append(v)\n    a = a[:100000]\n    rng.shuffle(a)\n    tests.append(fmt(a, S))\n    a = [rng.randint(-10**9, 10**9) for _ in range(100000)]\n    tests.append(fmt(a, 0))\n    a = [rng.randint(-100000, 100000) for _ in range(100000)]\n    tests.append(fmt(a, 7))\n    a = [500000000] * 100000\n    tests.append(fmt(a, 10**9))\n    a = list(range(-50000, 50000))\n    rng.shuffle(a)\n    tests.append(fmt(a, 1))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef pair_sum(a: List[int], s: int) -> List[Tuple[int, int]]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, s = int(data[0]), int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    pairs = pair_sum(a, s)\n    out = [str(len(pairs))]\n    for x, y in pairs:\n        out.append(f'{x} {y}')\n    print('\\n'.join(out))\n\n\nmain()\n",
+  "javascript": "function pairSum(a, s) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], s = t[1]\nconst a = t.slice(2, 2 + n)\nconst pairs = pairSum(a, s)\nconst out = [String(pairs.length)]\nfor (const [x, y] of pairs) out.push(x + ' ' + y)\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<pair<long long, long long>> pairSum(vector<long long>& a, long long s) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long s;\n    cin >> n >> s;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    auto pairs = pairSum(a, s);\n    cout << pairs.size() << \"\\n\";\n    for (auto& p : pairs) cout << p.first << ' ' << p.second << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<long[]> pairSum(long[] a, long s) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        long s = (long) in.nval;\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (long) in.nval;\n        }\n        List<long[]> pairs = pairSum(a, s);\n        StringBuilder sb = new StringBuilder();\n        sb.append(pairs.size()).append(\"\\n\");\n        for (long[] p : pairs) sb.append(p[0]).append(' ').append(p[1]).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

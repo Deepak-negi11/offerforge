@@ -1,0 +1,17 @@
+{
+ "qid": "46780eaef7",
+ "question": "In a Walmart SDE-2 Java round, the interviewer asked how `HashMap` works and how `ConcurrentHashMap` works (the candidate could not answer the latter and the interviewer planned an extra clarification round). Other topics were string mutability, Java 8 concepts, polymorphism and multithreading.",
+ "lookingFor": [
+  "Accurate internal model of HashMap: hashing, buckets, collisions, resizing",
+  "Knowing why HashMap is unsafe under concurrency and how ConcurrentHashMap solves it",
+  "Awareness of Java 8 changes (treeification, CAS plus per-bin locking)",
+  "Linking string immutability to hashing and security"
+ ],
+ "answer": "**HashMap (Java 8).** An array of buckets. For a key, compute `hashCode()`, spread the bits (`h ^ (h >>> 16)`), and pick the index `(n - 1) & hash` (n is a power of two). Colliding entries form a linked list in the bucket; when a bucket exceeds 8 entries and the table has at least 64 buckets, it is converted to a red-black tree, so worst-case lookup is O(log n) instead of O(n). `get` compares hashes then uses `equals`. The table doubles when size exceeds capacity x load factor (default 0.75), which rehashes entries. It allows one null key and null values, and is not thread-safe: concurrent puts can lose updates, and concurrent resizes have historically caused corrupted structure and infinite loops.\n\n**ConcurrentHashMap (Java 8).** Same bucket-array idea, with fine-grained concurrency:\n- Inserting into an empty bin uses a lock-free CAS.\n- Updating a non-empty bin uses `synchronized` on that bin's first node only, so threads working on different bins do not block each other. (Java 7 used segments with locks.)\n- Reads are generally non-blocking, using `volatile` fields.\n- No null keys or values, because null would be ambiguous in `get`.\n- Iterators are weakly consistent: no `ConcurrentModificationException`, but they may or may not see concurrent updates.\n- Atomic compound operations: `putIfAbsent`, `compute`, `merge`. Note that `if (!map.containsKey(k)) map.put(k, v)` is still a race; use `putIfAbsent`.\n- `size()` is approximate under concurrent updates.\n\nCompared with `Collections.synchronizedMap` (one lock for all operations) and `Hashtable`, it scales far better.\n\n**String immutability.** A String cannot change after creation. Benefits: safe to share and thread-safe, usable as a stable HashMap key (hash code cached), enables the string pool, and prevents tampering with values such as file paths or class names. Cost: repeated concatenation creates garbage, so use `StringBuilder` in loops.",
+ "followUps": [
+  "What happens if you use a mutable object as a HashMap key and then mutate it?",
+  "Why must you override `hashCode` whenever you override `equals`?",
+  "How does `compute` stay atomic in ConcurrentHashMap?",
+  "What is the difference between fail-fast and weakly consistent iterators?"
+ ]
+}

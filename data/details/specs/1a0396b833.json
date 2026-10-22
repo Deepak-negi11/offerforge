@@ -1,0 +1,19 @@
+{
+ "qid": "1a0396b833",
+ "question": "Design **Splitwise** (low-level design, Salesforce MTS). Gather requirements, identify the entities, then write clean, production-level code (working code was not required).\n\nInput example: `USER1 1000Rs User2 User3 User4 User5 SplitType`. User1 pays 1000 and the amount is split among the listed users by the given split type (equal, percentage, and it must be **extensible** to others). The system must report **(1)** how much every person owes to which person, and **(2)** how much A owes B. One candidate reported giving an O(1) solution for both outputs.",
+ "lookingFor": [
+  "Requirements gathering before coding",
+  "Clean entities and an extensible split design (open/closed principle)",
+  "Correct money handling and validation",
+  "Efficient data structure for balances",
+  "Production concerns: rounding, concurrency, tests"
+ ],
+ "answer": "**Requirements.** Add users, add an expense (payer, total, participants, split type), show all balances, show balance between two users. Split types: EQUAL, EXACT, PERCENT, and easy to add more (shares). Non-goals for now: groups, currency conversion, debt simplification.\n\n**Entities.**\n- `User` (id, name).\n- `Expense` (id, paidBy, amount, list of `Split`).\n- `Split` with a `userId` and `amount`.\n- `SplitStrategy` interface: `List<Split> compute(amount, participants, values)`, with `EqualSplit`, `ExactSplit`, `PercentSplit`. A small factory maps the split type to a strategy. A new type means a new class, with no edits to the service (open/closed).\n- `BalanceSheet`: `Map<userId, Map<userId, long>>` of what each user owes each other user.\n- `ExpenseService` ties it together.\n\n**Flow.** Validate input: percentages sum to 100, exact amounts sum to the total, participants exist. Compute splits. For every split whose user is not the payer, add the amount to `owes[user][payer]` and subtract it from `owes[payer][user]` (keep one net number per pair). Each expense costs O(k) for k participants.\n\n**Outputs.**\n1. All balances: iterate the map and print non-zero entries, skipping the mirrored pair.\n2. How much A owes B: a single lookup `owes[A][B]`, which is O(1) because the net is maintained at write time.\n\n**Money.** Store integer paise or use `BigDecimal`, never floats. For 1000 split among 3, shares are 333.33, 333.33, 333.34: give the remainder to the payer or the first participants so the splits add up exactly to the total.\n\n**Extras.** Debt simplification: compute each person's net balance, then repeatedly match the largest creditor with the largest debtor using two heaps. Thread safety: lock per expense or use a transaction in a database. Tests: unit tests per strategy.",
+ "followUps": [
+  "How would you simplify debts so the fewest transactions settle the group?",
+  "How do you handle rounding when 100 does not divide evenly?",
+  "How would you persist this, and what tables would you create?",
+  "How would you support groups, currencies or settling up?",
+  "How would you make balance updates safe under concurrent expenses?"
+ ]
+}

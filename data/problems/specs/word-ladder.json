@@ -1,0 +1,51 @@
+{
+ "pid": "word-ladder",
+ "title": "Word Ladder",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given a start word `beginWord`, a target word `endWord` and a dictionary `wordList`. All words have the same length and use only lowercase English letters.\n\nA **ladder** is a sequence of words `beginWord = w1, w2, …, wk = endWord` such that:\n\n- Each consecutive pair `w(i)`, `w(i+1)` differs in **exactly one** position.\n- Every word after the first, `w2 … wk`, belongs to `wordList`. The start word itself does not need to be in the dictionary.\n\nReturn the **number of words** in the shortest ladder (so a ladder that goes straight from `beginWord` to `endWord` has length `2`). If no ladder exists — in particular, if `endWord` is not in `wordList` — return `0`.",
+ "input_format": "The first line contains `beginWord` and `endWord` separated by a space.\nThe second line contains an integer `k`, the size of the dictionary.\nThe third line contains the `k` dictionary words separated by spaces.",
+ "output_format": "Print a single integer: the number of words in the shortest ladder, or `0` if none exists.",
+ "constraints": [
+  "1 ≤ L ≤ 10, where L is the length of every word",
+  "1 ≤ k ≤ 5000",
+  "All words consist of lowercase English letters and have length L",
+  "The words in `wordList` are distinct",
+  "beginWord ≠ endWord"
+ ],
+ "examples": [
+  {
+   "input": "lead gold\n6\nload goad gold lord loud gead",
+   "output": "4",
+   "explanation": "One shortest ladder is lead → load → goad → gold (4 words). Each step changes one letter: e→o, l→g, a→l. No 3-word ladder exists: `lead` and `gold` differ in three positions, and `gead`, the only dictionary word reachable from `lead` other than `load`, is two letters away from `gold`."
+  },
+  {
+   "input": "pin sun\n4\npun pan sun sin",
+   "output": "3",
+   "explanation": "`pin` and `sun` differ in two positions, so at least one word is needed in between. Both pin → pun → sun and pin → sin → sun work, giving 3 words."
+  },
+  {
+   "input": "mild wind\n3\nmind wild bind",
+   "output": "0",
+   "explanation": "`wind` is not in the dictionary, so no ladder can end at it and the answer is 0."
+  }
+ ],
+ "complexity": {
+  "time": "O(k · L · 26)",
+  "space": "O(k · L)"
+ },
+ "hints": [
+  "Treat each word as a node and connect two words that differ in exactly one letter; the answer is a shortest path length, which is what BFS computes.",
+  "Comparing every pair of words is O(k² · L). Instead, generate the neighbours of a word by trying all 26 letters in each position and checking a hash set.",
+  "Remove a word from the set as soon as it is reached so it is never visited twice. Searching from both ends at once and always expanding the smaller frontier cuts the work further."
+ ],
+ "reference": "import sys\nfrom string import ascii_lowercase\n\ndef main():\n    data = sys.stdin.read().split()\n    begin, end = data[0], data[1]\n    k = int(data[2])\n    words = set(data[3:3 + k])\n    if end not in words:\n        print(0)\n        return\n    words.discard(begin)\n    # bidirectional BFS: always expand the smaller frontier\n    front, back = {begin}, {end}\n    words.discard(end)\n    steps = 1\n    L = len(begin)\n    while front and back:\n        if len(front) > len(back):\n            front, back = back, front\n        nxt = set()\n        for w in front:\n            for i in range(L):\n                pre, suf = w[:i], w[i + 1:]\n                for ch in ascii_lowercase:\n                    cand = pre + ch + suf\n                    if cand in back:\n                        print(steps + 1)\n                        return\n                    if cand in words:\n                        words.discard(cand)\n                        nxt.add(cand)\n        front = nxt\n        steps += 1\n    print(0)\n\nmain()\n",
+ "brute": "import sys\nfrom collections import deque\n\ndata = sys.stdin.read().split()\nbegin, end = data[0], data[1]\nk = int(data[2])\nlst = data[3:3 + k]\n\ndef adj(a, b):\n    return sum(x != y for x, y in zip(a, b)) == 1\n\ndist = {begin: 1}\nq = deque([begin])\nans = 0\nwhile q:\n    w = q.popleft()\n    if w == end:\n        ans = dist[w]\n        break\n    for v in lst:\n        if v not in dist and adj(w, v):\n            dist[v] = dist[w] + 1\n            q.append(v)\nprint(ans)\n",
+ "generator": "def gen(rng):\n    def fmt(b, e, lst):\n        return f'{b} {e}\\n{len(lst)}\\n' + ' '.join(lst)\n\n    def word(L, alpha):\n        return ''.join(rng.choice(alpha) for _ in range(L))\n\n    def rand_case(L, alpha, k, end_in=True):\n        pool = set()\n        cap = len(alpha) ** L\n        while len(pool) < min(k + 2, cap):\n            pool.add(word(L, alpha))\n        pool = list(pool)\n        rng.shuffle(pool)\n        b, e = pool[0], pool[1]\n        lst = pool[2:2 + k - 1] if end_in else pool[2:2 + k]\n        if end_in:\n            lst.append(e)\n        if rng.random() < 0.3 and lst:\n            lst.append(b)  # begin word may also appear in the list\n        rng.shuffle(lst)\n        return fmt(b, e, lst)\n\n    tests = [\n        fmt('a', 'c', ['a', 'b', 'c']),\n        fmt('cat', 'cot', ['cot']),\n        fmt('cat', 'dog', ['cot', 'cog', 'dot']),\n        fmt('abc', 'xyz', ['abz', 'ayz']),\n        fmt('aaaa', 'bbbb', ['baaa', 'bbaa', 'bbba', 'bbbb', 'abbb']),\n        fmt('ab', 'cd', ['ad', 'cb', 'xy', 'cd']),\n        fmt('hit', 'hot', ['hat', 'hut']),\n    ]\n    for L, alpha, k in [(2, 'abc', 4), (2, 'abc', 6), (3, 'ab', 5), (3, 'abc', 8), (3, 'abc', 12), (4, 'ab', 9),\n                        (4, 'abc', 15), (4, 'ab', 12), (5, 'ab', 14), (3, 'abcd', 20), (5, 'abc', 25), (6, 'ab', 30)]:\n        tests.append(rand_case(L, alpha, k))\n    tests.append(rand_case(3, 'abc', 10, end_in=False))\n    tests.append(rand_case(4, 'abcd', 18, end_in=False))\n    # large: dense graph on a small alphabet\n    tests.append(rand_case(5, 'abcd', 900))\n    # large: binary words of length 10, long shortest paths\n    tests.append(rand_case(10, 'ab', 1000))\n    # large: a long random chain hidden among distractors\n    L = 8\n    cur = word(L, 'abcdefghijklmnopqrstuvwxyz')\n    chain, seen = [cur], {cur}\n    while len(chain) < 1500:\n        i = rng.randrange(L)\n        nw = cur[:i] + rng.choice('abcdefghijklmnopqrstuvwxyz') + cur[i + 1:]\n        if nw not in seen:\n            seen.add(nw)\n            chain.append(nw)\n            cur = nw\n    lst = chain[1:]\n    while len(lst) < 5000:\n        w = word(L, 'abcdefghijklmnopqrstuvwxyz')\n        if w not in seen:\n            seen.add(w)\n            lst.append(w)\n    rng.shuffle(lst)\n    tests.append(fmt(chain[0], chain[-1], lst))\n    # large: 5000 words of length 10 over three letters\n    tests.append(rand_case(10, 'abc', 5000))\n    # large: dense 4-letter words over 10 letters\n    tests.append(rand_case(4, 'abcdefghij', 5000))\n    # large: the whole start component must be explored before concluding the target is unreachable\n    pool = set()\n    while len(pool) < 4999:\n        pool.add(word(4, 'abcdefghij'))\n    pool = list(pool)\n    b = pool.pop()\n    tests.append(fmt(b, 'zzzz', pool + ['zzzz']))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef ladder_length(begin_word: str, end_word: str, word_list: List[str]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    begin_word, end_word = data[0], data[1]\n    k = int(data[2])\n    word_list = data[3:3 + k]\n    print(ladder_length(begin_word, end_word, word_list))\n\n\nmain()\n",
+  "javascript": "function ladderLength(beginWord, endWord, wordList) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst beginWord = t[0], endWord = t[1]\nconst k = Number(t[2])\nconst wordList = t.slice(3, 3 + k)\nconsole.log(String(ladderLength(beginWord, endWord, wordList)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint ladderLength(string beginWord, string endWord, vector<string>& wordList) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string beginWord, endWord;\n    int k;\n    cin >> beginWord >> endWord >> k;\n    vector<string> wordList(k);\n    for (auto& w : wordList) cin >> w;\n    cout << ladderLength(beginWord, endWord, wordList) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int ladderLength(String beginWord, String endWord, List<String> wordList) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        String beginWord = st.nextToken(), endWord = st.nextToken();\n        int k = Integer.parseInt(st.nextToken());\n        List<String> wordList = new ArrayList<>();\n        for (int i = 0; i < k; i++) wordList.add(st.nextToken());\n        System.out.println(ladderLength(beginWord, endWord, wordList));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "5edeb482ae",
+ "question": "Cognizant GenC (2024) on-campus interview, technical plus HR round. The candidate was asked about **subqueries in MySQL** (explain and write one) and needed a hint from the interviewer. Other SQL topics in the same round were DDL vs DML and ACID properties.",
+ "lookingFor": [
+  "Knows what a subquery is and where it can appear.",
+  "Distinguishes scalar, multi-row and correlated subqueries.",
+  "Can write a standard example such as above-average salary.",
+  "Knows when a join is a better choice."
+ ],
+ "answer": "A **subquery** is a `SELECT` nested inside another SQL statement, enclosed in parentheses. The inner query provides a value or set of values for the outer query. It can appear in `WHERE`, `FROM` (a derived table) or `SELECT`.\n\nAssume `employee(id, name, salary, dept_id)` and `department(id, name)`.\n\n**Scalar subquery** (returns one value): employees earning more than the average\n\n    SELECT name, salary\n    FROM employee\n    WHERE salary > (SELECT AVG(salary) FROM employee);\n\n**Multi-row subquery** (returns a list; use `IN`, `ANY`, `ALL`, `EXISTS`): employees in departments located in Delhi\n\n    SELECT name FROM employee\n    WHERE dept_id IN (SELECT id FROM department WHERE city = 'Delhi');\n\n**Correlated subquery**: the inner query refers to the outer row and runs once per outer row. Employees earning more than the average of their own department:\n\n    SELECT e.name FROM employee e\n    WHERE e.salary > (SELECT AVG(salary) FROM employee WHERE dept_id = e.dept_id);\n\n**Subquery in FROM**: a derived table must have an alias in MySQL\n\n    SELECT dept_id, avg_sal\n    FROM (SELECT dept_id, AVG(salary) AS avg_sal FROM employee GROUP BY dept_id) t\n    WHERE avg_sal > 50000;\n\n**Classic use:** second highest salary: `SELECT MAX(salary) FROM employee WHERE salary < (SELECT MAX(salary) FROM employee);`\n\n**Subquery vs join.** Many subqueries can be rewritten as joins, which are often easier for the optimiser, especially correlated ones. Subqueries read naturally for \"compare against an aggregate\". Avoid `NOT IN` when the subquery can return `NULL` (it yields no rows); use `NOT EXISTS` instead.\n\nIf you blank in the interview, start from the definition and a simple example like the average salary one; interviewers often accept that and guide you onward.",
+ "followUps": [
+  "What is a correlated subquery and why can it be slow?",
+  "IN vs EXISTS: when would you use each?",
+  "Why does NOT IN misbehave with NULLs?",
+  "Rewrite the Delhi query using a JOIN."
+ ]
+}

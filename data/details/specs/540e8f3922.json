@@ -1,0 +1,19 @@
+{
+ "qid": "540e8f3922",
+ "question": "An SAP Labs online assessment for an SDE / BTP role included three parts: an easy **Python** coding problem, a **SQL question using window functions, particularly `PARTITION BY ... OVER()`**, and about 10 MCQs on basic AI/ML concepts. The exact table and requirement were not reported, so the typical form of such questions is covered here.",
+ "lookingFor": [
+  "Do you understand what window functions do and how they differ from GROUP BY?",
+  "Can you use `PARTITION BY` and `ORDER BY` inside `OVER()` correctly?",
+  "Do you know ranking functions (ROW_NUMBER, RANK, DENSE_RANK) and when ties matter?",
+  "Can you filter on window results using a subquery or CTE?",
+  "Do you know aggregates over windows (running totals, averages)?"
+ ],
+ "answer": "**What a window function is.** It computes a value for each row using a set of related rows (the window) **without collapsing rows**, unlike `GROUP BY`, which returns one row per group. The syntax is `function(...) OVER (PARTITION BY ... ORDER BY ... [frame])`. `PARTITION BY` splits rows into independent groups (like GROUP BY but keeping every row); `ORDER BY` defines the order inside each partition; an optional frame (`ROWS BETWEEN ...`) limits which rows are included.\n\nAssume `employee(id, name, dept_id, salary)`.\n\n**Average salary of the department next to each employee:**\n\n    SELECT name, dept_id, salary,\n           AVG(salary) OVER (PARTITION BY dept_id) AS dept_avg\n    FROM employee;\n\n**Top 2 earners per department:**\n\n    SELECT name, dept_id, salary\n    FROM (\n        SELECT name, dept_id, salary,\n               DENSE_RANK() OVER (PARTITION BY dept_id ORDER BY salary DESC) AS rnk\n        FROM employee\n    ) t\n    WHERE rnk <= 2;\n\nThe window function cannot be used directly in `WHERE`, so it is computed in a subquery or CTE and filtered outside. The ranking function chosen matters with ties:\n\n- `ROW_NUMBER()` gives unique numbers 1, 2, 3 even for ties (arbitrary tie-break).\n- `RANK()` gives ties the same rank and then skips numbers (1, 1, 3).\n- `DENSE_RANK()` gives ties the same rank without gaps (1, 1, 2).\n\n**Other common uses:**\n\n- Running total: `SUM(amount) OVER (PARTITION BY customer ORDER BY order_date)`.\n- Compare with the previous row: `LAG(salary) OVER (PARTITION BY dept_id ORDER BY hire_date)`, and `LEAD` for the next one.\n- Percent of group total: `salary * 100.0 / SUM(salary) OVER (PARTITION BY dept_id)`.\n\n**Execution note:** window functions run after `WHERE`, `GROUP BY` and `HAVING`, which is why they appear only in `SELECT` and `ORDER BY`.\n\n**Tip for the OA:** read the requirement for ties and ordering, test on a tiny example mentally, and state which ranking function you chose and why. For the other parts, practise easy Python input and output handling and revise the basics of supervised versus unsupervised learning, overfitting and evaluation metrics.",
+ "followUps": [
+  "What is the difference between RANK, DENSE_RANK and ROW_NUMBER?",
+  "How is a window function different from GROUP BY?",
+  "How would you get the second highest salary in each department?",
+  "What does the frame clause ROWS BETWEEN do?",
+  "How would you compute a running total of daily sales?"
+ ]
+}

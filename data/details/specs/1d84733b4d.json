@@ -1,0 +1,18 @@
+{
+ "qid": "1d84733b4d",
+ "question": "Technical interview for the Core Software Engineer Intern role at Tower Research. After a coding problem the interviewer asked about databases: **Why not add many indexes to a table? What is partitioning, and what is sharding?**",
+ "lookingFor": [
+  "Do you understand how indexes speed up reads and what they cost?",
+  "Can you distinguish partitioning (within a database) from sharding (across machines)?",
+  "Do you know the trade-offs: write overhead, hot spots, cross-shard queries?",
+  "Can you pick a good partition or shard key and explain why?"
+ ],
+ "answer": "**Why not index everything.** An index (usually a B+ tree) speeds up lookups, range scans and sorts, but every index has a price:\n- **Write overhead.** Each `INSERT`, `UPDATE` of an indexed column and `DELETE` must also update every index, and B-tree page splits add more I/O.\n- **Storage and memory.** Indexes take disk space and compete for the buffer pool, evicting useful data pages.\n- **Optimizer cost.** More indexes mean more plan choices and sometimes poor plan selection.\n- **Diminishing returns.** Low-cardinality columns (such as a boolean) are poor index candidates, and an unused index is pure cost.\n\nIndex what queries actually filter, join and sort on, prefer **composite indexes** ordered by the query pattern (equality columns first, then range), and consider **covering indexes**. Measure with `EXPLAIN`.\n\n**Partitioning.** Splitting one large logical table into smaller physical pieces (partitions), usually inside one database instance. Common types: **range** (by date), **list**, and **hash**. Benefits: **partition pruning** (queries touch only relevant partitions), faster maintenance, and cheap deletion of old data by dropping a partition. It improves manageability and sometimes performance but does not add capacity beyond one machine.\n\n**Sharding.** Horizontal partitioning of data **across multiple machines** (each shard is an independent database holding a subset of rows), chosen by a **shard key**, using hash, range or a lookup directory. It scales storage and write throughput beyond a single server.\n\nCosts of sharding: **cross-shard queries and joins**, no easy multi-shard transactions, **hot shards** from skewed keys, **resharding** complexity (consistent hashing helps), and more operational work.\n\n**Summary.** Partitioning is about organizing data within a node; sharding is about distributing data across nodes. Replication is separate: it copies data for availability and read scaling, not for splitting it.",
+ "followUps": [
+  "What is a covering index and when does it help?",
+  "How do you choose a shard key, and what makes a bad one?",
+  "How does consistent hashing reduce data movement when adding a shard?",
+  "How is replication different from sharding?",
+  "What happens to a composite index on (a, b) when a query filters only on b?"
+ ]
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "c469450b48",
+ "question": "In a technical round for a **Visa new-grad Software Engineer** role the candidate was asked: **What is a Translation Lookaside Buffer (TLB), and what are the consequences of not having one?** A related question in the same round: **which operating system do you use, and what type of kernel does it have?**",
+ "lookingFor": [
+  "Do you understand virtual memory and paging, and why translation is costly?",
+  "Can you explain the TLB hit/miss flow and why it works (locality)?",
+  "Can you quantify the cost using effective access time?",
+  "Do you know the basic kernel types and can you place your own OS?"
+ ],
+ "answer": "**Background.** With paging, each virtual address is split into a page number and an offset. The page table maps the page number to a physical frame, but the page table lives in main memory. So every memory access needs an extra memory access to read the page table (with multi-level tables, several), roughly doubling or worse the access time.\n\n**TLB.** A small, very fast hardware cache (inside the MMU) holding recent virtual-page to physical-frame translations, usually fully or highly associative, with tens to a few thousand entries.\n\n**Flow.**\n1. CPU generates a virtual address.\n2. MMU checks the TLB for the page number.\n3. **Hit:** frame number is returned immediately; access memory once.\n4. **Miss:** walk the page table (hardware or OS), load the translation into the TLB (evicting an entry), then access memory. If the page is not in memory, a page fault occurs.\n\nEntries are tagged with address-space ids (ASIDs), or the TLB is flushed on a context switch, because different processes have different mappings.\n\n**Why it works.** Programs show temporal and spatial locality, so a few entries cover most accesses; hit ratios above 95-99% are typical.\n\n**Effective access time (EAT)** = h x (t_tlb + t_mem) + (1 - h) x (t_tlb + 2 x t_mem) for a one-level page table. Example: h = 0.98, t_tlb = 10 ns, t_mem = 100 ns gives 0.98 x 110 + 0.02 x 210 = 112 ns, versus about 200 ns without a TLB.\n\n**Without a TLB:** every access pays the page-table walk, so memory-bound programs slow dramatically (at least 2x, much more with multi-level tables), and the CPU would spend much of its time on translation.\n\n**Kernel types.** Monolithic (Linux; most services in kernel space, fast but larger attack surface), microkernel (minimal kernel, services in user space, such as Minix), hybrid (Windows NT, macOS XNU). Answer according to your own OS and be able to justify it: Linux has a monolithic kernel with loadable modules.",
+ "followUps": [
+  "What happens to the TLB on a context switch?",
+  "What is a page fault and how is it different from a TLB miss?",
+  "How does a larger page size (huge pages) affect TLB reach?",
+  "Monolithic versus microkernel: trade-offs?"
+ ]
+}

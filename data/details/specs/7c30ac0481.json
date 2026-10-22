@@ -1,0 +1,19 @@
+{
+ "qid": "7c30ac0481",
+ "question": "From a Walmart Labs hiring-manager round for a Software Engineer role: **design Facebook chat messenger**. In the same round the candidate was also asked **when would you use a NoSQL database and when an RDBMS**.\n\nThe reported detail is only the one-line prompt, so clarify scope: one-to-one messaging, possibly group chat, online presence, delivery status and message history.",
+ "lookingFor": [
+  "Can you scope a messaging system and list the key features and non-functional needs?",
+  "Do you know why WebSockets (persistent connections) are used and how to route messages between servers?",
+  "Can you design message storage for heavy write volume and per-conversation reads?",
+  "Do you handle offline users, ordering and delivery guarantees?",
+  "Can you justify NoSQL versus RDBMS with concrete criteria?"
+ ],
+ "answer": "**Requirements.** One-to-one chat, group chat (small groups), sent/delivered/read receipts, online presence, message history and push notifications for offline users. Non-functional: low latency, ordering within a conversation, no lost messages, high availability. Assume hundreds of millions of users and billions of messages per day.\n\n**Architecture.**\n- **Connection layer:** clients keep a WebSocket (or long-lived connection) to a chat server. A connection registry (Redis) maps `user_id` to the server holding the connection.\n- **Send path:** the sender's server stores the message first (durability), then looks up the recipient in the registry. If online, forward to their server and push; if offline, store it and send a push notification (APNs/FCM), then deliver when they reconnect.\n- **Messages go through a queue** (Kafka) for asynchronous fan-out in groups, notifications and analytics.\n- **Presence service:** heartbeats update the last-seen timestamp with a TTL in Redis; publish status only to the user's friends or open chats.\n- **ID/ordering:** each message gets a time-sortable id (Snowflake style) and a per-conversation sequence number so clients can order and de-duplicate messages. Acks and retries give at-least-once delivery with client-side de-dup.\n\n**Data model.** `messages(conversation_id, message_id, sender_id, body, created_at)`, partitioned by `conversation_id` and sorted by `message_id`, so loading recent messages is one range read. This fits a wide-column store (Cassandra or HBase style), which handles very high write throughput and horizontal scaling. User profiles, friends and group membership fit a relational or other store. Large media goes to object storage plus a CDN, with only a reference in the message.\n\n**NoSQL versus RDBMS.** Choose an RDBMS when you need strong consistency, multi-row transactions, complex joins and a fixed schema (payments, orders, inventory). Choose NoSQL when you need horizontal scaling for huge volume, simple access patterns by key, flexible schema and high write throughput, and can accept eventual consistency (messages, logs, feeds, sessions). Many systems use both.\n\n**Scaling.** Shard by conversation or user; add chat servers behind a load balancer that preserves long-lived connections; replicate data across regions; cache recent messages.",
+ "followUps": [
+  "How do you deliver a message when sender and recipient are on different servers?",
+  "How do you guarantee message ordering and avoid duplicates?",
+  "How would you add end-to-end encryption and what does it change?",
+  "How do you implement read receipts at scale?",
+  "How would you scale group chat to thousands of members?"
+ ]
+}

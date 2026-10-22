@@ -1,0 +1,18 @@
+{
+ "qid": "a264d8c6df",
+ "question": "In a ServiceNow Associate Software Engineer technical round, the interviewer asked: **if saving one object to the database takes 1 minute, how long will it take to save 1000 objects, and how could you speed it up?**\n\nThe candidate noted the interviewer's intent: the question checks how widely you can think about system-level tasks, not whether you can multiply 1 by 1000.",
+ "lookingFor": [
+  "Do you question the premise (what is the 1 minute: network, disk, locking, validation?) before answering?",
+  "Do you know the naive answer (1000 minutes sequentially) and why it is only the baseline?",
+  "Can you list concrete speed-ups: batching, concurrency, bulk insert, indexes, connection pooling?",
+  "Do you reason about bottlenecks and limits such as database throughput and contention?",
+  "Do you mention trade-offs: ordering, atomicity, failures and retries?"
+ ],
+ "answer": "**Baseline.** If each save is independent and done one after another, 1000 x 1 minute = 1000 minutes (about 16.7 hours). That is the starting point, not the answer. A good reply first asks: *why does one save take a minute?* A single row insert should take milliseconds, so the minute is probably dominated by something we can change.\n\n**Find where the time goes.** Typical causes are network round trips, a new connection or transaction per object, slow validation or serialization, a heavy trigger or index, lock waits, or a slow external call inside the save.\n\n**Ways to speed it up**\n1. **Batching / bulk insert.** One multi-row `INSERT` or the driver's batch API pays the round trip and transaction overhead once for many rows. This is usually the biggest win.\n2. **One transaction for many rows** instead of a commit per object (but keep batches bounded, for example 500 to 1000 rows, so locks and logs stay small).\n3. **Concurrency.** If the minute is mostly waiting (I/O or latency), run N saves in parallel with a thread pool or async workers. If total time per object is T and we have N workers, time is about 1000 x T / N, until we hit a limit.\n4. **Connection pooling** so workers reuse connections.\n5. **Reduce per-row work:** defer or disable non-essential indexes during a big load, move validation earlier, remove unneeded triggers.\n6. **Make it asynchronous.** Put the work on a queue and return immediately, if the caller does not need to wait.\n\n**Limits and trade-offs.** Parallelism only helps up to the point where the database becomes the bottleneck (CPU, disk IOPS, lock contention). More concurrent writers to the same rows or index pages can make things slower. Batching complicates error handling: one bad row can fail the whole batch, so decide between all-or-nothing and per-row retry with a dead-letter list. If order or atomicity matters, concurrency is restricted.\n\n**Summary line:** sequential is 1000 minutes; with batching and a modest degree of parallelism it can drop to minutes or seconds, bounded by the database, and measured rather than assumed.",
+ "followUps": [
+  "How would you choose the batch size and the number of parallel workers?",
+  "What happens if the 600th object fails to save? How do you make the job retry-safe?",
+  "How does a bulk insert differ from 1000 separate inserts inside one transaction?",
+  "When would adding more threads make it slower?"
+ ]
+}

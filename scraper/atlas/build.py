@@ -58,6 +58,60 @@ def normalize_round(raw: str | None) -> str:
     return "Technical Interview"
 
 
+_ROLE = r"(?:sde|swe|se|sse|mts|engineer|developer|scientist|analyst)"
+# Ladders whose numbering differs from the common SDE-1/2/3 scheme: the L/E number that means entry level.
+_L_ENTRY = {"amazon": 4, "google": 3, "meta": 3}
+# Fresher hiring programmes at service and product companies.
+_FRESHER = r"new[\s-]?grad|graduate|universit|campus|fresher|entry|early career|trainee|junior|ninja|digital|prime|nqt|codevita|genc|elite|turbo|\bnth\b|\bsp\b|\bdse\b|specialist programmer|scholar|exceller|\bsep\b|\b(ase|aase|get|pat)\b|associate (software|engineer|developer|consultant|system)"
+
+
+def normalize_level(role: str, track: str, company: str = "") -> str:
+    """Seniority bucket for a free-text role: intern, entry, mid, senior, or "" when the post doesn't say."""
+    if track == "intern":
+        return "intern"
+    r = f" {role.lower()} "
+    m = re.search(r"(\d+(?:\.\d+)?)\s*(?:\+|-\s*\d+)?\s*(?:yoe|yrs?|years?)", r)
+    if m:  # years of experience, when stated, settle it
+        y = float(m.group(1))
+        return "entry" if y < 2 else "mid" if y < 5 else "senior"
+    if re.search(_FRESHER, r):
+        return "entry"
+    if re.search(r"\bamts\b", r):
+        return "entry"
+    if re.search(r"\b[slp]mts\b", r):
+        return "senior"
+    if company == "google":  # SWE II = L3, SWE III = L4
+        if re.search(r"\bswe[\s-]*iii\b", r):
+            return "mid"
+        if re.search(r"\bswe[\s-]*ii\b", r):
+            return "entry"
+    if company == "walmart-global-tech" and re.search(r"engineer[\s-]*iii\b", r):
+        return "mid"
+    for pat, lvl in ((r"(iii|3)", "senior"), (r"(ii|2)", "mid"), (r"(i|1)", "entry")):
+        if re.search(rf"\b{_ROLE}[\s-]*{pat}\b", r):
+            return lvl
+    m = re.search(r"\b[le]\s?(\d)\b", r)  # L4, E5
+    if m:
+        n, base = int(m.group(1)), _L_ENTRY.get(company, 3)
+        return "entry" if n <= base else "mid" if n == base + 1 else "senior"
+    m = re.search(r"\bict?\s?(\d)\b", r)  # Apple ICT2, LinkedIn IC3
+    if m:
+        n = int(m.group(1))
+        return "entry" if n <= 2 else "mid" if n == 3 else "senior"
+    m = re.search(r"\bp([3-6])0\b", r)  # Atlassian P30/P40/P50
+    if m:
+        return {"3": "entry", "4": "mid"}.get(m.group(1), "senior")
+    if re.search(r"\b(senior|sr\.?|principal|lead|architect|manager|director|vice president|vp)\b|staff (software )?engineer", r):
+        return "senior"
+    if re.search(r"\bmts\b|member (of )?technical staff", r):
+        return "mid" if company in ("salesforce", "oracle") else "entry"
+    if re.search(r"\b(experienced|associate)\b", r):
+        return "mid"
+    if re.search(r"\banalyst\b|\bfte\b", r):
+        return "entry"
+    return ""
+
+
 def normalize_category(raw: str | None, round_name: str) -> str:
     s = (raw or "").strip().lower()
     if s in config.CATEGORY_ALIASES:
@@ -160,6 +214,7 @@ def _clean_question(company: str, raw: dict) -> dict | None:
         "kind": kind,
         "title": _title(raw.get("title"), slug, text),
         "role": (raw.get("role") or ("Intern" if track == "intern" else "Full-time")).strip(),
+        "level": normalize_level(raw.get("role") or "", track, company),
         "round": round_name,
         "category": category,
         "topics": topics[:6],
@@ -211,6 +266,8 @@ def build() -> dict:
     companies: list[dict] = []
     dropped = 0
 
+    problem_index = json.loads(config.PROBLEM_INDEX.read_text()) if config.PROBLEM_INDEX.exists() else {}
+    detail_index = json.loads(config.DETAIL_INDEX.read_text()) if config.DETAIL_INDEX.exists() else {}
     for slug, docs in by_company.items():
         meta = config.COMPANIES[slug]
         merged: dict[tuple, dict] = {}
@@ -234,6 +291,7 @@ def build() -> dict:
                     processes.append({
                         "track": "intern" if str(p.get("track", "")).startswith("intern") else "fulltime",
                         "role": p.get("role") or "",
+                        "level": normalize_level(p.get("role") or "", "intern" if str(p.get("track", "")).startswith("intern") else "fulltime", slug),
                         "location": p.get("location") or None,
                         "rounds": rounds,
                         "sources": srcs,
@@ -252,6 +310,10 @@ def build() -> dict:
             q["id"] = hashlib.sha1(f"{slug}|{q['track']}|{_fingerprint(q)}".encode()).hexdigest()[:10]
             q["reports"] = len(q["sources"])
             q["secondaryOnly"] = all(s["platform"] == "aggregator" for s in q["sources"])
+            if q["id"] in problem_index:
+                q["problem"] = problem_index[q["id"]]
+            elif q["id"] in detail_index:
+                q["detail"] = True
         company_qs.sort(key=lambda q: (config.ROUND_ORDER.get(q["round"], 99), -q["reports"]))
         questions += company_qs
 

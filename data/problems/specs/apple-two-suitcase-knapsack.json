@@ -1,0 +1,49 @@
+{
+ "pid": "apple-two-suitcase-knapsack",
+ "title": "Two-Suitcase Knapsack",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are packing items into **two suitcases**. Item `i` has weight `weights[i]`. Suitcase 1 can carry at most `w1` in total weight and suitcase 2 can carry at most `w2`.\n\nEach item can be put into suitcase 1, into suitcase 2, or left behind; an item cannot be split or packed twice. Choose the packing that **maximises the total weight packed into both suitcases** and print that total.\n\nThe weight of an item is its only value, so this is a 0/1 knapsack where the goal is to fill both bags as much as possible. Trying every assignment of items to suitcases takes 3^n time, which is too slow for the full constraints.",
+ "input_format": "The first line contains an integer `n`, the number of items.\nThe second line contains `n` positive integers `weights[0] ... weights[n-1]`.\nThe third line contains two integers `w1` and `w2`.",
+ "output_format": "Print a single integer: the maximum total weight that can be packed.",
+ "constraints": [
+  "1 ≤ n ≤ 100",
+  "1 ≤ weights[i] ≤ 1000",
+  "1 ≤ w1, w2 ≤ 1000"
+ ],
+ "examples": [
+  {
+   "input": "4\n10 8 3 8\n5 17",
+   "output": "19",
+   "explanation": "Put the item of weight 3 in suitcase 1 (capacity 5), and the two items of weight 8 in suitcase 2 (16 of 17). The total is 3 + 16 = 19. Using the item of weight 10 is worse: it only fits in suitcase 2, and with it that suitcase can add at most the 3, for a total of 13."
+  },
+  {
+   "input": "3\n6 6 6\n5 5",
+   "output": "0",
+   "explanation": "No item fits into either suitcase, so nothing is packed."
+  },
+  {
+   "input": "5\n2 2 2 2 2\n3 3",
+   "output": "4",
+   "explanation": "Every item weighs 2, so each suitcase (capacity 3) can hold only one item. Two items are packed in total, giving 2 + 2 = 4; the other three items are left behind."
+  }
+ ],
+ "complexity": {
+  "time": "O(n * w1 * w2)",
+  "space": "O(w1 * w2)"
+ },
+ "hints": [
+  "A greedy choice (largest item first, or filling one suitcase and then the other) can fail. Think of the state after looking at some items.",
+  "Let reachable[a][b] say whether suitcase 1 can hold exactly weight a and suitcase 2 exactly weight b using the items seen so far. Each new item gives three options: skip it, add it to a, or add it to b.",
+  "Use a fresh table for each item (or iterate a and b downwards) so an item is not used twice. The answer is the largest a + b that is reachable at the end. Bitsets over b make the update fast."
+ ],
+ "reference": "import sys\n\ndef main():\n    d = sys.stdin.read().split()\n    n = int(d[0])\n    ws = list(map(int, d[1:1 + n]))\n    w1 = int(d[1 + n])\n    w2 = int(d[2 + n])\n    mask = (1 << (w2 + 1)) - 1\n    # dp[i] is a bitset: bit j set when suitcase 1 can hold exactly i and suitcase 2 exactly j\n    dp = [0] * (w1 + 1)\n    dp[0] = 1\n    for w in ws:\n        new = dp[:]\n        for i in range(w1 + 1):\n            b = dp[i]\n            if not b:\n                continue\n            if i + w <= w1:\n                new[i + w] |= b\n            new[i] |= (b << w) & mask\n        dp = new\n    best = 0\n    for i in range(w1 + 1):\n        if dp[i]:\n            best = max(best, i + dp[i].bit_length() - 1)\n    print(best)\n\nmain()\n",
+ "brute": "import sys\n\nd = sys.stdin.read().split()\nn = int(d[0])\nws = list(map(int, d[1:1 + n]))\nw1 = int(d[1 + n])\nw2 = int(d[2 + n])\nbest = 0\n\ndef rec(i, a, b):\n    global best\n    if i == n:\n        best = max(best, a + b)\n        return\n    rec(i + 1, a, b)\n    if a + ws[i] <= w1:\n        rec(i + 1, a + ws[i], b)\n    if b + ws[i] <= w2:\n        rec(i + 1, a, b + ws[i])\n\nrec(0, 0, 0)\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(ws, a, b):\n        return str(len(ws)) + '\\n' + ' '.join(map(str, ws)) + '\\n' + f'{a} {b}'\n    tests = [fmt([10, 8, 3, 8], 5, 17), fmt([5], 4, 4), fmt([5], 5, 1), fmt([5], 1, 5), fmt([1000], 1000, 1000),\n             fmt([1000, 1000, 1000], 1000, 1000), fmt([2, 2, 2, 2, 2], 3, 3), fmt([3, 3, 3], 1, 1)]\n    for n in (2, 3, 4, 5, 6, 7, 8):\n        for (mw, mc) in ((5, 8), (10, 20), (30, 40)):\n            tests.append(fmt([rng.randint(1, mw) for _ in range(n)], rng.randint(1, mc), rng.randint(1, mc)))\n    N = 100\n    tests.append(fmt([rng.randint(1, 1000) for _ in range(N)], 1000, 1000))\n    tests.append(fmt([rng.randint(100, 300) for _ in range(N)], 999, 1000))\n    tests.append(fmt([rng.randint(100, 500) for _ in range(N)], 1000, 997))\n    tests.append(fmt([rng.choice([107, 213, 329, 401]) for _ in range(N)], 1000, 1000))\n    tests.append(fmt([1000] * N, 1000, 1000))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_weight(weights: List[int], w1: int, w2: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    weights = [int(x) for x in data[1:1 + n]]\n    w1 = int(data[1 + n])\n    w2 = int(data[2 + n])\n    print(max_weight(weights, w1, w2))\n\n\nmain()\n",
+  "javascript": "function maxWeight(weights, w1, w2) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst weights = t.slice(1, 1 + n)\nconst w1 = t[1 + n], w2 = t[2 + n]\nconsole.log(String(maxWeight(weights, w1, w2)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint maxWeight(vector<int>& weights, int w1, int w2) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> weights(n);\n    for (int i = 0; i < n; i++) cin >> weights[i];\n    int w1, w2;\n    cin >> w1 >> w2;\n    cout << maxWeight(weights, w1, w2) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int maxWeight(int[] weights, int w1, int w2) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] weights = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            weights[i] = (int) in.nval;\n        }\n        in.nextToken();\n        int w1 = (int) in.nval;\n        in.nextToken();\n        int w2 = (int) in.nval;\n        System.out.println(maxWeight(weights, w1, w2));\n    }\n}\n"
+ }
+}

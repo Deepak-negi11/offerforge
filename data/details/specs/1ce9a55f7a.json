@@ -1,0 +1,18 @@
+{
+ "qid": "1ce9a55f7a",
+ "question": "Reported from a Meta E4 (London) onsite, system design round: **design an online contest judge platform**, like LeetCode, HackerRank or Codeforces.\n\nThe post gives only the prompt. Reasonable scope: users browse problems, submit code in several languages during a timed contest, the system compiles and runs it against hidden tests with time and memory limits, returns a verdict, and shows a live leaderboard.",
+ "lookingFor": [
+  "Scoping an open problem and deciding on scale (concurrent users in a contest)",
+  "Safe execution of untrusted code: sandboxing and resource limits",
+  "Asynchronous processing with queues and handling bursts at contest start and end",
+  "Leaderboard design with consistent, fast reads",
+  "Fault tolerance: retries, idempotent judging, and fairness"
+ ],
+ "answer": "**Requirements.** Functional: list problems, submit code, get a verdict (Accepted, Wrong Answer, Time Limit, Memory Limit, Runtime Error, Compile Error), live leaderboard, contest start/end times. Non-functional: untrusted code must not harm the system, verdict latency of a few seconds, high availability during contests, correctness of ranking. Scale assumption: 100,000 participants, with a burst of perhaps 5,000 submissions per minute near the end.\n\n**API.** `GET /contests/{id}/problems`, `POST /submissions` (returns a submission id immediately), `GET /submissions/{id}` for status, `GET /contests/{id}/leaderboard`.\n\n**Components.**\n- *Web/API tier* (stateless, behind a load balancer), authentication and rate limits per user.\n- *Submission service*: stores the code in object storage, records a row `Submission(id, user, problem, language, status, created_at)` in a database, and publishes a job to a **queue** (Kafka, SQS or RabbitMQ). Returning early decouples user latency from judging.\n- *Judge workers*: pull jobs, compile, and run against test cases inside a **sandbox** (containers with seccomp, gVisor or Firecracker microVMs): no network, read-only filesystem, CPU and memory cgroup limits, process count limits, wall-clock timeouts. Compare output to expected output (a special checker for problems with multiple answers). Write the verdict back and publish an event.\n- *Test data store*: tests and checkers in object storage, cached on workers.\n- *Leaderboard service*: update on each accepted verdict. A Redis sorted set keyed by contest holds scores (solved count, penalty time). Reads are cheap and can be cached for a second or two.\n- *Notification*: push verdict updates to clients by WebSocket or polling.\n\n**Trade-offs and bottlenecks.**\n- Autoscale workers on queue depth; keep a separate priority queue for contests versus practice.\n- Judging must be **idempotent**: if a worker dies, the job is retried; use a visibility timeout and check final status before writing.\n- Fairness: run on identical machine types; repeat borderline timeouts.\n- Stage test cases: stop at first failure to save compute.\n- Leaderboard freezes in the last hour are a product choice.\n- Plagiarism checks run offline.",
+ "followUps": [
+  "How do you stop malicious code from reading files or opening network connections?",
+  "How would you handle a 10x spike in submissions in the last five minutes?",
+  "How do you keep the leaderboard consistent when verdicts arrive out of order?",
+  "How would you judge problems that need a special checker or are interactive?"
+ ]
+}

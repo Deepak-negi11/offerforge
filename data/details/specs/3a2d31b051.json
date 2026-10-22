@@ -1,0 +1,18 @@
+{
+ "qid": "3a2d31b051",
+ "question": "In an AMD Software Engineering Intern interview (Hiring Manager round, 15 minutes of technical questions after a resume discussion), the candidate was asked: **What is garbage collection in Java and how does it work?** and then **Can you explain generational garbage collection?**",
+ "lookingFor": [
+  "Understanding that Java manages heap memory automatically and what 'unreachable' means.",
+  "Knowledge of reachability and mark-based collection rather than reference counting.",
+  "Why generational collection exists (the weak generational hypothesis) and how the heap is split.",
+  "Awareness of stop-the-world pauses and the trade-off between throughput and latency.",
+  "Ability to connect theory to practical tuning or collector names."
+ ],
+ "answer": "**What it is.** Garbage collection (GC) is the JVM's automatic reclamation of heap memory used by objects that can no longer be reached by the program. The programmer never calls `free`; the JVM finds dead objects and reuses their space.\n\n**How it works (basic idea).**\n1. **Roots:** the collector starts from GC roots: local variables on thread stacks, static fields, active threads, JNI references.\n2. **Mark:** it traverses every object reachable from the roots and marks it live. Reachability, not reference counts, decides liveness, so cyclic garbage is collected too.\n3. **Sweep / compact / copy:** unmarked objects are reclaimed. Some collectors compact live objects to avoid fragmentation, others copy live objects to a fresh region.\n\nMany phases need a **stop-the-world (STW)** pause so the object graph does not change under the collector.\n\n**Generational GC.** Empirical observation (the *weak generational hypothesis*): most objects die young. So the heap is split by age:\n- **Young generation:** Eden plus two survivor spaces. New objects are allocated in Eden. A **minor GC** copies live objects to a survivor space and clears Eden. It is fast because it scans only a small area and most objects are dead.\n- Objects that survive several minor GCs (an age threshold) are **promoted** to the **old (tenured) generation**.\n- **Old generation:** holds long-lived objects, collected less often by a **major / full GC**, which is more expensive.\n- Older JVMs also had a Metaspace/PermGen area for class metadata (not part of the object heap).\n\nA **card table / remembered set** records old-to-young references so a minor GC does not have to scan the whole old generation.\n\n**Why it helps:** frequent cheap collections of the young area, expensive work only occasionally on the old area.\n\n**Collectors (examples):** Serial, Parallel (throughput), G1 (the default in modern JDKs, region-based, aims for pause-time goals), ZGC and Shenandoah (low-latency). Check the JDK version you quote.\n\n**Pitfalls to mention:** GC does not stop memory leaks (e.g. objects held in a static collection stay reachable); `System.gc()` is only a hint.",
+ "followUps": [
+  "What is the difference between a minor GC and a full GC?",
+  "How can a Java program still leak memory despite garbage collection?",
+  "What is a stop-the-world pause and how do low-latency collectors reduce it?",
+  "How does reference counting (used in CPython) differ from tracing GC?"
+ ]
+}

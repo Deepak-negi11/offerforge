@@ -1,0 +1,19 @@
+{
+ "qid": "5ec50cae95",
+ "question": "Arcesium hiring-manager round for a Senior Software Engineer (about 2.2 years of experience), a theory-heavy round where the candidate was expected to explain concepts with diagrams, code and trade-offs.\n\n**Why and when do we need the Factory pattern? Show sample code.** Then: explain the **Open/Closed Principle**, describe the **cases where a factory design fails or violates it**, and how you would resolve those failures.\n\nThe candidate was rejected with feedback that the theory needed more clarity, depth and examples, so aim for definitions, a concrete example and trade-offs.",
+ "lookingFor": [
+  "Clear definition of the Factory pattern and the problem it solves (decoupling creation from use).",
+  "Ability to write clean sample code and justify when it is, and is not, worth using.",
+  "Correct understanding of the Open/Closed Principle, not just the slogan.",
+  "Honest critique: a switch-based factory still needs modification for each new type.",
+  "Knowledge of remedies: registry, abstract factory, dependency injection."
+ ],
+ "answer": "**What and why.** A factory centralises object creation behind an interface, so client code depends on an abstraction (`Notifier`) and not on concrete classes (`EmailNotifier`, `SmsNotifier`). Use it when the concrete type depends on runtime input or configuration, when construction is complex or needs shared setup, or when you want to swap implementations (and mock them in tests) without touching callers. Do not use it when there is one implementation and no variation; a plain constructor is simpler.\n\n```java\ninterface Notifier { void send(String msg); }\nclass EmailNotifier implements Notifier { public void send(String m){ /* ... */ } }\nclass SmsNotifier implements Notifier { public void send(String m){ /* ... */ } }\n\nclass NotifierFactory {\n    static Notifier create(String type) {\n        switch (type) {\n            case \"email\": return new EmailNotifier();\n            case \"sms\":   return new SmsNotifier();\n            default: throw new IllegalArgumentException(type);\n        }\n    }\n}\n```\n\n**Open/Closed Principle.** Software entities should be open for extension but closed for modification: add behaviour by adding code, not by editing tested code.\n\n**Where the factory above violates it.** Adding a `PushNotifier` forces you to edit `create`, so the factory is not closed for modification. It also becomes a change hotspot and a merge-conflict magnet, and clients that use `instanceof` or type checks after creation break the Liskov Substitution Principle too.\n\n**Resolutions.**\n- A registry: `Map<String, Supplier<Notifier>>`; new types call `register(\"push\", PushNotifier::new)` at startup, so the factory never changes.\n- Plugin discovery (Java `ServiceLoader`, Spring beans collected by type) so implementations register themselves.\n- Abstract Factory when you must create families of related objects.\n- Dependency injection, so most callers receive a `Notifier` and never call the factory.\n\n**Trade-offs.** A registry moves the failure to runtime (a missing key) and needs good error messages and tests; keep the key set explicit. Over-using factories adds indirection without value.",
+ "followUps": [
+  "Factory Method vs Abstract Factory vs Simple Factory: what is the difference?",
+  "How would a Spring or DI container replace your factory?",
+  "How do you unit test code that uses a factory?",
+  "Which other SOLID principles does a switch-based factory strain?",
+  "Is a static factory method different from the pattern, and what are its drawbacks?"
+ ]
+}

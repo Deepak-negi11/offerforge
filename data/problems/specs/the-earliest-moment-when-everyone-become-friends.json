@@ -1,0 +1,50 @@
+{
+ "pid": "the-earliest-moment-when-everyone-become-friends",
+ "title": "The Earliest Moment When Everyone Become Friends",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A social network has `n` users, numbered `0` to `n - 1`. You are given `m` log entries. Entry `t a b` records that users `a` and `b` became friends at time `t`.\n\nFriendship links users into groups: two users are **connected** if they are friends, or if there is a chain of friendships leading from one to the other (a friend of a friend of a friend, and so on). Once a friendship is formed it is never removed.\n\nFind the **earliest time** at which every user is connected to every other user. If that never happens, even after all log entries, output `-1`.\n\nNotes:\n\n- The log entries are **not** necessarily given in chronological order.\n- Several entries may share the same timestamp, and the same pair of users may appear in more than one entry.\n- All friendships recorded at time `t` count as formed at time `t`.",
+ "input_format": "The first line contains two integers `n` and `m`: the number of users and the number of log entries.\nEach of the next `m` lines contains three integers `t`, `a` and `b`.",
+ "output_format": "Print a single integer: the earliest time at which all `n` users are connected, or `-1` if they never are.",
+ "constraints": [
+  "2 ≤ n ≤ 2 · 10^4",
+  "1 ≤ m ≤ 4 · 10^4",
+  "0 ≤ t ≤ 10^9",
+  "0 ≤ a, b < n and a ≠ b"
+ ],
+ "examples": [
+  {
+   "input": "4 5\n20 0 1\n5 2 3\n31 1 2\n12 0 1\n40 0 3",
+   "output": "31",
+   "explanation": "Sorted by time: at 5 users 2 and 3 join, giving groups {0}, {1}, {2, 3}. At 12, 0 and 1 join: {0, 1}, {2, 3}. The entry at 20 links 0 and 1 again, which changes nothing. At 31, 1 and 2 become friends, merging everything into one group, so the answer is 31."
+  },
+  {
+   "input": "3 2\n1 0 1\n2 1 0",
+   "output": "-1",
+   "explanation": "User 2 never appears in any log entry, so it is never connected to the others."
+  },
+  {
+   "input": "3 3\n7 2 1\n7 0 1\n3 0 1",
+   "output": "7",
+   "explanation": "At time 3 only users 0 and 1 are connected. Both entries at time 7 then bring user 2 in, so all three are connected at 7."
+  }
+ ],
+ "complexity": {
+  "time": "O(m log m + m α(n))",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Process the log entries in increasing order of time; the answer is the timestamp of the entry that first leaves a single group.",
+  "Keep the groups in a disjoint-set union (union-find). Start with n groups and decrease the count whenever a union actually merges two different groups.",
+  "Use path compression (and optionally union by size) so each find runs in near-constant amortised time."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.buffer.read().split()\n    n, m = int(data[0]), int(data[1])\n    logs = sorted((int(data[2 + 3 * i]), int(data[3 + 3 * i]), int(data[4 + 3 * i])) for i in range(m))\n    parent = list(range(n))\n    size = [1] * n\n    groups = n\n\n    def find(x):\n        while parent[x] != x:\n            parent[x] = parent[parent[x]]\n            x = parent[x]\n        return x\n\n    for t, a, b in logs:\n        ra, rb = find(a), find(b)\n        if ra == rb:\n            continue\n        if size[ra] < size[rb]:\n            ra, rb = rb, ra\n        parent[rb] = ra\n        size[ra] += size[rb]\n        groups -= 1\n        if groups == 1:\n            print(t)\n            return\n    print(-1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nlogs = [(int(data[2 + 3 * i]), int(data[3 + 3 * i]), int(data[4 + 3 * i])) for i in range(m)]\n\ndef connected(T):\n    adj = [[] for _ in range(n)]\n    for t, a, b in logs:\n        if t <= T:\n            adj[a].append(b)\n            adj[b].append(a)\n    seen = {0}\n    stack = [0]\n    while stack:\n        v = stack.pop()\n        for w in adj[v]:\n            if w not in seen:\n                seen.add(w)\n                stack.append(w)\n    return len(seen) == n\n\nans = -1\nfor T in sorted(set(t for t, _, _ in logs)):\n    if connected(T):\n        ans = T\n        break\nprint(ans)\n",
+ "generator": "def gen(rng):\n    def fmt(n, logs):\n        return f'{n} {len(logs)}' + ''.join(f'\\n{t} {a} {b}' for t, a, b in logs)\n\n    def pair(n):\n        a = rng.randrange(n)\n        b = rng.randrange(n - 1)\n        if b >= a:\n            b += 1\n        return a, b\n\n    def rand_logs(n, m, tmax):\n        return [(rng.randint(0, tmax), *pair(n)) for _ in range(m)]\n\n    def spanning_late(n, extra, tmax):\n        # a random spanning tree whose last edge arrives late, plus noise inside two halves\n        perm = list(range(n))\n        rng.shuffle(perm)\n        logs = []\n        for i in range(1, n):\n            logs.append((rng.randint(0, tmax // 2), perm[i], perm[rng.randrange(i)]))\n        logs.append((tmax, perm[0], perm[-1]))\n        for _ in range(extra):\n            logs.append((rng.randint(0, tmax), *pair(n)))\n        rng.shuffle(logs)\n        return logs\n\n    tests = [\n        fmt(2, [(0, 0, 1)]),\n        fmt(2, [(10**9, 1, 0), (5, 0, 1)]),\n        fmt(3, [(4, 0, 1), (4, 0, 1), (4, 1, 0)]),\n        fmt(5, [(9, 0, 1), (9, 1, 2), (9, 2, 3), (9, 3, 4)]),\n        fmt(5, [(1, 0, 1), (2, 1, 2), (3, 3, 4), (4, 0, 2), (5, 4, 3)]),\n        fmt(4, [(8, 0, 1), (6, 1, 2), (4, 2, 3), (2, 3, 0)]),\n    ]\n    for n in (2, 3, 4, 5, 6, 8):\n        tests.append(fmt(n, rand_logs(n, rng.randint(1, 3 * n), 20)))\n    for n in (4, 7, 10):\n        tests.append(fmt(n, spanning_late(n, rng.randint(0, n), 50)))\n    for n in (6, 12):\n        tests.append(fmt(n, rand_logs(n, 2 * n, 10**9)))\n    def two_halves(n, m, tmax):\n        # each half becomes connected internally; a few bridges arrive at random times\n        perm = list(range(n))\n        rng.shuffle(perm)\n        h = n // 2\n        logs = []\n        for lo, hi in ((0, h), (h, n)):\n            for i in range(lo + 1, hi):\n                logs.append((rng.randint(0, tmax), perm[i], perm[rng.randrange(lo, i)]))\n        for _ in range(5):\n            logs.append((rng.randint(tmax // 2, tmax), perm[rng.randrange(h)], perm[rng.randrange(h, n)]))\n        while len(logs) < m:\n            lo, hi = (0, h) if rng.random() < 0.5 else (h, n)\n            a, b = rng.sample(range(lo, hi), 2)\n            logs.append((rng.randint(0, tmax), perm[a], perm[b]))\n        rng.shuffle(logs)\n        return logs\n\n    tests.append(fmt(20000, spanning_late(20000, 20000, 10**9)))\n    tests.append(fmt(20000, two_halves(20000, 40000, 10**9)))\n    tests.append(fmt(20000, rand_logs(20000, 40000, 10**9)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef earliest_acquaintance(n: int, logs: List[List[int]]) -> int:\n    # Write your solution here\n    # Each log is [t, a, b]; return -1 if the users never all become connected.\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    logs = [[int(data[2 + 3 * i]), int(data[3 + 3 * i]), int(data[4 + 3 * i])] for i in range(m)]\n    print(earliest_acquaintance(n, logs))\n\n\nmain()\n",
+  "javascript": "function earliestAcquaintance(n, logs) {\n  // Write your solution here\n  // Each log is [t, a, b]; return -1 if the users never all become connected.\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst logs = []\nfor (let i = 0; i < m; i++) logs.push([t[2 + 3 * i], t[3 + 3 * i], t[4 + 3 * i]])\nconsole.log(earliestAcquaintance(n, logs))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long earliestAcquaintance(int n, vector<array<long long, 3>>& logs) {\n    // Write your solution here\n    // Each log is {t, a, b}; return -1 if the users never all become connected.\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<array<long long, 3>> logs(m);\n    for (auto& l : logs) cin >> l[0] >> l[1] >> l[2];\n    cout << earliestAcquaintance(n, logs) << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long earliestAcquaintance(int n, long[][] logs) {\n        // Write your solution here\n        // Each log is {t, a, b}; return -1 if the users never all become connected.\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        long[][] logs = new long[m][3];\n        for (int i = 0; i < m; i++) {\n            for (int j = 0; j < 3; j++) {\n                in.nextToken();\n                logs[i][j] = (long) in.nval;\n            }\n        }\n        System.out.println(earliestAcquaintance(n, logs));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "8bb3f960ad",
+ "question": "Zoho incubation task for Technical Trainees (day 3 of the on-campus process, switching to Java). **Parse two polynomial equations given as strings**, convert them into objects, **multiply** them and print the result. On the next day the task was extended: **evaluate the equations** when the user gives values for the variables and display the final result. The exact equation format was not reported, so state your assumed grammar.",
+ "lookingFor": [
+  "Can you model the problem as objects (Term, Polynomial) instead of string manipulation?",
+  "Can you write a robust parser that handles signs, missing coefficients and exponents?",
+  "Do you combine like terms correctly and keep output tidy?",
+  "Is the design ready for the extension (evaluation, multiple variables)?"
+ ],
+ "answer": "**Assume a grammar**, for example `3x^2 + 2x - 5` or, if several variables are allowed, `2x^2y - 3y + 4`. Say which you support and how you treat spaces.\n\n**Model.**\n\n- `Term`: a coefficient plus a map of variable to exponent (`{x:2, y:1}`). With one variable it reduces to `(coef, exp)`. Implement `multiply(Term)` as coefficient product and exponent sum per variable.\n- `Polynomial`: a collection of terms, kept in a `Map<Key, Double/Integer>` where the key is the sorted variable-exponent signature (for one variable, a `TreeMap<Integer, Integer>` from exponent to coefficient). This merges like terms automatically.\n\n**Parsing.** Scan the string left to right. Split into terms at `+` or `-` that is not at position 0 (and not following `^`). For each term: read optional sign, optional digits for the coefficient (default 1 if missing, so `x` is 1x and `-x` is -1x), then each variable letter followed by optional `^digits` (default exponent 1). A pure number is a term with no variables. Alternatively use a regex like `([+-]?\\d*)((?:[a-z](?:\\^\\d+)?)*)` per term. Validate and throw a clear error on bad input.\n\n**Multiply.** For polynomials with m and n terms, multiply each pair and add the product to a result map: O(m x n) plus map inserts. Drop terms whose coefficient becomes 0.\n\n**Print.** Sort by descending exponent, write the sign, omit coefficient 1 where a variable exists, omit `^1`, and handle an all-zero result as `0`.\n\n**Evaluate (day 4).** `evaluate(Map<String, Double> values)`: for each term, `coef * product(value[var]^exp)`, summed. Check that every variable has a value. Use `Math.pow` or repeated multiplication for integer exponents. Because the polynomial is already an object, this is a small addition, which is the point of the OOP design.\n\n**Edge cases.** Leading minus, repeated signs like `+-`, whitespace, `x^0`, large exponents (use `long` or `BigInteger` if overflow matters), and zero polynomial.",
+ "followUps": [
+  "How would you extend this to add and subtract polynomials, or to compute the derivative?",
+  "How do you parse parentheses such as `(x+1)(x-1)`?",
+  "How would you evaluate a degree-1000 single-variable polynomial efficiently? (Horner's method)",
+  "Which integer or floating-point type would you use for coefficients and why?"
+ ]
+}

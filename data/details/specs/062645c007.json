@@ -1,0 +1,17 @@
+{
+ "qid": "062645c007",
+ "question": "Reported in an NVIDIA Senior Systems Software Engineer interview: in-depth C rounds covering pointer questions, spotting bugs in code snippets, competitive-programming style problems, and the question \"how would you implement `sizeof()` yourself?\" The exact snippets were not reported, so this write-up covers the `sizeof` question in depth and the common pointer and bug-spotting themes.",
+ "lookingFor": [
+  "Deep command of C pointer semantics and arithmetic",
+  "Knowing that `sizeof` is a compile-time operator, not a function",
+  "Ability to scan code for classic defects quickly",
+  "Awareness of undefined behaviour and its limits in 'clever' implementations"
+ ],
+ "answer": "**What `sizeof` really is.** An operator evaluated by the compiler (except for variable-length arrays, where it is evaluated at run time). It cannot be a real function because it accepts types, and it yields a `size_t`. So any user-level version is a macro that imitates it.\n\n**Implementing it with pointer arithmetic.**\n\n```c\n// size of a variable or expression\n#define my_sizeof(x)       ((char *)(&(x) + 1) - (char *)&(x))\n// size of a type\n#define my_sizeof_type(T)  ((size_t)((T *)0 + 1))\n```\n\nWhy they work: `&x + 1` advances by exactly one object of x's type, so the distance in bytes between `&x` and `&x + 1` is the object size. For a type, take a null pointer to `T`, add 1 and read the resulting address as a number, which equals `sizeof(T)` since the start is 0. Caveats worth stating: the second form does arithmetic on a null pointer, which is technically undefined behaviour (it works on mainstream compilers; `offsetof`-style code does the same), and the first needs an lvalue, so it cannot take a type or a literal. Also, array parameters decay to pointers, so applying it to a function parameter gives the pointer size, a classic trap. The proper tool for array length is `sizeof(a) / sizeof(a[0])`, valid only where `a` is a real array.\n\n**Pointer themes to be ready for.**\n\n- `const int *p` vs `int * const p` vs `const int * const p`.\n- Pointer arithmetic scales by element size; `p[i]` is `*(p + i)`.\n- Arrays vs pointers: `sizeof(arr)` vs `sizeof(ptr)`, decay in calls.\n- Pointers to pointers, function pointers, `void *` casting.\n- Dangling pointers, returning the address of a local, double free, use after free.\n\n**Bug-spotting checklist.** Off-by-one and buffer overflow, uninitialised variables, unchecked `malloc`, integer overflow and signed/unsigned comparison, missing `break` in `switch`, `=` vs `==`, macro argument double evaluation, strict-aliasing violations, and format-string mismatches.",
+ "followUps": [
+  "Why does sizeof on an array parameter return 8 on a 64-bit machine?",
+  "Write a macro that is safe against double evaluation, e.g. MAX(a, b).",
+  "What is strict aliasing and how can type punning break?",
+  "How do you compute the offset of a struct member without offsetof?"
+ ]
+}

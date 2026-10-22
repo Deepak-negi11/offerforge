@@ -1,0 +1,18 @@
+{
+ "qid": "b55a3a57f1",
+ "question": "In an onsite Salesforce MTS technical round for an experienced candidate (2.5 years of experience), after a resume discussion the interviewer asked the candidate to **design an AI agent workflow that processes bank documents**. No further detail on the document types or the required outputs was reported, so state your assumptions (for example statements, KYC forms and loan applications).",
+ "lookingFor": [
+  "Can you break an open-ended AI problem into stages with clear inputs and outputs?",
+  "Do you know when to use deterministic code versus an LLM?",
+  "Do you plan for accuracy, validation, and human review in a regulated domain?",
+  "Do you handle privacy, security, auditability and failures?",
+  "Can you say how you would evaluate and monitor the system?"
+ ],
+ "answer": "**Clarify first.** Which documents (bank statements, KYC IDs, loan forms, cheques)? What output (structured fields, classification, a decision, a summary)? Volume and latency? Accuracy needs? Assume: ingest uploaded PDFs and scans, extract key fields, validate them, and route to a human when unsure.\n\n**Workflow (stages)**\n1. **Ingestion:** upload to secure storage, virus scan, store metadata, enqueue a job.\n2. **Pre-processing:** OCR for scans (layout-aware), page splitting, and image cleanup.\n3. **Classification:** identify the document type (a small classifier or an LLM with a fixed label set).\n4. **Extraction:** for each type, extract fields into a **JSON schema** (name, account number, dates, amounts). Use OCR plus rules for fixed formats, and an LLM with structured output for variable layouts.\n5. **Validation:** deterministic checks: formats, checksums, totals that reconcile, date ranges, cross-document consistency (name matches across documents).\n6. **Agent decisions:** an orchestrator with tools (lookup customer, call a verification API, request a missing document) deciding the next step. Keep the loop bounded with step limits.\n7. **Human in the loop:** low-confidence or failed validation goes to a review queue; reviewer corrections are stored as labels.\n8. **Output:** write results to a database and notify downstream systems; keep an audit trail of inputs, model versions, prompts and decisions.\n\n**Key concerns**\n- **Privacy and compliance:** encrypt data, mask PII, access control, retention rules, and check where model providers process data (or use an in-house or private deployment).\n- **Reliability:** idempotent retries, a dead-letter queue, timeouts, and fallbacks.\n- **Hallucination:** ground the model in the document, require quotes or locations for extracted values, and never let the model make the final financial decision.\n- **Evaluation:** a labelled set, field-level precision and recall, human-override rate, latency and cost per document.",
+ "followUps": [
+  "Where would you use rules versus an LLM in this pipeline?",
+  "How do you handle a scanned, low-quality document?",
+  "How would you evaluate extraction accuracy and detect model drift?",
+  "How would you prevent prompt injection from text inside an uploaded document?"
+ ]
+}

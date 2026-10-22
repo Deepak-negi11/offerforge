@@ -1,0 +1,18 @@
+{
+ "qid": "7d3546475f",
+ "question": "In the Flipkart Data Scientist 2 hiring manager round for the Cleartrip team (whose focus includes dynamic pricing), the candidate was given a problem: **set discounts across multiple shoe brands, taking competitor prices into account, and build a model that maximises revenue.** The interviewer also probed the candidate's past work, approach and reasoning.",
+ "lookingFor": [
+  "Framing a business problem as a modelling and optimisation problem",
+  "Understanding price elasticity, cross-effects between brands, and competitor reaction",
+  "Sound modelling choices, features and validation (including causal and experimental thinking)",
+  "Awareness of business constraints such as margin floors and fairness",
+  "Clarifying questions before jumping to a model"
+ ],
+ "answer": "**1. Clarify the objective and constraints.** Revenue or profit? (Maximising revenue alone can push margins negative, so I would propose profit or revenue with a minimum margin.) Which decision: a discount percentage per brand or SKU per day? Constraints: margin floors, brand agreements (MAP policies), inventory, and how often prices can change.\n\n**2. Core idea: learn demand as a function of price, then optimise.**\nDemand for SKU *i* depends on its own price, competitor prices, brand, seasonality, stock, ratings and promotions. Revenue is `price x demand(price, context)`. Estimate the demand curve (elasticity), then pick the discount that maximises revenue or profit under constraints.\n\n**3. Data and features.** Historical sales with price and discount, impressions and conversion, competitor price (scraped or feed), price ratio to the competitor, brand strength, size availability, day-of-week and season, and customer segments.\n\n**4. Model.**\n- Baseline: a log-log regression (`log demand ~ log price + controls`) gives interpretable elasticity.\n- Better: gradient boosted trees or a neural model for demand, with monotonic constraints so higher price never increases demand.\n- Include **cross-elasticity** between brands (cannibalisation) via competitor and sibling-price features, or a joint model.\n- **Causality caveat:** historical prices are not random (discounts are given when demand is weak or when competitors cut), so naive models give biased elasticity. Use price experiments, instrumental variables or controls, and bandit-style exploration to learn safely.\n\n**5. Optimisation.** For each candidate discount, predict demand, compute revenue or profit, and choose the best under the constraints (a grid search or a constrained optimiser). Add a competitor-reaction scenario.\n\n**6. Validation.** Offline: time-based split, error on holdout, calibration of elasticity. Online: A/B or geo test measuring revenue per visitor and margin, plus guardrails (conversion, complaints).\n\n**7. Risks.** Price wars, customer trust, cold start for new SKUs (use brand-level priors), and drift over time (retrain regularly).",
+ "followUps": [
+  "How would you estimate elasticity when most price changes were not randomised?",
+  "How would you handle a brand with very little historical data?",
+  "How do you model competitor reactions to your price changes?",
+  "What metrics would you use in the A/B test, and how long would you run it?"
+ ]
+}

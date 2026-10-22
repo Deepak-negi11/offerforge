@@ -1,0 +1,19 @@
+{
+ "qid": "ccda1b3fee",
+ "question": "LinkedIn Software Engineer, Machine Learning: **AI system design round on a cold-start recommender system**. Discussion centred on **data preparation and pipelines, feature engineering strategy, handling sparse and implicit data, and model training and candidate generation**. Cold start means recommending for new users or new items that have little or no interaction history. The domain was not specified, so pick one (for example jobs or people) and state it.",
+ "lookingFor": [
+  "Can you define the objective, users, items and success metrics for a recommender?",
+  "Do you address cold start for both new users and new items with concrete techniques?",
+  "Do you handle implicit, sparse feedback and its biases correctly?",
+  "Can you design the data pipeline, features, candidate generation and ranking stages?",
+  "Do you evaluate offline and online, and plan for exploration?"
+ ],
+ "answer": "**Frame it.** Pick a domain (say, job recommendations), define the goal (relevant jobs that users apply to), and the metrics: offline recall@K, NDCG, and online application rate, with guardrails such as diversity. Distinguish **new-user cold start** (no history), **new-item cold start** (a freshly posted job), and system cold start.\n\n**Data and pipeline.** Collect impressions, clicks and applies as implicit feedback, plus profile and item content. Build batch pipelines (daily or hourly) and a streaming path for fresh signals, with a feature store so training and serving use the same definitions (avoiding leakage and skew). Split training and validation by time, never at random.\n\n**Implicit and sparse feedback.** Absence of a click is not a negative: unseen is not disliked. Use impressions to define negatives, sample negatives carefully, weight by confidence (an apply is stronger than a click), and correct exposure and position bias.\n\n**Cold-start strategies.**\n- New users: onboarding signals (profile skills, title, location, stated interests), popularity within the segment (location, industry), and contextual defaults; learn quickly from the first few interactions.\n- New items: content-based features (title, skills, company, text embeddings from a pretrained language model), plus an **exploration** budget (contextual bandit, such as Thompson sampling or epsilon-greedy) so new items get impressions to gather data.\n- Hybrid models blend collaborative signals with content features, so the model falls back to content when interaction features are empty.\n\n**Candidate generation.** A **two-tower** model: a user tower from profile and behaviour features and an item tower from content features, trained with sampled-softmax or contrastive loss on positive interactions; item embeddings are indexed for approximate nearest neighbour search (ANN). Multiple sources can be merged (content-based, popular, recent, graph-based). A **ranker** (gradient boosted trees or a deep model) then scores the candidates with cross features and optimises the final objective, followed by business rules (diversity, freshness, dedupe).\n\n**Evaluation and iteration.** Offline metrics split by cold and warm segments, A/B tests, monitoring for feedback loops and popularity bias, and periodic retraining.",
+ "followUps": [
+  "How do you decide who gets exploration traffic and how much?",
+  "How do you pick negatives when you only have implicit feedback?",
+  "How would you evaluate cold-start performance offline?",
+  "Why use a two-tower model for candidate generation but a different model for ranking?",
+  "How do you avoid popularity bias and feedback loops?"
+ ]
+}

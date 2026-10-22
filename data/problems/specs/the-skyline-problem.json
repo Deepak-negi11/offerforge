@@ -1,0 +1,49 @@
+{
+ "pid": "the-skyline-problem",
+ "title": "The Skyline Problem",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "A city's skyline is the outline formed by all its buildings when viewed from far away. You are given `n` rectangular buildings, all standing on the ground (height `0`). Building `i` is described by three integers `[left, right, height]`: it occupies the half-open range `[left, right)` on the x-axis and rises to `height`. Buildings may overlap, touch, or be nested, and they are given in any order.\n\nThe skyline at position `x` has height equal to the tallest building covering `x`, or `0` if none does. Report the skyline as a list of **key points**: the points `(x, y)` where the height of the skyline changes, with `x` the **left end** of each horizontal segment and `y` its new height.\n\nThe list must satisfy:\n\n- Key points are sorted by `x` in increasing order.\n- No two consecutive key points have the same `y`. In particular, touching buildings of equal height do not produce an extra point, and a building completely hidden by taller ones adds nothing.\n- The last key point has `y = 0`: it is the right edge of the right-most building, where the skyline returns to the ground.\n- Consecutive buildings with a gap between them produce a point dropping to `0` at the end of the first one.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains three integers `left`, `right` and `height` of one building.",
+ "output_format": "Print the key points, one per line, as `x y`, in increasing order of `x`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ left < right ≤ 10^9",
+  "1 ≤ height ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3\n1 5 4\n2 4 6\n7 9 3",
+   "output": "1 4\n2 6\n4 4\n5 0\n7 3\n9 0",
+   "explanation": "At x = 1 the skyline rises to 4. At x = 2 the taller building (6) appears, at x = 4 it ends and the first building (4) is visible again, and at x = 5 everything ends so the height drops to 0. The last building gives a rise at 7 and the final drop to 0 at 9."
+  },
+  {
+   "input": "2\n0 3 5\n3 6 5",
+   "output": "0 5\n6 0",
+   "explanation": "The buildings touch at x = 3 and have the same height, so the skyline does not change there and no key point is reported at 3."
+  },
+  {
+   "input": "2\n1 10 3\n2 5 3",
+   "output": "1 3\n10 0",
+   "explanation": "The second building lies completely inside the first and is not taller, so it never changes the outline."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "The skyline can only change at a building's left or right edge. Sweep the x-axis over these edge positions in sorted order.",
+  "While sweeping, keep the buildings that currently cover x in a max-heap by height. The top of the heap, ignoring buildings that have already ended, is the current skyline height.",
+  "Emit a key point only when the top height differs from the previously emitted height. Use lazy deletion (pop the top while its right edge is at or before x) and handle several events at the same x before deciding the height."
+ ],
+ "reference": "import sys\nimport heapq\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    ev = []\n    for i in range(n):\n        l, r, h = int(data[1 + 3 * i]), int(data[2 + 3 * i]), int(data[3 + 3 * i])\n        ev.append((l, -h, r))\n        ev.append((r, 0, 0))\n    ev.sort()\n    heap = [(0, 1 << 60)]\n    out = []\n    prev = 0\n    for x, nh, r in ev:\n        if nh:\n            heapq.heappush(heap, (nh, r))\n        while heap[0][1] <= x:\n            heapq.heappop(heap)\n        cur = -heap[0][0]\n        if cur != prev:\n            out.append(f'{x} {cur}')\n            prev = cur\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nb = [(int(data[1 + 3 * i]), int(data[2 + 3 * i]), int(data[3 + 3 * i])) for i in range(n)]\nxs = sorted(set([l for l, r, h in b] + [r for l, r, h in b]))\nprev = 0\nout = []\nfor x in xs:\n    h = 0\n    for l, r, hh in b:\n        if l <= x < r and hh > h:\n            h = hh\n    if h != prev:\n        out.append(f'{x} {h}')\n        prev = h\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    def fmt(bs):\n        return str(len(bs)) + '\\n' + '\\n'.join(f'{l} {r} {h}' for l, r, h in bs)\n    tests = [\n        fmt([(1, 5, 4), (2, 4, 6), (7, 9, 3)]),\n        fmt([(0, 3, 5), (3, 6, 5)]),\n        fmt([(1, 10, 3), (2, 5, 3)]),\n        fmt([(0, 1, 1)]),\n        fmt([(0, 10**9, 10**9)]),\n        fmt([(2, 9, 10), (3, 7, 15), (5, 12, 12), (15, 20, 10), (19, 24, 8)]),\n        fmt([(1, 4, 2), (1, 4, 5), (1, 4, 3)]),\n        fmt([(5, 8, 3), (1, 3, 3)]),\n        fmt([(1, 2, 1), (2, 3, 2), (3, 4, 3), (4, 5, 2), (5, 6, 1)]),\n    ]\n    for _ in range(40):\n        n = rng.randint(1, 8)\n        span = rng.choice([6, 12, 25])\n        hi = rng.choice([3, 6, 20])\n        bs = []\n        for _ in range(n):\n            l = rng.randint(0, span - 1)\n            r = rng.randint(l + 1, span)\n            bs.append((l, r, rng.randint(1, hi)))\n        tests.append(fmt(bs))\n    N = 100000\n    def big(maxlen, hi=10**9, span=10**9):\n        bs = []\n        for _ in range(N):\n            l = rng.randint(0, span - 2)\n            r = min(span, l + rng.randint(1, maxlen))\n            bs.append((l, r, rng.randint(1, hi)))\n        return bs\n    tests.append(fmt(big(10**9)))\n    tests.append(fmt(big(10**6)))\n    tests.append(fmt(big(10**4, hi=5)))\n    # nested pyramids: many buildings alive at once\n    bs = [(i, 2 * N - i, i + 1) for i in range(N)]\n    rng.shuffle(bs)\n    tests.append(fmt(bs))\n    # staircase of touching buildings\n    bs = [(i * 100, i * 100 + 100, rng.randint(1, 10**9)) for i in range(N)]\n    rng.shuffle(bs)\n    tests.append(fmt(bs))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef get_skyline(buildings: List[List[int]]) -> List[List[int]]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    buildings = [[int(data[1 + 3 * i]), int(data[2 + 3 * i]), int(data[3 + 3 * i])] for i in range(n)]\n    print('\\n'.join(f'{x} {y}' for x, y in get_skyline(buildings)))\n\n\nmain()\n",
+  "javascript": "function getSkyline(buildings) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst buildings = []\nfor (let i = 0; i < n; i++) buildings.push([t[1 + 3 * i], t[2 + 3 * i], t[3 + 3 * i]])\nconsole.log(getSkyline(buildings).map(p => p[0] + ' ' + p[1]).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<pair<long long, long long>> getSkyline(vector<array<long long, 3>>& buildings) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<array<long long, 3>> buildings(n);\n    for (int i = 0; i < n; i++) cin >> buildings[i][0] >> buildings[i][1] >> buildings[i][2];\n    auto res = getSkyline(buildings);\n    for (auto& p : res) cout << p.first << \" \" << p.second << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<long[]> getSkyline(long[][] buildings) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[][] buildings = new long[n][3];\n        for (int i = 0; i < n; i++) {\n            for (int j = 0; j < 3; j++) {\n                in.nextToken();\n                buildings[i][j] = (long) in.nval;\n            }\n        }\n        StringBuilder sb = new StringBuilder();\n        for (long[] p : getSkyline(buildings)) sb.append(p[0]).append(\" \").append(p[1]).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

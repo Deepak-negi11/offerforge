@@ -1,0 +1,19 @@
+{
+ "qid": "bfbd0a2461",
+ "question": "Walmart Senior Software Engineer HLD round: **design a video streaming system like Netflix or Disney+ Hotstar**.\n\nThe reported discussion covered functional and non-functional requirements, **cloud storage choices**, **database design**, **scalability trade-offs**, handling **multiple bitrates** and storing **different resolutions**, using **CDNs** for delivery, and maintaining **availability without compromising consistency**.",
+ "lookingFor": [
+  "Can you separate the write path (upload/transcode) from the read path (streaming)?",
+  "Do you know adaptive bitrate streaming and why many renditions are stored?",
+  "Do you use CDNs and caching properly for a heavy, read-dominated workload?",
+  "Can you pick suitable databases for metadata, watch history and recommendations?",
+  "Can you discuss availability versus consistency in terms of the specific data involved?"
+ ],
+ "answer": "**Requirements.** Functional: browse and search titles, play a video, resume where you left off, user accounts and profiles, recommendations. Non-functional: very high availability, start-up latency of a second or two, smooth playback on varying networks, global scale, and cost efficiency (bandwidth is the main cost). Assume millions of concurrent viewers and a read-heavy workload.\n\n**Content pipeline (write path).** A raw video is uploaded to object storage (S3-like). A workflow (queue plus workers) splits it into chunks, transcodes in parallel into several resolutions and bitrates (for example 240p to 4K) and codecs, generates thumbnails and subtitles, and packages the output as HLS or DASH segments of a few seconds plus a manifest. Segments go back to object storage and metadata is recorded.\n\n**Playback (read path).** The client fetches a manifest and then requests segments from the nearest CDN edge. **Adaptive bitrate streaming** lets the player switch quality per segment based on measured bandwidth and buffer level, which is why every title is stored in multiple renditions. Popular content is cached at edges (ISP-embedded caches in large systems); a cache miss goes to a regional cache and then to origin storage. Pre-position popular titles before releases.\n\n**Data stores.**\n- Video files: object storage, with replication across regions.\n- Metadata (titles, cast, renditions): a relational or document database, heavily cached; search via Elasticsearch.\n- User data, watch history and progress: a horizontally scaled NoSQL store (Cassandra or DynamoDB style) keyed by user id; progress is written frequently, so batch or throttle writes.\n- Recommendations: offline batch/ML pipelines producing precomputed lists stored in a fast key-value store.\n\n**Availability versus consistency.** Be specific: catalog and recommendations can be eventually consistent and served from caches, so favour availability. Billing, subscriptions and entitlement checks need stronger consistency. Watch progress can be last-write-wins. Use multi-region replication and degrade gracefully (fall back to cached or generic recommendations if a service is down).\n\n**Scaling and cost.** Stateless API tier behind load balancers; CDN offloads most bytes; autoscale transcoding workers; only transcode extra renditions for popular titles if storage cost matters; DRM and signed URLs protect content.",
+ "followUps": [
+  "How does adaptive bitrate streaming choose a quality level?",
+  "How would you reduce the storage cost of keeping every rendition?",
+  "What happens on a CDN cache miss for a new release, and how do you prepare for it?",
+  "How would you design the resume-playback feature?",
+  "How would you handle a regional outage?"
+ ]
+}

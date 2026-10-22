@@ -1,0 +1,19 @@
+{
+ "qid": "4154e27682",
+ "question": "Cognizant GenC technical interview. Two reported SQL questions: **fetch the second-largest salary from a table without using `LIMIT`**, and **list the DDL, DML and TCL commands**. The candidate's answer used a nested query with `MAX`, and the interviewer liked that it avoids `LIMIT` and works across SQL engines.",
+ "lookingFor": [
+  "A portable query that does not depend on LIMIT/TOP/OFFSET.",
+  "Awareness of duplicates and the no-second-value case.",
+  "Knowing alternatives (window functions, correlated subquery).",
+  "Accurate classification of DDL, DML, DCL and TCL commands.",
+  "Understanding how TCL commands manage transactions."
+ ],
+ "answer": "**Second-highest salary without LIMIT.** Assume `employees(id, name, salary)`.\n\n```sql\nSELECT MAX(salary) AS second_highest\nFROM employees\nWHERE salary < (SELECT MAX(salary) FROM employees);\n```\n\nThe inner query returns the maximum; the outer query takes the maximum of all salaries strictly below it. It returns the second highest *distinct* salary, and returns `NULL` if there is no such value (one row, or all salaries equal). It works in every major engine.\n\nAlternatives:\n\n```sql\n-- window function (needs a modern DB): handles ties by rank\nSELECT DISTINCT salary FROM (\n  SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk\n  FROM employees) t\nWHERE rnk = 2;\n\n-- correlated count: salary with exactly one distinct higher value\nSELECT DISTINCT e1.salary FROM employees e1\nWHERE 1 = (SELECT COUNT(DISTINCT e2.salary) FROM employees e2 WHERE e2.salary > e1.salary);\n```\n\nThe correlated form generalises to the Nth highest by replacing 1 with N-1. Generally, ask whether two employees with the top salary count as \"second\" (distinct values vs rows).\n\n**Command groups**\n- **DDL** (structure): `CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `RENAME`.\n- **DML** (data): `INSERT`, `UPDATE`, `DELETE`; `SELECT` is often listed here or separately as DQL.\n- **DCL** (permissions): `GRANT`, `REVOKE`.\n- **TCL** (transactions): `COMMIT` makes changes permanent; `ROLLBACK` undoes uncommitted changes; `SAVEPOINT` marks a point inside a transaction to roll back to (`ROLLBACK TO savepoint_name`).\n\nTCL is how you group several DML statements into one atomic unit, for example a funds transfer: both updates commit together or are both rolled back.",
+ "followUps": [
+  "How would you find the Nth highest salary?",
+  "What is the difference between RANK, DENSE_RANK and ROW_NUMBER?",
+  "What is the second highest salary per department?",
+  "Does TRUNCATE belong to DDL or DML, and why?",
+  "What does a savepoint let you do that a plain rollback does not?"
+ ]
+}

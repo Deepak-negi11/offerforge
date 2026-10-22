@@ -1,0 +1,17 @@
+{
+ "qid": "0697bc8b92",
+ "question": "In Round 1 (HLD and DB schema design) of a Zomato/Eternal SDE-1 interview, the candidate was asked to **design a schema for delivery partners and orders**.\n\nFollow-up: **write a database query to find the top 5 delivery partners in an area based on the highest count of a certain order type.** The candidate recalled that there were three order types but not the exact details.",
+ "lookingFor": [
+  "Can you design a clean relational schema with the right keys and relationships?",
+  "Can you write correct aggregation SQL with filter, group, order and limit?",
+  "Do you think about indexes for the query and about tie-breaking?",
+  "Do you state assumptions where the question is underspecified?"
+ ],
+ "answer": "**Assumptions.** A delivery partner works in one or more areas; an order has a type (for example `FOOD`, `GROCERY`, `PICKUP`), a delivery area and an assigned partner. State these, since the original details were not remembered.\n\n**Schema**\n```\nareas(id PK, name, city)\ndelivery_partners(id PK, name, phone, status)\npartner_areas(partner_id FK, area_id FK, PK(partner_id, area_id))   -- optional, many-to-many\norders(\n  id PK, customer_id, restaurant_id,\n  partner_id FK NULL,           -- NULL until assigned\n  area_id FK,                   -- delivery area\n  order_type ENUM('FOOD','GROCERY','PICKUP'),\n  status ENUM('PLACED','ASSIGNED','DELIVERED','CANCELLED'),\n  created_at, delivered_at\n)\nINDEX orders(area_id, order_type, status, partner_id)\n```\n\n**Query: top 5 partners in an area by count of a given type**\n```\nSELECT p.id, p.name, COUNT(*) AS order_count\nFROM orders o\nJOIN delivery_partners p ON p.id = o.partner_id\nWHERE o.area_id = :area\n  AND o.order_type = :type\n  AND o.status = 'DELIVERED'\nGROUP BY p.id, p.name\nORDER BY order_count DESC, p.id\nLIMIT 5;\n```\n\n**Why it works.** The `WHERE` clause filters to the area, type and delivered orders (decide whether cancelled orders should count; usually not). `GROUP BY` collapses to one row per partner, `COUNT(*)` counts orders, the descending sort puts the busiest first and `LIMIT 5` keeps five. The secondary sort key makes ties deterministic. If ties should all be included, use `DENSE_RANK() OVER (ORDER BY count DESC)` and filter rank `<= 5`.\n\n**Performance.** The composite index lets the filter use an index range, and with `partner_id` included it can be a covering scan. For a time window (this week) add `created_at` to the filter and index. For a dashboard at large scale, precompute counts in a summary table updated by events, or use a materialised view refreshed periodically.",
+ "followUps": [
+  "How would you include only the last 30 days?",
+  "What if a partner works in several areas?",
+  "How would you handle ties for fifth place?",
+  "How would this query behave with 500 million orders?"
+ ]
+}

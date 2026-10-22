@@ -1,0 +1,48 @@
+{
+ "pid": "scramble-string",
+ "title": "Scramble String",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "A string `s` can be **scrambled** with the following recursive procedure:\n\n- If `s` has length 1, stop.\n- Otherwise, choose a split index and cut `s` into two non-empty parts `x` and `y` (so `s = x + y`).\n- Optionally swap the two parts, giving either `x + y` or `y + x`.\n- Apply the same procedure independently to `x` and to `y` (each one may be split, swapped and scrambled again, or left as it is when it has length 1).\n\nA string `t` is a **scramble** of `s` if it can be obtained from `s` by running this procedure with some choice of split points and swaps. Every string is a scramble of itself.\n\nGiven two strings `s1` and `s2` of the same length, print `true` if `s2` is a scramble of `s1`, otherwise print `false`.",
+ "input_format": "The first line contains the string `s1`.\nThe second line contains the string `s2`.",
+ "output_format": "Print `true` or `false`.",
+ "constraints": [
+  "1 ≤ |s1| = |s2| ≤ 30",
+  "s1 and s2 consist of lowercase English letters"
+ ],
+ "examples": [
+  {
+   "input": "abcd\ncdba",
+   "output": "true",
+   "explanation": "Split abcd into ab and cd and swap them to get cdab. Then split ab and swap it into ba, which yields cdba."
+  },
+  {
+   "input": "abcd\nacbd",
+   "output": "true",
+   "explanation": "Split abcd into a and bcd, keeping the order. Split bcd into bc and d, keeping the order. Split bc into b and c and swap them to get cb, so the result is a + cb + d = acbd."
+  },
+  {
+   "input": "abcd\nbdac",
+   "output": "false",
+   "explanation": "Both strings contain the same letters, but every first split of abcd (a|bcd, ab|cd or abc|d) would need bdac to start or end with a, to be made of the letters of ab and cd in two blocks, or to start or end with d, and none of these holds."
+  }
+ ],
+ "complexity": {
+  "time": "O(n^4)",
+  "space": "O(n^3)"
+ },
+ "hints": [
+  "Think recursively: s2 is a scramble of s1 if, for some split point k, either the first k characters of s2 are a scramble of the first k of s1 and the rest likewise, or the first k of s2 match the last k of s1 and the rest match the first n - k of s1.",
+  "The same pair of substrings (start in s1, start in s2, length) is examined again and again. Memoise on those three numbers: there are only O(n^3) states, each with O(n) split points.",
+  "You can cut the search a lot by returning false immediately when two substrings do not contain the same multiset of letters, and true when they are equal."
+ ],
+ "reference": "import sys\nfrom functools import lru_cache\n\ndef main():\n    data = sys.stdin.read().split()\n    s, t = data[0], data[1]\n    n = len(s)\n\n    @lru_cache(maxsize=None)\n    def f(i, j, L):\n        a = s[i:i + L]\n        b = t[j:j + L]\n        if a == b:\n            return True\n        if sorted(a) != sorted(b):\n            return False\n        for k in range(1, L):\n            if f(i, j, k) and f(i + k, j + k, L - k):\n                return True\n            if f(i, j + L - k, k) and f(i + k, j, L - k):\n                return True\n        return False\n\n    print('true' if f(0, 0, n) else 'false')\n\nmain()\n",
+ "brute": "import sys\nfrom functools import lru_cache\n\ndata = sys.stdin.read().split()\ns, t = data[0], data[1]\n\n@lru_cache(maxsize=None)\ndef scr(a, b):\n    if len(a) == 1:\n        return a == b\n    for k in range(1, len(a)):\n        if scr(a[:k], b[:k]) and scr(a[k:], b[k:]):\n            return True\n        if scr(a[:k], b[len(a) - k:]) and scr(a[k:], b[:len(a) - k]):\n            return True\n    return False\n\nprint('true' if scr(s, t) else 'false')\n",
+ "generator": "def gen(rng):\n    def scr(s):\n        if len(s) == 1:\n            return s\n        k = rng.randint(1, len(s) - 1)\n        a, b = scr(s[:k]), scr(s[k:])\n        return b + a if rng.random() < 0.5 else a + b\n    def swap2(t):\n        t = list(t)\n        if len(t) > 1:\n            i, j = rng.sample(range(len(t)), 2)\n            t[i], t[j] = t[j], t[i]\n        return ''.join(t)\n    def fmt(a, b):\n        return a + '\\n' + b\n    tests = [\n        fmt('a', 'a'), fmt('a', 'b'), fmt('ab', 'ba'), fmt('ab', 'ab'), fmt('abc', 'bca'), fmt('abc', 'cab'),\n        fmt('abcd', 'cdba'), fmt('abcd', 'acbd'), fmt('abcd', 'bdac'), fmt('aabb', 'abab'), fmt('abcde', 'caebd'),\n        fmt('abcdbdacbdac', 'bdacabcdbdac'), fmt('z' * 30, 'z' * 30), fmt('a' * 29 + 'b', 'a' * 28 + 'ba'),\n    ]\n    hard = [('bcacabcabbaabccaabacbbacababab', 'caabcbcabaaaaababbbbcccaabcbba'),\n            ('acabbbbbbaaaaccbbbbacabaaaaaba', 'babaabaabcabbacbbbabbbcaacaaaa'),\n            ('acccabcbcaaaaccaacbcbccbbbbabb', 'cacacbcbbbaaacbcabacabcbcbcbac'),\n            ('abccccbaccbacaacbbcbbcacaaaccb', 'ccbbbaaabbaaccacccacbaccccabcb'),\n            ('abaabbbaabbabbaccaababbabcaaba', 'acbbcbbabbabbabbabaacaaaaababa'),\n            ('ccadbababdcaababbcbdbadbbbaddb', 'bdddcabadcadabbbbbbbabccabdaab')]\n    for a, b in hard:\n        tests.append(fmt(a, b))\n        tests.append(fmt(b, a))\n    for _ in range(12):\n        n = rng.randint(2, 9)\n        alpha = rng.choice(['ab', 'abc', 'abcd', 'abcdefgh'])\n        s = ''.join(rng.choice(alpha) for _ in range(n))\n        r = rng.random()\n        if r < 0.45:\n            t = scr(s)\n        elif r < 0.8:\n            t = swap2(scr(s))\n        else:\n            t = ''.join(rng.sample(s, n))\n        tests.append(fmt(s, t))\n    for alpha in ['ab', 'abc', 'abcdefghij', 'ab']:\n        for mode in range(3):\n            n = rng.randint(24, 30)\n            s = ''.join(rng.choice(alpha) for _ in range(n))\n            if mode == 0:\n                t = scr(s)\n            elif mode == 1:\n                t = swap2(scr(s))\n            else:\n                t = ''.join(rng.sample(s, n))\n            tests.append(fmt(s, t))\n    s = 'ab' * 15\n    tests.append(fmt(s, scr(s)))\n    tests.append(fmt(s, swap2(scr(s))))\n    s = 'a' * 15 + 'b' * 15\n    tests.append(fmt(s, 'b' * 15 + 'a' * 15))\n    tests.append(fmt(s, 'ab' * 15))\n    s = 'abcdefghijklmnopqrstuvwxyzabcd'\n    tests.append(fmt(s, scr(s)))\n    tests.append(fmt(s, swap2(scr(s))))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef is_scramble(s1: str, s2: str) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    print('true' if is_scramble(data[0], data[1]) else 'false')\n\n\nmain()\n",
+  "javascript": "function isScramble(s1, s2) {\n  // Write your solution here\n  return false\n}\n\nconst tk = input.split(/\\s+/).filter(Boolean)\nconsole.log(isScramble(tk[0], tk[1]) ? 'true' : 'false')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool isScramble(const string& s1, const string& s2) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s1, s2;\n    cin >> s1 >> s2;\n    cout << (isScramble(s1, s2) ? \"true\" : \"false\") << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean isScramble(String s1, String s2) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String s1 = br.readLine().trim();\n        String s2 = br.readLine().trim();\n        System.out.println(isScramble(s1, s2) ? \"true\" : \"false\");\n    }\n}\n"
+ }
+}

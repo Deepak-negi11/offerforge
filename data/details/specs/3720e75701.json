@@ -1,0 +1,18 @@
+{
+ "qid": "3720e75701",
+ "question": "Goldman Sachs Superday round 1 (Vice President). You are given a list of roles. Each role may have a **parent**, an **accept list** and a **deny list** (for example read/write permissions). Write the logic for `getPermission(role)`. Rules: **a child carries all permissions of its parent**, and **the child's own permissions override the parent's**. Follow-up: **what if a role has multiple parents?**",
+ "lookingFor": [
+  "Modelling the roles as a graph and computing effective permissions.",
+  "Defining precedence rules explicitly, including conflicts.",
+  "Using recursion or iteration with memoisation, and detecting cycles.",
+  "Handling the multiple-parent (diamond) follow-up cleanly.",
+  "Testing edge cases: missing roles, empty lists, same permission in both lists."
+ ],
+ "answer": "**Clarify the rules.** Effective permissions of a role = parent's effective permissions, then apply the child's own decisions. A child's allow adds a permission; a child's deny removes one the parent granted. If the same permission is in both lists of one role, say which wins (a common safe choice: deny wins). Ask what to return for an unknown role.\n\n**Model.**\n```java\nclass Role { String name; List<String> parents; Set<String> allow, deny; }\n```\nStore roles in a `Map<String, Role>`.\n\n**Single parent (recursive):**\n```java\nSet<String> getPermission(String name) {\n  Role r = roles.get(name);\n  Set<String> result = r.parent == null ? new HashSet<>() : getPermission(r.parent);\n  result = new HashSet<>(result);\n  result.addAll(r.allow);\n  result.removeAll(r.deny);   // deny wins over a same-level allow\n  return result;\n}\n```\nTime is O(depth x permissions). To avoid recomputation across calls, memoise per role (invalidate if roles change). Detect cycles with a `visiting` set and throw an error.\n\n**Multiple parents.** Compute each parent's effective set first, then combine them, and then apply the child's own allow/deny last, so the child still overrides. You must decide how parents conflict with each other, and say it aloud:\n- *Union* of allowed permissions, but a permission explicitly denied by any parent is removed (deny wins), the safest default for access control; or\n- precedence by parent order (the first parent wins on conflict), like method resolution order.\n\nTrack permission decisions as a map `permission -> ALLOW/DENY` rather than only a set, so a deny inherited from a parent can still be overridden by a child's explicit allow.\n\n**Diamond inheritance:** the same grandparent is reached through two paths. Memoisation ensures it is computed once; since combination is idempotent, results are the same.\n\n**Complexity:** O(V + E) over the role graph per role with memoisation, using a DFS with cycle detection.\n\n**Tests:** no parent; deep chain; child allow overriding parent deny; two parents conflicting; cycle; unknown role.",
+ "followUps": [
+  "How would you detect and report cyclic role definitions?",
+  "How do you cache effective permissions and invalidate them when a role changes?",
+  "In a conflict between allow and deny at different levels, which should win and why?",
+  "How would this scale if there were millions of users and thousands of roles?"
+ ]
+}

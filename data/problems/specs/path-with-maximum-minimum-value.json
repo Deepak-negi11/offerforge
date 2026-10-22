@@ -1,0 +1,48 @@
+{
+ "pid": "path-with-maximum-minimum-value",
+ "title": "Mouse Path Farthest from the Cat",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A mouse wants to get from its starting cell `S` to a treat `T` on a square `n × n` grid. The grid also contains a cat `C`. Each cell is one of:\n\n- `.` land,\n- `#` water (impassable),\n- `S`, `T`, `C`: the mouse, the treat and the cat. These three cells are land and appear exactly once each.\n\nThe mouse moves between cells that share an edge (up, down, left, right) and only through land cells, including `T` and the cat's own cell `C`.\n\nThe **danger** of a cell is its Manhattan distance to the cat: for the cell `(r, c)` and the cat at `(cr, cc)` it is `|r - cr| + |c - cc|`. Distances ignore water. The danger of a path is the **smallest** danger over all cells on it, **including** `S` and `T`.\n\nThe mouse wants a path from `S` to `T` whose danger is as large as possible, i.e. the path that stays as far from the cat as it can at its closest point.\n\nPrint the maximum possible danger over all paths from `S` to `T`, or `-1` if no path exists at all.",
+ "input_format": "The first line contains the integer `n`.\nEach of the next `n` lines contains a string of `n` characters from `.`, `#`, `S`, `T`, `C`.",
+ "output_format": "Print a single integer: the maximum possible danger of a path from `S` to `T`, or `-1` if `T` cannot be reached from `S`.",
+ "constraints": [
+  "2 ≤ n ≤ 250",
+  "The grid contains exactly one `S`, one `T` and one `C`, in three different cells."
+ ],
+ "examples": [
+  {
+   "input": "5\nS....\n.###.\n.#C#.\n.###.\n....T",
+   "output": "2",
+   "explanation": "The cat sits at (2, 2), walled in by water. The mouse must walk around the border ring. Whichever way it goes it passes through one of the border cells (0, 2), (2, 0), (4, 2) or (2, 4), each at distance 2 from the cat, while all other border cells are farther away. So the best possible danger is 2."
+  },
+  {
+   "input": "4\nS...\n.##.\n..C.\n...T",
+   "output": "1",
+   "explanation": "The cat is at (2, 2). The treat at (3, 3) has only two neighbours, (2, 3) and (3, 2), and both are at distance 1 from the cat, so every path has danger at most 1. The route down the left column and along the bottom row reaches (3, 2) with all earlier cells at distance 2 or more, so 1 is achieved."
+  },
+  {
+   "input": "3\nS#.\n#C.\n..T",
+   "output": "-1",
+   "explanation": "Both neighbours of the start cell are water, so the mouse cannot move at all."
+  }
+ ],
+ "complexity": {
+  "time": "O(n^2 log n)",
+  "space": "O(n^2)"
+ },
+ "hints": [
+  "Compute each cell's Manhattan distance to the cat directly from its coordinates; no search is needed for that.",
+  "If the mouse can reach T while staying on cells with distance at least d, it can also do so for any smaller d. That monotonicity lets you binary search the answer, testing each d with a BFS that only enters cells whose distance is at least d.",
+  "Alternatively run a Dijkstra-style search that always expands the reachable cell with the largest 'worst distance so far', which finds the answer in one pass."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    g = data[1:1 + n]\n    for i in range(n):\n        for j in range(n):\n            ch = g[i][j]\n            if ch == 'S': s = (i, j)\n            elif ch == 'T': t = (i, j)\n            elif ch == 'C': c = (i, j)\n    cr, cc = c\n    best = [[-1] * n for _ in range(n)]\n    si, sj = s\n    d0 = abs(si - cr) + abs(sj - cc)\n    best[si][sj] = d0\n    heap = [(-d0, si, sj)]\n    while heap:\n        nd, i, j = heapq.heappop(heap)\n        nd = -nd\n        if nd < best[i][j]:\n            continue\n        if (i, j) == t:\n            break\n        for ni, nj in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)):\n            if 0 <= ni < n and 0 <= nj < n and g[ni][nj] != '#':\n                v = min(nd, abs(ni - cr) + abs(nj - cc))\n                if v > best[ni][nj]:\n                    best[ni][nj] = v\n                    heapq.heappush(heap, (-v, ni, nj))\n    print(best[t[0]][t[1]])\n\nmain()\n",
+ "brute": "import sys\nsys.setrecursionlimit(10000)\ndata = sys.stdin.read().split()\nn = int(data[0])\ng = data[1:1 + n]\nfor i in range(n):\n    for j in range(n):\n        if g[i][j] == 'S': s = (i, j)\n        elif g[i][j] == 'T': t = (i, j)\n        elif g[i][j] == 'C': c = (i, j)\n\ndef dist(i, j):\n    return abs(i - c[0]) + abs(j - c[1])\n\nbest = -1\nseen = [[False] * n for _ in range(n)]\n\ndef dfs(i, j, cur):\n    global best\n    cur = min(cur, dist(i, j))\n    if (i, j) == t:\n        best = max(best, cur)\n        return\n    seen[i][j] = True\n    for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n        a, b = i + di, j + dj\n        if 0 <= a < n and 0 <= b < n and g[a][b] != '#' and not seen[a][b]:\n            dfs(a, b, cur)\n    seen[i][j] = False\n\ndfs(s[0], s[1], 10**9)\nprint(best)\n",
+ "generator": "def gen(rng):\n    def place(n, water):\n        cells = [(i, j) for i in range(n) for j in range(n)]\n        rng.shuffle(cells)\n        s, t, c = cells[0], cells[1], cells[2]\n        g = [['#' if rng.random() < water else '.' for _ in range(n)] for _ in range(n)]\n        g[s[0]][s[1]] = 'S'; g[t[0]][t[1]] = 'T'; g[c[0]][c[1]] = 'C'\n        return g\n    def fmt(g):\n        return str(len(g)) + '\\n' + '\\n'.join(''.join(r) for r in g)\n    tests = [\n        fmt([list('ST'), list('C.')]),\n        fmt([list('SC'), list('.T')]),\n        '2\\nS#\\nTC',\n        fmt([list('S.T'), list('###'), list('..C')]),\n        fmt([list('S.T'), list('...'), list('..C')]),\n        fmt([list('S..'), list('...'), list('C.T')]),\n    ]\n    for _ in range(70):\n        n = rng.randint(2, 5)\n        water = rng.choice([0.0, 0.1, 0.25, 0.4]) if n <= 4 else rng.choice([0.25, 0.4])\n        tests.append(fmt(place(n, water)))\n    for _ in range(6):\n        tests.append(fmt(place(6, 0.45)))\n    N = 250\n    # open field, random corners\n    g = [['.'] * N for _ in range(N)]\n    g[0][0] = 'S'; g[N - 1][N - 1] = 'T'; g[N // 2][N // 2 + rng.randint(-20, 20)] = 'C'\n    tests.append(fmt(g))\n    # sparse water\n    tests.append(fmt(place(N, 0.2)))\n    # serpentine corridor (long path), cat near its middle\n    g = [['.'] * N for _ in range(N)]\n    for r in range(1, N, 2):\n        for c in range(N):\n            g[r][c] = '#'\n        if (r // 2) % 2 == 0:\n            g[r][N - 1] = '.'\n        else:\n            g[r][0] = '.'\n    g[0][0] = 'S'\n    g[N - 2][0] = 'T'\n    cr = rng.randrange(1, N, 2); cc = rng.randrange(1, N - 1)\n    g[cr][cc] = 'C'\n    tests.append(fmt(g))\n    # cat next to a wall of water that the mouse has to pass through a gap\n    g = [['.'] * N for _ in range(N)]\n    for r in range(N):\n        g[r][N // 2] = '#'\n    g[rng.randrange(N)][N // 2] = '.'\n    g[N // 2][0] = 'S'; g[N // 2 + 1][N - 1] = 'T'; g[rng.randrange(N)][N // 2 + 1] = 'C'\n    tests.append(fmt(g))\n    # blocked large\n    g = [['.'] * N for _ in range(N)]\n    for r in range(N):\n        g[r][N // 3] = '#'\n    g[5][5] = 'S'; g[N - 5][N - 5] = 'T'; g[100][100] = 'C'\n    tests.append(fmt(g))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_min_distance(grid: List[str]) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    grid = data[1:1 + n]\n    print(max_min_distance(grid))\n\n\nmain()\n",
+  "javascript": "function maxMinDistance(grid) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = Number(t[0])\nconst grid = t.slice(1, 1 + n)\nconsole.log(String(maxMinDistance(grid)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint maxMinDistance(vector<string>& grid) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<string> grid(n);\n    for (int i = 0; i < n; i++) cin >> grid[i];\n    cout << maxMinDistance(grid) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int maxMinDistance(String[] grid) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        int n = Integer.parseInt(br.readLine().trim());\n        String[] grid = new String[n];\n        for (int i = 0; i < n; i++) grid[i] = br.readLine().trim();\n        System.out.println(maxMinDistance(grid));\n    }\n}\n"
+ }
+}

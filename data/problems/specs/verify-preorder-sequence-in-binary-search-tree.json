@@ -1,0 +1,49 @@
+{
+ "pid": "verify-preorder-sequence-in-binary-search-tree",
+ "title": "Verify Preorder Sequence in BST",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given a sequence of `n` **distinct** integers. Decide whether there exists a binary search tree whose **preorder traversal** (node, then left subtree, then right subtree) is exactly this sequence.\n\nIn a binary search tree every node's value is greater than all values in its left subtree and smaller than all values in its right subtree. The tree must contain exactly the `n` given values, each once.\n\nPrint `YES` if such a tree exists and `NO` otherwise.\n\n**Follow-up:** can you do it in `O(n)` time using only `O(1)` extra space beyond the input array, by reusing the array as the stack?",
+ "input_format": "The first line contains `n`. The second line contains `n` distinct integers, the sequence.",
+ "output_format": "Print `YES` or `NO`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ sequence[i] ≤ 10^9",
+  "All values are distinct"
+ ],
+ "examples": [
+  {
+   "input": "6\n8 4 2 6 12 10",
+   "output": "YES",
+   "explanation": "Root 8; the next values 4, 2, 6 are all below 8 and form the left subtree (4 with children 2 and 6); the last value 12 starts the right subtree, and 10 is its left child."
+  },
+  {
+   "input": "5\n8 12 4 9 15",
+   "output": "NO",
+   "explanation": "After 12 goes right of 8, the value 4 is smaller than 8 but appears after a right-subtree value, so it cannot be in the left subtree of 8 and no valid tree exists."
+  },
+  {
+   "input": "1\n42",
+   "output": "YES",
+   "explanation": "A single value is a one-node tree."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "In preorder, once you step into a right subtree of some node, every later value must be larger than that node. Keep track of such a lower bound.",
+  "Maintain a stack of ancestors whose right subtree has not started. When the next value is larger than the stack top, the top's left subtree is finished: pop and raise the lower bound.",
+  "If any value is not larger than the current lower bound, answer `NO`. Otherwise push it. If you reach the end, answer `YES`."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    low = -1\n    stack = []\n    for x in a:\n        if x < low:\n            print('NO')\n            return\n        while stack and stack[-1] < x:\n            low = stack.pop()\n        stack.append(x)\n    print('YES')\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + n]]\nleft = {}\nright = {}\nroot = a[0]\nfor x in a[1:]:\n    cur = root\n    while True:\n        if x < cur:\n            if cur in left:\n                cur = left[cur]\n            else:\n                left[cur] = x\n                break\n        else:\n            if cur in right:\n                cur = right[cur]\n            else:\n                right[cur] = x\n                break\n\ndef pre(v, out):\n    out.append(v)\n    if v in left:\n        pre(left[v], out)\n    if v in right:\n        pre(right[v], out)\n\nout = []\npre(root, out)\nprint('YES' if out == a else 'NO')\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n\n    def preorder_of_random_bst(vals):\n        # insert in the given order, return the iterative preorder\n        left, right = {}, {}\n        root = vals[0]\n        for x in vals[1:]:\n            cur = root\n            while True:\n                if x < cur:\n                    if cur in left:\n                        cur = left[cur]\n                    else:\n                        left[cur] = x\n                        break\n                else:\n                    if cur in right:\n                        cur = right[cur]\n                    else:\n                        right[cur] = x\n                        break\n        out, st = [], [root]\n        while st:\n            v = st.pop()\n            out.append(v)\n            if v in right:\n                st.append(right[v])\n            if v in left:\n                st.append(left[v])\n        return out\n\n    tests = [\n        fmt([1]),\n        fmt([1, 2]),\n        fmt([2, 1]),\n        fmt([2, 1, 3]),\n        fmt([2, 3, 1]),\n        fmt([3, 1, 4, 2]),\n        fmt([5, 2, 1, 3, 6, 4]),\n        fmt([5, 2, 6, 1, 3]),\n    ]\n    for n in (2, 3, 4, 5, 6, 7, 9, 12):\n        for _ in range(3):\n            vals = rng.sample(range(1, 4 * n + 1), n)\n            tests.append(fmt(vals))\n        for _ in range(3):\n            vals = rng.sample(range(1, 4 * n + 1), n)\n            tests.append(fmt(preorder_of_random_bst(vals)))\n        for _ in range(2):\n            vals = rng.sample(range(1, 4 * n + 1), n)\n            p = preorder_of_random_bst(vals)\n            i, j = rng.sample(range(n), 2)\n            p[i], p[j] = p[j], p[i]\n            tests.append(fmt(p))\n    N = 100000\n    vals = rng.sample(range(1, 10 ** 9 + 1), N)\n    p = preorder_of_random_bst(vals)\n    tests.append(fmt(p))\n    q = p[:]\n    q[-1], q[-2] = q[-2], q[-1]\n    tests.append(fmt(q))\n    tests.append(fmt(list(range(1, N + 1))))\n    tests.append(fmt(list(range(N, 0, -1))))\n    # descending chain, a right turn after 6, then a value below 6: invalid\n    desc = list(range(2 * N, 0, -2))\n    tests.append(fmt(desc[:-2] + [desc[-3] + 1, desc[-3] - 1]))\n    # zig-zag deep tree: valid\n    lo, hi = 1, N\n    zig, flip = [], True\n    while lo <= hi:\n        if flip:\n            zig.append(lo)\n            lo += 1\n        else:\n            zig.append(hi)\n            hi -= 1\n        flip = not flip\n    tests.append(fmt(zig))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef is_valid_preorder(seq: List[int]) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    seq = [int(x) for x in data[1:1 + n]]\n    print('YES' if is_valid_preorder(seq) else 'NO')\n\n\nmain()\n",
+  "javascript": "function isValidPreorder(seq) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst seq = []\nfor (let i = 0; i < n; i++) seq.push(t[1 + i])\nconsole.log(isValidPreorder(seq) ? 'YES' : 'NO')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool isValidPreorder(vector<long long>& seq) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> seq(n);\n    for (int i = 0; i < n; i++) cin >> seq[i];\n    cout << (isValidPreorder(seq) ? \"YES\" : \"NO\") << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean isValidPreorder(long[] seq) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] seq = new long[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); seq[i] = (long) in.nval; }\n        System.out.println(isValidPreorder(seq) ? \"YES\" : \"NO\");\n    }\n}\n"
+ }
+}

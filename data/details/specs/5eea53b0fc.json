@@ -1,0 +1,19 @@
+{
+ "qid": "5eea53b0fc",
+ "question": "Netflix senior software engineer (L5, Ads) system design round, reported as the favourite round of the candidate and close to the actual job. The prompt: **design a frequency capping system**. Specific points raised: support limits such as **five impressions per day** or **ten impressions in two weeks**, decide **what granularity to cap at** (line item, campaign or category), and explain **how to ingest the ad events** needed to enforce the caps. The candidate treated it as a rate limiter plus ad event ingestion.",
+ "lookingFor": [
+  "Translating the ads requirement into counters over time windows per user.",
+  "Choice of window algorithm (fixed, sliding, bucketed) and its accuracy trade-offs.",
+  "Event ingestion pipeline: ordering, duplicates, delay, and exactly-once-ish effects.",
+  "Latency awareness: the check is on the ad decision path.",
+  "Reasoning about granularity and the cost of storing counters at scale."
+ ],
+ "answer": "**Requirements.** On each ad decision, exclude any line item the user has already seen too often. Caps are configurable: N impressions per window (per day, per 14 days) at line item, campaign, or category scope. Check must add only a few milliseconds. Slight over-delivery is tolerable; under-delivery from false blocks hurts revenue, and strict real-time exactness is not needed.\n\n**Flow.**\n1. Ad server receives a request, gets candidate line items, and for each asks the cap service whether the user is under all applicable caps.\n2. When an ad is shown, the player/beacon emits an impression event. Events go to a log (e.g. Kafka), keyed by user ID.\n3. A stream processor deduplicates by impression ID and increments counters.\n4. The next request sees the updated counts.\n\n**Counter storage.** Key: `user_id : scope_type : scope_id : bucket`. Use time buckets (hourly or daily) so a 14-day cap sums 14 daily buckets, which is a sliding window approximation that is cheap and bounded in size. Store in a low-latency key-value store with TTL equal to the longest window. For a day-level cap, one counter per day bucket is enough. Use a batched multi-get per request for all candidates.\n\n**Granularity.** Line-item caps protect a specific order; campaign caps stop the same user seeing different creatives too often; category/advertiser caps stop competing or similar ads from stacking. More granularity means more keys, so cap-key space grows with users times scopes; keep only users active inside the window.\n\n**Handling lag.** Events arrive after the next request, so a user can briefly exceed the cap. Mitigate by also incrementing optimistically at decision time (reservation) and reconciling when the impression confirms or expires. Duplicates need idempotency keys.\n\n**Scaling and failure.** Shard by user ID; keep the cap service stateless on top of a replicated store; if it fails, fail open (serve) or fail closed based on contract risk, usually open with logging. Also keep a durable copy of events in the warehouse for billing and for rebuilding counters.",
+ "followUps": [
+  "How do you handle a user who sees ads on several devices?",
+  "Fixed window vs sliding window: what is the trade-off for a two-week cap?",
+  "What happens if the event pipeline is delayed by 10 minutes?",
+  "How would you rebuild counters after data loss in the store?",
+  "How would you test that the cap is enforced correctly at scale?"
+ ]
+}

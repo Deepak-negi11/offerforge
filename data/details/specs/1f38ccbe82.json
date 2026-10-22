@@ -1,0 +1,19 @@
+{
+ "qid": "1f38ccbe82",
+ "question": "Uber SDE-1 (2025 batch) round labelled 'LLD' / system design, with two interviewers. **Design a messaging app.** The candidate assumed it meant class diagrams, but the interviewers wanted a real-world design (think of it as a real project): the **database schema** and follow-up questions. Related reports describe the same theme: modelling users, conversations and messages, storage and retrieval, message ordering, messaging APIs, scalability and real-time considerations. The candidate's lesson: clarify the expected depth early.",
+ "lookingFor": [
+  "Asking what level of design (class-level vs system-level) is expected.",
+  "Data modelling for users, conversations and messages.",
+  "Message ordering, delivery and read states.",
+  "API and real-time delivery design (WebSockets, push).",
+  "Scalability and trade-off reasoning."
+ ],
+ "answer": "**First, clarify.** Ask: \"Do you want class-level design or a system-level design with schema and APIs?\" Then scope: 1:1 and group chats, text only, delivery status, offline delivery, history; skip media, calls and end-to-end encryption unless asked. Assume millions of users and a high write rate.\n\n**Entities and schema**\n- `User(id, name, ...)`\n- `Conversation(id, type[direct|group], created_at)`\n- `Participant(conversation_id, user_id, role, last_read_message_id)`\n- `Message(id, conversation_id, sender_id, body, created_at, type)`\n\nAccess pattern: \"latest N messages of a conversation\", so key messages by `(conversation_id, message_id)` and cluster them in that order. This suits a wide-column store (Cassandra-like) or a sharded SQL table partitioned by conversation id. Index `Participant` by `user_id` to list a user's conversations (the inbox).\n\n**Ordering.** Use a per-conversation monotonic sequence or time-sortable ids (for example Snowflake-style). Ordering is only needed within one conversation, which avoids global coordination. Clients dedupe by an idempotency key (client-generated id), so retries do not duplicate messages.\n\n**APIs**\n- `POST /conversations/{id}/messages`\n- `GET /conversations/{id}/messages?before=&limit=`\n- `GET /conversations` for the inbox\n- A WebSocket for live push.\n\n**Delivery flow.** Sender -> API -> persist message -> publish to a queue -> a gateway holding the recipient's WebSocket pushes it; if the recipient is offline, send a push notification and rely on sync-on-reconnect using `last_read_message_id` or the last seen id. Track `sent/delivered/read` states per participant.\n\n**Scale.** Shard by conversation id, keep connection gateways stateless behind a presence/routing map (user -> gateway) in Redis, fan out group messages through the queue, and cap group size or use read-time fan-out for large groups.\n\n**Trade-offs.** Fan-out on write vs read for groups, SQL vs wide-column, strict vs eventual read receipts.",
+ "followUps": [
+  "How would you guarantee message ordering and avoid duplicates on retries?",
+  "How do you route a message to the right WebSocket server?",
+  "How would you handle a group with 100,000 members?",
+  "How do you store and page through message history efficiently?",
+  "What would you add to support read receipts and typing indicators?"
+ ]
+}

@@ -1,0 +1,47 @@
+{
+ "pid": "finding-pairs-with-a-certain-sum",
+ "title": "Pair-Sum Queries With Updates",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given two integer arrays `A` (length `n`) and `B` (length `m`), and a sequence of `q` operations to be applied in order. Each operation is one of two types:\n\n- `1 i v`: **update**. Set `A[i] = v` (indices are 0-based). This prints nothing.\n- `2 x`: **query**. Count the pairs `(i, j)` with `0 ≤ i < n` and `0 ≤ j < m` such that `A[i] + B[j] = x`, using the current contents of `A`. Print the count.\n\nPairs are counted by position, so equal values at different positions count separately. `B` never changes. There is at least one query operation.\n\nIn the reported version `A` is the large array (about 10^4 elements) and `B` the small one (about 10^3).",
+ "input_format": "The first line contains `n` and `m`.\nThe second line contains the `n` integers of `A`.\nThe third line contains the `m` integers of `B`.\nThe fourth line contains `q`.\nEach of the next `q` lines is either `1 i v` or `2 x`.",
+ "output_format": "For every query operation, print the answer on its own line, in order.",
+ "constraints": [
+  "1 ≤ n ≤ 10^4",
+  "1 ≤ m ≤ 1000",
+  "1 ≤ q ≤ 5000, with at least one operation of type 2",
+  "1 ≤ A[i], B[j], v ≤ 10^9",
+  "0 ≤ i < n",
+  "1 ≤ x ≤ 2 * 10^9"
+ ],
+ "examples": [
+  {
+   "input": "4 3\n1 2 3 2\n2 4 2\n4\n2 5\n1 0 3\n2 5\n2 4",
+   "output": "3\n4\n4",
+   "explanation": "First query: 1+4 gives one pair and each of the two 2s in B pairs with the 3 in A, so 3 in total. After setting A[0] = 3, A is `3 2 3 2`: the two 3s each pair with the two 2s of B for 4 pairs. For x = 4, the two 2s in A pair with the two 2s in B, also 4 pairs."
+  },
+  {
+   "input": "2 2\n5 5\n5 5\n3\n2 10\n1 1 1\n2 10",
+   "output": "4\n2",
+   "explanation": "All four position pairs sum to 10. After A[1] becomes 1, only the pairs using A[0] = 5 still sum to 10."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m + q * m)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "A brute force that checks every (i, j) pair per query is O(n * m) per query. Can you answer from a precomputed table?",
+  "Store how many times each value occurs in A (a hash map). For a query x, look up x - b in that map for each value b in B.",
+  "An update changes only one element of A: decrement the count of the old value, increment the count of the new one. Group equal values of B so you iterate only over distinct values with their multiplicities."
+ ],
+ "reference": "import sys\nfrom collections import Counter\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    A = [int(x) for x in data[2:2 + n]]\n    B = [int(x) for x in data[2 + n:2 + n + m]]\n    q = int(data[2 + n + m])\n    p = 3 + n + m\n    ca = Counter(A)\n    cb = list(Counter(B).items())\n    get = ca.get\n    out = []\n    for _ in range(q):\n        if data[p] == '1':\n            i, v = int(data[p + 1]), int(data[p + 2])\n            p += 3\n            old = A[i]\n            ca[old] -= 1\n            A[i] = v\n            ca[v] += 1\n        else:\n            x = int(data[p + 1])\n            p += 2\n            out.append(sum(c * get(x - b, 0) for b, c in cb))\n    print('\\n'.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nA = [int(x) for x in data[2:2 + n]]\nB = [int(x) for x in data[2 + n:2 + n + m]]\nq = int(data[2 + n + m])\np = 3 + n + m\nout = []\nfor _ in range(q):\n    if data[p] == '1':\n        A[int(data[p + 1])] = int(data[p + 2])\n        p += 3\n    else:\n        x = int(data[p + 1])\n        p += 2\n        out.append(sum(1 for a in A for b in B if a + b == x))\nprint('\\n'.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def fmt(A, B, ops):\n        lines = [f'{len(A)} {len(B)}', ' '.join(map(str, A)), ' '.join(map(str, B)), str(len(ops))]\n        for o in ops:\n            lines.append(' '.join(map(str, o)))\n        return '\\n'.join(lines)\n    def make(n, m, q, hi, qfrac, xhi=None):\n        A = [rng.randint(1, hi) for _ in range(n)]\n        B = [rng.randint(1, hi) for _ in range(m)]\n        ops = []\n        for k in range(q):\n            if k == q - 1 or rng.random() < qfrac:\n                if rng.random() < 0.7:\n                    x = rng.choice(A) + rng.choice(B)\n                else:\n                    x = rng.randint(2, 2 * hi)\n                ops.append((2, x))\n            else:\n                ops.append((1, rng.randrange(n), rng.randint(1, hi)))\n        return fmt(A, B, ops)\n    tests = [fmt([1], [1], [(2, 2)]), fmt([1], [1], [(2, 3), (1, 0, 2), (2, 3)]),\n             fmt([1, 2, 3, 2], [2, 4, 2], [(2, 5), (1, 0, 3), (2, 5), (2, 4)]),\n             fmt([5, 5], [5, 5], [(2, 10), (1, 1, 1), (2, 10)]),\n             fmt([10**9, 10**9], [10**9], [(2, 2 * 10**9), (1, 0, 1), (2, 2 * 10**9), (2, 10**9 + 1)])]\n    for _ in range(30):\n        n = rng.randint(1, 8)\n        m = rng.randint(1, 6)\n        tests.append(make(n, m, rng.randint(1, 12), rng.choice([3, 6, 10]), 0.5))\n    tests.append(make(10**4, 1000, 5000, 10**9, 0.9))\n    tests.append(make(10**4, 1000, 5000, 300, 0.5))\n    tests.append(make(10**4, 1000, 5000, 2000, 0.95))\n    tests.append(make(10**4, 1000, 5000, 5, 0.8))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef process(A: List[int], B: List[int], ops: List[List[int]]) -> List[int]:\n    # Write your solution here\n    # ops[k] is [1, i, v] (set A[i] = v) or [2, x] (count pairs with sum x)\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    A = [int(x) for x in data[2:2 + n]]\n    B = [int(x) for x in data[2 + n:2 + n + m]]\n    q = int(data[2 + n + m])\n    p = 3 + n + m\n    ops = []\n    for _ in range(q):\n        if data[p] == '1':\n            ops.append([1, int(data[p + 1]), int(data[p + 2])])\n            p += 3\n        else:\n            ops.append([2, int(data[p + 1])])\n            p += 2\n    print('\\n'.join(map(str, process(A, B, ops))))\n\n\nmain()\n",
+  "javascript": "function process(A, B, ops) {\n  // Write your solution here\n  // ops[k] is [1, i, v] (set A[i] = v) or [2, x] (count pairs with sum x)\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst A = t.slice(2, 2 + n)\nconst B = t.slice(2 + n, 2 + n + m)\nconst q = t[2 + n + m]\nlet p = 3 + n + m\nconst ops = []\nfor (let k = 0; k < q; k++) {\n  if (t[p] === 1) {\n    ops.push([1, t[p + 1], t[p + 2]])\n    p += 3\n  } else {\n    ops.push([2, t[p + 1]])\n    p += 2\n  }\n}\nconsole.log(process(A, B, ops).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> process(vector<long long>& A, vector<long long>& B, vector<vector<long long>>& ops) {\n    // Write your solution here\n    // ops[k] is {1, i, v} (set A[i] = v) or {2, x} (count pairs with sum x)\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<long long> A(n), B(m);\n    for (int i = 0; i < n; i++) cin >> A[i];\n    for (int j = 0; j < m; j++) cin >> B[j];\n    int q;\n    cin >> q;\n    vector<vector<long long>> ops;\n    for (int k = 0; k < q; k++) {\n        long long t;\n        cin >> t;\n        if (t == 1) {\n            long long i, v;\n            cin >> i >> v;\n            ops.push_back({1, i, v});\n        } else {\n            long long x;\n            cin >> x;\n            ops.push_back({2, x});\n        }\n    }\n    vector<long long> res = process(A, B, ops);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] process(long[] A, long[] B, long[][] ops) {\n        // Write your solution here\n        // ops[k] is {1, i, v} (set A[i] = v) or {2, x} (count pairs with sum x)\n        return new long[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        long[] A = new long[n], B = new long[m];\n        for (int i = 0; i < n; i++) { in.nextToken(); A[i] = (long) in.nval; }\n        for (int j = 0; j < m; j++) { in.nextToken(); B[j] = (long) in.nval; }\n        in.nextToken();\n        int q = (int) in.nval;\n        long[][] ops = new long[q][];\n        for (int k = 0; k < q; k++) {\n            in.nextToken();\n            long t = (long) in.nval;\n            if (t == 1) {\n                in.nextToken(); long i = (long) in.nval;\n                in.nextToken(); long v = (long) in.nval;\n                ops[k] = new long[]{1, i, v};\n            } else {\n                in.nextToken(); long x = (long) in.nval;\n                ops[k] = new long[]{2, x};\n            }\n        }\n        long[] res = process(A, B, ops);\n        StringBuilder sb = new StringBuilder();\n        for (long r : res) sb.append(r).append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

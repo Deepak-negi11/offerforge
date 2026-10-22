@@ -1,0 +1,18 @@
+{
+ "qid": "f7c305ed1b",
+ "question": "JPMorgan Chase, Java Full Stack Developer (4.4 YOE), Technical Interview. Backend questions: **create a system where one million records are shown 1000 at a time, and the method must not return a `List` but a byte stream** (the candidate noted the requirement was unclear); plus **idempotency**, **ArrayList vs LinkedList**, **multithreading and concurrency**, and **the different Spring bean scopes and how to define them without `@Scope`**.",
+ "lookingFor": [
+  "Not loading a million rows into memory; thinking in pages and streams.",
+  "Knowing efficient pagination (keyset vs offset) and database cursors.",
+  "Understanding streaming responses in Spring and back-pressure.",
+  "Core Java and Spring knowledge: collections, bean scopes, idempotency.",
+  "Asking clarifying questions about ambiguous requirements."
+ ],
+ "answer": "**Clarify the requirement.** Does \"1000 at a time\" mean the client requests page after page, or the server streams everything in 1000-row batches? I read it as: the server reads from the database in batches of 1000 and writes them to the response as a byte stream, so the whole result is never in memory.\n\n**Approach.**\n- **Read in pages.** Use **keyset pagination** (`WHERE id > :lastId ORDER BY id LIMIT 1000`), which stays fast as the offset grows; `OFFSET` pagination gets slower the deeper you go. Alternatively use a JDBC streaming cursor with `fetchSize` set (driver-specific: PostgreSQL needs auto-commit off, MySQL needs a streaming flag).\n- **Write to an output stream** instead of returning a `List`. In Spring MVC, return `StreamingResponseBody`:\n\n```java\n@GetMapping(\"/export\")\npublic ResponseEntity<StreamingResponseBody> export() {\n    StreamingResponseBody body = out -> {\n        long last = 0; List<Rec> page;\n        do {\n            page = repo.findPage(last, 1000);\n            for (Rec r : page) out.write((toJson(r) + \"\\n\").getBytes(UTF_8));\n            out.flush();\n            if (!page.isEmpty()) last = page.get(page.size() - 1).getId();\n        } while (page.size() == 1000);\n    };\n    return ResponseEntity.ok().contentType(MediaType.APPLICATION_NDJSON).body(body);\n}\n```\nNewline-delimited JSON or CSV is easy to consume incrementally. Memory stays at one page. Handle client disconnects and set timeouts. If the client wants interactive pages, expose a `cursor` token rather than a page number.\n\n**Other topics, briefly.**\n- **Idempotency:** repeating a request has the same effect as doing it once. `GET`, `PUT`, `DELETE` are idempotent by definition; make `POST` safe using an idempotency key stored with the result.\n- **ArrayList vs LinkedList:** `ArrayList` is a resizable array with O(1) index access and amortised O(1) append, inserts in the middle cost O(n); `LinkedList` has O(1) insert or remove at a known node but O(n) access, plus more memory per element. `ArrayList` is the default choice.\n- **Bean scopes:** singleton (default), prototype, and in web apps request, session, application, websocket. Without `@Scope`, use the composed annotations `@RequestScope`, `@SessionScope`, `@ApplicationScope`, or define `scope` in XML configuration.",
+ "followUps": [
+  "Why is offset pagination slow on large tables and how does keyset pagination fix it?",
+  "How would you resume a stream that was interrupted?",
+  "How do singleton beans stay thread safe?",
+  "How would you make a POST payment endpoint idempotent?"
+ ]
+}

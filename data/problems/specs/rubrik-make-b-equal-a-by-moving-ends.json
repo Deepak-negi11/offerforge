@@ -1,0 +1,49 @@
+{
+ "pid": "rubrik-make-b-equal-a-by-moving-ends",
+ "title": "Make B Equal A by Moving Ends",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given two arrays `A` and `B` of length `n`. They contain the same `n` distinct integers, so `B` is a permutation of `A`.\n\nIn one operation you may take **any** element of `B`, remove it, and insert it either at the **front** or at the **back** of `B`.\n\nFind the minimum number of operations needed to make `B` equal to `A`.\n\nIf `B` already equals `A`, the answer is `0`.",
+ "input_format": "The first line contains the integer `n`.\nThe second line contains `n` integers `A[0] ... A[n-1]`.\nThe third line contains `n` integers `B[0] ... B[n-1]`.",
+ "output_format": "Print a single integer: the minimum number of operations.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ A[i] ≤ 10^6",
+  "The values in A are pairwise distinct, and B contains exactly the same values"
+ ],
+ "examples": [
+  {
+   "input": "5\n1 2 3 4 5\n3 1 2 5 4",
+   "output": "3",
+   "explanation": "The elements 1 and 2 already sit next to each other in the right order in `B`, and nothing longer works. Move 3, then 4, then 5 to the back: `[1,2,5,4,3]`, then `[1,2,5,3,4]`, then `[1,2,3,4,5]`."
+  },
+  {
+   "input": "6\n1 2 3 4 5 6\n5 2 3 4 6 1",
+   "output": "3",
+   "explanation": "The block 2 3 4 is a contiguous piece of `A` and appears in that order inside `B`. Move 1 to the front, then 5 and 6 to the back: `[1,5,2,3,4,6]`, `[1,2,3,4,6,5]`, `[1,2,3,4,5,6]`."
+  },
+  {
+   "input": "3\n7 8 9\n7 8 9",
+   "output": "0",
+   "explanation": "The arrays are already equal, so no operation is needed."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Elements you never move keep their relative order in B. Think about which elements can be left alone: what must they look like inside A?",
+  "The untouched elements must form one contiguous block A[l..r], and that block must appear in B as a subsequence. Everything before the block can be moved to the front, everything after it to the back, one operation each.",
+  "So the answer is n minus the length of the longest contiguous block of A that is a subsequence of B. Since values are distinct, record each value's position in B; a block works exactly when those positions increase along it."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    A = data[1:1 + n]\n    B = data[1 + n:1 + 2 * n]\n    pos = {v: i for i, v in enumerate(B)}\n    best = run = 0\n    prev = -1\n    for v in A:\n        p = pos[v]\n        run = run + 1 if (run and p > prev) else 1\n        prev = p\n        if run > best:\n            best = run\n    print(n - best)\n\nmain()\n",
+ "brute": "import sys\nfrom collections import deque\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nA = tuple(int(x) for x in data[1:1 + n])\nB = tuple(int(x) for x in data[1 + n:1 + 2 * n])\n\nif n <= 7:\n    dist = {B: 0}\n    q = deque([B])\n    while q:\n        cur = q.popleft()\n        if cur == A:\n            break\n        for i in range(n):\n            rest = cur[:i] + cur[i + 1:]\n            for nxt in ((cur[i],) + rest, rest + (cur[i],)):\n                if nxt not in dist:\n                    dist[nxt] = dist[cur] + 1\n                    q.append(nxt)\n    print(dist[A])\nelse:\n    # keep a block A[l..r] untouched: it must appear in B as a subsequence; everything else is moved once\n    def is_subseq(seg):\n        it = iter(B)\n        return all(x in it for x in seg)\n    best = 0\n    for l in range(n):\n        for r in range(l, n):\n            if r - l + 1 > best and is_subseq(A[l:r + 1]):\n                best = r - l + 1\n    print(n - best)\n",
+ "generator": "def gen(rng):\n    def fmt(A, B):\n        return str(len(A)) + \"\\n\" + \" \".join(map(str, A)) + \"\\n\" + \" \".join(map(str, B))\n\n    def rand_case(n, hi):\n        A = rng.sample(range(1, hi + 1), n)\n        B = A[:]\n        rng.shuffle(B)\n        return A, B\n\n    def near_case(n, hi, swaps):\n        A = rng.sample(range(1, hi + 1), n)\n        B = A[:]\n        for _ in range(swaps):\n            i, j = rng.randrange(n), rng.randrange(n)\n            B[i], B[j] = B[j], B[i]\n        return A, B\n\n    tests = [\n        fmt([1, 2, 3, 4, 5], [3, 1, 2, 5, 4]),\n        fmt([1, 2, 3, 4, 5, 6], [5, 2, 3, 4, 6, 1]),\n        fmt([7], [7]),\n        fmt([1, 2, 3], [1, 2, 3]),\n        fmt([1, 2, 3], [3, 2, 1]),\n        fmt([1, 2], [2, 1]),\n        fmt([4, 3, 2, 1], [1, 2, 3, 4]),\n        fmt([5, 9, 2], [2, 5, 9]),\n    ]\n    for n in (3, 4, 5, 6, 7):\n        for _ in range(3):\n            tests.append(fmt(*rand_case(n, 20)))\n        for _ in range(2):\n            tests.append(fmt(*near_case(n, 20, 1)))\n    # mid-size: more than 400 characters, brute force uses the O(n^3) fallback\n    for n in (60, 100):\n        tests.append(fmt(*rand_case(n, 10**6)))\n        tests.append(fmt(*near_case(n, 10**6, 3)))\n    tests.append(fmt(*near_case(2000, 10**6, 30)))\n    # max-size cases\n    n = 100000\n    tests.append(fmt(*rand_case(n, 10**6)))\n    A, B = near_case(n, 10**6, 50)\n    tests.append(fmt(A, B))\n    A = rng.sample(range(1, 10**6 + 1), n)\n    tests.append(fmt(A, A[:]))\n    B = A[::-1]\n    tests.append(fmt(A, B))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_operations(a: List[int], b: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    b = [int(x) for x in data[1 + n:1 + 2 * n]]\n    print(min_operations(a, b))\n\n\nmain()\n",
+  "javascript": "function minOperations(a, b) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst a = t.slice(1, 1 + n)\nconst b = t.slice(1 + n, 1 + 2 * n)\nconsole.log(String(minOperations(a, b)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minOperations(vector<int>& a, vector<int>& b) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> a(n), b(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    for (int i = 0; i < n; i++) cin >> b[i];\n    cout << minOperations(a, b) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minOperations(int[] a, int[] b) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] a = new int[n], b = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (int) in.nval;\n        }\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            b[i] = (int) in.nval;\n        }\n        System.out.println(minOperations(a, b));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "d8dc9010d9",
+ "question": "Atlassian Karat screen (system design scenario). You are building a clone of Facebook and want to show a numeric count on every post: how many friends the post's author has **at the time of viewing the post**. The schema is `USER(user_id PK, name, created_date)` and `USER_RELATIONSHIP(friendship_id PK, user_id indexed, user2_id indexed, start_date)`. Focusing on the database, how would you implement the friend-count feature? The interviewer adds that the site will soon be more popular than Facebook, so the solution needs to scale.",
+ "lookingFor": [
+  "Can you spot that a naive `COUNT(*)` per post view does not scale.",
+  "Denormalisation: storing a derived counter and keeping it consistent.",
+  "Handling the fact that a friendship row has two sides (`user_id` and `user2_id`).",
+  "Caching, sharding and hot-key (celebrity) thinking.",
+  "Trade-offs between exact and eventually consistent counts."
+ ],
+ "answer": "**Baseline.** A friendship is stored once with two user columns, so the count for author `A` is `SELECT COUNT(*) FROM USER_RELATIONSHIP WHERE user_id = A OR user2_id = A`. With both columns indexed this is two index range scans, but it is O(friends) per call. A feed shows many posts, and popular authors have thousands of friends, so doing this on every view is wasteful.\n\n**Step 1: denormalise a counter.** Add `friend_count` to `USER` (or a separate `USER_STATS(user_id, friend_count)` table so hot counter writes do not contend with profile rows). When a friendship is created, in one transaction insert the relationship row and increment both users' counters (`UPDATE ... SET friend_count = friend_count + 1`); on unfriend, decrement both. Reading the count becomes a primary-key lookup, O(1). Add a unique constraint on the ordered pair (for example store `min(id), max(id)`) so a friendship cannot be double-counted, and make the operation idempotent.\n\n**Step 2: keep it correct.** Counters can drift after bugs or partial failures, so run a periodic reconciliation job that recomputes counts from the relationship table and fixes mismatches.\n\n**Step 3: scale.**\n- Cache counts in Redis or Memcached keyed by user id, invalidate or update on friendship changes; most reads never touch the database.\n- Shard `USER` and stats by `user_id`. A friendship touches two shards, so the two increments become a distributed write. Use an event or queue (friendship-created event, consumers update counters) and accept that the count is briefly stale. For a friend count, eventual consistency is acceptable.\n- Hot rows: very popular users get many concurrent updates. Batch increments in memory or in a stream processor and flush periodically, or shard the counter into N sub-counters summed on read.\n- Denormalise the count into the post payload or feed cache only if staleness is fine, since the requirement says count at time of viewing.\n\n**Trade-off summary.** Computing on read is always correct but slow; stored counters are fast but need consistency handling. State the choice and why.",
+ "followUps": [
+  "How would you keep the counter correct if the second increment fails?",
+  "What changes if the requirement is exact, real-time counts?",
+  "How would you shard the relationship table, and which queries become hard?",
+  "How do you handle a user with 5 million friends being updated by many requests at once?"
+ ]
+}

@@ -6,7 +6,7 @@ import './index.css'
 import { AtlasProvider, useAtlasState } from './lib/data'
 import { CompanyPage } from './pages/Company'
 import { Home } from './pages/Home'
-import { AboutPage, LoadError, Skeleton } from './pages/Misc'
+import { LoadError, Skeleton } from './pages/Misc'
 import { NotFound } from './pages/NotFound'
 import { QuestionsPage } from './pages/Questions'
 import { TopicPage, TopicsPage } from './pages/Topics'
@@ -32,7 +32,6 @@ const router = createBrowserRouter([
       { path: '/topics/:topic', element: gate(<TopicPage />) },
       { path: '/q/:id', element: gate(<WorkspacePage />) },
       { path: '/saved', element: <Navigate to="/" replace /> },
-      { path: '/about', element: gate(<AboutPage />) },
       { path: '*', element: <NotFound /> },
     ],
   },

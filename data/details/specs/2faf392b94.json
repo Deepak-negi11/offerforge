@@ -1,0 +1,18 @@
+{
+ "qid": "2faf392b94",
+ "question": "MakeMyTrip SSE-2 / SDE-2 Backend, round 2. **Do the low level design of Uber** (a ride-hailing app), and **verbally explain the algorithm used to allocate a driver** to a rider. The round also included a few basic high-level design questions.",
+ "lookingFor": [
+  "Modelling riders, drivers, trips and their state transitions.",
+  "A defensible driver-matching approach with trade-offs.",
+  "Concurrency awareness: one driver, many requests.",
+  "Extensible design (pricing, matching strategies).",
+  "Clear verbal explanation of the algorithm."
+ ],
+ "answer": "**Scope.** Rider requests a ride from pickup to drop; the system finds a nearby available driver, the driver accepts, the trip runs and completes, and a fare is charged.\n\n**Entities.** `Rider`, `Driver` (status AVAILABLE/ON_TRIP/OFFLINE, current `Location`, vehicle type), `Location` (lat, lng), `RideRequest`, `Trip` (state: REQUESTED, DRIVER_ASSIGNED, STARTED, COMPLETED, CANCELLED), `Payment`, and services `TripService`, `DriverLocationService`, `MatchingService`, `PricingService`.\n\n**Patterns.** **Strategy** for matching (nearest driver, highest rating, ETA-based) and for pricing (base plus per-km, surge). **State** for trip transitions so illegal moves are rejected. **Observer** to push status updates to the rider and driver apps.\n\n**Driver allocation algorithm (the part to explain verbally).**\n1. Index driver locations in a spatial structure: a geohash/grid cell map or a quadtree, updated as drivers send location pings. Only available drivers are indexed.\n2. On a request, search the pickup's cell, then expand to neighbouring cells until enough candidates (say 5-10) or a radius limit is reached.\n3. Filter by vehicle type and availability; rank by ETA (road distance if available, otherwise straight-line), then rating or acceptance rate.\n4. Send the offer to the best driver with a timeout (about 10-15 s). If declined or timed out, offer to the next, and never offer one trip to many drivers at once without a claim step.\n5. Claim atomically: the driver's status changes from AVAILABLE to ASSIGNED using a lock or compare-and-set, so two requests cannot take the same driver.\n\n**Trade-offs.** Nearest-first minimises pickup time per rider but can be globally suboptimal; batch matching over a few seconds across many riders and drivers can improve overall wait times.\n\n**Basic HLD.** Location pings through a gateway into a fast store (in-memory/Redis geo), trip data in a relational DB, events on a queue.\n\n**Avoid:** scanning all drivers linearly, and ignoring double assignment.",
+ "followUps": [
+  "How do you prevent one driver being assigned to two riders at once?",
+  "What if no driver accepts within the timeout?",
+  "How would you implement surge pricing?",
+  "How would the design change for ride pooling?"
+ ]
+}

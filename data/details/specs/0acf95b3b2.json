@@ -1,0 +1,19 @@
+{
+ "qid": "0acf95b3b2",
+ "question": "Morgan Stanley Software Engineer (Data Engineering) round 1 with a senior data engineer. After discussing the candidate's current role, the interviewer asked **around five good-level SQL questions**, **Airflow basics**, **ETL and data modelling concepts**, **CDC and incremental data load implementation**, **JSON versus Parquet file formats (how data is stored internally, and pros and cons)**, and **query optimisation techniques**. The exact SQL problems were not reported.",
+ "lookingFor": [
+  "Strong SQL including window functions and aggregation.",
+  "Understanding of pipeline orchestration and idempotency.",
+  "Knowledge of incremental loading and change capture.",
+  "Reasoning about storage formats and performance.",
+  "Practical optimisation habits."
+ ],
+ "answer": "**SQL practice.** Expect ranking, deduplication and top-N per group, for example the latest row per key:\n\n    SELECT *\n    FROM (SELECT t.*, ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC) AS rn\n          FROM customers t) x\n    WHERE rn = 1;\n\nAlso know joins (including anti-joins), `GROUP BY ... HAVING`, `LAG` and `LEAD`, running totals and CTEs.\n\n**Airflow basics.** A workflow is a **DAG** of **tasks** (instances of **operators**) with dependencies. The scheduler creates DAG runs by schedule; an executor runs tasks on workers. Know retries, SLAs, sensors, XComs for small metadata, backfills and catch-up. Good practice: make tasks **idempotent** (re-running for the same logical date gives the same result, using overwrite or MERGE) and keep data out of XCom.\n\n**ETL and incremental loads.** ETL transforms before loading; ELT loads raw data into a warehouse first, then transforms. A full reload is simple but costly. An incremental load uses a **watermark** (last `updated_at` or id) to pull only new or changed rows, then **upserts** (MERGE) into the target. Handle late data (reprocess a lookback window) and deletes (soft-delete flags).\n\n**CDC (change data capture).** Capturing inserts, updates and deletes from a source. Methods: query-based (timestamp column; misses hard deletes), triggers (overhead on the source), and **log-based** (read the database's transaction log, for example with Debezium into Kafka; low overhead and captures deletes and ordering).\n\n**JSON vs Parquet.** JSON is row-oriented text, self-describing, flexible, human-readable, but larger and slow to scan. Parquet is **columnar binary** with a schema, compresses well (similar values stored together, dictionary and run-length encoding), supports **column pruning** and **predicate pushdown** through row-group statistics, so analytical queries read far less data. Parquet is poor for row-by-row writes and for humans to inspect.\n\n**Query optimisation.** Read the execution plan; filter early and select only needed columns; use suitable indexes or partitions (partition pruning); avoid functions on indexed columns and `SELECT *`; prefer joins on pre-aggregated data; watch skew in distributed engines.",
+ "followUps": [
+  "How would you design an idempotent daily load?",
+  "How do you handle late-arriving data and deletes in an incremental load?",
+  "Why is Parquet faster for analytics than CSV or JSON?",
+  "How would you find and remove duplicates in a large table?",
+  "What does the Airflow scheduler do and what is catch-up?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "a3b6e54b1b",
+ "question": "A Senior Software Engineer (7 years of experience) reported a roughly **30-minute LLD round at Walmart** on a **Naukri-style job portal**, with the focus on the **Person and Job `@ManyToMany` relationship**.\n\nThe same round also included various questions on Java, Kubernetes, Docker and Spring Boot. The reported takeaway was that you should know Java and Spring Boot thoroughly. The post does not give more detail on the exact schema or API expected, so be ready to model entities, the many-to-many link (applications) and the JPA mapping, and to defend it.",
+ "lookingFor": [
+  "Can you model a many-to-many relationship correctly, including when it needs its own entity?",
+  "Do you know how JPA/Hibernate maps `@ManyToMany`, owning side, join table and fetch types?",
+  "Can you spot pitfalls like N+1 queries, cascade misuse and bidirectional mapping bugs?",
+  "Do you have working knowledge of Spring Boot, Docker and Kubernetes basics?",
+  "Can you keep the design simple and time-boxed for a 30-minute round?"
+ ],
+ "answer": "**Requirements (assumed).** Candidates create profiles and apply to jobs; recruiters post jobs and view applicants; search jobs by skill/location. Keep it to a core in 30 minutes.\n\n**Entities.** `Person(id, name, email, skills)`, `Job(id, title, company, location, status)`, and the relationship **applies to**.\n\n**Key modelling decision.** A person applies to many jobs and a job has many applicants, so it is many-to-many. A plain `@ManyToMany` with a join table `person_job(person_id, job_id)` works only if the link carries no data. A job application always does (applied date, status, resume version), so a strong answer promotes it to an entity `Application(id, person, job, appliedAt, status)` with `@ManyToOne` on both sides and a unique constraint on `(person_id, job_id)`. Say this explicitly, then show you can also write the plain mapping:\n\n```java\n@Entity class Person {\n  @ManyToMany\n  @JoinTable(name = \"person_job\",\n    joinColumns = @JoinColumn(name = \"person_id\"),\n    inverseJoinColumns = @JoinColumn(name = \"job_id\"))\n  private Set<Job> jobs = new HashSet<>();\n}\n@Entity class Job {\n  @ManyToMany(mappedBy = \"jobs\")\n  private Set<Person> applicants = new HashSet<>();\n}\n```\n\n`Person` is the owning side (it defines the join table); `mappedBy` marks the inverse side. Use `Set`, not `List`, to avoid delete-and-reinsert behaviour. Keep both sides in sync with helper methods. Avoid `CascadeType.REMOVE` on many-to-many, since deleting a person must not delete jobs. Collections are lazy by default; use `JOIN FETCH` or an entity graph to avoid N+1.\n\n**Layers.** Controller, service, repository (Spring Data JPA); DTOs rather than exposing entities; `@Transactional` on the apply operation.\n\n**Extras.** Indexes on the join table columns, pagination for applicants, and a `JobSearchStrategy` if search varies.\n\n**Ops questions.** A Dockerfile for the Spring Boot jar, and in Kubernetes a Deployment, Service, ConfigMap/Secret and readiness/liveness probes.",
+ "followUps": [
+  "Why would you replace @ManyToMany with an Application entity?",
+  "What is the N+1 problem and how do you fix it in JPA?",
+  "What is the difference between a Docker container and a Kubernetes pod?",
+  "How would you prevent a person from applying twice to the same job under concurrency?"
+ ]
+}

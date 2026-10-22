@@ -1,0 +1,19 @@
+{
+ "qid": "7b43fccd59",
+ "question": "Round 2 for a Staff Engineer on a Data Analytics team at ServiceNow included a system design problem: **design an analytics platform** that moves data from various sources, such as MongoDB and RDS, into an **OLAP database** for analytical queries. The discussion covered data ingestion pipelines, ETL processes, and query optimization.",
+ "lookingFor": [
+  "Do you understand the OLTP versus OLAP split and why analytics is separated from the operational databases?",
+  "Can you choose between batch and streaming ingestion, and between ETL and ELT?",
+  "Do you handle schema evolution, late data, deduplication and data quality?",
+  "Do you know how OLAP stores are optimized (columnar, partitioning, pre-aggregation)?",
+  "Can you discuss governance, cost and freshness trade-offs?"
+ ],
+ "answer": "**Requirements.** Analysts and dashboards query data from several operational sources without slowing them down. Assume tens of TB, freshness from minutes to a day depending on the dataset, and hundreds of concurrent queries.\n\n**Architecture.**\n1. **Sources**: MongoDB, RDS (relational), maybe logs and events.\n2. **Ingestion.** Change data capture (CDC) is the preferred approach: read the database logs (oplog or change streams for MongoDB, binlog or WAL for relational DBs) via tools such as Debezium into Kafka. Compared with periodic full dumps or timestamp-based polling, CDC has low impact on the source and captures deletes. Use batch exports for historical backfill.\n3. **Landing zone.** Raw, immutable data in object storage (a data lake) in a columnar format such as Parquet, partitioned by date. This enables replay.\n4. **Transform (ETL/ELT).** Clean, deduplicate, apply schema, join and aggregate with Spark or SQL-based tools (dbt style), orchestrated by a scheduler such as Airflow. Load into the warehouse as staging, then modelled tables.\n5. **OLAP store.** A columnar engine (examples: ClickHouse, Redshift, BigQuery, Druid) with a star schema: fact tables plus dimension tables.\n6. **Serving.** BI tools and a query API.\n\n**Handling issues.** MongoDB is schema-flexible, so flatten documents and track schema changes with a schema registry; apply upserts keyed by primary key for idempotent loads; handle late and out-of-order events with event time and watermarks; add data quality checks and lineage.\n\n**Query optimization.** Columnar storage reads only needed columns; partition by date and sort or cluster by common filters; pre-aggregated or materialized views for dashboards; avoid wide joins by denormalizing; result caching; workload management so heavy queries do not starve dashboards.\n\n**Trade-offs.** Batch is cheaper and simpler; streaming gives freshness but costs more. ELT keeps raw data for reprocessing but needs warehouse compute.",
+ "followUps": [
+  "How would you handle a source schema change without breaking the pipeline?",
+  "How do you propagate deletes from the source to the warehouse?",
+  "Why a columnar store for analytics instead of the operational database?",
+  "How do you guarantee exactly-once results in the warehouse?",
+  "How would you monitor data quality and freshness?"
+ ]
+}

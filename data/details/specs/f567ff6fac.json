@@ -1,0 +1,17 @@
+{
+ "qid": "f567ff6fac",
+ "question": "In Round 1 for an SDE Intern + FTE (Backend) role at Eternal (Zomato), the interviewer asked the candidate to design Zomato's **online ordering flow**.\n\n- **User side:** login, restaurant discovery based on location, selecting items from the menu, and placing an order.\n- **Restaurant manager side:** manager login, managing multiple restaurants (a many-to-many relationship between managers and restaurants) and menu updates.\n\nFor each part the candidate had to define every API call with sample request and response payloads, the backend processing steps, and the database schema choices. A related discussion covered SQL vs NoSQL for this system.",
+ "lookingFor": [
+  "Can you break a product flow into clear resources and endpoints?",
+  "Can you design a relational schema with the right keys, relationships and constraints?",
+  "Do you handle ordering correctness: price snapshots, idempotency and status transitions?",
+  "Can you justify SQL vs NoSQL and say where each would fit?"
+ ],
+ "answer": "**Requirements and scale.** Customers browse nearby restaurants, view menus and place orders; managers edit menus for the restaurants they manage. Assume read-heavy traffic (browse far exceeds orders), and orders must never be lost or duplicated.\n\n**Entities**\n- `users(id, role, ...)`, `managers`, `restaurants(id, name, lat, lng, is_open)`.\n- `manager_restaurants(manager_id, restaurant_id)`: a mapping table for many-to-many, with a composite primary key and two foreign keys.\n- `menu_items(id, restaurant_id, name, price, is_available)`.\n- `orders(id, user_id, restaurant_id, status, total, idempotency_key, created_at)`; `order_items(order_id, item_id, qty, unit_price)`. Copy the price into `order_items` so later menu edits do not change past orders.\n\n**APIs (JSON)**\n- `POST /auth/login` returns a token.\n- `GET /restaurants?lat=&lng=&radius=` returns a list with id, name, distance, rating.\n- `GET /restaurants/{id}/menu` returns items.\n- `POST /orders` with `{restaurantId, items:[{itemId, qty}]}` plus an `Idempotency-Key` header; returns `{orderId, status:\"PLACED\", total}`. The server re-reads prices, checks availability, and inserts the order and items in one transaction.\n- `GET /orders/{id}` for status.\n- Manager: `GET /manager/restaurants` (join through the mapping table, filtered by the logged-in manager), `PUT /restaurants/{rid}/menu/{itemId}` after checking that the manager is mapped to `rid`.\n\n**Choices**\n- SQL for orders and payments: transactions, constraints and joins. NoSQL (or a cache) can serve menus and search read paths, trading consistency for scale and denormalised reads.\n- Cache menus (Redis) with invalidation on manager updates; use a geo index for discovery.\n\n**Scaling.** Stateless services behind a load balancer, read replicas, caching, and an async queue for notifications. Layer the code (controller, service, repository) with consistent error responses.",
+ "followUps": [
+  "How would you prevent a user from placing the same order twice if they double-click?",
+  "How do menu updates reach customers quickly without overloading the database?",
+  "How would you model order status transitions?",
+  "How do you fetch all restaurants for a manager efficiently?"
+ ]
+}

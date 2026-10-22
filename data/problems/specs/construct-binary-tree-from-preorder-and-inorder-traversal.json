@@ -1,0 +1,49 @@
+{
+ "pid": "construct-binary-tree-from-preorder-and-inorder-traversal",
+ "title": "Construct Binary Tree from Preorder and Inorder Traversal",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given the **preorder** traversal (node, left subtree, right subtree) and the **inorder** traversal (left subtree, node, right subtree) of a binary tree with `n` nodes. All node values are **distinct**.\n\nRebuild the tree and print it in **level order** (breadth-first, left to right). Write the token `null` for every missing child of a real node, and drop the trailing `null` tokens at the end so the output ends with a real value. For example, a root with only a right child that has a left child is printed as `1 null 2 3`.\n\nThe two traversals always describe exactly one valid tree.\n\n**Follow-up:** Be ready to explain why the inorder traversal alone is not enough to recover a general binary tree, and why a second traversal (preorder or postorder) fixes that.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` integers: the preorder traversal.\nThe third line contains `n` integers: the inorder traversal.",
+ "output_format": "Print the level-order serialization of the tree on one line, space-separated, using `null` for missing children and without trailing `null` tokens.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "-10^6 ≤ value ≤ 10^6, all values distinct",
+  "The two arrays are the preorder and inorder traversals of the same binary tree"
+ ],
+ "examples": [
+  {
+   "input": "5\n10 20 40 50 30\n40 20 50 10 30",
+   "output": "10 20 30 40 50",
+   "explanation": "The first preorder value, 10, is the root. In the inorder array, 10 splits the values into the left part (40 20 50) and the right part (30). Repeating this on the left part gives root 20 with children 40 and 50. Level order is 10, then 20 30, then 40 50."
+  },
+  {
+   "input": "3\n5 4 3\n3 4 5",
+   "output": "5 4 null 3",
+   "explanation": "Root 5 has everything else to its left in the inorder array, so its right child is empty. The same happens at 4, giving a left-leaning chain. In level order: 5, then 4 and a missing right child, then 3 (4's left child). The missing children of 3 are trailing and dropped."
+  },
+  {
+   "input": "1\n7\n7",
+   "output": "7",
+   "explanation": "A single node."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "The first element of the preorder array is always the root of the current (sub)tree.",
+  "Find that root in the inorder array. Everything to its left belongs to the left subtree and everything to its right to the right subtree, and the size of the left part tells you how many of the next preorder elements belong to the left subtree.",
+  "Finding the root inside the inorder array by scanning costs O(n) per node. Precompute a value-to-index map. Also beware of recursion depth for a chain of 10^5 nodes: use an explicit stack."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    pre = [int(x) for x in data[1:1 + n]]\n    ino = [int(x) for x in data[1 + n:1 + 2 * n]]\n    pos = {v: i for i, v in enumerate(ino)}\n    left, right = {}, {}\n    root = None\n    stack = [(0, n - 1, 0, None, 0)]\n    while stack:\n        lo, hi, ps, par, side = stack.pop()\n        if lo > hi:\n            continue\n        v = pre[ps]\n        k = pos[v]\n        if par is None:\n            root = v\n        elif side == 0:\n            left[par] = v\n        else:\n            right[par] = v\n        stack.append((lo, k - 1, ps + 1, v, 0))\n        stack.append((k + 1, hi, ps + 1 + k - lo, v, 1))\n    out = []\n    dq = deque([root])\n    while dq:\n        v = dq.popleft()\n        if v is None:\n            out.append('null')\n            continue\n        out.append(str(v))\n        dq.append(left.get(v))\n        dq.append(right.get(v))\n    while out[-1] == 'null':\n        out.pop()\n    print(' '.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\npre = data[1:1 + n]\nino = data[1 + n:1 + 2 * n]\n\ndef build(p, i):\n    if not p:\n        return None\n    k = i.index(p[0])\n    return (p[0], build(p[1:k + 1], i[:k]), build(p[k + 1:], i[k + 1:]))\n\nroot = build(pre, ino)\nout = []\nlevel = [root]\nwhile level:\n    nxt = []\n    for node in level:\n        if node is None:\n            out.append('null')\n        else:\n            out.append(node[0])\n            nxt.append(node[1])\n            nxt.append(node[2])\n    level = nxt\nwhile out[-1] == 'null':\n    out.pop()\nprint(' '.join(out))\n",
+ "generator": "def gen(rng):\n    def shape(n, mode):\n        L = [-1] * n\n        R = [-1] * n\n        if mode == 'left':\n            for i in range(1, n):\n                L[i - 1] = i\n        elif mode == 'right':\n            for i in range(1, n):\n                R[i - 1] = i\n        elif mode == 'zig':\n            for i in range(1, n):\n                if i % 2:\n                    L[i - 1] = i\n                else:\n                    R[i - 1] = i\n        elif mode == 'complete':\n            for i in range(n):\n                if 2 * i + 1 < n:\n                    L[i] = 2 * i + 1\n                if 2 * i + 2 < n:\n                    R[i] = 2 * i + 2\n        else:\n            slots = [(0, 0), (0, 1)]\n            for i in range(1, n):\n                k = rng.randrange(len(slots))\n                slots[k], slots[-1] = slots[-1], slots[k]\n                p, s = slots.pop()\n                if s == 0:\n                    L[p] = i\n                else:\n                    R[p] = i\n                slots.append((i, 0))\n                slots.append((i, 1))\n        return L, R\n\n    def orders(L, R):\n        pre = []\n        st = [0]\n        while st:\n            u = st.pop()\n            pre.append(u)\n            if R[u] >= 0:\n                st.append(R[u])\n            if L[u] >= 0:\n                st.append(L[u])\n        ino = []\n        st = []\n        u = 0\n        while st or u >= 0:\n            while u >= 0:\n                st.append(u)\n                u = L[u]\n            u = st.pop()\n            ino.append(u)\n            u = R[u]\n        return pre, ino\n\n    def make(n, mode):\n        L, R = shape(n, mode)\n        vals = rng.sample(range(-10**6, 10**6 + 1), n)\n        pre, ino = orders(L, R)\n        return str(n) + '\\n' + ' '.join(str(vals[u]) for u in pre) + '\\n' + ' '.join(str(vals[u]) for u in ino)\n\n    tests = [make(1, 'random'), make(2, 'left'), make(2, 'right'), make(3, 'complete'),\n             make(5, 'zig'), make(7, 'complete'), make(6, 'left'), make(6, 'right')]\n    for _ in range(30):\n        tests.append(make(rng.randint(2, 14), rng.choice(['random', 'random', 'left', 'right', 'zig', 'complete'])))\n    for mode in ('random', 'left', 'right', 'zig'):\n        tests.append(make(100000, mode))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef build_tree(preorder: List[int], inorder: List[int]) -> List[str]:\n    # Write your solution here\n    # Return the level-order tokens of the rebuilt tree, e.g. ['1', 'null', '2'].\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    preorder = [int(x) for x in data[1:1 + n]]\n    inorder = [int(x) for x in data[1 + n:1 + 2 * n]]\n    print(' '.join(build_tree(preorder, inorder)))\n\n\nmain()\n",
+  "javascript": "function buildTree(preorder, inorder) {\n  // Write your solution here\n  // Return the level-order tokens of the rebuilt tree, e.g. ['1', 'null', '2'].\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst preorder = t.slice(1, 1 + n)\nconst inorder = t.slice(1 + n, 1 + 2 * n)\nconsole.log(buildTree(preorder, inorder).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<string> buildTree(vector<int>& preorder, vector<int>& inorder) {\n    // Write your solution here\n    // Return the level-order tokens of the rebuilt tree, e.g. {\"1\", \"null\", \"2\"}.\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> preorder(n), inorder(n);\n    for (int i = 0; i < n; i++) cin >> preorder[i];\n    for (int i = 0; i < n; i++) cin >> inorder[i];\n    vector<string> res = buildTree(preorder, inorder);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<String> buildTree(int[] preorder, int[] inorder) {\n        // Write your solution here\n        // Return the level-order tokens of the rebuilt tree, e.g. [\"1\", \"null\", \"2\"].\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] preorder = new int[n], inorder = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            preorder[i] = (int) in.nval;\n        }\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            inorder[i] = (int) in.nval;\n        }\n        System.out.println(String.join(\" \", buildTree(preorder, inorder)));\n    }\n}\n"
+ }
+}

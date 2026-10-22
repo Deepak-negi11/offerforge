@@ -1,0 +1,18 @@
+{
+ "qid": "eefa81ccee",
+ "question": "In the Rubrik new-grad (Software Engineer / G5) **debugging round** you receive existing multithreaded code (reported examples: a producer-consumer program in C++, a banking-style application) and must **find and fix all concurrency bugs, such as deadlocks and race conditions, and deliver code that runs correctly within about 50 minutes**. Suggestions such as locks, read-write locks or concurrent maps are welcome. One candidate found the deadlock but the fix did not compile, ran out of time, and was told that a fully working solution was expected.",
+ "lookingFor": [
+  "Systematic bug-finding in unfamiliar concurrent code.",
+  "Knowledge of synchronisation tools and when to use each.",
+  "Discipline: small, compiling, tested changes under a time limit.",
+  "Explaining reasoning aloud, including trade-offs of the fix."
+ ],
+ "answer": "**Time plan (about 50 minutes):** 5 minutes reading and listing shared state, 20 minutes fixing the main bugs in small steps, 10 minutes running and testing, the rest on remaining issues. **Keep the code compiling after every change** and run it often. A working partial fix beats an ambitious rewrite.\n\n**Checklist of what to look for**\n\n1. **Shared mutable state** accessed without a lock: counters, maps, queues, balances.\n2. **Check-then-act races:** `if (balance >= x) balance -= x;` must be one atomic critical section.\n3. **Deadlock:** two locks taken in different orders (transfer(A,B) and transfer(B,A)). Fix with a **consistent lock order** (for example by account id), or `std::scoped_lock` / `tryLock` with a timeout.\n4. **Producer-consumer:** waiting on a condition with `if` instead of `while` (spurious wakeups), missing `notify`, signalling without holding the lock, a queue with no bound or no stop signal so consumers wait forever.\n5. **Lost updates and visibility:** missing `volatile`, atomics or locks around flags.\n6. **Lock scope:** holding a lock during I/O or calling unknown code (hurts performance and risks deadlock); also forgetting to unlock on exceptions (use RAII or try-finally).\n7. **Thread lifecycle:** threads never joined, shutdown not handled, exceptions that kill a worker silently.\n\n**Example fix (bank transfer)**\n\n```java\nvoid transfer(Account a, Account b, int amt) {\n    Account first = a.id < b.id ? a : b;\n    Account second = a.id < b.id ? b : a;\n    synchronized (first) {\n        synchronized (second) {\n            if (a.balance >= amt) { a.balance -= amt; b.balance += amt; }\n        }\n    }\n}\n```\n\n**Choosing tools:** a single coarse lock is simplest and correct; use a `ReadWriteLock` when reads dominate, a `ConcurrentHashMap` or atomic counters for simple shared structures, and a blocking queue for producer-consumer. Explain the trade-off of finer granularity (more complexity and deadlock risk).\n\n**Communicate:** state each bug, why it is a bug (give an interleaving), and your fix. Ask about the language, test harness and whether performance matters. Finish by re-running everything and describing what you would test next.",
+ "followUps": [
+  "How would you reproduce a race condition reliably?",
+  "Why must a condition variable wait be inside a while loop?",
+  "When would you pick a read-write lock over a plain mutex?",
+  "How would you detect a deadlock in a running program (thread dump, tools)?",
+  "What are the downsides of finer-grained locking?"
+ ]
+}

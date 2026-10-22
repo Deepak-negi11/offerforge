@@ -1,0 +1,50 @@
+{
+ "pid": "time-taken-to-cross-the-door",
+ "title": "Time Taken to Cross the Door",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "There are `n` people who want to pass through one door, numbered `0` to `n - 1`. Person `i` reaches the door at second `arrival[i]` and wants either to **enter** (`state[i] = 0`) or to **exit** (`state[i] = 1`). The array `arrival` is sorted in non-decreasing order.\n\nThe door can be used by **at most one person per second**, and passing through takes exactly that second. A person waits in line until they are allowed through. At each second `t`, let the waiting people be those with `arrival[i] ≤ t` who have not passed yet:\n\n- If nobody is waiting, nobody passes at that second.\n- If everyone waiting wants the same direction, the one with the **smallest index** passes.\n- If someone wants to enter and someone else wants to exit, the door's use in the **previous second** (`t - 1`) decides:\n  - if the door was **not used** in the previous second, the person who wants to **exit** goes first;\n  - if the door was used in the previous second to **enter**, the person who wants to **enter** goes first;\n  - if the door was used in the previous second to **exit**, the person who wants to **exit** goes first.\n  Among several people wanting the chosen direction, the smallest index goes first.\n\nAt second `0` the door counts as not used in the previous second. Everyone else keeps waiting for a later second.\n\nFor every person, find the second at which they pass through the door.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains two integers `arrival[i]` and `state[i]`.",
+ "output_format": "Print `n` space-separated integers: the second at which each person `0, 1, ..., n - 1` passes through the door.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ arrival[i] ≤ n",
+  "arrival[i] ≤ arrival[i + 1]",
+  "state[i] is 0 or 1"
+ ],
+ "examples": [
+  {
+   "input": "3\n0 0\n0 1\n0 0",
+   "output": "1 0 2",
+   "explanation": "At second 0 all three are waiting and the door was not used before, so the exiting person 1 goes first. At second 1 the door was last used to exit, but nobody else wants to exit, so person 0 enters. At second 2 person 2 enters."
+  },
+  {
+   "input": "4\n0 0\n1 1\n1 0\n1 1",
+   "output": "0 2 1 3",
+   "explanation": "Person 0 enters at second 0. At second 1 persons 1 (exit), 2 (enter) and 3 (exit) are waiting; the door was used to enter, so person 2 enters. At second 2 the door was used to enter but nobody else wants to enter, so person 1 exits. At second 3 person 3 exits."
+  },
+  {
+   "input": "4\n0 1\n0 1\n1 0\n4 0",
+   "output": "0 1 2 4",
+   "explanation": "Persons 0 and 1 exit at seconds 0 and 1: at second 1 person 2 (enter) has also arrived, but the door was just used to exit, so the exit goes first. Person 2 enters at second 2. The door is idle at second 3. Person 3 arrives at second 4 and enters at once."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Keep two FIFO queues, one for people who want to enter and one for people who want to exit. Because `arrival` is sorted, the smallest index in each queue is always at the front.",
+  "Simulate second by second. First push everyone with `arrival ≤ t` into their queue, then decide which queue to serve using the direction the door was last used in (and whether it was used at all in second `t - 1`).",
+  "Remember the previous second's use as 'none' whenever the door was idle, including at the start. The arrivals are at most `n`, so the clock never exceeds about `2n`."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    arr = [int(data[1 + 2 * i]) for i in range(n)]\n    st = [int(data[2 + 2 * i]) for i in range(n)]\n    qs = [deque(), deque()]\n    res = [0] * n\n    t = 0\n    prev = None\n    i = 0\n    done = 0\n    while done < n:\n        while i < n and arr[i] <= t:\n            qs[st[i]].append(i)\n            i += 1\n        if not qs[0] and not qs[1]:\n            t = arr[i]\n            prev = None\n            continue\n        if qs[0] and qs[1]:\n            d = prev if prev is not None else 1\n        else:\n            d = 0 if qs[0] else 1\n        j = qs[d].popleft()\n        res[j] = t\n        prev = d\n        done += 1\n        t += 1\n    print(' '.join(map(str, res)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\narr = [int(data[1 + 2 * i]) for i in range(n)]\nst = [int(data[2 + 2 * i]) for i in range(n)]\nres = [-1] * n\nlast = None\nt = 0\nwhile any(r < 0 for r in res):\n    enter = [i for i in range(n) if res[i] < 0 and st[i] == 0 and arr[i] <= t]\n    leave = [i for i in range(n) if res[i] < 0 and st[i] == 1 and arr[i] <= t]\n    pick = None\n    if enter and leave:\n        if last == 0:\n            pick = enter[0]\n        else:\n            pick = leave[0]\n    elif enter:\n        pick = enter[0]\n    elif leave:\n        pick = leave[0]\n    if pick is None:\n        last = None\n    else:\n        res[pick] = t\n        last = st[pick]\n    t += 1\nprint(' '.join(map(str, res)))\n",
+ "generator": "def gen(rng):\n    def fmt(people):\n        return str(len(people)) + '\\n' + '\\n'.join('%d %d' % p for p in people)\n\n    def rand_people(n, spread):\n        arr = sorted(rng.randint(0, min(n, spread)) for _ in range(n))\n        return [(a, rng.randint(0, 1)) for a in arr]\n\n    tests = [fmt([(0, 0)]), fmt([(0, 1)]), fmt([(1, 0)]), fmt([(0, 0), (0, 1), (0, 0)]),\n             fmt([(0, 0), (1, 1), (1, 0), (1, 1)]), fmt([(0, 1), (0, 1), (1, 0), (4, 0)]),\n             fmt([(0, 0)] * 5), fmt([(0, 1)] * 5), fmt([(0, 0), (0, 0), (0, 1), (0, 1), (0, 0), (0, 1)])]\n    for _ in range(50):\n        n = rng.randint(1, 14)\n        tests.append(fmt(rand_people(n, rng.choice([0, 2, 5, 14]))))\n    for _ in range(5):\n        n = rng.randint(100, 300)\n        tests.append(fmt(rand_people(n, n)))\n    n = 100000\n    tests.append(fmt(rand_people(n, n)))\n    tests.append(fmt([(0, rng.randint(0, 1)) for _ in range(n)]))\n    tests.append(fmt([(i, i % 2) for i in range(n)]))\n    tests.append(fmt([(n, rng.randint(0, 1)) for _ in range(n)]))\n    tests.append(fmt([(i // 2, rng.randint(0, 1)) for i in range(n)]))\n    tests.append(fmt([(0, 1)] * (n // 2) + [(0, 0)] * (n // 2)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef crossing_times(arrival: List[int], state: List[int]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    arrival = [int(data[1 + 2 * i]) for i in range(n)]\n    state = [int(data[2 + 2 * i]) for i in range(n)]\n    print(' '.join(map(str, crossing_times(arrival, state))))\n\n\nmain()\n",
+  "javascript": "function crossingTimes(arrival, state) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst arrival = [], state = []\nfor (let i = 0; i < n; i++) {\n  arrival.push(t[1 + 2 * i])\n  state.push(t[2 + 2 * i])\n}\nconsole.log(crossingTimes(arrival, state).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> crossingTimes(vector<int>& arrival, vector<int>& state) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> arrival(n), state(n);\n    for (int i = 0; i < n; i++) cin >> arrival[i] >> state[i];\n    vector<int> res = crossingTimes(arrival, state);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] crossingTimes(int[] arrival, int[] state) {\n        // Write your solution here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] arrival = new int[n], state = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); arrival[i] = (int) in.nval;\n            in.nextToken(); state[i] = (int) in.nval;\n        }\n        int[] res = crossingTimes(arrival, state);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

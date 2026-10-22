@@ -1,0 +1,49 @@
+{
+ "pid": "zomato-common-supersequence-of-two-unique-arrays",
+ "title": "Common Supersequence of Two Unique Arrays",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given two arrays `arr1` and `arr2`. Each array contains **distinct** integers (no value repeats inside the same array), but the two arrays may share some values.\n\nDecide whether there exists a third array `arr3` such that:\n\n- `arr3` contains only distinct values, and\n- both `arr1` and `arr2` are **subsequences** of `arr3` (you can obtain each of them by deleting zero or more elements from `arr3` without reordering the rest).\n\nPrint `true` if such an `arr3` exists, otherwise print `false`.\n\nA value that appears in both arrays is a single element of `arr3`, so the two arrays must agree on the relative order of every pair of values they share, directly or through other values.",
+ "input_format": "The first line contains `n`, the length of `arr1`.\nThe second line contains `n` integers: `arr1`.\nThe third line contains `m`, the length of `arr2`.\nThe fourth line contains `m` integers: `arr2`.",
+ "output_format": "Print `true` or `false` (lowercase).",
+ "constraints": [
+  "1 ≤ n, m ≤ 10^5",
+  "1 ≤ arr1[i], arr2[i] ≤ 10^9",
+  "All values inside one array are distinct"
+ ],
+ "examples": [
+  {
+   "input": "4\n2 3 5 1\n5\n4 3 5 1 9",
+   "output": "true",
+   "explanation": "Both arrays order the shared values 3, 5, 1 the same way. The array [2, 4, 3, 5, 1, 9] contains every value once and has both inputs as subsequences."
+  },
+  {
+   "input": "4\n2 3 5 1\n4\n2 3 1 5",
+   "output": "false",
+   "explanation": "The first array puts 5 before 1, the second puts 1 before 5. No array of distinct values can satisfy both."
+  },
+  {
+   "input": "3\n1 2 3\n2\n3 1",
+   "output": "false",
+   "explanation": "The first array forces 1 before 3 (through 2), while the second array forces 3 before 1. The constraints form a cycle."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Because every value appears once in the final array, each value has one fixed position. Think about what the two arrays say about which value must come before which.",
+  "Each adjacent pair (a, b) in an array is a constraint 'a comes before b'. Treat values as nodes and these constraints as directed edges.",
+  "A valid arr3 exists exactly when the graph has no directed cycle. Detect a cycle with a topological sort (Kahn's algorithm)."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = data[1:1 + n]\n    m = int(data[1 + n])\n    b = data[2 + n:2 + n + m]\n    adj = {}\n    indeg = {}\n    for v in a + b:\n        if v not in adj:\n            adj[v] = []\n            indeg[v] = 0\n    for arr in (a, b):\n        for i in range(len(arr) - 1):\n            adj[arr[i]].append(arr[i + 1])\n            indeg[arr[i + 1]] += 1\n    q = deque(v for v in adj if indeg[v] == 0)\n    seen = 0\n    while q:\n        v = q.popleft()\n        seen += 1\n        for w in adj[v]:\n            indeg[w] -= 1\n            if indeg[w] == 0:\n                q.append(w)\n    print('true' if seen == len(adj) else 'false')\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import permutations\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + n]]\nm = int(data[1 + n])\nb = [int(x) for x in data[2 + n:2 + n + m]]\n\ndef is_subseq(s, t):\n    it = iter(t)\n    return all(x in it for x in s)\n\nvals = sorted(set(a) | set(b))\nok = False\nfor p in permutations(vals):\n    if is_subseq(a, p) and is_subseq(b, p):\n        ok = True\n        break\nprint('true' if ok else 'false')\n",
+ "generator": "def gen(rng):\n    def fmt(a, b):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a)) + '\\n' + str(len(b)) + '\\n' + ' '.join(map(str, b))\n    tests = [\n        fmt([2, 3, 5, 1], [4, 3, 5, 1, 9]),\n        fmt([2, 3, 5, 1], [2, 3, 1, 5]),\n        fmt([1], [1]),\n        fmt([1], [2]),\n        fmt([1, 2], [2, 1]),\n        fmt([1, 2, 3], [3, 1]),\n        fmt([1, 2, 3], [1, 2, 3]),\n        fmt([1, 2], [3, 4]),\n        fmt([1, 2, 3, 4], [4, 5, 1]),\n    ]\n    for _ in range(60):\n        k = rng.randint(2, 6)\n        vals = list(range(1, k + 1))\n        if rng.random() < 0.5:\n            perm = vals[:]\n            rng.shuffle(perm)\n            a = [x for x in perm if rng.random() < 0.7] or [perm[0]]\n            b = [x for x in perm if rng.random() < 0.7] or [perm[-1]]\n        else:\n            a = rng.sample(vals, rng.randint(1, min(4, k)))\n            b = rng.sample(vals, rng.randint(1, min(4, k)))\n        tests.append(fmt(a, b))\n    N = 10 ** 5\n    # large true: two random subsequences of one hidden order, large values\n    P = rng.sample(range(1, 10 ** 9 + 1), 150000)\n    i1 = sorted(rng.sample(range(150000), N))\n    i2 = sorted(rng.sample(range(150000), N))\n    tests.append(fmt([P[i] for i in i1], [P[i] for i in i2]))\n    # large false: full reversal\n    Q = rng.sample(range(1, 300001), N)\n    tests.append(fmt(Q, Q[::-1]))\n    # large false: only the last two swapped\n    R = list(range(1, N + 1))\n    rng.shuffle(R)\n    S = R[:]\n    S[-1], S[-2] = S[-2], S[-1]\n    tests.append(fmt(R, S))\n    # large true: identical chain\n    C = list(range(1, N + 1))\n    tests.append(fmt(C, C))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef can_merge(arr1: List[int], arr2: List[int]) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    arr1 = [int(x) for x in data[1:1 + n]]\n    m = int(data[1 + n])\n    arr2 = [int(x) for x in data[2 + n:2 + n + m]]\n    print('true' if can_merge(arr1, arr2) else 'false')\n\n\nmain()\n",
+  "javascript": "function canMerge(arr1, arr2) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst arr1 = t.slice(1, 1 + n)\nconst m = t[1 + n]\nconst arr2 = t.slice(2 + n, 2 + n + m)\nconsole.log(canMerge(arr1, arr2) ? 'true' : 'false')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool canMerge(vector<int>& arr1, vector<int>& arr2) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n;\n    vector<int> arr1(n);\n    for (int i = 0; i < n; i++) cin >> arr1[i];\n    cin >> m;\n    vector<int> arr2(m);\n    for (int i = 0; i < m; i++) cin >> arr2[i];\n    cout << (canMerge(arr1, arr2) ? \"true\" : \"false\") << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean canMerge(int[] arr1, int[] arr2) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] arr1 = new int[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); arr1[i] = (int) in.nval; }\n        in.nextToken();\n        int m = (int) in.nval;\n        int[] arr2 = new int[m];\n        for (int i = 0; i < m; i++) { in.nextToken(); arr2[i] = (int) in.nval; }\n        System.out.println(canMerge(arr1, arr2) ? \"true\" : \"false\");\n    }\n}\n"
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "5801fb2dd7",
+ "question": "Reported from a Meesho SDE intern (6-month) hiring manager round: after a detailed discussion of the candidate's resume projects, the interviewer asked them to **design a food ordering system**.\n\nFollow-up questions were built on each previous answer, including **what kind of authentication** to use, **which kind of database** suits this scenario, and detailed questions about **JWT tokens** and how they work. The candidate said they had mentioned JWT earlier without being fully prepared, and the follow-ups on it went badly.",
+ "lookingFor": [
+  "Ability to scope an open problem with requirements and a simple, defensible architecture",
+  "Justified database choice (relational for orders and payments, other stores where they fit)",
+  "Real understanding of authentication, especially JWT structure, signing and limits",
+  "Honesty about what you know: only claim technologies you can explain in depth",
+  "Handling of follow-ups that chain from your own earlier answers"
+ ],
+ "answer": "**Requirements.** Customers browse restaurants and menus, place orders, pay, and track delivery; restaurants accept and prepare; delivery partners pick up. Scale assumption: hundreds of thousands of orders per day with lunch and dinner peaks.\n\n**Core entities.** `User`, `Restaurant`, `MenuItem`, `Order`, `OrderItem`, `Payment`, `Delivery`.\n\n**Architecture.** Start with a modular monolith or a few services: catalog (read heavy, cache it), order service (state machine `PLACED -> ACCEPTED -> PREPARING -> OUT_FOR_DELIVERY -> DELIVERED` or `CANCELLED`), payment service, notification service, and location tracking. Use a queue for order events so notifications and restaurant dashboards update asynchronously.\n\n**Database choice.** Orders, payments and users need transactions and relationships, so use a relational database (PostgreSQL/MySQL). Menus and search can use a cache plus a search index; live delivery location fits a fast key-value store. State the reason: money and order state need ACID guarantees.\n\n**Authentication with JWT.** A JSON Web Token has three base64url parts: header (algorithm), payload (claims such as `sub`, `exp`, `iat`, roles), and a signature. The server signs header and payload with a secret (HS256) or a private key (RS256); any service can verify integrity without a session lookup. Points to cover:\n- The payload is encoded, not encrypted, so never put secrets in it.\n- Use short-lived access tokens (minutes) plus a refresh token stored server-side so it can be revoked.\n- Always verify signature, `exp`, and the algorithm; reject `alg: none`.\n- Pure stateless JWTs are hard to revoke; mitigate with short expiry, a denylist, or opaque session tokens where revocation matters.\n- Store tokens in httpOnly, secure cookies on the web to reduce XSS exposure, and hash passwords with bcrypt or argon2.\n- Add role checks (customer, restaurant, courier) for authorisation.\n\n**Reliability.** Make order placement idempotent with a client-generated key, so a retry does not double order or double charge.\n\n**Advice.** If you cannot explain a technology fully, do not volunteer it. Be ready to defend each choice by comparing it with an alternative, such as sessions versus JWT.",
+ "followUps": [
+  "What is the difference between authentication and authorisation, and where would each live in this system?",
+  "How do you log a user out or revoke a JWT before it expires?",
+  "Why a relational database here, and what would you cache?",
+  "How do you prevent duplicate orders when the user taps Pay twice?"
+ ]
+}

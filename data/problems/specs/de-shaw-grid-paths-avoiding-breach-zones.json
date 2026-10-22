@@ -1,0 +1,49 @@
+{
+ "pid": "de-shaw-grid-paths-avoiding-breach-zones",
+ "title": "Grid Paths Avoiding Breach Zones",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "A data package is an `n × m` grid of units. Each unit holds an encryption code, either `0` or `1`. A unit holding `0` is a **breach**.\n\nThe **latency** between units `(p, q)` and `(r, s)` is their Manhattan distance `|p - r| + |q - s|`. Given a latency threshold `T`, a unit is **unsafe** if its latency to at least one breach is at most `T` (so every breach is itself unsafe, for any `T ≥ 0`). All other units are **safe**. If the grid contains no `0`, every unit is safe.\n\nStarting at the top-left unit `(0, 0)`, you may move only **right** or **down**. Count the paths that reach the bottom-right unit `(n - 1, m - 1)` and visit only safe units (the start and end units must be safe too). Two paths are different if they visit different sequences of units.\n\nPrint the number of such paths modulo `10^9 + 7`.",
+ "input_format": "The first line contains three integers `n`, `m` and `T`.\nEach of the next `n` lines contains a string of exactly `m` characters, each `0` or `1`: one row of the grid.",
+ "output_format": "Print one integer: the number of safe paths modulo 10^9 + 7.",
+ "constraints": [
+  "1 ≤ n, m ≤ 800",
+  "0 ≤ T ≤ 700",
+  "Each grid character is 0 or 1"
+ ],
+ "examples": [
+  {
+   "input": "3 3 0\n111\n101\n111",
+   "output": "2",
+   "explanation": "With T = 0 only the breach itself at (1, 1) is unsafe. There are 6 right/down paths in a 3×3 grid and 4 of them pass through the center, so 2 remain: along the border."
+  },
+  {
+   "input": "3 3 1\n111\n101\n111",
+   "output": "0",
+   "explanation": "With T = 1 the four neighbours of the breach are unsafe as well. Both units next to the start, (0, 1) and (1, 0), are unsafe, so no path can leave the start."
+  },
+  {
+   "input": "3 4 1\n1111\n1111\n0111",
+   "output": "5",
+   "explanation": "The breach at (2, 0) makes (2, 0), (1, 0) and (2, 1) unsafe. Counting paths row by row over the safe units gives 1 1 1 1 on the first row, then 0 1 2 3, then 0 0 2 5, so 5 paths reach the bottom-right unit."
+  }
+ ],
+ "complexity": {
+  "time": "O(n·m)",
+  "space": "O(n·m)"
+ },
+ "hints": [
+  "Splitting the work into two phases helps: first decide which units are unsafe, then count paths with a standard right/down DP.",
+  "The distance from every unit to its nearest breach can be computed for the whole grid at once with a multi-source BFS, or with two sweeps over the grid (top-left to bottom-right, then back) because Manhattan distance has no obstacles.",
+  "A unit is unsafe when its nearest-breach distance is at most T. Then dp[i][j] = dp[i-1][j] + dp[i][j-1] on safe units and 0 on unsafe ones, taken modulo 10^9 + 7."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m, T = int(data[0]), int(data[1]), int(data[2])\n    g = data[3:3 + n]\n    MOD = 10**9 + 7\n    INF = 10**9\n    d = [[0 if c == '0' else INF for c in row] for row in g]\n    for i in range(n):\n        row = d[i]\n        up = d[i - 1] if i else None\n        for j in range(m):\n            v = row[j]\n            if up is not None and up[j] + 1 < v:\n                v = up[j] + 1\n            if j and row[j - 1] + 1 < v:\n                v = row[j - 1] + 1\n            row[j] = v\n    for i in range(n - 1, -1, -1):\n        row = d[i]\n        dn = d[i + 1] if i + 1 < n else None\n        for j in range(m - 1, -1, -1):\n            v = row[j]\n            if dn is not None and dn[j] + 1 < v:\n                v = dn[j] + 1\n            if j + 1 < m and row[j + 1] + 1 < v:\n                v = row[j + 1] + 1\n            row[j] = v\n    prev = [0] * m\n    for i in range(n):\n        cur = [0] * m\n        dr = d[i]\n        for j in range(m):\n            if dr[j] <= T:\n                continue\n            if i == 0 and j == 0:\n                cur[j] = 1\n            else:\n                s = prev[j]\n                if j:\n                    s += cur[j - 1]\n                cur[j] = s % MOD\n        prev = cur\n    print(prev[m - 1] % MOD)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m, T = int(data[0]), int(data[1]), int(data[2])\ng = data[3:3 + n]\nMOD = 10**9 + 7\nzeros = [(i, j) for i in range(n) for j in range(m) if g[i][j] == '0']\nblocked = [[any(abs(i - a) + abs(j - b) <= T for a, b in zeros) for j in range(m)] for i in range(n)]\ndp = [[0] * m for _ in range(n)]\nfor i in range(n):\n    for j in range(m):\n        if blocked[i][j]:\n            continue\n        if i == 0 and j == 0:\n            dp[i][j] = 1\n        else:\n            dp[i][j] = ((dp[i - 1][j] if i else 0) + (dp[i][j - 1] if j else 0)) % MOD\nprint(dp[n - 1][m - 1] % MOD)\n",
+ "generator": "def gen(rng):\n    def fmt(g, T):\n        return f\"{len(g)} {len(g[0])} {T}\\n\" + '\\n'.join(g)\n    def rand_grid(n, m, p):\n        g = [['0' if rng.random() < p else '1' for _ in range(m)] for _ in range(n)]\n        g[0][0] = '1'\n        g[n - 1][m - 1] = '1'\n        return g\n    def ser(g):\n        return [''.join(r) for r in g]\n    tests = [fmt(['1'], 0), fmt(['0'], 0), fmt(['1'], 5), fmt(['1111'], 0), fmt(['1', '1', '1'], 0),\n             fmt(['101'], 0), fmt(['10', '01'], 0), fmt(['11', '11'], 0), fmt(['11', '10'], 1)]\n    for _ in range(40):\n        n, m = rng.randint(1, 9), rng.randint(1, 9)\n        p = rng.choice([0.0, 0.03, 0.06, 0.1, 0.2])\n        T = rng.choice([0, 0, 0, 1, 1, 2, 3])\n        tests.append(fmt(ser(rand_grid(n, m, p)), T))\n    # no zeros, large grid: plain binomial count\n    N = 800\n    tests.append(fmt(['1' * N] * N, 0))\n    # sparse random breaches, small thresholds\n    for T in (0, 2, 4):\n        g = rand_grid(N, N, 0.0003)\n        tests.append(fmt(ser(g), T))\n    # a wall of breaches with a single wide gap\n    g = [['1'] * N for _ in range(N)]\n    for c in range(N):\n        if not (150 <= c <= 250):\n            g[400][c] = '0'\n    tests.append(fmt(ser(g), 3))\n    # wall with a gap too narrow for the threshold\n    g = [['1'] * N for _ in range(N)]\n    for c in range(N):\n        if not (150 <= c <= 154):\n            g[400][c] = '0'\n    tests.append(fmt(ser(g), 3))\n    # maximum threshold with a breach\n    g = [['1'] * N for _ in range(N)]\n    g[N - 1][0] = '0'\n    tests.append(fmt(ser(g), 700))\n    g = [['1'] * N for _ in range(N)]\n    g[0][N - 1] = '0'\n    tests.append(fmt(ser(g), 300))\n    # non-square max-ish shapes\n    tests.append(fmt(['1' * 800] * 1, 0))\n    tests.append(fmt(['1'] * 800, 0))\n    g = rand_grid(400, 800, 0.0005)\n    tests.append(fmt(ser(g), 2))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_paths(grid: List[str], threshold: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m, t = int(data[0]), int(data[1]), int(data[2])\n    grid = data[3:3 + n]\n    print(count_paths(grid, t))\n\n\nmain()\n",
+  "javascript": "function countPaths(grid, threshold) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = Number(t[0]), m = Number(t[1]), threshold = Number(t[2])\nconst grid = t.slice(3, 3 + n)\nconsole.log(String(countPaths(grid, threshold)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countPaths(vector<string>& grid, int threshold) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m, t;\n    cin >> n >> m >> t;\n    vector<string> grid(n);\n    for (auto& row : grid) cin >> row;\n    cout << countPaths(grid, t) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countPaths(String[] grid, int threshold) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int n = Integer.parseInt(st.nextToken());\n        int m = Integer.parseInt(st.nextToken());\n        int t = Integer.parseInt(st.nextToken());\n        String[] grid = new String[n];\n        for (int i = 0; i < n; i++) grid[i] = br.readLine().trim();\n        System.out.println(countPaths(grid, t));\n    }\n}\n"
+ }
+}

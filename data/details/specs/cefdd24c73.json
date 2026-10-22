@@ -1,0 +1,18 @@
+{
+ "qid": "cefdd24c73",
+ "question": "Infosys Specialist Programmer / DSE technical interview, a scenario on the candidate's own project: **how would the application handle blocking 1 million domains?** The report says a caching approach was discussed. No other details (such as whether the blocker is a browser extension, a DNS filter or a proxy) were reported, so state your assumptions.",
+ "lookingFor": [
+  "Asking what the system is (extension, proxy, DNS) and what latency and update rate are needed.",
+  "Choosing the right data structure for fast membership checks at scale.",
+  "Reasoning about memory use with actual numbers.",
+  "Correct domain matching, including subdomains.",
+  "Trade-offs of caching and list updates."
+ ],
+ "answer": "**Clarify first.** Where does the check run (browser, local proxy, DNS server)? How many lookups per second? How often does the list change? Is a rare false block acceptable?\n\n**Size the problem.** One million domains averaging about 20 bytes is roughly 20-50 MB as strings in a hash set. That fits in memory on a server and in most desktop apps, so the real challenge is fast lookup and updates, not storage.\n\n**Lookup design.**\n- Normalise the host (lowercase, strip trailing dot, punycode).\n- Keep blocked domains in an in-memory **hash set** for O(1) average lookup.\n- To block subdomains, check the host and then each parent suffix: `a.b.example.com`, `b.example.com`, `example.com`. That is a handful of lookups. Alternatively store domains as a **trie of reversed labels** (`com` -> `example` -> `b`), which handles wildcard blocking naturally.\n- Optionally put a **Bloom filter** in front: with 1% false-positive rate it needs roughly 10 bits per entry, so about 1.2 MB for 1M entries. A negative answer is definitely 'allowed', so most traffic never touches the big structure. A positive answer is confirmed against the exact set.\n\n**Caching.** Cache recent decisions (host -> allow/block) in an LRU cache, since traffic is highly skewed to popular domains. If lists live in a database or remote service, load them into memory at startup and cache in Redis for shared use. Invalidate the cache when the list version changes.\n\n**Updates.** Store the list as a versioned file or snapshot, apply diffs (added/removed domains) and swap the new structure in atomically so lookups never see a half-built set.\n\n**Scaling further.** Shard by hash of the domain, replicate read-only copies, and keep the database only as a source of truth.\n\n**Trade-offs.** Bloom filters add false positives; caches can serve stale decisions after an update (use short TTLs or versions); tries save memory on shared suffixes but are more complex.",
+ "followUps": [
+  "How would you match wildcard rules like *.example.com?",
+  "What happens to cached decisions when the blocklist is updated?",
+  "How would you measure that lookups stay fast?",
+  "How would you distribute the blocklist to many clients?"
+ ]
+}

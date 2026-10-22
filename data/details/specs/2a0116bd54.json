@@ -1,0 +1,18 @@
+{
+ "qid": "2a0116bd54",
+ "question": "Intel Software Engineering Intern, technical interview (C++). Given:\n\n`int* p = new int(5);`\n`int* q = p;`\n`delete p;`\n`delete q;`\n\n**In which line does the error occur, and what kind of bug is it?**",
+ "lookingFor": [
+  "Pinpointing `delete q;` and naming the bug (double free, undefined behavior).",
+  "Understanding aliasing: two pointers, one heap object.",
+  "Knowing that delete does not null the pointer and what a dangling pointer is.",
+  "Knowing the modern fix: smart pointers and clear ownership.",
+  "Awareness of consequences such as crashes and security issues."
+ ],
+ "answer": "**The problem is the second line, `delete q;`. This is a double delete (double free), which is undefined behavior.**\n\n**What happens.** `new int(5)` allocates one int on the heap. `q = p` copies the pointer, not the object, so both pointers *alias* the same allocation. `delete p;` destroys the object and returns its memory to the allocator, which is legal. After that, `q` (and `p`) are **dangling pointers**: they still hold the old address, but it no longer refers to a live object. `delete q;` then tries to free that same block again. The C++ standard says this is undefined behavior. In practice it can crash with an abort (\"double free detected\"), silently corrupt the allocator's bookkeeping, or later hand out the same memory twice, which attackers can sometimes exploit (use-after-free and double-free are classic security vulnerabilities).\n\nNote that `delete` does not reset the pointer. Even setting `p = nullptr;` after the first delete would not help, because `q` is a separate variable still holding the stale address. Deleting a null pointer is safe (it does nothing), which is why nulling every alias matters, but tracking all aliases by hand does not scale.\n\n**The root cause is unclear ownership: two raw pointers, one owner expected.**\n\n**Fixes.**\n- Decide who owns the object. Only the owner calls delete; `q` should be a non-owning observer, and must not outlive the owner.\n- Use `std::unique_ptr<int> p = std::make_unique<int>(5);` for single ownership. Copying is disallowed, so the bug cannot compile.\n- Use `std::shared_ptr<int>` if ownership is genuinely shared; the object is freed once, when the last owner goes away.\n- Detect with tools: AddressSanitizer or Valgrind report the double free, and `-fsanitize=address` is cheap to add in testing.\n\n**Related bugs to mention:** use-after-free (`*q` after the delete), memory leak (forgetting delete), and mismatching `new[]` with `delete`.",
+ "followUps": [
+  "What is a dangling pointer and how can it arise besides delete?",
+  "Is deleting a nullptr safe? Why?",
+  "What is the difference between delete and delete[]?",
+  "How would you detect this bug automatically?"
+ ]
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "111ff53623",
+ "question": "Design **CSRF (cross-site request forgery) protection** for a client-server model. The interviewer wanted the **entire model diagram as well as the code**. This was a second-round question from an off-campus SDE interview.",
+ "lookingFor": [
+  "Do you understand the attack (browser auto-sends cookies) and why it works?",
+  "Do you know the standard defences and when each is appropriate?",
+  "Can you draw the request flow and write server-side verification code?",
+  "Do you know the limits: XSS, subdomains, and CORS misconceptions?"
+ ],
+ "answer": "**The attack.** The browser attaches cookies automatically. If a user is logged into `bank.com`, a malicious page can trigger a request (for example a hidden form POST) to `bank.com/transfer`, and the browser sends the session cookie. The server cannot tell the request was not user-intended.\n\n**Defences (layered).**\n1. **Synchronizer token pattern.** The server generates a random, per-session (or per-request) token, stores it server-side, and embeds it in forms or returns it to the client. State-changing requests must include it in a header or hidden field, and the server compares it with the stored value. An attacker's site cannot read the token because of the same-origin policy.\n2. **Double-submit cookie** (stateless). The server sets a random token in a cookie and requires the same value in a header. The server only checks that they match. Sign the token (HMAC) so a subdomain attacker cannot plant one.\n3. **`SameSite` cookies** (`Lax` or `Strict`) stop the browser from sending cookies on most cross-site requests. A strong extra layer, not a complete replacement.\n4. **Verify `Origin`/`Referer`** headers on state-changing requests.\n5. **Use safe methods correctly**: never change state in `GET`. For JSON APIs, require a custom header or `Content-Type: application/json`, which cross-site forms cannot send without CORS approval.\n\n**Flow diagram.**\nClient loads page -> server creates session + CSRF token -> token sent in the page/cookie -> client submits `POST` with token in `X-CSRF-Token` -> server middleware compares to the session's token -> match: process; mismatch: `403`.\n\n**Code sketch (Node/Express style).**\n\n```js\nconst crypto = require(\"crypto\");\nfunction issueToken(req) {\n  req.session.csrf ||= crypto.randomBytes(32).toString(\"hex\");\n  return req.session.csrf;\n}\nfunction csrfGuard(req, res, next) {\n  if ([\"GET\", \"HEAD\", \"OPTIONS\"].includes(req.method)) return next();\n  const sent = req.get(\"X-CSRF-Token\") || \"\";\n  const real = req.session.csrf || \"\";\n  const ok = sent.length === real.length &&\n    crypto.timingSafeEqual(Buffer.from(sent), Buffer.from(real));\n  return ok ? next() : res.status(403).send(\"CSRF check failed\");\n}\n```\n\n**Caveats.** XSS defeats CSRF protection (the script can read the token). CORS does not prevent CSRF by itself. Rotate the token on login.",
+ "followUps": [
+  "What is the difference between CSRF and XSS?",
+  "Why does CORS not protect against CSRF?",
+  "Do APIs using JWT in the Authorization header need CSRF protection?",
+  "What are the differences between SameSite Lax, Strict and None?"
+ ]
+}

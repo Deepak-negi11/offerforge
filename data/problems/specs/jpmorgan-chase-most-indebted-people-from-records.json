@@ -1,0 +1,50 @@
+{
+ "pid": "jpmorgan-chase-most-indebted-people-from-records",
+ "title": "Most Indebted People From Records",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "You are given `n` debt records. Each record has three parts: a `borrower`, a `lender` and a positive `amount`. It means that `borrower` borrowed `amount` from `lender`.\n\nEvery person starts with a balance of `0`. For each record:\n\n- the borrower's balance **decreases** by `amount`;\n- the lender's balance **increases** by `amount`.\n\nOnly people who appear in at least one record count. Find the **minimum** balance over all of them (the most negative one, meaning the most indebted person) and return the names of **everyone** whose balance equals that minimum, sorted in ascending lexicographic (dictionary) order.\n\nA record always has two different people. The same pair of people can appear in many records.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains `borrower lender amount` separated by spaces.",
+ "output_format": "Print the names of all people with the minimum balance, sorted lexicographically and separated by single spaces, on one line.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ amount ≤ 10^9",
+  "Names are non-empty strings of 1 to 15 lowercase letters and digits",
+  "borrower ≠ lender in every record"
+ ],
+ "examples": [
+  {
+   "input": "3\nalice bob 30\nbob carol 20\nalice carol 10",
+   "output": "alice",
+   "explanation": "alice borrows 30 and 10, so her balance is -40. bob lends 30 and borrows 20, so he ends at +10. carol lends 20 and 10, so she is at +30. The minimum is -40, held only by alice."
+  },
+  {
+   "input": "2\ndan eve 5\nfay gus 5",
+   "output": "dan fay",
+   "explanation": "dan and fay both end at -5, eve and gus at +5. Both borrowers share the minimum, so both are printed in sorted order."
+  },
+  {
+   "input": "2\na b 5\nb a 5",
+   "output": "a b",
+   "explanation": "The two records cancel out: both balances are 0, which is also the minimum, so everyone is printed."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Track one running balance per person in a hash map rather than recomputing it from the records.",
+  "Each record updates exactly two entries: subtract from the borrower, add to the lender.",
+  "After one pass, find the minimum balance, collect all names that equal it, and sort them."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    bal = {}\n    for i in range(n):\n        b, l, a = data[1 + 3 * i], data[2 + 3 * i], int(data[3 + 3 * i])\n        bal[b] = bal.get(b, 0) - a\n        bal[l] = bal.get(l, 0) + a\n    low = min(bal.values())\n    print(' '.join(sorted(p for p, v in bal.items() if v == low)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nrecs = [(data[1 + 3 * i], data[2 + 3 * i], int(data[3 + 3 * i])) for i in range(n)]\npeople = sorted({r[0] for r in recs} | {r[1] for r in recs})\ndef balance(p):\n    s = 0\n    for b, l, a in recs:\n        if b == p:\n            s -= a\n        if l == p:\n            s += a\n    return s\nvals = {p: balance(p) for p in people}\nlow = min(vals.values())\nprint(' '.join(p for p in people if vals[p] == low))\n",
+ "generator": "def gen(rng):\n    def fmt(rs):\n        return str(len(rs)) + '\\n' + '\\n'.join(f'{b} {l} {a}' for b, l, a in rs)\n    def name(k=5):\n        return ''.join(rng.choice('abcdefghijklmnopqrstuvwxyz') for _ in range(rng.randint(1, k)))\n    tests = [\n        fmt([('a', 'b', 1)]),\n        fmt([('a', 'b', 5), ('b', 'a', 5)]),\n        fmt([('x', 'y', 7), ('z', 'y', 7), ('y', 'w', 14)]),\n        fmt([('bob', 'amy', 10), ('amy', 'cat', 10), ('cat', 'bob', 10)]),\n        fmt([('zed', 'amy', 10**9), ('amy', 'zed', 10**9 - 1)]),\n        fmt([('a', 'b', 3), ('c', 'd', 3), ('e', 'f', 3), ('g', 'b', 1)]),\n    ]\n    for n in (2, 3, 5, 8, 12, 20):\n        for pool in (3, 5, 10):\n            names = [name(3) + str(i) for i in range(pool)]\n            rs = []\n            for _ in range(n):\n                b, l = rng.sample(names, 2)\n                rs.append((b, l, rng.randint(1, 20)))\n            tests.append(fmt(rs))\n    # many-way ties: pairs with equal amounts\n    names = [name(4) + str(i) for i in range(10)]\n    rs = []\n    for i in range(0, 10, 2):\n        rs.append((names[i], names[i + 1], 6))\n    tests.append(fmt(rs))\n    # max size, many people\n    pool = [name(8) + str(i) for i in range(50000)]\n    rs = []\n    for _ in range(100000):\n        b, l = rng.sample(pool, 2)\n        rs.append((b, l, rng.randint(1, 10**9)))\n    tests.append(fmt(rs))\n    # max size, few people, huge totals\n    pool = [name(8) + str(i) for i in range(30)]\n    rs = []\n    for _ in range(100000):\n        b, l = rng.sample(pool, 2)\n        rs.append((b, l, rng.randint(10**9 - 5, 10**9)))\n    tests.append(fmt(rs))\n    # max size, one big debtor\n    rs = []\n    for i in range(100000):\n        rs.append(('debtor', 'p' + str(i), 10**9))\n    tests.append(fmt(rs))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef most_indebted(records: List[Tuple[str, str, int]]) -> List[str]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    records = [(data[1 + 3 * i], data[2 + 3 * i], int(data[3 + 3 * i])) for i in range(n)]\n    print(' '.join(most_indebted(records)))\n\n\nmain()\n",
+  "javascript": "function mostIndebted(borrowers, lenders, amounts) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0])\nconst borrowers = [], lenders = [], amounts = []\nfor (let i = 0; i < n; i++) {\n  borrowers.push(t[1 + 3 * i])\n  lenders.push(t[2 + 3 * i])\n  amounts.push(Number(t[3 + 3 * i]))\n}\nconsole.log(mostIndebted(borrowers, lenders, amounts).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<string> mostIndebted(vector<string>& borrowers, vector<string>& lenders, vector<long long>& amounts) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<string> borrowers(n), lenders(n);\n    vector<long long> amounts(n);\n    for (int i = 0; i < n; i++) cin >> borrowers[i] >> lenders[i] >> amounts[i];\n    vector<string> res = mostIndebted(borrowers, lenders, amounts);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<String> mostIndebted(String[] borrowers, String[] lenders, long[] amounts) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int n = Integer.parseInt(st.nextToken());\n        String[] borrowers = new String[n], lenders = new String[n];\n        long[] amounts = new long[n];\n        for (int i = 0; i < n; i++) {\n            borrowers[i] = st.nextToken();\n            lenders[i] = st.nextToken();\n            amounts[i] = Long.parseLong(st.nextToken());\n        }\n        System.out.println(String.join(\" \", mostIndebted(borrowers, lenders, amounts)));\n    }\n}\n"
+ }
+}

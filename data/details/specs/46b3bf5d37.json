@@ -1,0 +1,18 @@
+{
+ "qid": "46b3bf5d37",
+ "question": "In the LLD round for a Software Engineer III role (about 2.5 years of experience) at Walmart, the problem was to **design an interface for submitting and managing workflows that can run tasks either sequentially or in parallel, with a provision for passing data between workflows**.\n\nThere was an in-depth discussion of the **class diagram and design patterns**, followed by **coding a few interfaces, classes and key methods**, for around 40 to 45 minutes. The interviewer then moved to topics from the resume, mostly **Kafka internals**: log replication, leader election, durability, partitions, consumer groups and use cases.",
+ "lookingFor": [
+  "Can you model tasks and workflows with composition (sequential and parallel groups)?",
+  "Do you apply fitting patterns (Composite, Command, Strategy, Observer)?",
+  "Can you design data passing between steps and workflows safely?",
+  "Do you handle concurrency, failures and status tracking in the engine?",
+  "Do you understand Kafka replication, leader election and consumer groups?"
+ ],
+ "answer": "**Requirements.** Submit a workflow made of tasks; tasks run sequentially or in parallel; output of one task or workflow can feed another; query status; cancel. Assume in-process first, then discuss distribution.\n\n**Model (Composite pattern).**\n- `interface Task { Result execute(Context ctx); }`: a unit of work (Command pattern).\n- `SequentialGroup implements Task`: runs children in order, passing the context along; stops on first failure (or per policy).\n- `ParallelGroup implements Task`: submits children to an `ExecutorService`, waits for all (`CompletableFuture.allOf`), and merges outputs into the context.\n- `Workflow(id, rootTask, status)`; `WorkflowEngine` with `submit(workflow)`, `getStatus(id)`, `cancel(id)`.\n- A group is itself a task, so groups nest to any depth: sequential inside parallel and vice versa. This gives you DAG-like behaviour without a full graph engine; mention a DAG with dependency edges and topological ordering as the generalization.\n\n**Data passing.** A `Context` object (thread-safe key-value map, or immutable snapshots) carries inputs and outputs. Each task declares the keys it reads and writes. For parallel branches, either write to disjoint keys or merge results after completion to avoid races. For passing data between workflows, the engine stores a finished workflow's outputs and the downstream workflow references them by id.\n\n**Execution and state.** Status enum: PENDING, RUNNING, SUCCESS, FAILED, CANCELLED. State changes are published to listeners (Observer) for monitoring. Failures follow a policy: fail fast, continue, or retry with backoff. Tasks should be idempotent so retries are safe. Cancellation uses a flag checked between tasks plus `Future.cancel`.\n\n**Concurrency points.** Use a bounded thread pool, avoid blocking pool threads on nested waits (a parallel group inside the same small pool can deadlock), and use thread-safe status updates.\n\n**Scaling out.** Persist workflow and task state, put tasks on a queue (for example Kafka) consumed by workers, and make the orchestrator resume from persisted state after a crash.",
+ "followUps": [
+  "How would you represent dependencies as a DAG and run tasks in topological order?",
+  "How do you avoid thread pool deadlock with nested parallel groups?",
+  "How would you make workflow execution survive a server crash?",
+  "How do Kafka replication and leader election work, and what are in-sync replicas?"
+ ]
+}

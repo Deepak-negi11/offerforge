@@ -1,0 +1,17 @@
+{
+ "qid": "38e066bc53",
+ "question": "In a Deloitte USI Analyst campus technical round the candidate was given a SQL problem: **Table A has 17 rows and table B has 6000 rows, sharing an `id` column. Write a query that does a LEFT JOIN and counts the records.** The interviewer also asked verbal questions on join types (inner, outer, left, right), `GROUP BY`, and aggregate functions such as SUM and AVG.",
+ "lookingFor": [
+  "Writing a correct LEFT JOIN with COUNT",
+  "Recognising how row multiplication affects the count",
+  "Distinguishing COUNT(*) from COUNT(column)",
+  "Knowing the join types and aggregate functions"
+ ],
+ "answer": "**Query:**\n\n```sql\nSELECT COUNT(*) AS total_rows\nFROM A\nLEFT JOIN B ON A.id = B.id;\n```\n\n**What does it return?** A LEFT JOIN keeps every row from A (the left table) and attaches matching B rows; unmatched A rows get NULLs for B's columns.\n- If `id` is unique in B: exactly **17** rows (one per A row), regardless of B's 6000 rows.\n- If an A row matches several B rows, it appears once per match, so the count is at least 17 and can be more.\n- Never fewer than 17, because no A row is dropped.\n\n**COUNT variations:** `COUNT(*)` counts all result rows; `COUNT(B.id)` counts only rows that found a match (NULLs are ignored). `COUNT(DISTINCT A.id)` gives the number of A rows (17) even with multiple matches. To count the unmatched rows: `SELECT COUNT(*) FROM A LEFT JOIN B ON A.id = B.id WHERE B.id IS NULL;`.\n\n**Join types:**\n- INNER JOIN: only rows with a match in both tables.\n- LEFT (OUTER) JOIN: all left rows plus matches.\n- RIGHT (OUTER) JOIN: all right rows plus matches.\n- FULL (OUTER) JOIN: all rows from both, matched where possible.\n- CROSS JOIN: every combination (Cartesian product).\n\n**GROUP BY** groups rows with the same values so that aggregates compute per group, for example `SELECT dept, COUNT(*), AVG(salary) FROM emp GROUP BY dept;`. Filter groups with `HAVING` (after aggregation), rows with `WHERE` (before).\n\n**Aggregate functions:** COUNT, SUM, AVG, MIN, MAX; they ignore NULLs (except `COUNT(*)`) and return one value per group.\n\nMention an index on the join column (`B.id`) for a table with 6000 rows (small, but good habit).",
+ "followUps": [
+  "What if the join condition were on a non-unique column?",
+  "What is the difference between WHERE and HAVING?",
+  "How would the result change with an INNER JOIN?",
+  "How do you find the A rows with no match in B?"
+ ]
+}

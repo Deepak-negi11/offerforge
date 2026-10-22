@@ -1,0 +1,19 @@
+{
+ "qid": "bc0dcb39d0",
+ "question": "In the HLD round for a Walmart Senior Software Engineer role (about 6.5 years of experience), the candidate was asked to **design a TradingView-like platform**, meaning a charting and market data product. The same loop had an LLD round on designing Zomato.\n\nThe reported detail is only the product name, so you should clarify scope yourself: live price charts, historical candles, watchlists, alerts, and user-drawn indicators are the usual features of such a product.",
+ "lookingFor": [
+  "Can you scope a vague product into concrete features and non-functional requirements?",
+  "Do you understand streaming market data to many clients and fan-out at scale?",
+  "Can you pick suitable storage for time-series data and explain the aggregation into candles?",
+  "Do you know how to design alerts and real-time delivery with WebSockets?",
+  "Do you consider caching, scaling and failure scenarios (feed outage, burst at market open)?"
+ ],
+ "answer": "**Scope and requirements.** Core features: live prices for many symbols, historical charts at multiple timeframes (1m, 5m, 1d), watchlists, price alerts, and saved layouts or indicators. Non-functional: low latency (sub-second updates), high read volume, high availability during market hours. State assumptions: thousands of symbols, millions of concurrent viewers, and a peak at market open.\n\n**High-level architecture.**\n1. **Market data ingestion:** adapters connect to exchange or vendor feeds and normalise ticks into a common schema, publishing to Kafka partitioned by symbol (this keeps per-symbol ordering).\n2. **Stream processing:** consumers aggregate ticks into OHLCV candles for each timeframe (open, high, low, close, volume) using tumbling windows, and write them to storage.\n3. **Storage:** a time-series database (for example TimescaleDB, ClickHouse or InfluxDB) keyed by `(symbol, timeframe, timestamp)`. Recent candles are also kept in Redis for fast reads; old data is downsampled and moved to cheaper storage.\n4. **Query API:** REST endpoint such as `GET /candles?symbol=&tf=&from=&to=`, behind a CDN for historical ranges that never change.\n5. **Real-time delivery:** a WebSocket gateway tier. Clients subscribe to symbols; a pub/sub layer (Redis or Kafka consumers) pushes updates to the right gateway nodes, which fan out to connected clients. Throttle or batch updates (for example at 250 ms) so slow clients are not flooded.\n6. **Alerts service:** user rules (symbol, condition, threshold) stored in a DB and indexed in memory by symbol; the stream processor evaluates ticks against them and triggers notifications through a queue.\n7. **User data service:** watchlists, layouts and drawings in a relational or document store.\n\n**Trade-offs and bottlenecks.** Fan-out is the main cost: one tick for a popular symbol goes to many clients, so use per-symbol topics and multiplex sockets. Pre-aggregating candles trades storage for fast reads. Feed outages need redundant providers and a visible stale-data indicator. Scale WebSocket nodes horizontally behind a sticky load balancer, and shed load by lowering update frequency under pressure.",
+ "followUps": [
+  "How would you compute a daily candle that is still forming?",
+  "How would you keep ordering of ticks for the same symbol?",
+  "How does a WebSocket gateway scale to millions of connections?",
+  "How would you evaluate millions of price alerts efficiently?",
+  "What happens at market open when traffic spikes?"
+ ]
+}

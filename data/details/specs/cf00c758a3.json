@@ -1,0 +1,17 @@
+{
+ "qid": "cf00c758a3",
+ "question": "In the Integration round of a Stripe Software Engineer (Backend) onsite, the task was to implement a basic **request replaying** system: keep track of duplicate requests and **process each logical request only once**. You had to **parse JSON objects from a string and from a file**, compare them to decide whether a request is a duplicate, and consolidate duplicates into one. The round was described as the most straightforward of the day.",
+ "lookingFor": [
+  "Can you read and parse JSON from different sources with clean code?",
+  "Do you define 'same request' correctly (JSON equality independent of key order, whitespace)?",
+  "Can you use hashing to detect duplicates in O(1) per request?",
+  "Do you think about idempotency, ordering and state across runs?"
+ ],
+ "answer": "**Define a duplicate.** Two requests are duplicates when their JSON content is semantically equal: object key order and whitespace do not matter, but array order, values and types do. Ask whether some fields (timestamps, request ids) should be ignored. If the request has an explicit idempotency key, use it.\n\n**Approach.**\n\n1. Parse each input to an object (`json.loads` for a string, `json.load` for a file; for a file of many requests, handle one JSON per line or a JSON array, as specified).\n2. Compute a **canonical form**: serialise with sorted keys and compact separators, for example `json.dumps(obj, sort_keys=True, separators=(\",\", \":\"))`. Equal objects now give equal strings.\n3. Keep a `seen` set (or dict) of canonical strings or their hashes. If the key is in `seen`, skip it; otherwise process the request and add the key.\n\n```python\nimport json\n\ndef process_all(raw_requests, handler):\n    seen = set()\n    for raw in raw_requests:\n        req = json.loads(raw)\n        key = json.dumps(req, sort_keys=True, separators=(\",\", \":\"))\n        if key in seen:\n            continue\n        seen.add(key)\n        handler(req)\n```\n\nAlternatively compare parsed dictionaries directly: Python dict equality ignores key order, but dicts are not hashable, so you need the canonical string (or a hash of it) as the set key.\n\n**Complexity.** O(L) per request, where L is its size, and O(N) extra memory. For large volumes, store a SHA-256 of the canonical string instead of the full text.\n\n**Edge cases.** Nested objects (the canonical dump handles them), numeric types (`1` vs `1.0` are equal in Python but differ as text, so decide), duplicate keys in the input, malformed JSON (skip and report rather than crash), and empty inputs.\n\n**Extensions.** Persist `seen` so that replays across runs stay deduplicated, expire keys after a time window (TTL), and make check-and-process atomic if requests are handled concurrently (for example a database unique constraint or Redis `SET NX`). Also keep the result of the first processing so duplicates can return the same response.",
+ "followUps": [
+  "What if the same request arrives concurrently on two workers?",
+  "How would you bound memory if there are billions of requests?",
+  "How would you treat `1` and `1.0`, or null versus a missing field?",
+  "How long should deduplication keys be retained?"
+ ]
+}

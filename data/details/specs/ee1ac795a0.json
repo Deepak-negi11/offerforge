@@ -1,0 +1,19 @@
+{
+ "qid": "ee1ac795a0",
+ "question": "IBM CIO campus internship (CIO Software Developer Intern), in-person final interview. After resume questions (projects, why your degree, a gap year), the reported scenario question was: **implement a system that applies discounts to the cart at checkout, taking into account credit card validation and the order amount.** The same interview also included a query using `GROUP BY`, printing the letter 'N' in any programming language, and the difference between Docker and virtualization.",
+ "lookingFor": [
+  "Turning a vague business scenario into explicit requirements and assumptions.",
+  "Object-oriented decomposition: clear classes and responsibilities.",
+  "Extensible rule design (new discounts without editing existing code).",
+  "Awareness of correctness details: money arithmetic, card validation, edge cases.",
+  "Clear communication while designing aloud."
+ ],
+ "answer": "**Clarify first** (the scenario is open-ended, so state assumptions): is the discount tied to *card type or issuer* (for example a bank offer that only applies to valid cards), to *order amount* (threshold tiers), or both? Can discounts stack? Is there a maximum discount? Which currency?\n\n**Assumed rules for the example:** order total >= 5000 gives 10%, >= 2000 gives 5%, and a valid card from a partner issuer gives an extra flat or percentage offer. Cap the total discount.\n\n**Entities**\n- `Cart` with `CartItem(sku, unitPrice, qty)` and a `subtotal()`.\n- `CreditCard(number, expiry, issuer)`; `CardValidator` checks format and length, runs the **Luhn checksum**, and checks the expiry date. Real systems never store the full number; they hand it to a payment gateway and keep a token.\n- `DiscountRule` interface: `Optional<Money> apply(Cart, PaymentInfo)`.\n- Implementations: `OrderAmountTierRule`, `CardOfferRule`.\n- `DiscountEngine` holds a list of rules, applies them in a defined order, enforces the stacking policy and the cap, and returns an itemised result.\n- `CheckoutService` validates the card, asks the engine for discounts, and builds the final bill.\n\n**Design choices.** Use the **Strategy** pattern for rules (add a rule by adding a class: open/closed principle). Keep validation separate from pricing so each is unit-testable. Represent money as integer minor units (paise) or `BigDecimal`, never `double`, and fix a rounding rule.\n\n**Flow:** validate card -> if invalid, reject payment and apply only non-card rules (or fail, depending on requirement) -> compute subtotal -> run rules -> clamp discount to the cap and to subtotal -> return final amount with a breakdown.\n\n**Edge cases:** empty cart, expired card, rule overlap, discount larger than total, rounding, concurrent price change between cart and payment.\n\n**Testing:** table-driven unit tests per rule and for the Luhn function, plus boundary values (exactly at a threshold).\n\nMistake to avoid: one giant `if/else` method that mixes validation, pricing and I/O.",
+ "followUps": [
+  "How would you add a new coupon-code discount without changing existing classes?",
+  "How would you handle discount stacking and priority between rules?",
+  "Write the Luhn check algorithm.",
+  "Docker vs virtualization: what is the difference?",
+  "Write a query using GROUP BY to find total order value per customer."
+ ]
+}

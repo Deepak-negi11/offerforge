@@ -1,0 +1,18 @@
+{
+ "qid": "98ff5419f1",
+ "question": "Netflix software engineer loop (Warsaw): rounds reported as algorithmic, hiring manager, then system design, OOP and product ownership. In the system design stage the candidate was asked to **design a payment system** and **design a service for validating and sorting TV series**. The report gives no further detail on what validating or sorting meant, so state your assumptions explicitly (for example validating submitted series metadata and ordering series, seasons or episodes) and confirm them with the interviewer.",
+ "lookingFor": [
+  "Handling an ambiguous prompt by asking questions and stating assumptions.",
+  "API design: clear endpoints, request and response shapes, error handling.",
+  "Validation rules and where they belong (schema, business, cross-record).",
+  "Sorting design: stable, multi-key, pagination-friendly ordering.",
+  "Scalability and data model basics, plus testing and observability."
+ ],
+ "answer": "**Clarify first.** Ask: who calls the service (internal content ingestion, partners, UI)? What is a \"series\": title, seasons, episodes, air dates, language, rating? What does validate mean: format, completeness, duplicates, consistent numbering, rights/region data? What does sort mean: by title, release date, rating, popularity, or episode order? Batch or single record? Expected volume?\n\n**Assumed design.** An ingestion-and-query service.\n\n*Entities:* `series(id, title, original_language, status)`, `season(series_id, number, release_date)`, `episode(season_id, number, title, runtime, air_date)`.\n\n*API (examples):*\n- `POST /series/validate` accepts a payload and returns `{valid, errors:[{field, code, message}]}` without saving.\n- `POST /series` validates and stores, idempotent via a client key.\n- `GET /series?sort=release_date,-rating&limit=50&cursor=...` returns a sorted page.\n\n**Validation layers.** (1) Schema: required fields, types, lengths, date formats. (2) Business rules: season and episode numbers positive and contiguous, no duplicate episode numbers, air dates not before the series start date, runtime within sane bounds. (3) Cross-record: duplicate title plus year detection, referential checks. Return all errors at once, not just the first, and use stable machine-readable codes.\n\n**Sorting.** Sort in the database with an index matching the common orderings; use composite keys with a unique tiebreaker (the series ID) so pagination is stable, and keyset (cursor) pagination rather than offsets. For a small in-memory list, a comparator-based stable sort of O(n log n) is enough. Handle nulls explicitly and normalise titles (case, leading articles) when sorting alphabetically.\n\n**Scale and quality.** Stateless service behind a load balancer, read replicas or cache for hot queries, async queue for large batch validation. Add logging of rejection reasons, metrics on validation failures, and unit tests per rule plus property tests for sorting stability.\n\n**Trade-off to mention:** strict validation protects data quality but may block ingestion; offer warnings vs errors.",
+ "followUps": [
+  "How would you support custom sort orders per user or region?",
+  "How would you handle a batch of 10 million records?",
+  "How do you version the validation rules over time?",
+  "Why keyset pagination instead of offset?"
+ ]
+}

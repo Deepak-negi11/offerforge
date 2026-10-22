@@ -1,0 +1,17 @@
+{
+ "qid": "dd4deb15fb",
+ "question": "Groww SDE intern (frontend) technical round: **write polyfills for `Promise.any` and similar Promise methods.** The candidate was also asked low-level DSA basics: **which sorting algorithm does the C++ STL `sort` use, and how is a `priority_queue` used as a min or max heap?** The candidate was rejected partly for not being familiar with Promise polyfills.",
+ "lookingFor": [
+  "Deep understanding of how Promises work, not just usage.",
+  "Correct edge-case handling (empty iterable, non-promise values, AggregateError).",
+  "Knowledge of standard-library internals and heap usage.",
+  "Clean implementation under interview pressure."
+ ],
+ "answer": "**Polyfill for `Promise.any`.** Semantics: resolves with the *first fulfilled* promise; rejects only if *all* reject, with an `AggregateError` containing the reasons in order; an empty iterable rejects with an `AggregateError`. Inputs may be non-promise values, so wrap with `Promise.resolve`.\n\n```js\nPromise.myAny = function (iterable) {\n  return new Promise((resolve, reject) => {\n    const items = Array.from(iterable);\n    if (items.length === 0) {\n      return reject(new AggregateError([], \"All promises were rejected\"));\n    }\n    const errors = new Array(items.length);\n    let rejected = 0;\n    items.forEach((item, i) => {\n      Promise.resolve(item).then(resolve, (err) => {\n        errors[i] = err;\n        if (++rejected === items.length) {\n          reject(new AggregateError(errors, \"All promises were rejected\"));\n        }\n      });\n    });\n  });\n};\n```\n\nSimilar combinators follow the same shape. `Promise.all` resolves with an ordered array when all fulfil, rejecting on the first rejection (keep an index and a counter). `Promise.race` settles with the first to settle: just attach `resolve, reject` to each. `Promise.allSettled` always fulfils with `{status, value | reason}` entries for each input.\n\n**Edge cases to state.** Keep results in input order, not completion order. Resolve/reject are idempotent (only the first call matters), so calling `resolve` repeatedly is safe.\n\n**C++ STL `sort`.** Typically **introsort**: a hybrid of quicksort, falling back to heapsort when recursion depth gets too large (to guarantee O(n log n) worst case), and switching to insertion sort for small ranges. It is not stable (use `stable_sort`, usually merge-based, when stability matters). The standard requires O(n log n) comparisons in the worst case; exact implementations vary.\n\n**`priority_queue`.** A container adaptor over a vector using heap algorithms (`push_heap`, `pop_heap`). By default it is a **max-heap** (`top()` is the largest). For a min-heap, pass a comparator: `priority_queue<int, vector<int>, greater<int>> pq;`. Push and pop are O(log n); `top` is O(1); building from a range can be O(n).",
+ "followUps": [
+  "Why does Promise.any use AggregateError?",
+  "How would you implement Promise.allSettled?",
+  "What is the difference between Promise.race and Promise.any?",
+  "Is std::sort stable? What do you use if you need stability?"
+ ]
+}

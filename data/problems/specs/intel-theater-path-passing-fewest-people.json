@@ -1,0 +1,49 @@
+{
+ "pid": "intel-theater-path-passing-fewest-people",
+ "title": "Theater Path Passing Fewest People",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A theater room is drawn as a grid with `r` rows and `c` columns. Each cell is either an empty spot, written `.`, or a seat with a person sitting on it, written `#`.\n\nYou start at cell `(sr, sc)` and want to reach cell `(er, ec)` (rows and columns are 0-indexed). In one step you may move to any of the 4 side-adjacent cells (up, down, left or right) inside the grid. You may walk through occupied seats, but every time you do you pass a seated person.\n\nThe number of people you pass is the number of occupied cells on your path, **counting the start cell and the destination cell** if they are occupied. A cell visited several times counts once per visit, so a path that returns to a cell is never better than one that does not.\n\nFind the **minimum** number of people you must pass to get from the start to the destination.",
+ "input_format": "The first line contains two integers `r` and `c`.\nThe second line contains four integers `sr sc er ec`.\nEach of the next `r` lines contains a string of exactly `c` characters, each `.` or `#`.",
+ "output_format": "Print a single integer: the minimum number of people passed.",
+ "constraints": [
+  "1 ≤ r, c ≤ 500",
+  "0 ≤ sr, er < r and 0 ≤ sc, ec < c",
+  "The start and destination may be the same cell"
+ ],
+ "examples": [
+  {
+   "input": "3 4\n0 0 2 3\n.#..\n.#.#\n...#",
+   "output": "1",
+   "explanation": "Walk down the left column to (2, 0), then right along the bottom row to (2, 3). The only occupied cell on this path is the destination (2, 3) itself, so one person is passed. Any route that crosses the middle column of seats passes at least one more person."
+  },
+  {
+   "input": "3 3\n0 0 2 2\n.##\n###\n##.",
+   "output": "3",
+   "explanation": "Every route from the top-left corner to the bottom-right corner must cross three occupied cells between the two empty corners, so the answer is 3."
+  },
+  {
+   "input": "1 3\n0 2 0 2\n..#",
+   "output": "1",
+   "explanation": "The start and destination are the same occupied cell, and it counts once."
+  }
+ ],
+ "complexity": {
+  "time": "O(r * c)",
+  "space": "O(r * c)"
+ },
+ "hints": [
+  "Think of each move as having a cost: entering an occupied cell costs 1 and entering an empty cell costs 0. You want the cheapest path, not the shortest one.",
+  "Plain BFS finds the fewest steps, which is not what is asked. Use a shortest-path algorithm that handles edge costs.",
+  "Because every cost is 0 or 1, a double-ended queue lets you run 0-1 BFS in linear time: push zero-cost moves to the front and one-cost moves to the back."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    d = sys.stdin.read().split()\n    r, c = int(d[0]), int(d[1])\n    sr, sc, er, ec = int(d[2]), int(d[3]), int(d[4]), int(d[5])\n    rows = d[6:6 + r]\n    occ = [0] * (r * c)\n    for i in range(r):\n        row = rows[i]\n        base = i * c\n        for j in range(c):\n            if row[j] == '#':\n                occ[base + j] = 1\n    INF = 1 << 60\n    dist = [INF] * (r * c)\n    s = sr * c + sc\n    t = er * c + ec\n    dist[s] = occ[s]\n    dq = deque([s])\n    while dq:\n        u = dq.popleft()\n        du = dist[u]\n        i, j = divmod(u, c)\n        for ni, nj in ((i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1)):\n            if 0 <= ni < r and 0 <= nj < c:\n                v = ni * c + nj\n                nd = du + occ[v]\n                if nd < dist[v]:\n                    dist[v] = nd\n                    if occ[v]:\n                        dq.append(v)\n                    else:\n                        dq.appendleft(v)\n    print(dist[t])\n\nmain()\n",
+ "brute": "import sys\n\nd = sys.stdin.read().split()\nr, c = int(d[0]), int(d[1])\nsr, sc, er, ec = int(d[2]), int(d[3]), int(d[4]), int(d[5])\ng = d[6:6 + r]\nINF = 10**9\nbest = [[INF] * c for _ in range(r)]\nbest[sr][sc] = 1 if g[sr][sc] == '#' else 0\nchanged = True\nwhile changed:\n    changed = False\n    for i in range(r):\n        for j in range(c):\n            if best[i][j] == INF:\n                continue\n            for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n                a, b = i + di, j + dj\n                if 0 <= a < r and 0 <= b < c:\n                    cost = best[i][j] + (1 if g[a][b] == '#' else 0)\n                    if cost < best[a][b]:\n                        best[a][b] = cost\n                        changed = True\nprint(best[er][ec])\n",
+ "generator": "def gen(rng):\n    def fmt(rows, s, e):\n        return f\"{len(rows)} {len(rows[0])}\\n{s[0]} {s[1]} {e[0]} {e[1]}\\n\" + '\\n'.join(rows)\n    tests = [\n        fmt(['.'], (0, 0), (0, 0)), fmt(['#'], (0, 0), (0, 0)), fmt(['.#.'], (0, 0), (0, 2)),\n        fmt(['.#..', '.#.#', '...#'], (0, 0), (2, 3)), fmt(['.##', '###', '##.'], (0, 0), (2, 2)),\n        fmt(['..#'], (0, 2), (0, 2)), fmt(['#', '#', '#', '#'], (3, 0), (0, 0)),\n    ]\n    for _ in range(40):\n        r, c = rng.randint(1, 9), rng.randint(1, 9)\n        p = rng.choice([0.1, 0.3, 0.5, 0.7, 0.9])\n        rows = [''.join('#' if rng.random() < p else '.' for _ in range(c)) for _ in range(r)]\n        tests.append(fmt(rows, (rng.randrange(r), rng.randrange(c)), (rng.randrange(r), rng.randrange(c))))\n    N = 500\n    for p in (0.3, 0.5, 0.65):\n        rows = [''.join('#' if rng.random() < p else '.' for _ in range(N)) for _ in range(N)]\n        tests.append(fmt(rows, (0, 0), (N - 1, N - 1)))\n    # serpentine free corridor inside a wall of seats: the free route is very long\n    rows = []\n    for i in range(N):\n        if i % 2 == 0:\n            rows.append('.' * N)\n        elif (i // 2) % 2 == 0:\n            rows.append('#' * (N - 1) + '.')\n        else:\n            rows.append('.' + '#' * (N - 1))\n    tests.append(fmt(rows, (0, 0), (N - 1, 0)))\n    tests.append(fmt(['#' * N] * N, (0, 0), (N - 1, N - 1)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_people(grid: List[str], sr: int, sc: int, er: int, ec: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    sr, sc, er, ec = int(data[2]), int(data[3]), int(data[4]), int(data[5])\n    grid = data[6:6 + r]\n    print(min_people(grid, sr, sc, er, ec))\n\n\nmain()\n",
+  "javascript": "function minPeople(grid, sr, sc, er, ec) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst r = Number(t[0]), c = Number(t[1])\nconst sr = Number(t[2]), sc = Number(t[3]), er = Number(t[4]), ec = Number(t[5])\nconst grid = t.slice(6, 6 + r)\nconsole.log(String(minPeople(grid, sr, sc, er, ec)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minPeople(vector<string>& grid, int sr, int sc, int er, int ec) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c, sr, sc, er, ec;\n    cin >> r >> c >> sr >> sc >> er >> ec;\n    vector<string> grid(r);\n    for (int i = 0; i < r; i++) cin >> grid[i];\n    cout << minPeople(grid, sr, sc, er, ec) << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minPeople(String[] grid, int sr, int sc, int er, int ec) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int r = Integer.parseInt(st.nextToken());\n        int c = Integer.parseInt(st.nextToken());\n        st = new StringTokenizer(br.readLine());\n        int sr = Integer.parseInt(st.nextToken());\n        int sc = Integer.parseInt(st.nextToken());\n        int er = Integer.parseInt(st.nextToken());\n        int ec = Integer.parseInt(st.nextToken());\n        String[] grid = new String[r];\n        for (int i = 0; i < r; i++) grid[i] = br.readLine().trim();\n        System.out.println(minPeople(grid, sr, sc, er, ec));\n    }\n}\n"
+ }
+}

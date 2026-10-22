@@ -1,0 +1,44 @@
+{
+ "pid": "amd-search-a-sorted-n-x-n-matrix",
+ "title": "Search a Sorted N x N Matrix",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an `n x n` matrix of integers that is sorted in two directions: every row is in non-decreasing order from left to right, and every column is in non-decreasing order from top to bottom. Values may repeat. (A matrix whose entries are fully sorted in row-major order is a special case.)\n\nYou are also given `q` queries, each a target number. For every query, determine whether the target appears somewhere in the matrix. Print `YES` if it does, otherwise `NO`, one answer per line, in query order.\n\nScanning every cell for every query is too slow. Use the sorted structure of the matrix.",
+ "input_format": "The first line contains `n` and `q`.\nThe next `n` lines each contain `n` integers: a row of the matrix.\nThe next `q` lines each contain one integer: a target.",
+ "output_format": "Print `q` lines, each `YES` or `NO`.",
+ "constraints": [
+  "1 ≤ n ≤ 500",
+  "1 ≤ q ≤ 1000",
+  "-10^6 ≤ matrix[i][j], target ≤ 10^6"
+ ],
+ "examples": [
+  {
+   "input": "3 4\n1 3 5\n2 3 8\n4 6 9\n6\n7\n2\n10",
+   "output": "YES\nNO\nYES\nNO",
+   "explanation": "6 is in the bottom row and 2 is in the first column of the middle row. 7 falls between neighbouring values but is not stored anywhere, and 10 is larger than every entry."
+  },
+  {
+   "input": "1 2\n-5\n-5\n0",
+   "output": "YES\nNO",
+   "explanation": "The matrix has a single cell holding -5, so only the target -5 is found."
+  }
+ ],
+ "complexity": {
+  "time": "O(q * n)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Checking every cell for every query costs O(n^2) per query. Rows and columns are both sorted, so a comparison can discard a whole row or column.",
+  "Start in the top-right corner. If the value there is larger than the target, nothing in its column can match, so move left. If it is smaller, nothing in its row can match, so move down.",
+  "Each step eliminates a row or a column, so one query takes at most 2n steps. Stop with YES on equality, or NO when you fall off the matrix."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, q = int(data[0]), int(data[1])\n    p = 2\n    a = []\n    for i in range(n):\n        a.append([int(x) for x in data[p:p + n]])\n        p += n\n    out = []\n    for _ in range(q):\n        t = int(data[p])\n        p += 1\n        i, j = 0, n - 1\n        found = False\n        while i < n and j >= 0:\n            v = a[i][j]\n            if v == t:\n                found = True\n                break\n            if v > t:\n                j -= 1\n            else:\n                i += 1\n        out.append('YES' if found else 'NO')\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, q = int(data[0]), int(data[1])\nvals = [int(x) for x in data[2:2 + n * n]]\nout = []\nfor k in range(q):\n    t = int(data[2 + n * n + k])\n    out.append('YES' if t in vals else 'NO')\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    def make(n, d, base):\n        a = [[0] * n for _ in range(n)]\n        for i in range(n):\n            for j in range(n):\n                if i == 0 and j == 0:\n                    a[i][j] = base\n                else:\n                    m = max(a[i - 1][j] if i else -10**9, a[i][j - 1] if j else -10**9)\n                    a[i][j] = m + rng.randint(0, d)\n        return a\n    def fmt(a, qs):\n        n = len(a)\n        return f\"{n} {len(qs)}\\n\" + '\\n'.join(' '.join(map(str, r)) for r in a) + '\\n' + '\\n'.join(map(str, qs))\n    def queries(a, q):\n        flat = [x for r in a for x in r]\n        lo, hi = min(flat), max(flat)\n        qs = []\n        for _ in range(q):\n            if rng.random() < 0.5:\n                qs.append(rng.choice(flat))\n            else:\n                qs.append(rng.randint(lo - 2, hi + 2))\n        return qs\n    tests = []\n    a = [[-5]]\n    tests.append(fmt(a, [-5, 0]))\n    a = [[7]]\n    tests.append(fmt(a, [7]))\n    a = [[1, 1], [1, 1]]\n    tests.append(fmt(a, [1, 0, 2]))\n    a = [[1, 2], [2, 3]]\n    tests.append(fmt(a, [1, 2, 3, 4, 0]))\n    for n in (2, 3, 4, 5, 6):\n        for d in (0, 1, 3):\n            a = make(n, d, rng.randint(-5, 0))\n            tests.append(fmt(a, queries(a, rng.randint(1, 6))))\n    for _ in range(4):\n        a = make(5, 2, rng.randint(-5, 5))\n        tests.append(fmt(a, queries(a, 8)))\n    a = make(500, 90, rng.randint(-1000, 0))\n    tests.append(fmt(a, queries(a, 1000)))\n    a = make(500, 1, rng.randint(-1000, 0))\n    tests.append(fmt(a, queries(a, 1000)))\n    a = make(500, 30, -10**6)\n    tests.append(fmt(a, queries(a, 1000)))\n    a = make(300, 90, 0)\n    tests.append(fmt(a, queries(a, 1000)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef search_matrix(matrix: List[List[int]], target: int) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, q = int(data[0]), int(data[1])\n    matrix = [[int(data[2 + i * n + j]) for j in range(n)] for i in range(n)]\n    base = 2 + n * n\n    out = []\n    for k in range(q):\n        out.append('YES' if search_matrix(matrix, int(data[base + k])) else 'NO')\n    print('\\n'.join(out))\n\n\nmain()\n",
+  "javascript": "function searchMatrix(matrix, target) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], q = t[1]\nconst matrix = []\nfor (let i = 0; i < n; i++) matrix.push(t.slice(2 + i * n, 2 + (i + 1) * n))\nconst base = 2 + n * n\nconst out = []\nfor (let k = 0; k < q; k++) out.push(searchMatrix(matrix, t[base + k]) ? 'YES' : 'NO')\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool searchMatrix(vector<vector<int>>& matrix, int target) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, q;\n    cin >> n >> q;\n    vector<vector<int>> matrix(n, vector<int>(n));\n    for (int i = 0; i < n; i++)\n        for (int j = 0; j < n; j++) cin >> matrix[i][j];\n    for (int k = 0; k < q; k++) {\n        int target;\n        cin >> target;\n        cout << (searchMatrix(matrix, target) ? \"YES\" : \"NO\") << \"\\n\";\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean searchMatrix(int[][] matrix, int target) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int q = (int) in.nval;\n        int[][] matrix = new int[n][n];\n        for (int i = 0; i < n; i++)\n            for (int j = 0; j < n; j++) {\n                in.nextToken();\n                matrix[i][j] = (int) in.nval;\n            }\n        StringBuilder sb = new StringBuilder();\n        for (int k = 0; k < q; k++) {\n            in.nextToken();\n            int target = (int) in.nval;\n            sb.append(searchMatrix(matrix, target) ? \"YES\" : \"NO\").append('\\n');\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

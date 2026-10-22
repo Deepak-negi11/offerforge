@@ -1,0 +1,18 @@
+{
+ "qid": "2ed7880903",
+ "question": "MakeMyTrip SSE-2 Backend, round 2. The round was billed as LLD, but the interviewer asked for an **HLD of Dream11**, a fantasy sports platform, followed by counter-questions on the design the candidate presented. (The earlier DSA round covered 4Sum and Remove Duplicates from Sorted List II.) No further requirements were reported, so state assumptions and confirm them.",
+ "lookingFor": [
+  "Scoping a large product into core flows.",
+  "Handling extreme read spikes during live matches.",
+  "Correct money and contest-join logic (consistency).",
+  "Leaderboard and live scoring design.",
+  "Clear communication and responding to counter-questions."
+ ],
+ "answer": "**Scope and assumptions.** Users create a fantasy team of real players for an upcoming match, join paid or free contests, earn points as the real match progresses, see a live leaderboard, and receive winnings. Assume tens of millions of users and sharp spikes just before match start and during play.\n\n**Core flows and services.**\n- **Match and player service:** schedules, squads, player stats (data from a sports data provider).\n- **Team service:** create or edit a team before the **lock time** (deadline when the match starts); after lock, teams are immutable.\n- **Contest service:** contests with entry fee, size, prize pool; **join** must atomically check capacity, deduct wallet money, and record entry.\n- **Wallet/payments:** a ledger with double-entry records, idempotent operations, and strong consistency (relational DB).\n- **Scoring service:** consumes a live feed of match events, computes each player's fantasy points, then each team's points.\n- **Leaderboard service** and **notifications.**\n\n**Contest join (the critical write path).** Use a transaction: conditionally increment `joined_count` where it is below capacity, debit wallet, insert entry. Use idempotency keys so a retry does not charge twice. Under flash traffic, put join requests through a queue or per-contest shard to avoid hot-row contention, and return a pending state if necessary.\n\n**Live scoring and leaderboard.** Event stream (Kafka-like) of player events -> compute player points -> fan out to affected teams. Because many teams share the same players, compute player points once, then team score = sum of its players' points (multipliers for captain/vice-captain). Keep per-contest leaderboards in Redis sorted sets for fast rank queries; refresh every few seconds rather than per event.\n\n**Scale and spikes.** CDN and cache for static match data, pre-scale before big matches, rate limiting and queueing for team creation near the deadline, and read replicas.\n\n**Trade-offs.** Strong consistency for money and contest capacity; eventual consistency (a few seconds) is fine for leaderboard and stats. After the match, settle prizes in a batch job with reconciliation.\n\n**Avoid:** recomputing every team's score on each event, and treating the wallet like a plain counter.",
+ "followUps": [
+  "How do you handle the rush right before the match locks?",
+  "How would you make contest joining safe against double-charging?",
+  "How do you rank users with equal points?",
+  "What happens if the sports data feed is delayed or corrected later?"
+ ]
+}

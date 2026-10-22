@@ -1,0 +1,18 @@
+{
+ "qid": "258940de43",
+ "question": "In the high level design round for a Software Engineer III role at Walmart Global Tech, the question was to **design an online chess game system**.\n\nFunctional requirements: users can **create and join matches**, **real-time gameplay**, a **ranking system** for each user, **leaderboard updates in near real time**, and two types of ranking: **global rank and local rank**. The discussion covered WebSockets for real-time move updates, a matchmaking service, a game service that keeps board state, and persistent storage for matches and users.",
+ "lookingFor": [
+  "Can you choose the right real-time transport and justify it (WebSockets vs polling)?",
+  "Can you split the system into matchmaking, game, rating and leaderboard services?",
+  "Do you handle game state, move validation, disconnects and reconnects?",
+  "Do you know how rating (Elo) updates work and how to build a leaderboard efficiently?",
+  "Can you size the system and identify bottlenecks?"
+ ],
+ "answer": "**Requirements and scale.** Create or join a game, play moves in real time, ratings (Elo), global and local (country/region) leaderboards near real time. Assume 10M users, 500K concurrent players, so about 250K concurrent games, with a move every few seconds per game.\n\n**API.** `POST /games` (create), `POST /games/{id}/join`, a WebSocket `/play/{id}` for `move`, `resign`, `draw offer` and server-pushed `state` events. `GET /leaderboard?scope=global|country&top=100`.\n\n**Components.**\n- **Gateway / WebSocket servers**: hold persistent connections. A player's connection is pinned to a node; a game's two players may be on different nodes, so route messages through Redis pub/sub or a message bus keyed by game id.\n- **Matchmaking service**: players enter a queue bucketed by rating range and time control; widen the range as wait time grows; create a game when two match.\n- **Game service**: owns authoritative state. The server validates every move (never trust the client), updates the board, checks check/checkmate/draw rules and clocks, and broadcasts. Hot state in Redis or in memory with a single owner per game (sharded by game id) to avoid conflicting writes.\n- **Persistence**: games stored as move lists (PGN-like) in a database for history and replay; users table; write on game end and periodically for crash recovery.\n- **Rating service**: on game end, update Elo with `R' = R + K(S - E)`, `E = 1/(1 + 10^((Rb-Ra)/400))`, then publish an event.\n- **Leaderboard**: Redis sorted sets (`ZADD`, `ZREVRANGE`, `ZREVRANK`), one global and one per region. Updates are triggered by rating events; read paths are O(log n).\n\n**Trade-offs and failure.** WebSockets over long polling for latency; reconnect with last move number and replay missed moves; clocks run on the server; a disconnect timeout forfeits the game; shard Redis by region; the leaderboard is eventually consistent, which is acceptable.",
+ "followUps": [
+  "How do you handle a player disconnecting mid-game?",
+  "How would you scale the leaderboard to hundreds of millions of users?",
+  "How do two players on different WebSocket servers exchange moves?",
+  "How would you detect cheating or engine assistance?"
+ ]
+}

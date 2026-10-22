@@ -1,0 +1,18 @@
+{
+ "qid": "c7feb22d8c",
+ "question": "System design round, first about 10 minutes of general questions on **microservices, event-driven systems and databases**. Then you were asked to **code a working endpoint, callable with curl, that fetches all transactions of a user by `user_id` from Postgres**. The interviewer then reviewed the code and asked more database questions and asked you to **write SQL queries**.",
+ "lookingFor": [
+  "Can you quickly build a working, clean endpoint against a real database?",
+  "Do you use parameterised queries, config via environment, and sensible error handling?",
+  "Do you think about pagination and indexes even for a simple 'fetch all'?",
+  "Can you explain microservices and event-driven trade-offs at a basic level?",
+  "Can you write and explain SQL (filters, joins, aggregates)?"
+ ],
+ "answer": "**Plan the endpoint.** `GET /users/{user_id}/transactions` returning JSON. Steps: validate input, query Postgres with a **parameterised** query, return rows, handle errors.\n\n**Schema and index.**\n\n```sql\nCREATE TABLE transactions (\n  id BIGSERIAL PRIMARY KEY,\n  user_id BIGINT NOT NULL,\n  amount_minor BIGINT NOT NULL,\n  status TEXT NOT NULL,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT now()\n);\nCREATE INDEX idx_txn_user_created ON transactions (user_id, created_at DESC);\n```\n\n**Minimal code (Python, FastAPI + psycopg).**\n\n```python\nimport os, psycopg\nfrom fastapi import FastAPI, Query\n\napp = FastAPI()\nDSN = os.environ[\"DATABASE_URL\"]\n\n@app.get(\"/users/{user_id}/transactions\")\ndef list_txns(user_id: int, limit: int = Query(50, le=200), offset: int = 0):\n    with psycopg.connect(DSN) as conn:\n        rows = conn.execute(\n            \"SELECT id, amount_minor, status, created_at FROM transactions \"\n            \"WHERE user_id = %s ORDER BY created_at DESC LIMIT %s OFFSET %s\",\n            (user_id, limit, offset),\n        ).fetchall()\n    return [dict(zip((\"id\", \"amount_minor\", \"status\", \"created_at\"), r)) for r in rows]\n```\n\nTest with `curl localhost:8000/users/42/transactions`. In production use a connection pool rather than connecting per request, keep credentials in environment variables, and prefer cursor pagination for large histories.\n\n**Points to say out loud.** Parameterised queries prevent SQL injection; \"all transactions\" must still be bounded by a limit; authorise that the caller may see this `user_id`; the index serves both the filter and the ordering. If stuck on Postgres connectivity (a common failure), check host, port, credentials, and that the server accepts connections, and explain how you would debug.\n\n**Likely SQL follow-ups.** Total spent per user (`GROUP BY user_id` with `SUM`), the latest transaction per user (window function `ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC)`), and users with more than N transactions (`HAVING COUNT(*) > N`).\n\n**Concepts.** Microservices: independent deploys and scaling, but network failures and data consistency are harder. Event-driven: loose coupling and buffering, but eventual consistency and harder debugging.",
+ "followUps": [
+  "How would you add pagination without OFFSET?",
+  "How would you prevent a user reading another user's transactions?",
+  "What is the difference between WHERE and HAVING?",
+  "How would the design change if transactions were spread across several microservices?"
+ ]
+}

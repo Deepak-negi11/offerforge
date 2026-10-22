@@ -1,0 +1,17 @@
+{
+ "qid": "e56ba4ec89",
+ "question": "Apple Software Engineer (ICT2/3) onsite: **implement Tic-Tac-Toe**. It was part object-oriented design and part coding. The candidate laid out classes such as `Board`, `Player` and `Game`, and the interviewer then asked to implement just the **`placeMove` and winner-calculation methods** in the interest of time. A related round in another report asked: given a Tic-Tac-Toe board, **verify whether a player has won**.",
+ "lookingFor": [
+  "Clean decomposition into classes with single responsibilities.",
+  "Correct move validation and win detection.",
+  "Complexity awareness (O(1) win check) and generalisation to N x N.",
+  "Prioritising what to implement within limited time."
+ ],
+ "answer": "**Clarify.** Board size (3x3 or N x N), two players alternating, win with a full row, column or diagonal, draw when full, invalid moves rejected (out of range, occupied, game over).\n\n**Classes.**\n- `Player`: name, symbol (`X`/`O`).\n- `Board`: grid, `placeMove(row, col, player)`, `isFull()`.\n- `Game`: players, current turn, state (`IN_PROGRESS`, `WON`, `DRAW`), `makeMove(row, col)`; delegates to the board and switches turns.\n- Optional: a `WinStrategy` interface if rules vary (e.g. K in a row), and `GameState` enum.\n\n**Simple win check, O(N) per move.** After a move at `(r, c)`, check only that row, that column and (if on it) the diagonals for N equal symbols.\n\n**Optimised O(1) per move (counters).** Keep arrays `rows[N]`, `cols[N]` and two diagonal counters. Add +1 for player 1 and -1 for player 2 at the move's row, column and diagonals; if any counter reaches N in absolute value, that player wins.\n\n```java\npublic int placeMove(int r, int c, int player) {   // player = +1 or -1\n    if (r < 0 || r >= n || c < 0 || c >= n || grid[r][c] != 0) return INVALID;\n    grid[r][c] = player;\n    rows[r] += player; cols[c] += player;\n    if (r == c) diag += player;\n    if (r + c == n - 1) anti += player;\n    moves++;\n    if (Math.abs(rows[r]) == n || Math.abs(cols[c]) == n\n        || Math.abs(diag) == n || Math.abs(anti) == n) return player;  // winner\n    return moves == n * n ? DRAW : CONTINUE;\n}\n```\n\n**Verifying a given board (the variant).** Scan all rows, columns and both diagonals for N identical non-empty symbols: O(N^2). Mention edge cases: both players cannot win at once on a valid board, and the number of X and O must be consistent.\n\n**Extensibility to mention:** N x N boards, undo (store a move stack), an AI player (minimax) via a `PlayerStrategy`, and separating UI from game logic. Write the two requested methods first, then talk about the rest.",
+ "followUps": [
+  "How would you generalise to a K-in-a-row game on a large board?",
+  "How would you add undo and replay?",
+  "How would you add a computer opponent?",
+  "How would you test the winner detection?"
+ ]
+}

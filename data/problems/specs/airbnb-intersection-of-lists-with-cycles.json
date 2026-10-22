@@ -1,0 +1,49 @@
+{
+ "pid": "airbnb-intersection-of-lists-with-cycles",
+ "title": "Intersection of Lists With Cycles",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A singly linked list is stored in an array of `n` nodes labelled `0` to `n - 1`: node `i` points to node `next[i]`, or to nothing if `next[i] = -1`. You are given the head node of two lists, `headA` and `headB` (`-1` means the list is empty). Each list is the sequence of nodes you meet when you start at its head and keep following `next` pointers. Because the lists live in the same node array, they may **share nodes**, and either list may **contain a cycle** (a node's `next` leads back to an earlier node of the same walk, possibly to the node itself), so the walk may never reach `-1`.\n\nThe **intersection node** is defined as follows: walk list `A` from `headA` in order, and return the **first node you meet that also belongs to list `B`** (is visited when walking from `headB`). Return the label of that node, or `-1` if the two lists share no node. Intersection is about the node itself, not about equal values or equal labels of neighbours.\n\nFor example, if both lists lead into the same cycle at different entry points, every node of the cycle belongs to both lists, so the answer is the first node of `A` that lies on a node reachable from `headB`.\n\n**Follow-up:** solve it in `O(n)` time and `O(1)` extra memory. Think about Floyd's cycle detection, and about what changes when only one list has a cycle versus both.",
+ "input_format": "The first line contains `n`, `headA` and `headB`.\nThe second line contains `n` integers `next[0] ... next[n-1]`, each in `[-1, n - 1]`.",
+ "output_format": "Print the label of the intersection node, or `-1` if the lists do not intersect.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "-1 ≤ headA, headB ≤ n - 1",
+  "-1 ≤ next[i] ≤ n - 1"
+ ],
+ "examples": [
+  {
+   "input": "7 0 3\n1 2 5 4 5 6 -1",
+   "output": "5",
+   "explanation": "List A is 0 → 1 → 2 → 5 → 6 and list B is 3 → 4 → 5 → 6. The first node of A that B also visits is 5."
+  },
+  {
+   "input": "6 0 5\n1 2 3 4 2 3",
+   "output": "2",
+   "explanation": "A is 0 → 1 → 2 → 3 → 4 → 2 → ... (a cycle on 2, 3, 4). B is 5 → 3 → 4 → 2 → 3 ... and so also loops through 2, 3, 4. Walking A, nodes 0 and 1 are not on B, node 2 is, so the answer is 2 even though B enters the cycle at 3."
+  },
+  {
+   "input": "4 0 2\n1 0 3 -1",
+   "output": "-1",
+   "explanation": "A is a cycle 0 → 1 → 0 and B is 2 → 3 with no cycle. They share no node."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Walk list B once and mark every node you reach. Stop when you hit `-1` or a node you have already marked, because after that the walk only repeats.",
+  "Walk list A the same way (again stopping on a repeat) and return the first node that is marked.",
+  "Compare nodes by label, never by anything else: two different nodes are different even if they look alike. For O(1) memory, find each list's cycle with Floyd's algorithm."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, ha, hb = int(data[0]), int(data[1]), int(data[2])\n    nxt = [int(x) for x in data[3:3 + n]]\n    inb = [False] * n\n    u = hb\n    while u != -1 and not inb[u]:\n        inb[u] = True\n        u = nxt[u]\n    seen = [False] * n\n    u = ha\n    ans = -1\n    while u != -1 and not seen[u]:\n        if inb[u]:\n            ans = u\n            break\n        seen[u] = True\n        u = nxt[u]\n    print(ans)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, ha, hb = int(data[0]), int(data[1]), int(data[2])\nnxt = [int(x) for x in data[3:3 + n]]\n\ndef walk(h):\n    seq = []\n    u = h\n    for _ in range(n + 1):\n        if u == -1:\n            break\n        seq.append(u)\n        u = nxt[u]\n    return seq\n\nsb = walk(hb)\nfor x in walk(ha):\n    if x in sb:\n        print(x)\n        break\nelse:\n    print(-1)\n",
+ "generator": "def gen(rng):\n    def fmt(nxt, ha, hb):\n        return f'{len(nxt)} {ha} {hb}\\n' + ' '.join(map(str, nxt))\n\n    def make(chains, a_chain, b_chain, junk=0):\n        # chains: list of (length, tail); tail = None | ('self', idx) | ('prev', chain, idx)\n        start = []\n        total = 0\n        for ln, _ in chains:\n            start.append(total)\n            total += ln\n        n = total + junk\n        nxt = [-1] * n\n        for ci, (ln, tail) in enumerate(chains):\n            s = start[ci]\n            for k in range(ln - 1):\n                nxt[s + k] = s + k + 1\n            if tail is None:\n                nxt[s + ln - 1] = -1\n            elif tail[0] == 'self':\n                nxt[s + ln - 1] = s + tail[1]\n            else:\n                nxt[s + ln - 1] = start[tail[1]] + tail[2]\n        for j in range(total, n):\n            nxt[j] = rng.randrange(-1, n)\n        perm = list(range(n))\n        rng.shuffle(perm)\n        out = [-1] * n\n        for i in range(n):\n            out[perm[i]] = -1 if nxt[i] == -1 else perm[nxt[i]]\n        ha = -1 if a_chain is None else perm[start[a_chain]]\n        hb = -1 if b_chain is None else perm[start[b_chain]]\n        return fmt(out, ha, hb)\n\n    tests = [\n        '7 0 3\\n1 2 5 4 5 6 -1',\n        '6 0 5\\n1 2 3 4 2 3',\n        '4 0 2\\n1 0 3 -1',\n        '1 0 0\\n-1',\n        '1 0 0\\n0',\n        '1 -1 0\\n0',\n        '2 0 1\\n1 1',\n        '3 0 1\\n-1 2 -1',\n        '5 0 3\\n1 2 0 4 2',\n    ]\n    for _ in range(10):\n        n = rng.randint(1, 9)\n        nxt = [rng.choice([-1, -1, rng.randrange(n), rng.randrange(n)]) for _ in range(n)]\n        tests.append(fmt(nxt, rng.randrange(-1, n) if rng.random() < 0.1 else rng.randrange(n), rng.randrange(n)))\n    for _ in range(12):\n        k = rng.randint(2, 4)\n        chains = []\n        for ci in range(k):\n            ln = rng.randint(1, 5)\n            r = rng.random()\n            if r < 0.3:\n                tail = None\n            elif r < 0.6 or ci == 0:\n                tail = ('self', rng.randrange(ln))\n            else:\n                pc = rng.randrange(ci)\n                tail = ('prev', pc, rng.randrange(chains[pc][0]))\n            chains.append((ln, tail))\n        tests.append(make(chains, rng.randrange(k), rng.randrange(k), rng.randint(0, 3)))\n    N = 100000\n    # B joins the middle of A's tail, A has a cycle: answer is the first node of A reaching the joined part\n    tests.append(make([(60000, ('self', 10)), (40000, ('prev', 0, 59999))], 0, 1))\n    # same, A and B swapped: A is the joining list\n    tests.append(make([(60000, ('self', 10)), (40000, ('prev', 0, 59999))], 1, 0))\n    # acyclic merge\n    tests.append(make([(50000, None), (50000, ('prev', 0, 25000))], 0, 1))\n    tests.append(make([(50000, None), (50000, ('prev', 0, 25000))], 1, 0))\n    # no intersection, both with cycles\n    tests.append(make([(50000, ('self', 20000)), (50000, ('self', 100))], 0, 1))\n    # no intersection, both acyclic\n    tests.append(make([(50000, None), (50000, None)], 0, 1))\n    # both enter the same long cycle at different points\n    tests.append(make([(30000, ('self', 0)), (35000, ('prev', 0, 12345)), (35000, ('prev', 0, 29999))], 1, 2))\n    tests.append(make([(30000, ('self', 0)), (35000, ('prev', 0, 12345)), (35000, ('prev', 0, 29999))], 2, 1))\n    # empty list A with a big B\n    tests.append(make([(99990, ('self', 5))], None, 0, 10))\n    # random functional graph\n    nxt = [rng.choice([-1, rng.randrange(N), rng.randrange(N)]) if rng.random() < 0.00005 else min(N - 1, i + rng.randint(1, 3)) if i < N - 1 else -1 for i in range(N)]\n    tests.append(fmt(nxt, 0, N // 3))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef find_intersection(nxt: List[int], head_a: int, head_b: int) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, ha, hb = int(data[0]), int(data[1]), int(data[2])\n    nxt = [int(x) for x in data[3:3 + n]]\n    print(find_intersection(nxt, ha, hb))\n\n\nmain()\n",
+  "javascript": "function findIntersection(next, headA, headB) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], headA = t[1], headB = t[2]\nconst next = t.slice(3, 3 + n)\nconsole.log(findIntersection(next, headA, headB))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint findIntersection(vector<int>& next, int headA, int headB) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, headA, headB;\n    cin >> n >> headA >> headB;\n    vector<int> next(n);\n    for (int i = 0; i < n; i++) cin >> next[i];\n    cout << findIntersection(next, headA, headB) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int findIntersection(int[] next, int headA, int headB) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int headA = (int) in.nval;\n        in.nextToken();\n        int headB = (int) in.nval;\n        int[] next = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            next[i] = (int) in.nval;\n        }\n        System.out.println(findIntersection(next, headA, headB));\n    }\n}\n"
+ }
+}

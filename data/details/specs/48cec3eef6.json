@@ -1,0 +1,17 @@
+{
+ "qid": "48cec3eef6",
+ "question": "Asked in an on-campus SDE-1 technical interview: design the tables for an OAuth system with customers, tokens and permissions, where permissions have a many-to-many relationship. Choose a database, and discuss ACID, horizontal versus vertical scaling, and strong versus eventual consistency.",
+ "lookingFor": [
+  "Normalised schema with correct keys, constraints and many-to-many modelling",
+  "Justified database choice, tied to requirements",
+  "Understanding of ACID and consistency trade-offs",
+  "Scaling reasoning: when to scale up, out, or shard"
+ ],
+ "answer": "**Requirements.** Register customers (users) and client applications, issue access and refresh tokens, grant permissions (scopes), validate tokens quickly, and revoke them. Reads (token validation) are far more frequent than writes.\n\n**Schema (relational)**\n\n```sql\ncustomers(id PK, email UNIQUE, password_hash, created_at)\nclients(id PK, name, client_secret_hash, redirect_uris)\npermissions(id PK, name UNIQUE)               -- e.g. read:profile\nroles(id PK, name UNIQUE)\nrole_permissions(role_id FK, permission_id FK, PRIMARY KEY (role_id, permission_id))\ncustomer_roles(customer_id FK, role_id FK, PRIMARY KEY (customer_id, role_id))\ntokens(id PK, token_hash UNIQUE, type, customer_id FK, client_id FK,\n       expires_at, revoked BOOLEAN, created_at)\ntoken_scopes(token_id FK, permission_id FK, PRIMARY KEY (token_id, permission_id))\n```\n\nThe many-to-many relation is resolved with a **junction table** holding two foreign keys and a composite primary key. Store only a **hash** of the tokens and passwords. Index `tokens.token_hash`, `tokens.customer_id` and `expires_at` (to purge expired rows).\n\n**Database choice.** A relational database such as PostgreSQL or MySQL fits the core data: it has clear relations, needs transactions (issue token and record grant atomically) and integrity constraints, and the volume is moderate. A **key-value store such as Redis** is a good complement for hot token lookups and expiry (TTL), as a cache in front of the database. A NoSQL store becomes attractive only at very large scale for the token table.\n\n**ACID.** Atomicity (all or nothing), Consistency (constraints hold), Isolation (concurrent requests do not corrupt each other, for example two refresh requests rotating the same token), Durability (committed grants survive a crash). Security data needs all four.\n\n**Scaling.** Vertical scaling means a bigger machine: simple, with a hard ceiling and a single point of failure. Horizontal scaling means more machines: read replicas first (token validation is read-heavy), then sharding by `customer_id` if writes outgrow one node, at the cost of cross-shard queries.\n\n**Consistency.** Strong consistency (every read sees the latest write) is needed for revocation and for permission changes, or a revoked token may still work. Eventual consistency is acceptable for analytics, audit logs and caches, with a short TTL as the bound on staleness.",
+ "followUps": [
+  "Why store a hash of the token instead of the token itself?",
+  "How would you revoke tokens quickly if validation uses a cache?",
+  "How would you model permissions that depend on a resource, not just a role?",
+  "When would you pick a NoSQL database for this design?"
+ ]
+}

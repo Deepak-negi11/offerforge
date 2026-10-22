@@ -1,0 +1,17 @@
+{
+ "qid": "63389587c6",
+ "question": "HR round question for a Walmart Software Engineer II (SDE-2) role: given a table of **cricket teams**, write an SQL query that lists **all possible pairs of teams so that every team plays every other team once**.\n\nAssume a table `teams(team_id, team_name)` with one row per team. For 4 teams the result should have 6 rows.",
+ "lookingFor": [
+  "Can you recognise this as a self-join with a condition that removes duplicates and self-pairs?",
+  "Do you understand why `<` is used rather than `<>`?",
+  "Can you check the result count with a formula (n(n-1)/2)?",
+  "Can you explain the alternatives (cross join with a filter, window functions) and handle edge cases?"
+ ],
+ "answer": "**Idea.** Pair each team with every other team, but only once. A **self-join** of the table with itself gives all combinations; the join condition decides which ones to keep.\n\n**Query.**\n```sql\nSELECT a.team_name AS team1,\n       b.team_name AS team2\nFROM teams a\nJOIN teams b\n  ON a.team_id < b.team_id\nORDER BY a.team_id, b.team_id;\n```\n\n**Why it works.**\n- Joining `teams` to itself without a condition (a cross join) would give n x n rows, including a team playing itself (A-A) and both orders of each pair (A-B and B-A).\n- The condition `a.team_id < b.team_id` removes self-pairs (an id is never less than itself) and keeps only one of each mirrored pair (A-B but not B-A).\n- The number of rows is n(n-1)/2, which is the number of ways to pick 2 teams from n. For 4 teams that is 6; for 10 teams it is 45. Use this to verify the result.\n\n**Example.** Teams India, Australia, England (ids 1, 2, 3) give the rows India-Australia, India-England and Australia-England.\n\n**Alternatives and notes.**\n- `CROSS JOIN` followed by `WHERE a.team_id < b.team_id` is equivalent.\n- If the table has no numeric id, compare names: `a.team_name < b.team_name`, which works as long as names are unique.\n- If each team must play every other team twice (home and away), use `a.team_id <> b.team_id`, which returns n(n-1) rows.\n- Make sure the key column is unique; duplicate rows would produce duplicate matches.\n- To label fixtures, wrap it with `ROW_NUMBER() OVER (ORDER BY a.team_id, b.team_id) AS match_no`.\n\nThe complexity is O(n squared) by nature, since that many pairs must be output.",
+ "followUps": [
+  "How would you modify the query so each team plays every other team twice, home and away?",
+  "How would you schedule the matches into rounds so a team plays only once per round?",
+  "What changes if the table has duplicate team names?",
+  "Write the same query using a CROSS JOIN."
+ ]
+}

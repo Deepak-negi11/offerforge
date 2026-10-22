@@ -1,0 +1,19 @@
+{
+ "qid": "dacbef5e6f",
+ "question": "LinkedIn software engineer design round: **scale a single-node NoSQL key-value store to 50 million key-value pairs at 1 million queries per second, split evenly between reads and writes** (so about 500k reads and 500k writes per second). The candidate proposed consistent-hash sharding, separate database and web tiers, an in-memory cache, a Bloom filter for missing keys and a Kafka queue to absorb write bursts. The candidate reports the interviewer rejected these and favoured a minimal design, for example SQLite on one node, arguing a cache duplicates data already in the database and no queue was needed.",
+ "lookingFor": [
+  "Can you do back-of-envelope sizing before choosing an architecture?",
+  "Can you justify every component by the bottleneck it removes, rather than adding standard boxes?",
+  "Can you defend a simple design and still say when you would need to grow?",
+  "Do you understand single-node limits (disk, memory, network, write path) and durability trade-offs?",
+  "Do you listen to interviewer steering and adapt your reasoning?"
+ ],
+ "answer": "**Start with numbers.** 50M keys is small. If each record is about 100 bytes (key plus value), that is about 5 GB; at 1 KB it is about 50 GB. Either can fit in RAM on a modern server, or sit on a fast NVMe SSD with the working set in the OS page cache. The hard number is **throughput**: 500k reads/s and 500k writes/s. State assumptions (value size, key distribution, durability) and ask whether peaks exceed the 1M average.\n\n**What a single node can do.** Reads served from memory or page cache scale well with cores; hundreds of thousands per second is plausible for a well-built in-memory or memory-mapped store, though not a given for a general SQL path. Writes are the harder half: 500k durable writes per second means 500k log appends per second, which only works with **batching (group commit)**: sequential writes to NVMe can sustain this when many writes share one fsync. A B-tree SQL engine with one writer will struggle without batching, so do the arithmetic rather than assume. Say what you would measure: p99 latency, fsync rate, CPU, and disk bandwidth.\n\n**Principle: add a component only when a measured bottleneck demands it.**\n- Cache: only if reads exceed what the store serves directly, and the cost is duplication and invalidation. If the store already serves from memory, a cache adds nothing.\n- Queue: only if peak writes exceed capacity and some write delay is acceptable; otherwise it adds latency and failure modes.\n- Bloom filter: helps only when misses are frequent and expensive.\n- Sharding: needed if one node cannot hold the data or sustain the writes, and it adds rebalancing, cross-shard complexity and operational cost.\n\n**A reasonable design.** One primary node with an LSM or log-structured engine (or SQLite in WAL mode with batched transactions), NVMe, write-ahead log with group commit, and read replicas (async) for availability and extra read capacity. Back up to object storage. Then explain the growth path: if measured throughput falls short, shard by consistent hashing of the key, with replication per shard.\n\n**Takeaway.** The failure mode is cargo-cult architecture; the stronger answer is numbers first, simplest design that meets them, and a clear trigger for each added piece.",
+ "followUps": [
+  "What would you measure to decide whether one node is enough?",
+  "How does group commit change the achievable write rate?",
+  "When is adding a cache actually worth the duplication?",
+  "How would you provide high availability for a single-primary design?",
+  "If you had to shard, how would you pick the shard key and rebalance?"
+ ]
+}

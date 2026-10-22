@@ -1,0 +1,18 @@
+{
+ "qid": "b3acaa40b2",
+ "question": "Microsoft Applied AI Scientist (Hyderabad) round 2 (the candidate was rejected), system design question: **each employee has about 100 reports associated with them. Design a system to flag risky individuals**, for example whistleblowers, data breach risks, data exfiltration, or other suspicious activity.\n\nThe round also included ML questions (exploding and vanishing gradients, gradient descent, attention) but this write-up covers the design question. The statement is vague, so clarify what a \"report\" is and what action a flag triggers.",
+ "lookingFor": [
+  "Clarifying an ambiguous problem and its ethical and legal constraints.",
+  "Framing it as an ML problem: labels, features and metrics.",
+  "Pipeline design, from data ingestion to alerts and human review.",
+  "Handling imbalance, false positives and privacy.",
+  "Thinking about validation, drift and failure modes."
+ ],
+ "answer": "**Clarify.** What is a report: access logs, HR complaints, performance, email/DLP alerts, badge data, peer reports? Is the goal detection of insider risk (data exfiltration, policy violations) or finding whistleblowers? Note the ethical issue: flagging a whistleblower for retaliation is not acceptable, so state that the system should detect *risk behaviours* and protect protected reporting channels. Define the action: a flag goes to a human analyst, never an automatic punishment. Define scale (employees times 100 reports) and latency (near-real-time for security events, batch for HR data).\n\n**Pipeline.**\n1. **Ingest** heterogeneous reports into a data lake via streaming or batch, with access control and encryption.\n2. **Normalize and join** per employee and time window (entity resolution).\n3. **Feature engineering:** counts and rates (data downloaded, off-hours access, USB or cloud uploads), deviations from the employee's own and peer-group baseline, text features from unstructured reports (embeddings, topic or sentiment), and graph features (who accessed what).\n4. **Models:** because labels are rare and noisy, combine (a) **rules** for known patterns, (b) **unsupervised anomaly detection** (isolation forest, autoencoder, peer-group deviation), and (c) a **supervised classifier** (gradient boosting) trained on past confirmed incidents. An LLM can summarize long text reports into structured signals, with human verification.\n5. **Risk score and explanations:** an aggregated score with the top contributing factors for the analyst.\n6. **Human review queue** with feedback that becomes new labels.\n\n**Evaluation.** Class imbalance means accuracy is useless; use precision at k, recall on known incidents, and analyst workload, and check time-based splits to avoid leakage (using information from after the incident). Monitor drift.\n\n**Risks.** False positives harm employees; bias; privacy and legal compliance (retention, access auditing, who can see flags); an adversary adapts. Mitigate with thresholds, explainability, appeals and audits.\n\n**Trade-offs.** Rules are interpretable but brittle; ML finds new patterns but needs labels and explanation.",
+ "followUps": [
+  "How would you get labels when confirmed incidents are rare?",
+  "How do you keep the system from flagging legitimate whistleblowers?",
+  "Which metric would you optimize, and why?",
+  "How do you detect model drift in this setting?"
+ ]
+}

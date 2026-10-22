@@ -1,0 +1,19 @@
+{
+ "qid": "55a29c3584",
+ "question": "In the hiring manager round (themed as an LLD round) for a Swiggy SDE Intern (Backend) role, the candidate was asked to **design StackOverflow** and explain each part to the interviewer.\n\nThe interviewer described it as a thinking-based round: **how would you optimise the basic operations as a backend developer, and how could you reduce the time required to run those operations?**",
+ "lookingFor": [
+  "Can you identify entities and relationships for a Q&A platform?",
+  "Do you design clean classes and responsibilities (OOP, SOLID)?",
+  "Can you reason about the cost of core operations and how to speed them up?",
+  "Do you know about indexes, caching and denormalised counters?",
+  "Do you handle consistency details such as vote counting and accepted answers?"
+ ],
+ "answer": "**Requirements.** Users post questions with tags, others answer, comment, vote on questions and answers, the asker accepts one answer, search by keyword or tag, reputation changes with votes.\n\n**Entities.**\n- `User(id, name, reputation)`\n- `Question(id, authorId, title, body, tags, createdAt, score, acceptedAnswerId)`\n- `Answer(id, questionId, authorId, body, score, createdAt)`\n- `Comment(id, parentType, parentId, authorId, text)`\n- `Vote(userId, targetType, targetId, value)`, `Tag(id, name)`.\n- Services: `QuestionService`, `AnswerService`, `VoteService`, `SearchService`, `ReputationService`.\n\n**Design points.**\n- `Post` as a shared base for `Question` and `Answer` (body, author, score, comments, votes) avoids duplicate code; keep inheritance shallow.\n- Reputation updates can follow an Observer pattern: voting and acceptance publish events; `ReputationService` subscribes.\n- Rules: a user cannot vote on their own post, only once per post (unique key on user plus target); only the asker can accept an answer.\n\n**Optimising basic operations.**\n- *Lookup of a question with its answers:* index on `Answer.questionId`; fetch in one query with pagination.\n- *Search:* a plain `LIKE '%word%'` scans the whole table. Use a full-text index or an inverted index of tokens to ids; for tags use a mapping table with an index on `tagId` so \"questions with tag X\" is an index lookup.\n- *Score and counts:* storing a denormalised `score` on the post and updating it when a vote is added avoids summing all votes on every read. Use an atomic increment. Accept slight inconsistency risk, protected by the unique vote key and a periodic reconciliation.\n- *Hot content:* cache popular question pages (for example in Redis) with invalidation on new answer or vote; serve counts from cache.\n- *Sorting by votes or newest:* index on `(questionId, score)` for answers.\n- *Pagination:* keyset pagination instead of large offsets.\n- *Writes:* process reputation updates asynchronously so posting and voting stay fast.\n\n**Trade-offs.** Denormalisation speeds reads but needs care for correctness; caching reduces latency but introduces staleness.",
+ "followUps": [
+  "How would you prevent a user from voting twice on the same post?",
+  "How would you implement search by tag and by keyword efficiently?",
+  "Why store a denormalised score, and what can go wrong?",
+  "How would you design reputation updates?",
+  "What index would you create for the page that lists a question's answers?"
+ ]
+}

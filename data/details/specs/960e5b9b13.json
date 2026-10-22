@@ -1,0 +1,17 @@
+{
+ "qid": "960e5b9b13",
+ "question": "Dream11 Senior SWE, machine coding round: **design and build a message broker system** (topics, producers, consumers) in code.",
+ "lookingFor": [
+  "Clean decomposition into entities and interfaces.",
+  "Correct concurrency handling and delivery semantics.",
+  "Consumer groups, offsets and ordering.",
+  "Working, testable code in limited time."
+ ],
+ "answer": "**Clarify scope first.** In-memory single process or persistent? Delivery guarantee (at-least-once is reasonable)? Do consumers pull or does the broker push? Ordering per topic or per partition? Multiple consumer groups? Retries and dead-letter handling? Agree on a minimal core and list extensions.\n\n**Core entities**\n- `Message`: id, payload, timestamp, optional key.\n- `Topic`: name, one or more `Partition`s. Each partition is an **append-only list** of messages; a message's index is its **offset**.\n- `Producer`: `publish(topic, key, payload)`. The broker picks the partition (hash of key, else round-robin).\n- `Consumer` and `ConsumerGroup`: a group tracks a **committed offset per partition**; each partition is read by one consumer in the group, while different groups each receive all messages.\n- `Broker`: registry of topics, subscription management and the public API: `createTopic`, `subscribe`, `publish`, `poll`/`commit`.\n\n**Design choices**\n- A log with offsets (Kafka-like) lets consumers replay and avoids deleting messages on consumption; a queue (RabbitMQ-like) deletes after ack. Choose one and say why.\n- **Push vs pull:** pull avoids overwhelming slow consumers; push gives lower latency but needs back-pressure. A simple approach is a thread per consumer polling its partition.\n- **Concurrency:** one writer lock per partition (or a concurrent queue); consumers read by offset without blocking producers; make offset commits atomic.\n- **Failure handling:** if a consumer fails before commit, the message is redelivered (at-least-once). Retries with a max count and a dead-letter topic.\n- **Rebalancing** when consumers join or leave a group.\n\n**Extensibility:** use interfaces for partitioning strategy and storage so persistence (a file-backed log) can be added; add retention and metrics.\n\n**Process tip:** build the single-partition publish/consume path and test it before adding groups.",
+ "followUps": [
+  "How do you guarantee ordering?",
+  "What happens if a consumer crashes before committing the offset?",
+  "How would you add persistence to survive a restart?",
+  "How would you support exactly-once processing?"
+ ]
+}

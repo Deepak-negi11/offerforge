@@ -1,0 +1,18 @@
+{
+ "qid": "a5db314270",
+ "question": "TCS Prime/Ninja (NQT) technical interview: the panel showed an **employee table** and asked the candidate to **write a SQL query to find the details of the employee with the maximum salary**. The exact columns were not reported; assume something like `employee(id, name, department, salary)`.",
+ "lookingFor": [
+  "Can you write a correct query using a subquery, not only MAX in isolation?",
+  "Do you handle ties for the top salary?",
+  "Do you know alternatives such as ORDER BY with LIMIT and window functions?",
+  "Knowing why `SELECT name, MAX(salary)` alone is wrong.",
+  "Can you extend it to second highest or per-department maximum?"
+ ],
+ "answer": "**Goal.** Return all columns of the employee (or employees) whose salary equals the highest salary.\n\n**Most reliable answer (subquery).**\n```sql\nSELECT *\nFROM employee\nWHERE salary = (SELECT MAX(salary) FROM employee);\n```\nThe inner query computes the single highest salary; the outer query returns every row with that salary. If two employees tie, both are returned, which is usually what \"the employee with the maximum salary\" should mean.\n\n**Common wrong attempt.**\n```sql\nSELECT name, MAX(salary) FROM employee;   -- misleading\n```\n`MAX` is an aggregate, so mixing it with a non-aggregated column is invalid in standard SQL (and in many databases with strict mode). Even where it runs, the name is not guaranteed to belong to the row with the maximum salary.\n\n**Alternative 1: ORDER BY and LIMIT** (MySQL, PostgreSQL, SQLite):\n```sql\nSELECT * FROM employee ORDER BY salary DESC LIMIT 1;\n```\nSimple and fast with an index on `salary`, but returns exactly one row, so it hides ties. SQL Server uses `SELECT TOP 1 ...`; Oracle uses `FETCH FIRST 1 ROW ONLY`.\n\n**Alternative 2: window function** (ties included):\n```sql\nSELECT * FROM (\n  SELECT e.*, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk\n  FROM employee e\n) t\nWHERE rnk = 1;\n```\n\n**Variations to be ready for.**\n- *Second highest:* `SELECT MAX(salary) FROM employee WHERE salary < (SELECT MAX(salary) FROM employee);`, or `DENSE_RANK() = 2`.\n- *Maximum per department:* join with `SELECT department, MAX(salary) FROM employee GROUP BY department`, or use `DENSE_RANK() OVER (PARTITION BY department ORDER BY salary DESC)`.\n\n**NULLs.** `MAX` ignores NULL salaries; if all are NULL it returns NULL and the query returns no rows.\n\n**Explain your choice.** State the subquery version first because it handles ties and works in every dialect, then mention the LIMIT form as a shortcut when only one row is needed.",
+ "followUps": [
+  "How would you find the second highest salary, or the Nth highest?",
+  "How would you get the highest-paid employee in each department?",
+  "What is the difference between RANK, DENSE_RANK and ROW_NUMBER?",
+  "How would an index on salary change the plan?"
+ ]
+}

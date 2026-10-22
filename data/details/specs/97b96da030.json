@@ -1,0 +1,18 @@
+{
+ "qid": "97b96da030",
+ "question": "You are building a backend service for a restaurant platform with two features. The restaurant page shows **all open-close time slots** for a given restaurant. The home page shows **all restaurants currently open** at the time of request.\n\nExample data: `R1 -> [08:00-13:00], [20:00-22:30]`, `R2 -> [07:00-14:00], [19:00-23:30]`, `R3 -> [08:30-14:30], [21:00-23:00]`.\n\nThe data is pulled **once daily** from the backend. Design a **single in-memory data structure** that gives efficient retrieval of all slots for a restaurant and a real-time lookup of which restaurants are open right now.",
+ "lookingFor": [
+  "Can you pick the right structure for two different access patterns (by key, and by point-in-time)?",
+  "Do you exploit the constraint that data is loaded once a day (build-once, read-many)?",
+  "Do you reason about time and space complexity and the memory cost of each option?",
+  "Do you handle edge cases such as overnight slots, boundaries and time zones?",
+  "Can you encapsulate the design cleanly as a class with a clear API?"
+ ],
+ "answer": "**Requirements.** Two reads: `getSlots(restaurantId)` and `getOpenRestaurants(now)`. Writes happen once a day, so optimise for reads and rebuild the whole structure on reload.\n\n**Part 1: slots by restaurant.** A hash map `restaurantId -> list of (open, close)` with times stored as minutes since midnight (0..1439), kept sorted. Lookup is O(1) plus the size of the result.\n\n**Part 2: who is open now.** Convert `now` to a minute-of-day `t`, then answer a stabbing query: which intervals contain `t`? Options:\n\n1. **Scan everything** and check each slot. O(total slots), too slow on every home-page request.\n2. **Interval tree** over all slots (each node stores the restaurantId). Query is O(log n + k), where k is the number of open restaurants. Good general answer.\n3. **Precomputed timeline** (best fit because data is static and the key space is tiny). Collect all distinct boundary minutes (at most 1440). For each boundary, store the set of open restaurants as a bitset indexed by restaurant number (or an int array). A query is a binary search or direct index on `t`, then read the set. Memory is about 1440 x N/8 bytes with bitsets, so roughly 18 MB for 100k restaurants. To save memory, store only the delta at each boundary (who opens, who closes) and checkpoint a full set every few hundred boundaries.\n\n**Single structure.** Wrap both in one class `RestaurantTimings` holding the map and the timeline, built in a constructor from the daily payload.\n\n**Edge cases.**\n- Overnight slots such as 22:00-02:00: split into 22:00-24:00 and 00:00-02:00.\n- Closing time is exclusive (decide and state it).\n- Time zones: store local times, evaluate `now` in the restaurant's zone.\n- Daily reload: build a new immutable instance and swap one reference atomically, so readers never see a half-built state.\n- Holidays or overrides: layer them on top or rebuild.\n\n**Complexity.** Build O(S log S) for S slots. Slots lookup O(1). Open lookup O(log B + k) with B boundaries.",
+ "followUps": [
+  "How would the design change if slots could be updated in real time by restaurant owners?",
+  "How would you support 'opens within the next 30 minutes'?",
+  "How do you handle restaurants in different time zones?",
+  "What is the memory footprint at 1 million restaurants, and how would you reduce it?"
+ ]
+}

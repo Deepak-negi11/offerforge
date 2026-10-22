@@ -1,0 +1,19 @@
+{
+ "qid": "79ddc0a422",
+ "question": "In the Walmart SDE-3 Java backend round (LLD plus HLD), the candidate was asked to **design an API rate limiter**: a system that limits the number of incoming requests to an API service.\n\nFollow-ups reported:\n\n- **Where should the rate limiter reside?** API gateway versus inside the service layer, with trade-offs.\n- **What algorithms are used for rate limiting?**\n- **Implement one algorithm in code** and explain how it is invoked and integrated into the service.",
+ "lookingFor": [
+  "Can you weigh gateway-level versus service-level placement for limiting?",
+  "Do you know the main algorithms and when each is appropriate?",
+  "Can you write a correct, thread-safe implementation of one algorithm?",
+  "Can you show clean integration, such as a filter, interceptor or annotation, and a clear client-facing response?",
+  "Do you think about distributed deployment, clock handling and memory growth?"
+ ],
+ "answer": "**Placement.**\n- **API gateway:** one central place, protects every service, cheap to apply per client or API key and stops bad traffic early. Weakness: it only knows coarse information (IP, key, route), and a single shared limiter can become a bottleneck or point of failure.\n- **Service layer:** can use business context (per user plan, per tenant, per expensive operation) and protects the service even if called internally. Weakness: duplicated logic across services and the rejected request has already consumed some resources.\n- In practice use both: coarse limits at the gateway, fine-grained limits in the service. With multiple instances the counters must live in shared storage (Redis) or be approximated per node.\n\n**Algorithms.**\n- *Fixed window counter:* simple, but allows a 2x burst at window boundaries.\n- *Sliding window log:* exact, but stores every timestamp.\n- *Sliding window counter:* weighted average of two windows; small memory, close to exact.\n- *Token bucket:* tokens refill at a steady rate up to a capacity; permits bursts, widely used.\n- *Leaky bucket:* smooths output to a constant rate.\n\n**Token bucket in Java.**\n```java\nclass TokenBucket {\n    private final long capacity; private final double refillPerNano;\n    private double tokens; private long last = System.nanoTime();\n    TokenBucket(long capacity, double perSecond) {\n        this.capacity = capacity; this.tokens = capacity; this.refillPerNano = perSecond / 1e9;\n    }\n    synchronized boolean tryAcquire() {\n        long now = System.nanoTime();\n        tokens = Math.min(capacity, tokens + (now - last) * refillPerNano);\n        last = now;\n        if (tokens >= 1) { tokens -= 1; return true; }\n        return false;\n    }\n}\nclass RateLimiter {\n    private final ConcurrentHashMap<String, TokenBucket> buckets = new ConcurrentHashMap<>();\n    boolean allow(String clientId) {\n        return buckets.computeIfAbsent(clientId, k -> new TokenBucket(10, 5)).tryAcquire();\n    }\n}\n```\n\n**Integration.** Call `allow(clientId)` from a servlet filter or Spring `HandlerInterceptor` before the controller; on rejection return HTTP 429 with a `Retry-After` header. Optionally expose it as an annotation (`@RateLimited`) applied through AOP. For a distributed setup, replace the map with Redis and make the check atomic with a Lua script. Add eviction for idle clients so the map does not grow forever.",
+ "followUps": [
+  "How would you make this limiter work across multiple service instances?",
+  "What problem does the fixed window counter have and how does the sliding window fix it?",
+  "How would you remove idle entries from the map?",
+  "What should the client see when it is rate limited?",
+  "How would you support different limits for different pricing plans?"
+ ]
+}

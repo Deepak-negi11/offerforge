@@ -1,0 +1,18 @@
+{
+ "qid": "ff3856c488",
+ "question": "Zoho fresher (2023 batch) console-application round, run over a full day in two parts (one session late morning, one in the afternoon, continuing the same problem). One problem statement of **11 parts**: **implement a parking lot and employee management system** that assigns **floors and slots to cars** and **maintains a queue of cars** when nothing is free.\n\nReported modules: **car registration, user registration, parking system (allocation), cost calculation and report generation.** Candidates reported that the statement was not fully clear on some input/output cases, and that few reached the later parts, so the order in which you build the modules matters.",
+ "lookingFor": [
+  "Breaking a long, ambiguous spec into modules and building them in a working order.",
+  "A sensible model of floors, slots, vehicles, tickets and users.",
+  "Allocation policy and a waiting queue with correct promotion when a slot frees up.",
+  "Cost calculation that is separated from allocation and easy to change.",
+  "Stating assumptions explicitly when the spec is unclear."
+ ],
+ "answer": "**Start by clarifying.** With an unclear spec, write your assumptions down and confirm them: slot types (car/bike), pricing (per hour, rounding), what an \"employee\" gets (reserved slot, discount), and how the queue is served.\n\n**Entities.**\n- `Floor` (number, list of `Slot`), `Slot` (id, type, occupied vehicle or null).\n- `Vehicle`/`Car` (plate, owner) and `User` (id, name, type: employee or visitor).\n- `Ticket` (id, vehicle, slot, entry time, exit time) and `ParkingLot` (floors, waiting queue, tickets).\n\n**Modules in build order.**\n1. **Registration**: register users and cars; validate duplicates (plate numbers must be unique).\n2. **Parking**: `park(car)` scans floors in order for the first free slot, issues a ticket and marks the slot occupied. If full, add the car to a FIFO `Queue`.\n3. **Exit and promotion**: `exit(ticket)` frees the slot, computes the cost, then pops the head of the waiting queue and parks it in the freed slot.\n4. **Cost calculation**: a `PricingStrategy` interface (hourly rate, minimum charge, employee discount) so rules can change per part of the spec.\n5. **Reports**: occupied versus free slots per floor, current queue, revenue and per-user history.\n\n**Data structures.** A list of floors, a `Queue` (linked list or deque) for waiting cars, and a hash map from plate to ticket for O(1) lookup. For a faster \"first free slot\", keep a min-heap or per-floor free list rather than scanning.\n\n**Trade-off.** Nearest-to-entrance allocation reduces walking but needs ordering; simple first-free is easier to get right quickly.\n\n**Pitfalls.** Mixing pricing into allocation code, forgetting that the queue must be served when a slot is freed, and spending the whole time on perfect design before any part runs.",
+ "followUps": [
+  "How would you support different slot sizes (bike, car, truck)?",
+  "How would you reserve slots for employees and still use them when empty?",
+  "How would you make allocation thread-safe with multiple entry gates?",
+  "How would you change the queue if some users have priority?"
+ ]
+}

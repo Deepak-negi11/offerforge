@@ -1,0 +1,48 @@
+{
+ "pid": "walmart-global-tech-count-efwa-paths-in-a-grid",
+ "title": "Count EFWA Paths in a Grid",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given an `R × C` grid whose cells each contain one of the characters `E`, `F`, `W` or `A`.\n\nAn **occurrence** of the pattern `EFWA` is a path of four cells that spells `E`, then `F`, then `W`, then `A`, where each cell is adjacent to the previous one in one of the four directions (up, down, left, right). An occurrence may start from any `E` cell.\n\nCells cannot be revisited: **no cell may be used by more than one occurrence.** Find the **maximum number of occurrences** of `EFWA` that can be chosen from the grid under this rule.\n\nNote that two different paths may overlap in cells, but you may only count paths that use pairwise different cells.",
+ "input_format": "The first line contains `R` and `C`.\nEach of the next `R` lines contains a string of `C` characters, each one of `E`, `F`, `W`, `A`.",
+ "output_format": "Print one integer: the maximum number of cell-disjoint occurrences of `EFWA`.",
+ "constraints": [
+  "1 ≤ R, C ≤ 100",
+  "Each grid character is one of E, F, W, A"
+ ],
+ "examples": [
+  {
+   "input": "2 4\nEFWA\nAWFE",
+   "output": "2",
+   "explanation": "The top row spells EFWA left to right and the bottom row spells EFWA right to left. They share no cells, so both count."
+  },
+  {
+   "input": "1 7\nAWFEFWA",
+   "output": "1",
+   "explanation": "The middle `E` can continue to the `F` on its left (then `W`, `A`) or to the `F` on its right (then `W`, `A`). Both occurrences need that same `E`, so only one can be counted."
+  },
+  {
+   "input": "3 4\nWWEA\nFWFW\nFAEF",
+   "output": "2",
+   "explanation": "Pick E(0,2)-F(1,2)-W(1,1)-A(2,1) and E(2,2)-F(2,3)-W(1,3)-A(0,3), which share no cell. Choosing E(0,2)-F(1,2)-W(1,3)-A(0,3) first would block the other E, leaving only 1, so the choice of paths matters."
+  }
+ ],
+ "complexity": {
+  "time": "O(R · C · √(R · C))",
+  "space": "O(R · C)"
+ },
+ "hints": [
+  "Trying every set of paths is exponential, and picking paths greedily can block better choices (see example 3). Think about the structure: every path visits an E, then an F, then a W, then an A.",
+  "Model it as a flow: source -> E cells -> adjacent F cells -> adjacent W cells -> adjacent A cells -> sink. Each cell can be used by at most one path, so split every cell into an in-node and an out-node joined by an edge of capacity 1.",
+  "All capacities are 1, so Dinic's algorithm runs in O(E √V). The maximum flow equals the maximum number of cell-disjoint EFWA paths."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    R, C = int(data[0]), int(data[1])\n    g = data[2:2 + R]\n    P = 'EFWA'\n    stage = {'E': 0, 'F': 1, 'W': 2, 'A': 3}\n    N = 2 * R * C + 2\n    S, T = N - 2, N - 1\n    to, cap = [], []\n    adj = [[] for _ in range(N)]\n    def add(u, v):\n        adj[u].append(len(to)); to.append(v); cap.append(1)\n        adj[v].append(len(to)); to.append(u); cap.append(0)\n    for i in range(R):\n        for j in range(C):\n            c = i * C + j\n            s = stage[g[i][j]]\n            add(2 * c, 2 * c + 1)\n            if s == 0:\n                add(S, 2 * c)\n            if s == 3:\n                add(2 * c + 1, T)\n            else:\n                for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n                    a, b = i + di, j + dj\n                    if 0 <= a < R and 0 <= b < C and stage[g[a][b]] == s + 1:\n                        add(2 * c + 1, 2 * (a * C + b))\n    flow = 0\n    while True:\n        level = [-1] * N\n        level[S] = 0\n        q = [S]\n        for u in q:\n            for e in adj[u]:\n                if cap[e] > 0 and level[to[e]] < 0:\n                    level[to[e]] = level[u] + 1\n                    q.append(to[e])\n        if level[T] < 0:\n            break\n        it = [0] * N\n        path = []\n        u = S\n        while True:\n            if u == T:\n                for e in path:\n                    cap[e] -= 1\n                    cap[e ^ 1] += 1\n                flow += 1\n                path = []\n                u = S\n                continue\n            adv = False\n            au = adj[u]\n            while it[u] < len(au):\n                e = au[it[u]]\n                v = to[e]\n                if cap[e] > 0 and level[v] == level[u] + 1:\n                    path.append(e)\n                    u = v\n                    adv = True\n                    break\n                it[u] += 1\n            if not adv:\n                if u == S:\n                    break\n                level[u] = -1\n                e = path.pop()\n                u = to[e ^ 1]\n                it[u] += 1\n    print(flow)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nR, C = int(data[0]), int(data[1])\ng = data[2:2 + R]\nP = 'EFWA'\npaths = []\n\ndef dfs(i, j, k, cur):\n    if g[i][j] != P[k]:\n        return\n    cur = cur + [(i, j)]\n    if k == 3:\n        paths.append(frozenset(cur))\n        return\n    for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n        a, b = i + di, j + dj\n        if 0 <= a < R and 0 <= b < C:\n            dfs(a, b, k + 1, cur)\n\nfor i in range(R):\n    for j in range(C):\n        dfs(i, j, 0, [])\npaths = list(set(paths))\nbest = 0\n\ndef go(s, used, cnt):\n    global best\n    if cnt > best:\n        best = cnt\n    for x in range(s, len(paths)):\n        if not (paths[x] & used):\n            go(x + 1, used | paths[x], cnt + 1)\n\ngo(0, frozenset(), 0)\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(g):\n        return f\"{len(g)} {len(g[0])}\\n\" + '\\n'.join(g)\n    tests = [fmt(['E']), fmt(['EFWA']), fmt(['AWFE']), fmt(['EFWA', 'EFWA']), fmt(['EFWA', 'AWFE']),\n             fmt(['AWFEFWA']), fmt(['WWEA', 'FWFW', 'FAEF']), fmt(['EEEE', 'FFFF', 'WWWW', 'AAAA']),\n             fmt(['EFEF', 'WAWA', 'EFEF', 'WAWA'])]\n    for R, C in ((1, 6), (2, 3), (2, 4), (3, 3), (3, 4), (4, 4), (2, 6), (3, 5), (4, 5), (5, 4)):\n        for w in ([1, 1, 1, 1], [3, 2, 2, 2], [1, 2, 3, 1]):\n            g = [''.join(rng.choices('EFWA', weights=w, k=C)) for _ in range(R)]\n            tests.append(fmt(g))\n    R = C = 100\n    tests.append(fmt([''.join(rng.choice('EFWA') for _ in range(C)) for _ in range(R)]))\n    tests.append(fmt([''.join(rng.choices('EFWA', weights=[1, 3, 3, 1], k=C)) for _ in range(R)]))\n    tests.append(fmt([('EFWA' * 25) for _ in range(R)]))\n    tests.append(fmt([''.join('EFWA'[(i + j) % 4] if rng.random() < 0.9 else rng.choice('EFWA') for j in range(C)) for i in range(R)]))\n    tests.append(fmt(['E' * C for _ in range(R)]))\n    tests.append(fmt([''.join('EFWA'[(i // 1 + j) % 4] if (i + j) % 2 == 0 else rng.choice('EFWA') for j in range(C)) for i in range(R)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_occurrences(grid: List[str]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    grid = data[2:2 + r]\n    print(max_occurrences(grid))\n\n\nmain()\n",
+  "javascript": "function maxOccurrences(grid) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst r = parseInt(t[0]), c = parseInt(t[1])\nconst grid = []\nfor (let i = 0; i < r; i++) grid.push(t[2 + i])\nconsole.log(String(maxOccurrences(grid)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint maxOccurrences(vector<string>& grid) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<string> grid(r);\n    for (int i = 0; i < r; i++) cin >> grid[i];\n    cout << maxOccurrences(grid) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int maxOccurrences(String[] grid) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int r = Integer.parseInt(st.nextToken());\n        int c = Integer.parseInt(st.nextToken());\n        String[] grid = new String[r];\n        for (int i = 0; i < r; i++) grid[i] = br.readLine().trim();\n        System.out.println(maxOccurrences(grid));\n    }\n}\n"
+ }
+}

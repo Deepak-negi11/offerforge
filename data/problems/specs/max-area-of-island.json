@@ -1,0 +1,48 @@
+{
+ "pid": "max-area-of-island",
+ "title": "Max Area of Island",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given a grid of `r` rows and `c` columns whose cells are `0` (water) or `1` (land). An **island** is a maximal group of land cells connected **horizontally or vertically** (diagonal neighbours are not connected). The **area** of an island is the number of cells in it.\n\nReturn the area of the largest island, or `0` if the grid has no land. The grid may also be empty (no rows and no columns), in which case the answer is `0`.\n\n**Follow-up:** First count the number of islands, then change your code to return the largest area. Be ready to compare DFS and BFS for this problem: both run in `O(r * c)`, but a recursive DFS can overflow the call stack on a large grid full of land, while an explicit stack or queue does not.",
+ "input_format": "The first line contains two integers `r` and `c`. If the grid is empty the line is `0 0` and nothing follows.\nOtherwise the next `r` lines each contain a string of exactly `c` characters, each `0` or `1`, with no spaces.",
+ "output_format": "Print a single integer: the largest island area.",
+ "constraints": [
+  "Either r = c = 0 (empty grid), or 1 ≤ r, c ≤ 700",
+  "Every cell is `0` or `1`"
+ ],
+ "examples": [
+  {
+   "input": "4 5\n11001\n10001\n00111\n11101",
+   "output": "9",
+   "explanation": "The top-left island has 3 cells: (0,0), (0,1), (1,0). The other island runs down the right edge and along the bottom: (0,4), (1,4), (2,4), (3,4), then (2,3), (2,2), (3,2), (3,1), (3,0). That is 9 cells, so the answer is 9."
+  },
+  {
+   "input": "3 3\n101\n010\n101",
+   "output": "1",
+   "explanation": "Every land cell touches the others only diagonally, so each is its own island of area 1."
+  },
+  {
+   "input": "0 0",
+   "output": "0",
+   "explanation": "The grid is empty, so there is no land."
+  }
+ ],
+ "complexity": {
+  "time": "O(r * c)",
+  "space": "O(r * c)"
+ },
+ "hints": [
+  "Scan the grid; whenever you find an unvisited land cell, you have found a new island. Explore it fully and count its cells.",
+  "Explore with DFS or BFS over the four neighbours (up, down, left, right). Mark cells as visited (or sink them to 0) so each cell is processed once.",
+  "Keep the maximum island size seen. Prefer an explicit stack or queue over recursion so a grid that is all land cannot overflow the call stack."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    if r == 0 or c == 0:\n        print(0)\n        return\n    g = bytearray()\n    for i in range(r):\n        g.extend(int(ch) for ch in data[2 + i])\n    best = 0\n    for s in range(r * c):\n        if g[s] == 1:\n            g[s] = 0\n            stack = [s]\n            area = 0\n            while stack:\n                u = stack.pop()\n                area += 1\n                y, x = divmod(u, c)\n                if y > 0 and g[u - c]:\n                    g[u - c] = 0; stack.append(u - c)\n                if y < r - 1 and g[u + c]:\n                    g[u + c] = 0; stack.append(u + c)\n                if x > 0 and g[u - 1]:\n                    g[u - 1] = 0; stack.append(u - 1)\n                if x < c - 1 and g[u + 1]:\n                    g[u + 1] = 0; stack.append(u + 1)\n            if area > best:\n                best = area\n    print(best)\n\nmain()\n",
+ "brute": "import sys\nfrom collections import deque\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\ngrid = [data[2 + i] for i in range(r)] if r and c else []\nseen = set()\nbest = 0\nfor i in range(r):\n    for j in range(c):\n        if grid[i][j] == '1' and (i, j) not in seen:\n            seen.add((i, j))\n            q = deque([(i, j)])\n            area = 0\n            while q:\n                y, x = q.popleft()\n                area += 1\n                for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n                    ny, nx = y + dy, x + dx\n                    if 0 <= ny < r and 0 <= nx < c and grid[ny][nx] == '1' and (ny, nx) not in seen:\n                        seen.add((ny, nx))\n                        q.append((ny, nx))\n            best = max(best, area)\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(rows):\n        if not rows:\n            return '0 0'\n        return '%d %d\\n%s' % (len(rows), len(rows[0]), '\\n'.join(rows))\n    def rnd(r, c, p):\n        return [''.join('1' if rng.random() < p else '0' for _ in range(c)) for _ in range(r)]\n    tests = [\n        fmt([]),\n        fmt(['0']),\n        fmt(['1']),\n        fmt(['11001', '10001', '00111', '11101']),\n        fmt(['101', '010', '101']),\n        fmt(['0000', '0000']),\n        fmt(['1111', '1111', '1111']),\n        fmt(['1', '1', '0', '1']),\n        fmt(['10101']),\n    ]\n    for r, c in ((2, 2), (3, 3), (3, 5), (5, 3), (4, 4), (5, 5), (6, 6), (1, 8), (8, 1), (7, 9), (10, 10)):\n        for p in (0.35, 0.55, 0.7):\n            if r * c <= 80 or p == 0.55:\n                tests.append(fmt(rnd(r, c, p)))\n    N = 700\n    tests.append(fmt(['1' * N for _ in range(N)]))\n    tests.append(fmt(rnd(N, N, 0.6)))\n    snake = []\n    for i in range(N):\n        if i % 2 == 0:\n            snake.append('1' * N)\n        elif i % 4 == 1:\n            snake.append('0' * (N - 1) + '1')\n        else:\n            snake.append('1' + '0' * (N - 1))\n    tests.append(fmt(snake))\n    tests.append(fmt(rnd(N, N, 0.45)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_area_of_island(grid: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    grid = [[int(ch) for ch in data[2 + i]] for i in range(r)] if r > 0 and c > 0 else []\n    print(max_area_of_island(grid))\n\n\nmain()\n",
+  "javascript": "function maxAreaOfIsland(grid) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst r = parseInt(t[0]), c = parseInt(t[1])\nconst grid = []\nif (r > 0 && c > 0) {\n  for (let i = 0; i < r; i++) grid.push(t[2 + i].split('').map(Number))\n}\nconsole.log(maxAreaOfIsland(grid))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint maxAreaOfIsland(vector<vector<int>>& grid) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<vector<int>> grid;\n    if (r > 0 && c > 0) {\n        grid.assign(r, vector<int>(c));\n        for (int i = 0; i < r; i++) {\n            string row;\n            cin >> row;\n            for (int j = 0; j < c; j++) grid[i][j] = row[j] - '0';\n        }\n    }\n    cout << maxAreaOfIsland(grid) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int maxAreaOfIsland(int[][] grid) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StringTokenizer st = new StringTokenizer(new String(System.in.readAllBytes()));\n        int r = Integer.parseInt(st.nextToken());\n        int c = Integer.parseInt(st.nextToken());\n        int[][] grid = new int[0][0];\n        if (r > 0 && c > 0) {\n            grid = new int[r][c];\n            for (int i = 0; i < r; i++) {\n                String row = st.nextToken();\n                for (int j = 0; j < c; j++) grid[i][j] = row.charAt(j) - '0';\n            }\n        }\n        System.out.println(maxAreaOfIsland(grid));\n    }\n}\n"
+ }
+}

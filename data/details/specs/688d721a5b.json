@@ -1,0 +1,18 @@
+{
+ "qid": "688d721a5b",
+ "question": "Reported from a Technical Interview 2 for a Senior Software Engineer (SDE-2) role at Paytm. The scenario: **100 publishers continuously push data to a single consumer that processes it**, so the consumer can become a bottleneck.\n\n- How would you design the system to handle the imbalance between the publishers and the consumer?\n- Would you impose a **maximum waiting time** for data to be processed by the consumer? If yes, how long, and why?\n- If you do not impose one, what happens to the incoming data? How do you deal with **overflow, loss or delay**?",
+ "lookingFor": [
+  "Do you recognise this as a producer-consumer rate mismatch and reason about throughput versus latency?",
+  "Do you know backpressure, bounded queues and load shedding, and when each is appropriate?",
+  "Can you reason about delivery guarantees (loss, duplicates, ordering) rather than just 'add a queue'?",
+  "Do you think about scaling the consumer side (partitions, consumer groups) and about monitoring?",
+  "Can you justify a max-wait or TTL choice from business requirements, not a random number?"
+ ],
+ "answer": "**Clarify first.** What is the publish rate versus the consumer rate? Can data be dropped (metrics) or must every message be processed (payments)? Is ordering needed, and what latency is acceptable? The answers change the design.\n\n**Core problem.** If arrival rate is higher than service rate for long enough, any queue grows without bound: memory fills, latency climbs, and eventually data is dropped or the system crashes. So the fix is either to raise consumer capacity or to control what enters.\n\n**Design.**\n1. **Put a durable broker in the middle** (Kafka, RabbitMQ, SQS). Publishers write to it and never talk to the consumer directly. The broker absorbs bursts and decouples the two sides.\n2. **Scale the consumer horizontally.** Partition the topic (for example by a key such as publisher or entity id, which preserves per-key order) and run a consumer group. One consumer is a single point of failure and a hard ceiling; the real answer to \"100 to 1\" is usually to stop having 1.\n3. **Batch and make processing efficient** (bulk DB writes, async I/O, a worker pool inside the consumer).\n4. **Bound the queue and apply backpressure.** Use a bounded buffer or broker retention limit. When it is full, either block or slow publishers (rate limits, 429 or credit-based flow control) or shed load according to priority.\n5. **Retries and a dead-letter queue** for poison messages, with idempotent processing so at-least-once delivery is safe.\n6. **Monitor** consumer lag, queue depth, age of oldest message, and alert/autoscale on them.\n\n**Max wait time.** Yes, set one, but derive it from the business: e.g. a notification or fraud signal that is useless after 5 seconds should have a TTL and be dropped or routed to a fast path; a ledger entry must never expire and should instead raise an alert. A deadline turns silent delay into a visible, handled event.\n\n**Without any limit:** an unbounded in-memory queue leads to out-of-memory crashes (total loss), growing latency (stale data), and unfair starvation of slow publishers. Overflow is then handled by spilling to disk (the broker's log), dropping oldest/newest or low priority, or pushing back to the producer. State which you choose and why.",
+ "followUps": [
+  "How does Kafka consumer lag help you decide when to autoscale, and what is the limit on consumers in a group?",
+  "How would you preserve ordering per publisher while scaling consumers?",
+  "What is the difference between backpressure and load shedding, and when would you pick each?",
+  "How do you make the consumer idempotent if messages can be redelivered?"
+ ]
+}

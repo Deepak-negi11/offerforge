@@ -1,0 +1,18 @@
+{
+ "qid": "f75223af24",
+ "question": "Design a **truck fleet logistics system** (Uber Freight style): customers book trucks to move goods between locations, possibly across multiple routes. The system should **allocate the fleet** to maximise utilisation and keep delivery fast, and provide **real-time truck tracking with accurate ETAs**.",
+ "lookingFor": [
+  "Can you identify the actors and core flows: booking, matching, dispatch, tracking, delivery?",
+  "Do you reason about the matching/allocation problem (constraints, objective, batching) rather than just CRUD?",
+  "Can you design a location ingestion pipeline and keep real-time state cheaply?",
+  "Do you consider consistency issues such as double-booking a truck?",
+  "Do you think about ETA accuracy and what data it depends on?"
+ ],
+ "answer": "**Requirements.** Shippers create a shipment (pickup, drop, weight or volume, time window); carriers or drivers own trucks. Goals: high fleet utilisation, quick assignment, live tracking, ETA. Assume 100K trucks pinging every 5 seconds, so about 20K location writes/s, and a few hundred thousand bookings per day.\n\n**Entities.** `Shipment`, `Truck` (capacity, type, current location, status), `Driver`, `Trip` (an ordered list of stops), `Assignment`, `LocationPing`.\n\n**Services.**\n1. **Booking service:** validates and stores shipments (relational DB, ACID).\n2. **Matching/allocation service:** finds candidate trucks by geospatial index (geohash, S2 or H3 cells), filters by capacity and type, and scores by distance to pickup, deadheading (empty return distance), time window and price. Run in small batches (for example every few seconds) so it can solve an assignment problem across many shipments and trucks, instead of greedy first-come matching. Multi-route or multi-stop trips use pooling heuristics.\n3. **Assignment safety:** use a conditional update or lock on the truck (`status = FREE`) to avoid double-booking; the driver accepts or rejects with a timeout, then the next candidate is tried.\n4. **Location service:** truck apps send pings to a stream (Kafka); a consumer updates the latest position in an in-memory store (Redis) and appends history to a time-series store. Clients receive updates over WebSocket or server-sent events.\n5. **ETA service:** road-network routing with live and historical traffic, truck restrictions, mandatory driver rest and loading time; recompute when a truck deviates or on a schedule, and show a range when uncertain.\n6. **Notifications:** status changes by push or SMS.\n\n**Scaling and trade-offs.** Partition by region; keep latest locations in memory and history cold. Batch matching improves global utilisation but adds latency. Handle GPS gaps (last known plus dead reckoning) and driver cancellations by re-matching.",
+ "followUps": [
+  "How would you prevent two shippers from getting the same truck?",
+  "How would you improve ETA accuracy over time?",
+  "What changes if a booking needs a truck for a multi-day, multi-stop trip?",
+  "How would you measure fleet utilisation and decide whether matching improved it?"
+ ]
+}

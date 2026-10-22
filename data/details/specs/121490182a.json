@@ -1,0 +1,18 @@
+{
+ "qid": "121490182a",
+ "question": "In round 2 of a ServiceNow Senior Software Engineer (Hyderabad) interview, after Java concepts and a stock buy-and-sell style DSA problem, the candidate was asked a low-level design question: **design a book lending system** (a library).",
+ "lookingFor": [
+  "Do you clarify scope and extract the right entities and rules?",
+  "Is the domain model clean (book vs book copy, member, loan)?",
+  "Do you handle the lifecycle: borrow, return, reserve, fines?",
+  "Do you apply SOLID principles and patterns sensibly, not decoratively?",
+  "Do you handle concurrency and edge cases (two members, same copy)?"
+ ],
+ "answer": "**Requirements (ask, then state).** Members can search books, borrow, return and renew; a book can have multiple physical copies; limit of N books per member; due date after 14 days; fine per late day; reserve a book when no copy is available; librarians add or remove books. Out of scope: payments gateway, UI.\n\n**Entities**\n- `Book` (isbn, title, authors, category) is the abstract title; `BookCopy` (id, book, status: AVAILABLE, LOANED, RESERVED, LOST) is the physical item. Splitting these is the key modelling point.\n- `Member` (id, name, status, activeLoans), `Librarian`.\n- `Loan` (id, copy, member, issueDate, dueDate, returnDate), `Reservation` (book, member, createdAt, status), `Fine`.\n- `Library` / `LendingService` as the facade coordinating use cases; `CatalogService` for search; `NotificationService`.\n\n**Key methods**\n- `borrow(memberId, copyId)`: check member eligibility (limit, unpaid fines), check copy is AVAILABLE, create `Loan`, set copy LOANED.\n- `return(copyId)`: close loan, compute fine if `returnDate > dueDate`, set copy AVAILABLE (or RESERVED if a reservation exists, and notify the first in the queue).\n- `reserve(memberId, isbn)`: FIFO queue per book.\n\n**Design choices**\n- **Strategy** for fine calculation and loan period (different rules per member type, such as student vs faculty).\n- **Observer** for notifications (book available, due soon).\n- Repositories behind interfaces for storage; keep entities free of persistence logic (Single Responsibility, Dependency Inversion).\n- **Concurrency:** two members borrowing the same copy must not both succeed. Use a lock on the copy or an atomic status change (`UPDATE ... WHERE status='AVAILABLE'`).\n\n**Extensions.** Multiple branches, e-books with licence limits, search by author or category with indexes, overdue reminders by a scheduled job.",
+ "followUps": [
+  "Why separate `Book` from `BookCopy`?",
+  "How do you handle two members trying to borrow the last copy at the same time?",
+  "How would you add different loan rules for students and faculty without if-else chains?",
+  "How would you persist this design and which indexes would you add?"
+ ]
+}

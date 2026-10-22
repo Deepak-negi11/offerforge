@@ -1,0 +1,19 @@
+{
+ "qid": "71b9f6b64b",
+ "question": "In a Paytm Senior Software Engineer techno-managerial round, the candidate was asked a high-level design question: **design a URL shortener**. The follow-ups were:\n\n- Add a **frequency counter** that tracks how many times each URL was clicked.\n- Handle the case where **ads are shown during redirection** (an interstitial before sending the user to the destination).",
+ "lookingFor": [
+  "Can you estimate scale and derive storage and throughput requirements?",
+  "Do you know ID generation strategies (counter and base62, hashing, pre-generated keys) and collision handling?",
+  "Do you design the redirect path for low latency with caching?",
+  "Can you separate click analytics from the redirect path and make counters scale?",
+  "Can you integrate an ad step without hurting redirect reliability?"
+ ],
+ "answer": "**Requirements and scale.** Create a short URL for a long one, redirect with very low latency, optional custom alias and expiry. Assume 100M new URLs per month and a 100:1 read-to-write ratio, so around 400 writes per second and tens of thousands of redirects per second at peak. At 500 bytes per record over 5 years the storage is in the low terabytes.\n\n**API.** `POST /shorten {longUrl, alias?, expiry?}` and `GET /{code}` returning a 301/302.\n\n**Short code.** A 7-character base62 code gives 62^7 (about 3.5 trillion) values. Generate it from a unique counter converted to base62 (a distributed ID generator or ranges handed to each app server), which avoids collisions. Hashing the URL (MD5 truncated) needs collision checks. Use 302 if you need every click to reach your server for analytics and ads, since 301 is cached by browsers.\n\n**Data model.** `urls(code PK, long_url, user_id, created_at, expires_at)` in a key-value or sharded SQL store, sharded by `code`. Redirects are lookups by key, so a cache (Redis, LRU) in front serves the hot set.\n\n**Click counter (frequency).** Do not update a database row on each redirect. Publish a click event (`code`, timestamp, country, device) to Kafka, then aggregate in batches and write to an analytics store (counts per code per hour or day). Keep a Redis `INCR` for a near-real-time count. A little delay is acceptable for analytics. This is also the same idea as write-back aggregation for counters.\n\n**Ads during redirect.** Instead of an immediate 302, return a lightweight interstitial page that shows the ad from an ad service (with a timeout), then redirects to the destination after a skip or short delay. Rules to cover: fall back to a direct redirect if the ad service is slow or down, load ads asynchronously so redirect latency is protected, and log impressions. Ads can be enabled per URL or per account.\n\n**Bottlenecks and risks.** Hot keys (cache and replicate), abuse and malicious links (rate limiting, URL scanning), expiry cleanup, and availability through replication across regions.",
+ "followUps": [
+  "301 or 302 redirect, and how does that choice affect analytics?",
+  "How do you avoid two servers generating the same short code?",
+  "How would you count clicks accurately for a viral link?",
+  "What happens to redirects if the ad service is down?",
+  "How would you delete or expire a short URL and clear it from caches?"
+ ]
+}

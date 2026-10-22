@@ -1,0 +1,19 @@
+{
+ "qid": "a4caeb916b",
+ "question": "In the LLD round of an SDE-3 loop at Swiggy, the candidate was asked to design a **view that lets customers filter and rank restaurants around their location based on their own preferences**.\n\nExample queries given:\n- Get the **top N highest-rated restaurants in the city**, ordered by rating descending.\n- Get the **top N highest-rated restaurants in the city with predicted delivery time under 30 minutes**, ordered by rating descending.\n- Get the **top N least-delivery-time restaurants for the customer's location in the city with a rating of at least 4.0/5.0**, ordered by delivery time ascending.\n\nThe list continued with further variations of the same kind.",
+ "lookingFor": [
+  "Can you generalise several query variants into one extensible filter and ranking design?",
+  "Do you pick the right data structures (heap, sorted index) and justify complexity?",
+  "Do you separate static data (rating) from per-customer data (predicted delivery time)?",
+  "Do you apply patterns such as Strategy/Specification cleanly and avoid hardcoding each query?",
+  "Do you reason about updates, staleness, and scale for a senior role?"
+ ],
+ "answer": "**Clarify.** Is data in memory or a database? How often do ratings and delivery-time predictions change? Is predicted delivery time computed per customer location (it depends on distance and load)? What is N typically? Ties?\n\n**Key observation.** All three queries share one shape: *filter by predicates, then pick top N by a comparator*. Do not write three methods; model it.\n\n**Design.**\n- `Restaurant(id, name, cityId, rating, location)`.\n- `Specification`/`Filter` interface: `boolean test(Restaurant r, CustomerContext ctx)`. Implementations: `CityFilter`, `MinRatingFilter(4.0)`, `MaxDeliveryTimeFilter(30)`.\n- `RankingStrategy` (a `Comparator<Restaurant>`): `ByRatingDesc`, `ByDeliveryTimeAsc`, chainable with tie-breakers (for example rating, then id).\n- `DeliveryTimeEstimator` interface returning minutes for (restaurant, customer location). Predicted time is not stored on the restaurant; it comes from this component, which can be mocked.\n- `RestaurantView.query(ctx, List<Filter>, Comparator, N)`, optionally with a small fluent builder.\n\n**Algorithm.** Filter the candidates for the city, then select top N:\n- Maintain a min-heap of size N while streaming candidates: O(M log N) for M matches, O(N) extra space. Better than sorting everything (O(M log M)) when N is small.\n- Pre-index by city (`Map<cityId, List<Restaurant>>`) so you never scan other cities.\n- For the rating-only query, keep a per-city list sorted by rating (or a `TreeSet`), so top N is O(N). Update on rating change in O(log M).\n- Delivery-time queries depend on the customer location, so they cannot be precomputed globally; compute estimates only for filtered candidates, and cache by (geo cell, restaurant) for a short time.\n\n**Edge cases.** Fewer than N results, equal ratings (deterministic tie-break), restaurants closed or not serviceable, missing ratings (new restaurants), null estimates.\n\n**Scale (SDE-3 expectation).** Move the filters into a search or index layer (geospatial index to limit candidates to serviceable restaurants), precompute rating-based rankings per city periodically, and keep estimates in a cache with a short TTL.\n\nState the trade-off: precomputed rankings are fast but stale; per-request computation is fresh but costs more.",
+ "followUps": [
+  "How would you add a new filter such as cuisine or vegetarian-only without changing existing code?",
+  "How would you page through results beyond the first N?",
+  "When is sorting better than a heap for top N?",
+  "How would you keep per-city rankings up to date when ratings change frequently?",
+  "How would you combine rating and delivery time into one personalised score?"
+ ]
+}

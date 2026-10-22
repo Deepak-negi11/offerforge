@@ -1,0 +1,17 @@
+{
+ "qid": "181c2dcc79",
+ "question": "In a Walmart Software Engineer III round (about 4 years of experience), the candidate was asked two Java questions. First, the difference between `String`, `StringBuilder` and `StringBuffer`, followed by an output-prediction question on the same topic.\n\nSecond, given these classes, make `Employee` an immutable class:\n\n    class Employee {\n        private String name;\n        private int id;\n        private Age age;\n    }\n    class Age {\n        int day;\n        int month;\n        int year;\n    }",
+ "lookingFor": [
+  "Understanding of mutability, the string pool and thread safety",
+  "Spotting the trap: Age is mutable, so final fields alone are not enough",
+  "Defensive copying on both construction and access",
+  "Knowing the full recipe for immutability"
+ ],
+ "answer": "**String vs StringBuilder vs StringBuffer.**\n- `String` is immutable: every change creates a new object. Literals live in the string pool; immutability makes strings safe as map keys, thread-safe and cacheable (the hash code is cached).\n- `StringBuilder` is mutable and not synchronised: fastest for building strings, single-threaded use.\n- `StringBuffer` is mutable and synchronised: thread-safe but slower; rarely needed today.\n\nTypical output question: `String s = \"a\"; s.concat(\"b\"); System.out.println(s);` prints `a`, because `concat` returns a new String. With `StringBuilder sb = new StringBuilder(\"a\"); sb.append(\"b\");` it prints `ab`. Also `new String(\"x\") == \"x\"` is false, while `.equals` is true.\n\n**Immutable Employee.** Recipe: declare the class `final` (so no subclass can add mutability), make all fields `private final`, provide no setters, and set everything in the constructor. The trap is that `Age` is mutable: if you store the caller's `Age` reference, the caller can later change the date, and a getter returning it would let anyone mutate the Employee. So make a **defensive copy** in the constructor and in the getter.\n\n    public final class Employee {\n        private final String name;\n        private final int id;\n        private final Age age;\n\n        public Employee(String name, int id, Age age) {\n            this.name = name;\n            this.id = id;\n            this.age = new Age(age.day, age.month, age.year); // copy in\n        }\n        public String getName() { return name; }\n        public int getId() { return id; }\n        public Age getAge() { return new Age(age.day, age.month, age.year); } // copy out\n    }\n\nThis assumes `Age` has a constructor taking three ints. A cleaner alternative is to make `Age` itself immutable (or a Java record), after which no copying is needed. Mention that Java records give shallow immutability only, so mutable components still need copying.",
+ "followUps": [
+  "Why is String a popular key in a HashMap?",
+  "How would you make a class with a `List<String>` field immutable?",
+  "What is the cost of immutability, and how does it help in concurrency?",
+  "What does `intern()` do?"
+ ]
+}

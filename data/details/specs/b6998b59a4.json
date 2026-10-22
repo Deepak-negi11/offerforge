@@ -1,0 +1,18 @@
+{
+ "qid": "b6998b59a4",
+ "question": "In the third round for a Senior Software Engineer (Android) role at PayPal, the system design question was to **design Datadog**, a monitoring and metrics platform. No further constraints were reported, so state your scope: metrics ingestion, storage, querying, dashboards and alerting (optionally logs and traces).",
+ "lookingFor": [
+  "Do you scope the problem and estimate ingestion volume?",
+  "Can you design a high-throughput write path with buffering?",
+  "Do you know time-series storage, downsampling and retention?",
+  "Can you design alert evaluation that is timely and reliable?",
+  "Do you address cardinality, multi-tenancy and cost?"
+ ],
+ "answer": "**Requirements.** Collect metrics from many hosts and services, store them, query and graph them, and alert on conditions. Non-functional: high write throughput, low-latency queries on recent data, durability, multi-tenant isolation, high availability. Scale example: 100k hosts, each reporting 200 metrics every 10 seconds, is 2 million points per second.\n\n**Data model.** A point is `(metric name, tags/labels, timestamp, value)`. A series is the unique combination of name and tags.\n\n**Write path.**\n1. An **agent** on each host (or SDK) batches and compresses points and sends them over HTTPS.\n2. **Ingestion gateway** authenticates the tenant, validates, rate limits.\n3. A durable **log/queue (Kafka-style)** partitioned by series or tenant absorbs bursts and decouples producers.\n4. **Consumers** write to the **time-series database** and feed a **stream processor** for pre-aggregation and alerting.\n\n**Storage.** A time-series database (columnar, delta/gzip-style compression) partitioned by time and series hash. Keep raw data short (for example days) and **downsample** to 1-minute and 1-hour rollups for long retention. Hot data in memory/SSD, cold data on object storage. An inverted index maps tags to series ids for fast tag filters.\n\n**Query path.** Query service parses the query (metric, tag filters, aggregation, time range), picks the right resolution, fans out to shards, merges results, and caches. Dashboards poll or stream.\n\n**Alerting.** Rules (`avg(cpu) > 90% for 5 min`) are evaluated on a schedule by an alert engine reading recent data (or on the stream). Keep alert state to avoid flapping, dedupe and group notifications, and route to email, chat or paging. The alert path must be highly available and independent of dashboards.\n\n**Hard problems.** **High cardinality** (a tag such as user id explodes series count): limit and monitor it. Late and out-of-order points. Noisy tenants (quotas). Agent failure (buffer locally). Monitor the monitor itself.",
+ "followUps": [
+  "What is cardinality and how do you protect the system from it?",
+  "How would you evaluate alerts with low latency at scale?",
+  "How do you choose rollup intervals and retention?",
+  "How would you extend the design to logs and traces?"
+ ]
+}

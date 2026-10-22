@@ -1,0 +1,49 @@
+{
+ "pid": "partition-array-into-two-arrays-to-minimize-sum-difference",
+ "title": "Partition Array Into Two Arrays to Minimize Sum Difference",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given an integer array `nums` of length `2 * n`. Split its elements into **two arrays of exactly `n` elements each**, so that every element of `nums` goes into exactly one of the two arrays (equal values may be placed in either array, and positions matter only for deciding which elements are taken).\n\nReturn the **minimum possible absolute difference** between the sum of the first array and the sum of the second array.\n\nElements can be negative, so greedy ideas that work for non-negative numbers (such as sorting and alternating) can fail, and a simple subset-sum table over the values is not possible because the sums can be large.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `2n` space-separated integers `nums[0] ... nums[2n - 1]`.",
+ "output_format": "Print a single integer: the minimum absolute difference between the two array sums.",
+ "constraints": [
+  "1 ≤ n ≤ 15",
+  "nums has exactly 2n elements",
+  "-10^7 ≤ nums[i] ≤ 10^7"
+ ],
+ "examples": [
+  {
+   "input": "2\n1 6 3 8",
+   "output": "0",
+   "explanation": "Take {1, 8} and {6, 3}: both sum to 9, so the difference is 0."
+  },
+  {
+   "input": "3\n10 -4 7 1 -9 5",
+   "output": "2",
+   "explanation": "The total is 10, so a perfect split would need three elements summing to 5, and none of the 20 choices does. {7, -4, 1} sums to 4 and the rest {10, -9, 5} sums to 6, a difference of 2."
+  },
+  {
+   "input": "1\n5 -3",
+   "output": "8",
+   "explanation": "With n = 1 there is only one split: [5] and [-3], and |5 - (-3)| = 8."
+  }
+ ],
+ "complexity": {
+  "time": "O(2^n * n)",
+  "space": "O(2^n)"
+ },
+ "hints": [
+  "Trying every way to choose n of the 2n elements is C(2n, n) options, up to about 1.5 * 10^8 for n = 15. Too slow in most languages; can you split the work in two halves of n elements each?",
+  "Meet in the middle: if the first array takes i elements from the left half, it must take n - i from the right half. Enumerate all subsets of each half and group their sums by subset size.",
+  "For each i, sort the right-half sums with n - i elements and, for each left-half sum, binary search for the partner that brings the first array's total closest to half of the overall sum."
+ ],
+ "reference": "import sys\nfrom bisect import bisect_left\n\ndef by_count(arr):\n    m = len(arr)\n    cur = [[0]] + [[] for _ in range(m)]\n    for x in arr:\n        for c in range(m - 1, -1, -1):\n            if cur[c]:\n                cur[c + 1].extend(v + x for v in cur[c])\n    return cur\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = list(map(int, data[1:1 + 2 * n]))\n    total = sum(a)\n    L = by_count(a[:n])\n    R = by_count(a[n:])\n    best = None\n    for c in range(n + 1):\n        right = sorted(R[n - c])\n        for x in L[c]:\n            t = (total - 2 * x) // 2\n            p = bisect_left(right, t)\n            for q in (p - 1, p, p + 1):\n                if 0 <= q < len(right):\n                    d = abs(total - 2 * (x + right[q]))\n                    if best is None or d < best:\n                        best = d\n    print(best)\n\nmain()\n",
+ "brute": "import sys, itertools\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = list(map(int, data[1:1 + 2 * n]))\ntotal = sum(a)\nbest = None\nif 2 * n <= 20:\n    for comb in itertools.combinations(range(2 * n), n):\n        s = sum(a[i] for i in comb)\n        d = abs(total - 2 * s)\n        if best is None or d < best:\n            best = d\nelse:\n    def groups(arr):\n        res = [[] for _ in range(len(arr) + 1)]\n        for mask in range(1 << len(arr)):\n            res[bin(mask).count('1')].append(sum(arr[i] for i in range(len(arr)) if (mask >> i) & 1))\n        return res\n    GL = groups(a[:n])\n    GR = groups(a[n:])\n    for c in range(n + 1):\n        A = sorted(GL[c])\n        B = sorted(GR[n - c])\n        j = len(B) - 1\n        for x in A:\n            while j >= 0 and 2 * (x + B[j]) > total:\n                j -= 1\n            if j >= 0:\n                d = total - 2 * (x + B[j])\n                if best is None or d < best:\n                    best = d\n            if j + 1 < len(B):\n                d = 2 * (x + B[j + 1]) - total\n                if best is None or d < best:\n                    best = d\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a) // 2) + '\\n' + ' '.join(map(str, a))\n    tests = [fmt([5, -3]), fmt([0, 0]), fmt([7, 7]), fmt([1, 6, 3, 8]), fmt([4, 4, 4, 4, 4, 4]),\n             fmt([-10 ** 7] * 30), fmt([10 ** 7] * 30), fmt([10 ** 7, -10 ** 7] * 15),\n             fmt([10 ** 7] * 15 + [-10 ** 7] * 15), fmt([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1])]\n    for n in range(1, 16):\n        for hi in (3, 100, 10 ** 7):\n            if n >= 11 and hi == 3 and n % 2:\n                continue\n            tests.append(fmt([rng.randint(-hi, hi) for _ in range(2 * n)]))\n    for _ in range(3):\n        tests.append(fmt([rng.randint(0, 10 ** 7) for _ in range(30)]))\n    for _ in range(4):\n        tests.append(fmt([rng.randint(-10 ** 7, 10 ** 7) for _ in range(30)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_difference(nums: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    nums = [int(x) for x in data[1:1 + 2 * n]]\n    print(min_difference(nums))\n\n\nmain()\n",
+  "javascript": "function minDifference(nums) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst nums = t.slice(1, 1 + 2 * n)\nconsole.log(String(minDifference(nums)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minDifference(vector<long long>& nums) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> nums(2 * n);\n    for (int i = 0; i < 2 * n; i++) cin >> nums[i];\n    cout << minDifference(nums) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minDifference(long[] nums) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] nums = new long[2 * n];\n        for (int i = 0; i < 2 * n; i++) {\n            in.nextToken();\n            nums[i] = (long) in.nval;\n        }\n        System.out.println(minDifference(nums));\n    }\n}\n"
+ }
+}

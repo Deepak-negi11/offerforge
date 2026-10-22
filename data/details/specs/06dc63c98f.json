@@ -1,0 +1,18 @@
+{
+ "qid": "06dc63c98f",
+ "question": "Technical interview (round 1, offline) for an SDE Intern role at Tower Research. After a coding question and OS and networking concepts, the interviewer asked questions in the candidate's language of choice (C++): **How are STL data structures such as `map`, `unordered_map` and `vector` implemented, and what underlying concepts do they rely on?**",
+ "lookingFor": [
+  "Do you know what is under the abstractions you use daily?",
+  "Can you connect each container to its complexity guarantees?",
+  "Do you understand iterator invalidation, rehashing and amortized analysis?",
+  "Can you choose the right container for a use case?"
+ ],
+ "answer": "The C++ standard specifies **interfaces and complexity**, not exact implementations, but mainstream libraries (libstdc++, libc++, MSVC) follow common designs.\n\n**`vector`.** A dynamic array: one contiguous heap block with `size` and `capacity`. `push_back` is **amortized O(1)**: when full, it allocates a larger block (growth factor about 1.5x to 2x), moves or copies elements, and frees the old block. Random access is O(1) and cache friendly. Reallocation **invalidates** iterators, pointers and references; insertion in the middle is O(n). Use `reserve` to avoid reallocations.\n\n**`map` / `set`.** Ordered containers, in practice a **self-balancing binary search tree** (red-black tree). Insert, erase and find are **O(log n)**, iteration is in sorted order, and nodes are individually heap allocated, so iterators and references stay valid after other insertions or erasures. Keys need a strict weak ordering (`operator<`).\n\n**`unordered_map` / `unordered_set`.** A **hash table** with buckets, typically separate chaining (an array of buckets, each a linked list of nodes). Average O(1) find and insert, worst case O(n) with many collisions. When the **load factor** exceeds `max_load_factor`, it **rehashes** into more buckets, which invalidates iterators (but not references to elements). Keys need `std::hash` and equality. Iteration order is unspecified.\n\n**Others worth knowing.**\n- `list`: doubly linked list, O(1) insert and erase at a known position, poor cache locality.\n- `deque`: array of fixed-size blocks, O(1) push at both ends, random access.\n- `priority_queue`: a binary heap stored in a `vector` (`push_heap` and `pop_heap`), push and pop in O(log n), top in O(1).\n- `string`: contiguous characters, often with **small string optimization**.\n\n**Choosing.** Default to `vector`. Use `unordered_map` for fast key lookup without order, `map` when sorted order or range queries matter, and watch for hash flooding and memory overhead of node-based containers.",
+ "followUps": [
+  "Why does `vector` growth use a multiplicative factor?",
+  "When would `map` beat `unordered_map` in practice?",
+  "How does a hash table handle collisions? What is open addressing?",
+  "Which operations invalidate iterators for vector, list and unordered_map?",
+  "How would you implement your own hash map?"
+ ]
+}

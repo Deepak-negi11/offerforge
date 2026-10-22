@@ -1,0 +1,18 @@
+{
+ "qid": "a9d1aefddf",
+ "question": "Arcesium software developer intern, technical interview round 2 (theory only). DBMS questions: **why normalize a table (with an example), what is denormalization and why would you denormalize if normalization is beneficial**, the difference between `TRUNCATE`, `DELETE` and `DROP` and **which of DELETE and TRUNCATE is faster and why**, primary and foreign keys with a table drawn to show their benefit, and what locks are and why they are used.",
+ "lookingFor": [
+  "Understands anomalies (insert, update, delete) and how normal forms remove them.",
+  "Can justify denormalization with read-performance trade-offs.",
+  "Knows the logging and locking differences between DELETE, TRUNCATE and DROP.",
+  "Explains keys and referential integrity with a concrete example.",
+  "Basic grasp of locking and concurrency control."
+ ],
+ "answer": "**Why normalize.** Normalization organizes data so each fact is stored once. Take `Orders(order_id, customer_name, customer_city, product, price)`: customer details repeat on every order, so you risk **update anomalies** (change a city in one row, not others), **insert anomalies** (cannot store a customer with no order) and **delete anomalies** (deleting the last order loses the customer). Splitting into `Customers`, `Orders`, `Products` (1NF no repeating groups, 2NF no partial dependency, 3NF no transitive dependency) removes redundancy and keeps data consistent.\n\n**Why denormalize.** Normalized data needs joins. For read-heavy workloads such as reporting, dashboards or analytics, joins across large tables are costly. Denormalization deliberately duplicates data (for example store `customer_name` on the order, or keep a precomputed `total`) to make reads faster. The price is more storage, more complex writes, and the risk of inconsistency, so you maintain copies with triggers, application logic or batch jobs. Rule of thumb: normalize first, denormalize measured hot spots.\n\n**DELETE vs TRUNCATE vs DROP**\n- `DELETE`: DML, removes selected rows (supports `WHERE`), logs each row, fires triggers, can be rolled back, keeps the table.\n- `TRUNCATE`: removes all rows, minimal logging (deallocates data pages), generally cannot take a `WHERE`, resets identity counters in many databases, usually no row triggers. Rollback behaviour varies by DBMS (transactional in PostgreSQL and SQL Server, not in MySQL).\n- `DROP`: removes the whole table (structure, data, indexes).\n- **Speed:** TRUNCATE is faster for emptying a table because it does not log and process row by row.\n\n**Keys.** A primary key uniquely identifies a row (unique, not null). A foreign key references another table's key and enforces **referential integrity**: you cannot create an order for a nonexistent customer, and delete rules (`CASCADE`, `RESTRICT`) control what happens to children.\n\n**Locks.** Locks (shared for reads, exclusive for writes, at row or table level) prevent concurrent transactions from corrupting each other's work and are the core of isolation. Downsides: blocking and **deadlocks**, so keep transactions short.",
+ "followUps": [
+  "Which normal form would you stop at in practice, and why?",
+  "Can you roll back a TRUNCATE? Does it depend on the database?",
+  "What is a deadlock and how do databases handle it?",
+  "What is the difference between a shared lock and an exclusive lock?"
+ ]
+}

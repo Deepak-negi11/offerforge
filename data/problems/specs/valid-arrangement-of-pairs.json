@@ -1,0 +1,50 @@
+{
+ "pid": "valid-arrangement-of-pairs",
+ "title": "Valid Arrangement of Pairs",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given `n` pairs `(start, end)`, all distinct, with `start ≠ end` in every pair. An **arrangement** is a reordering of all `n` pairs such that, for every consecutive couple of pairs, the `end` of the first equals the `start` of the second. In other words, you chain the pairs like dominoes, using each pair exactly once and never flipping a pair.\n\nThe input is guaranteed to admit at least one valid arrangement. Many inputs admit several, so print the **lexicographically smallest** one: compare two arrangements pair by pair from the first position, and compare two pairs by `start` first and then by `end`.\n\nPrint the arrangement, one pair per line.\n\n**Follow-up:** the interviewer asked for a variation of this problem; explain why such an arrangement exists exactly when the graph (vertices are values, pairs are directed edges) has an Eulerian path, and how Hierholzer's algorithm builds it.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains two integers `start` and `end` describing one pair.",
+ "output_format": "Print `n` lines. Line `i` contains the two integers of the `i`-th pair of the lexicographically smallest valid arrangement, separated by a space.",
+ "constraints": [
+  "1 ≤ n ≤ 5000",
+  "0 ≤ start, end ≤ 10^9",
+  "start ≠ end, and no two pairs are identical",
+  "At least one valid arrangement exists (this also keeps recursive solutions within stack limits)"
+ ],
+ "examples": [
+  {
+   "input": "4\n3 1\n1 3\n2 1\n1 2",
+   "output": "1 2\n2 1\n1 3\n3 1",
+   "explanation": "Both `1 2, 2 1, 1 3, 3 1` and `1 3, 3 1, 1 2, 2 1` are valid. The first is lexicographically smaller because its first pair `(1, 2)` is smaller than `(1, 3)`."
+  },
+  {
+   "input": "3\n1 2\n1 3\n3 1",
+   "output": "1 3\n3 1\n1 2",
+   "explanation": "Starting with `(1, 2)` would end at value 2, which has no outgoing pair, leaving the other two pairs unused. The only valid arrangement therefore goes through 3 first and finishes with `(1, 2)`."
+  },
+  {
+   "input": "4\n3 4\n1 3\n2 1\n1 2",
+   "output": "1 2\n2 1\n1 3\n3 4",
+   "explanation": "Value 1 has one more outgoing pair than incoming pairs, so the chain must start there. From 1 take 2 (smaller), come back to 1 via `(2, 1)`, then go 1 → 3 → 4."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Treat each value as a vertex and each pair as a directed edge; a valid arrangement is an Eulerian path that uses every edge once.",
+  "The path starts at the vertex whose out-degree exceeds its in-degree by one. If every vertex is balanced, any vertex with edges can start; the smallest one gives the smallest answer.",
+  "Run Hierholzer's algorithm: keep each vertex's outgoing neighbours sorted and always follow the smallest unused one, append a vertex to the result when it has no unused edge left, and reverse the result at the end."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    adj = {}\n    diff = {}\n    for i in range(n):\n        a = int(data[1 + 2 * i])\n        b = int(data[2 + 2 * i])\n        adj.setdefault(a, []).append(b)\n        adj.setdefault(b, [])\n        diff[a] = diff.get(a, 0) + 1\n        diff[b] = diff.get(b, 0) - 1\n    start = None\n    for v, d in diff.items():\n        if d == 1:\n            start = v\n    if start is None:\n        start = min(v for v in adj if adj[v])\n    for v in adj:\n        adj[v].sort(reverse=True)\n    stack = [start]\n    path = []\n    while stack:\n        u = stack[-1]\n        if adj[u]:\n            stack.append(adj[u].pop())\n        else:\n            path.append(stack.pop())\n    path.reverse()\n    out = []\n    for i in range(len(path) - 1):\n        out.append('%d %d' % (path[i], path[i + 1]))\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\npairs = sorted((int(data[1 + 2 * i]), int(data[2 + 2 * i])) for i in range(n))\nused = [False] * n\nres = []\n\ndef dfs(cur):\n    if len(res) == n:\n        return True\n    for i in range(n):\n        if not used[i] and (cur is None or pairs[i][0] == cur):\n            used[i] = True\n            res.append(pairs[i])\n            if dfs(pairs[i][1]):\n                return True\n            res.pop()\n            used[i] = False\n    return False\n\ndfs(None)\nprint('\\n'.join('%d %d' % p for p in res))\n",
+ "generator": "def gen(rng):\n    def fmt(prs):\n        prs = list(prs)\n        rng.shuffle(prs)\n        return str(len(prs)) + '\\n' + '\\n'.join('%d %d' % (a, b) for a, b in prs)\n\n    def walk(V, L, circuit=False):\n        used = set()\n        u = rng.randrange(V)\n        start = u\n        path = []\n        while len(path) < L:\n            t = None\n            for _ in range(40):\n                c = rng.randrange(V)\n                if c != u and (u, c) not in used:\n                    t = c\n                    break\n            if t is None:\n                cand = [c for c in range(V) if c != u and (u, c) not in used]\n                if not cand:\n                    break\n                t = rng.choice(cand)\n            used.add((u, t))\n            path.append((u, t))\n            u = t\n        if circuit and u != start and (u, start) not in used:\n            path.append((u, start))\n        return path\n\n    def relabel(prs, V, big):\n        if big:\n            labels = rng.sample(range(0, 10**9 + 1), V)\n        else:\n            labels = list(range(V))\n            rng.shuffle(labels)\n        return [(labels[a], labels[b]) for a, b in prs]\n\n    def exact(V, L, circuit=False):\n        while True:\n            p = walk(V, L, circuit)\n            if len(p) >= L:\n                return p[:L] if not circuit else p\n            if circuit and len(p) >= L - 1:\n                return p\n\n    tests = [fmt([(1, 2)]), fmt([(1, 2), (2, 1)]), fmt([(1, 2), (2, 1), (1, 3), (3, 1)]),\n             fmt([(1, 2), (1, 3), (3, 1)]), fmt([(3, 4), (1, 3), (2, 1), (1, 2)]),\n             fmt([(0, 10**9), (10**9, 0)]), fmt([(2, 7), (9, 2), (7, 3), (3, 9)]),\n             fmt([(1, 2), (2, 3), (3, 1), (1, 4), (4, 5), (5, 1), (1, 6), (6, 1)])]\n    for V, L in ((3, 4), (3, 6), (4, 6), (4, 9), (5, 8), (5, 12), (6, 10), (6, 12), (4, 5), (5, 6)):\n        p = walk(V, L, circuit=rng.random() < 0.4)\n        tests.append(fmt(relabel(p, V, False)))\n    for _ in range(4):\n        p = walk(5, 12, circuit=True)\n        tests.append(fmt(relabel(p, 5, False)))\n    tests.append(fmt(relabel(exact(40, 400), 40, True)))\n    tests.append(fmt(relabel(exact(100, 1500), 100, False)))\n    tests.append(fmt(relabel(exact(100, 5000), 100, False)))\n    tests.append(fmt(relabel(exact(2500, 5000), 2500, True)))\n    tests.append(fmt(relabel(exact(5001, 5000), 5001, True)))\n    tests.append(fmt(relabel(exact(100, 4999, True), 100, True)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef valid_arrangement(pairs: List[List[int]]) -> List[List[int]]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    pairs = [[int(data[1 + 2 * i]), int(data[2 + 2 * i])] for i in range(n)]\n    res = valid_arrangement(pairs)\n    print('\\n'.join(str(a) + ' ' + str(b) for a, b in res))\n\n\nmain()\n",
+  "javascript": "function validArrangement(pairs) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst pairs = []\nfor (let i = 0; i < n; i++) pairs.push([t[1 + 2 * i], t[2 + 2 * i]])\nconsole.log(validArrangement(pairs).map(p => p[0] + ' ' + p[1]).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<vector<long long>> validArrangement(vector<vector<long long>>& pairs) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<vector<long long>> pairs(n, vector<long long>(2));\n    for (int i = 0; i < n; i++) cin >> pairs[i][0] >> pairs[i][1];\n    vector<vector<long long>> res = validArrangement(pairs);\n    for (auto& p : res) cout << p[0] << ' ' << p[1] << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[][] validArrangement(long[][] pairs) {\n        // Write your solution here\n        return new long[0][];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[][] pairs = new long[n][2];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); pairs[i][0] = (long) in.nval;\n            in.nextToken(); pairs[i][1] = (long) in.nval;\n        }\n        long[][] res = validArrangement(pairs);\n        StringBuilder sb = new StringBuilder();\n        for (long[] p : res) sb.append(p[0]).append(' ').append(p[1]).append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

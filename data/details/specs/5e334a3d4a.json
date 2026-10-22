@@ -1,0 +1,18 @@
+{
+ "qid": "5e334a3d4a",
+ "question": "Low-level design round: **model restaurant menus whose items have multiple configurations**, such as size, crust and toppings, with the focus on the Domino's-style pizza case. Provide a **schema**. The candidate's schema began with tables for restaurants (id, location, owner) and menu items.",
+ "lookingFor": [
+  "Can you model variable options and pricing without duplicating items for every combination?",
+  "Do you distinguish required single-choice groups from optional multi-choice groups?",
+  "Do you know to snapshot prices and choices in the order?",
+  "Can you reason about normalisation, constraints and querying?",
+  "Do you consider validation of a customer's selection?"
+ ],
+ "answer": "**Problem.** A pizza has a size (required, pick one), a crust (required, pick one) and toppings (optional, pick up to N). Creating one menu row per combination explodes combinatorially, so model **option groups** instead.\n\n**Entities.**\n- `restaurant(id, name, location, owner_id)`\n- `menu_item(id, restaurant_id, name, category, base_price, is_available)`\n- `option_group(id, menu_item_id, name, min_select, max_select)`. For example Size: 1..1, Crust: 1..1, Toppings: 0..5.\n- `option(id, group_id, name, price_delta, is_available)`. Size options may carry the actual price, or a `price_delta` over the base.\n- Optional `option_rule` for dependencies (for example \"stuffed crust not available in small\"), or `price_override(item_id, option_id_combo)` where price depends on a combination (size x crust).\n- Orders: `order(id, user_id, restaurant_id, ...)`, `order_item(id, order_id, menu_item_id, qty, unit_price_snapshot)`, `order_item_option(order_item_id, option_id, name_snapshot, price_snapshot)`.\n\n**Reuse.** If option groups repeat across items (the same toppings list for many pizzas), put `option_group` at the restaurant level and link items through `menu_item_option_group(item_id, group_id)`.\n\n**Pricing.** `price = base_price + sum(price_delta of selected options)`, multiplied by quantity. Store money as integer minor units (paise), not floats.\n\n**Validation on add-to-cart.** For each group, check that the number of selected options is within `[min_select, max_select]`, that every option belongs to the item's groups, and that everything is available. Recompute the price on the server and never trust the client.\n\n**Trade-offs.** A relational model gives constraints and joins; a JSON column per item is flexible but loses validation and querying. Snapshots in the order protect history when the menu changes later.\n\n**Class view (OOP).** `MenuItem` has `List<OptionGroup>`; `OptionGroup` has a selection rule and `List<Option>`; a `PriceCalculator` strategy can compute totals.",
+ "followUps": [
+  "How would you handle combination-based pricing such as size and crust together?",
+  "How would menu changes be versioned without breaking existing orders?",
+  "How would you model a combo meal that contains several configurable items?",
+  "How would you index and cache menus for fast reads?"
+ ]
+}

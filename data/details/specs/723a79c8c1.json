@@ -1,0 +1,18 @@
+{
+ "qid": "723a79c8c1",
+ "question": "In the second technical round of the SAP@Scholar internship, the interviewer asked the candidate to write a SQL query on a table `Employee(emp_id, grade, salary)`. The query had to **count the employees whose grade is 3** and also **display the second highest salary** among them. The candidate wrote almost the whole query but missed one parameter.",
+ "lookingFor": [
+  "Can you write correct SQL on the spot for a small two-part requirement?",
+  "Do you know how to find the Nth highest value (subquery, window function, LIMIT/OFFSET)?",
+  "Do you apply the grade filter consistently in every part of the query?",
+  "Do you think about edge cases such as ties and fewer than two employees?",
+  "Can you explain your query clearly while writing it?"
+ ],
+ "answer": "Both numbers come from the same filtered set (`grade = 3`), so the filter must appear in every part of the query. That is the usual place to slip: filtering the count but forgetting the filter inside the subquery that finds the second salary.\n\n**Approach 1: nested MAX (works in any database)**\n\n    SELECT\n      (SELECT COUNT(*) FROM Employee WHERE grade = 3) AS emp_count,\n      (SELECT MAX(salary) FROM Employee\n        WHERE grade = 3\n          AND salary < (SELECT MAX(salary) FROM Employee WHERE grade = 3)) AS second_highest;\n\nThe innermost query finds the top salary of grade 3, the middle one finds the largest salary below it, and the first column counts the rows. If there is only one distinct salary, the second column is `NULL`, which is a sensible result.\n\n**Approach 2: window function (clearer, easy to generalise to Nth)**\n\n    SELECT\n      (SELECT COUNT(*) FROM Employee WHERE grade = 3) AS emp_count,\n      (SELECT salary\n         FROM (SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk\n               FROM Employee WHERE grade = 3) t\n        WHERE rnk = 2\n        LIMIT 1) AS second_highest;\n\nThe ranking is computed only over grade 3 rows, then the outer `WHERE` picks rank 2. Window functions are evaluated after `WHERE`, so they cannot be filtered in the same `SELECT`; that is why a derived table is needed.\n\n**Points to state aloud**\n- Ties: `DENSE_RANK` treats equal salaries as one rank, so the second highest is the second *distinct* salary. `ROW_NUMBER` would not.\n- `LIMIT 1 OFFSET 1` with `DISTINCT salary` is another option but fails silently on ties if you forget `DISTINCT`.\n- The reported question wrote `grade='3'`, which suggests a string column. Use the literal that matches the column type.\n- An index on `(grade, salary)` makes both subqueries cheap.",
+ "followUps": [
+  "How would you find the Nth highest salary for each grade?",
+  "What is the difference between RANK, DENSE_RANK and ROW_NUMBER?",
+  "How would the query change if two employees share the highest salary?",
+  "How would you make this query fast on a table with millions of rows?"
+ ]
+}

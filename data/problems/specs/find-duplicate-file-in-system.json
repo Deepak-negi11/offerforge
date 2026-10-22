@@ -1,0 +1,49 @@
+{
+ "pid": "find-duplicate-file-in-system",
+ "title": "Find Duplicate File in System",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A file system contains `n` files. Each file is described by its **full path** (directory plus file name, for example `root/docs/a.txt`) and its **content**, a short string. All paths are distinct.\n\nTwo files are **duplicates** if their contents are exactly equal; their names and directories do not matter. Group the files by content and report every group that contains **at least two** files.\n\nThe answer must be in a canonical form:\n\n- Inside a group, list the paths in ascending lexicographic (ASCII) order.\n- List the groups ordered by their first (smallest) path, ascending.\n- Files whose content is unique are not reported.\n\nFirst print the number of groups, then print each group on its own line, with its paths separated by single spaces.\n\n**Follow-up:** In a real directory the files are far too large to hold as strings in memory. How would you avoid comparing every pair of files, which data structure would you use for the grouping, and how would you avoid false matches from hash collisions? (For example, group by size first, then by a hash of a prefix, then by a full-content hash, and finally compare bytes.)",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains two tokens separated by a space: the full path of a file and its content.",
+ "output_format": "The first line contains `g`, the number of groups of duplicates. Each of the next `g` lines contains one group: the paths of its files in ascending order, separated by single spaces.",
+ "constraints": [
+  "1 ≤ n ≤ 4 * 10^4",
+  "Each path has 1 to 30 characters from letters, digits, `/`, `.` and `_`; all paths are distinct",
+  "Each content has 1 to 20 characters from lowercase letters and digits"
+ ],
+ "examples": [
+  {
+   "input": "5\nroot/a/1.txt abcd\nroot/a/2.txt efgh\nroot/c/3.txt abcd\nroot/c/d/4.txt efgh\nroot/5.txt zzzz",
+   "output": "2\nroot/a/1.txt root/c/3.txt\nroot/a/2.txt root/c/d/4.txt",
+   "explanation": "`abcd` is the content of two files, and so is `efgh`. `zzzz` is unique and is not reported. Both groups are sorted inside, and the group that starts with `root/a/1.txt` comes before the one that starts with `root/a/2.txt`."
+  },
+  {
+   "input": "3\nx/b.log hello\nx/a.log world\nx/c.log hello",
+   "output": "1\nx/b.log x/c.log",
+   "explanation": "Only `hello` is shared, by `x/b.log` and `x/c.log`."
+  },
+  {
+   "input": "2\nm/one.txt aa\nm/two.txt bb",
+   "output": "0",
+   "explanation": "No two files have the same content, so there are no groups."
+  }
+ ],
+ "complexity": {
+  "time": "O(total characters + n log n)",
+  "space": "O(total characters)"
+ },
+ "hints": [
+  "Which key should two files share to be considered duplicates? Collect the paths under that key.",
+  "A hash map from content to the list of paths does the grouping in one pass.",
+  "Only report lists with at least two paths, then sort each list and the list of groups to get the canonical output."
+ ],
+ "reference": "import sys\nfrom collections import defaultdict\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    groups = defaultdict(list)\n    for i in range(n):\n        groups[data[2 + 2 * i]].append(data[1 + 2 * i])\n    res = sorted(sorted(v) for v in groups.values() if len(v) >= 2)\n    out = [str(len(res))]\n    for g in res:\n        out.append(' '.join(g))\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nfiles = [(data[1 + 2 * i], data[2 + 2 * i]) for i in range(n)]\nseen = [False] * n\nres = []\nfor i in range(n):\n    if seen[i]:\n        continue\n    grp = []\n    for j in range(n):\n        if files[j][1] == files[i][1]:\n            seen[j] = True\n            grp.append(files[j][0])\n    if len(grp) >= 2:\n        grp.sort()\n        res.append(grp)\nres.sort()\nprint(len(res))\nfor g in res:\n    print(' '.join(g))\n",
+ "generator": "def gen(rng):\n    import string\n    pchars = string.ascii_letters + string.digits + '/._'\n    cchars = string.ascii_lowercase + string.digits\n    def mk_paths(n, mx):\n        s = set()\n        while len(s) < n:\n            ln = rng.randint(1, mx)\n            s.add(''.join(rng.choice(pchars) for _ in range(ln)))\n        out = list(s)\n        rng.shuffle(out)\n        return out\n    def fmt(paths, contents):\n        return str(len(paths)) + '\\n' + '\\n'.join(p + ' ' + c for p, c in zip(paths, contents))\n    def make(n, mx, k, clen):\n        pool = [''.join(rng.choice(cchars) for _ in range(rng.randint(1, clen))) for _ in range(k)]\n        paths = mk_paths(n, mx)\n        return fmt(paths, [rng.choice(pool) for _ in range(n)])\n    tests = [\n        fmt(['root/a/1.txt', 'root/a/2.txt', 'root/c/3.txt', 'root/c/d/4.txt', 'root/5.txt'], ['abcd', 'efgh', 'abcd', 'efgh', 'zzzz']),\n        fmt(['x/b.log', 'x/a.log', 'x/c.log'], ['hello', 'world', 'hello']),\n        fmt(['m/one.txt', 'm/two.txt'], ['aa', 'bb']),\n        fmt(['a'], ['q']),\n        fmt(['b', 'a'], ['q', 'q']),\n        fmt(['A', 'a', 'B', 'b'], ['x', 'x', 'x', 'x']),\n    ]\n    for n in (3, 5, 8, 10, 12):\n        for k in (1, 3, n):\n            tests.append(make(n, 8, max(1, k), 3))\n    tests.append(make(2000, 20, 300, 6))\n    tests.append(make(40000, 30, 10, 20))\n    tests.append(make(40000, 30, 20000, 20))\n    tests.append(make(40000, 30, 3, 20))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef find_duplicates(paths: List[str], contents: List[str]) -> List[List[str]]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    paths = [data[1 + 2 * i] for i in range(n)]\n    contents = [data[2 + 2 * i] for i in range(n)]\n    groups = find_duplicates(paths, contents)\n    out = [str(len(groups))]\n    for g in groups:\n        out.append(' '.join(g))\n    print('\\n'.join(out))\n\n\nmain()\n",
+  "javascript": "function findDuplicates(paths, contents) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0])\nconst paths = [], contents = []\nfor (let i = 0; i < n; i++) {\n  paths.push(t[1 + 2 * i])\n  contents.push(t[2 + 2 * i])\n}\nconst groups = findDuplicates(paths, contents)\nconst out = [String(groups.length)]\nfor (const g of groups) out.push(g.join(' '))\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<vector<string>> findDuplicates(vector<string>& paths, vector<string>& contents) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<string> paths(n), contents(n);\n    for (int i = 0; i < n; i++) cin >> paths[i] >> contents[i];\n    vector<vector<string>> groups = findDuplicates(paths, contents);\n    cout << groups.size() << \"\\n\";\n    for (auto& g : groups) {\n        for (size_t i = 0; i < g.size(); i++) cout << g[i] << (i + 1 < g.size() ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<List<String>> findDuplicates(String[] paths, String[] contents) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        int n = Integer.parseInt(br.readLine().trim());\n        String[] paths = new String[n], contents = new String[n];\n        for (int i = 0; i < n; i++) {\n            StringTokenizer st = new StringTokenizer(br.readLine());\n            paths[i] = st.nextToken();\n            contents[i] = st.nextToken();\n        }\n        List<List<String>> groups = findDuplicates(paths, contents);\n        StringBuilder sb = new StringBuilder();\n        sb.append(groups.size()).append(\"\\n\");\n        for (List<String> g : groups) sb.append(String.join(\" \", g)).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

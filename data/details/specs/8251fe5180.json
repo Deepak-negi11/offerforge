@@ -1,0 +1,18 @@
+{
+ "qid": "8251fe5180",
+ "question": "Snowflake SWE intern technical interview: **what is a good data structure for concurrent access, and why?** No further details were reported, so be ready to discuss thread-safe collections and their trade-offs.",
+ "lookingFor": [
+  "Do you understand race conditions and what thread safety requires?",
+  "Do you know the main concurrent structures and when each fits?",
+  "Can you contrast locks, fine-grained locking and lock-free (CAS) approaches?",
+  "Do you reason about contention, read/write ratio and correctness trade-offs?",
+  "Can you map the answer to a language you know (Java, C++, Python, Go)?"
+ ],
+ "answer": "There is no single best structure: the choice depends on the access pattern. A good answer states the problem first, then options.\n\n**The problem.** If several threads read and modify a plain `HashMap` or list, you get race conditions: lost updates, corrupted internal state, or infinite loops during resize. A structure is **thread-safe** if concurrent operations leave it consistent.\n\n**Options.**\n- **Coarse lock (synchronised wrapper)**, such as `Collections.synchronizedMap`: simple and correct, but one lock serialises all access and limits scalability.\n- **Fine-grained or striped locking**: **`ConcurrentHashMap`** in Java divides work so that threads touching different buckets do not block each other; reads are mostly lock-free and updates use CAS or per-bin locks. This is usually the best general-purpose answer for a concurrent key-value store or cache.\n- **Copy-on-write** (`CopyOnWriteArrayList`): each write copies the array, so reads need no locks. Ideal for rarely changed, often read data such as listener lists; poor for write-heavy data.\n- **Lock-free structures** using **compare-and-swap (CAS)**: `ConcurrentLinkedQueue`, atomic counters. They avoid blocking and deadlocks but are harder to implement; the ABA problem is a classic pitfall.\n- **Blocking queues** (`ArrayBlockingQueue`, `LinkedBlockingQueue`) for producer-consumer handoff, with built-in waiting.\n- **Read-write locks** when reads vastly outnumber writes.\n\n**Trade-offs.** Think about contention, read/write ratio, memory overhead, fairness and whether you need compound atomic operations (check-then-act needs methods like `putIfAbsent` or `compute`, not separate `get` and `put`). Iterators on concurrent collections are usually weakly consistent, not point-in-time snapshots.\n\n**Example.** For a shared cache read by many threads, use `ConcurrentHashMap`; for a task pipeline, use a `BlockingQueue`.",
+ "followUps": [
+  "What is the difference between `HashMap`, `Hashtable` and `ConcurrentHashMap`?",
+  "What is a race condition? How is it different from a deadlock?",
+  "What is compare-and-swap, and what is the ABA problem?",
+  "How would you build a thread-safe queue from scratch?"
+ ]
+}

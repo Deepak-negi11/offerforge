@@ -1,0 +1,43 @@
+{
+ "pid": "zomato-robot-warehouse-clearing-cost",
+ "title": "Robot Warehouse Clearing Cost",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A warehouse has `N` bays in a straight line, represented by a 0-indexed array `packages`, where `packages[i]` is the number of package units stored at bay `i`.\n\nA robot works from a **base station** at one of the two ends of the line: either bay `0` or bay `N - 1`. It must choose one base station and use it for **all** its work; it cannot switch halfway through.\n\nThe robot clears the warehouse with a sequence of delivery trips. In one trip it starts at the base station, moves to a targeted bay `i`, picks up **at most 1 unit** from that bay, and returns to the base. While travelling to bay `i` it may also pick up **at most 1 unit** from each other bay it passes on the way, provided that bay still has packages left.\n\nCosts:\n\n- The **travel cost** of a trip is the 1-indexed distance from the base station to the furthest bay the trip visits. With the base at index `0`, going to index `i` costs `i + 1`. With the base at index `N - 1`, going to index `i` costs `N - i`.\n- The **handling cost** of loading and unloading one unit of any package is always `1`.\n\nReturn the **minimum total cost** (total travel cost plus total handling cost) needed to remove every unit from the warehouse.",
+ "input_format": "The first line contains an integer `N`.\nThe second line contains `N` integers `packages[0], ..., packages[N-1]`.",
+ "output_format": "Print a single integer: the minimum total cost.",
+ "constraints": [
+  "1 ≤ N ≤ 10^5",
+  "0 ≤ packages[i] < 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3\n1 2 3",
+   "output": "12",
+   "explanation": "There are 6 units, so the handling cost is 6. With the base at index 2: a trip to index 0 (distance 3) takes one unit from every bay and leaves [0, 1, 2]; a trip to index 1 (distance 2) leaves [0, 0, 1]; a trip to index 2 (distance 1) finishes. Travel is 3 + 2 + 1 = 6, total 12. With the base at index 0 the bay at index 2 needs 3 trips of distance 3, so travel is 9 and the total is 15."
+  },
+  {
+   "input": "4\n4 0 0 3",
+   "output": "20",
+   "explanation": "Handling cost is 7. With the base at index 0 (bay 0 is nearest): three trips go to index 3 (distance 4) and each picks up one unit from the far bay and one from bay 0, costing 12; one more trip to index 0 (distance 1) picks the last unit there, costing 1. Travel is 13, total 20. With the base at index 3 the 4 units at index 0 need four trips of distance 4, so travel is 16 and the total is 23."
+  }
+ ],
+ "complexity": {
+  "time": "O(N)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "The handling cost is fixed: it equals the total number of units. Only the travel cost depends on your choices, and you can compute the best travel cost for each of the two base stations separately and take the smaller.",
+  "Fix a base and measure distances from it. Each trip takes at most one unit from a bay, so a bay holding c units needs at least c trips that reach it. How many trips must reach distance j once you also account for the bays farther out?",
+  "A trip that reaches distance d also passes every distance below d. The number of trips that reach distance j must be at least the largest bay count at distance j or beyond. The total travel cost is the sum over j of that suffix maximum, and this bound can always be achieved."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    units = sum(a)\n\n    def travel(c):\n        # c[j] = packages at distance j + 1 from the base; trips reaching distance j\n        # must be at least the largest count at distance >= j\n        total = 0\n        run = 0\n        for j in range(len(c) - 1, -1, -1):\n            if c[j] > run:\n                run = c[j]\n            total += run\n        return total\n\n    print(units + min(travel(a), travel(a[::-1])))\n\nmain()\n",
+ "brute": "import sys\nimport heapq\nfrom itertools import product\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + n]]\n\ndef solve(c):\n    # c[j] = packages at distance j + 1 from the base. Dijkstra over states.\n    start = tuple(c)\n    goal = tuple([0] * n)\n    dist = {start: 0}\n    pq = [(0, start)]\n    while pq:\n        d, s = heapq.heappop(pq)\n        if dist.get(s, 1 << 60) < d:\n            continue\n        if s == goal:\n            return d\n        for target in range(1, n + 1):\n            avail = [j for j in range(target) if s[j] > 0]\n            for mask in product((0, 1), repeat=len(avail)):\n                if not any(mask):\n                    continue\n                t = list(s)\n                for j, m in zip(avail, mask):\n                    t[j] -= m\n                t = tuple(t)\n                nd = d + target\n                if nd < dist.get(t, 1 << 60):\n                    dist[t] = nd\n                    heapq.heappush(pq, (nd, t))\n    return 1 << 60\n\nprint(sum(a) + min(solve(a), solve(a[::-1])))\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + \"\\n\" + \" \".join(map(str, a))\n\n    tests = [fmt([1, 2, 3]), fmt([0]), fmt([5]), fmt([0, 0, 0]), fmt([4, 0, 0, 3]), fmt([3, 0, 0, 4]),\n             fmt([1, 1, 1, 1]), fmt([2, 2]), fmt([10**9 - 1]), fmt([0, 5, 0]), fmt([3, 1, 2, 0, 3]),\n             fmt([1, 0, 0, 0, 1])]\n    for _ in range(40):\n        n = rng.randint(1, 5)\n        hi = rng.choice([1, 2, 3])\n        tests.append(fmt([rng.randint(0, hi) for _ in range(n)]))\n    for _ in range(6):\n        n = rng.randint(1, 4)\n        tests.append(fmt([rng.randint(0, 5) for _ in range(n)]))\n    for _ in range(3):\n        n = rng.randint(50, 300)\n        tests.append(fmt([rng.randint(0, 10**9 - 1) for _ in range(n)]))\n    N = 100000\n    tests.append(fmt([rng.randint(0, 10**9 - 1) for _ in range(N)]))\n    tests.append(fmt([i * 10000 for i in range(N)]))\n    tests.append(fmt([(N - i) * 9999 for i in range(N)]))\n    tests.append(fmt([rng.choice([0, 0, 0, rng.randint(0, 10**9 - 1)]) for _ in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_clearing_cost(packages: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    packages = [int(x) for x in data[1:1 + n]]\n    print(min_clearing_cost(packages))\n\n\nmain()\n",
+  "javascript": "function minClearingCost(packages) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst packages = t.slice(1, 1 + n)\nconsole.log(String(minClearingCost(packages)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minClearingCost(vector<long long>& packages) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> packages(n);\n    for (auto& x : packages) cin >> x;\n    cout << minClearingCost(packages) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minClearingCost(long[] packages) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] packages = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            packages[i] = (long) in.nval;\n        }\n        System.out.println(minClearingCost(packages));\n    }\n}\n"
+ }
+}

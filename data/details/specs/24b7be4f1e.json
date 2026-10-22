@@ -1,0 +1,18 @@
+{
+ "qid": "24b7be4f1e",
+ "question": "In a Morgan Stanley superday round for a Technology Analyst (TAP) internship, the candidate was asked: what types of **indexes** are used in relational databases? A good answer names the common kinds, how each is stored, and when each helps.",
+ "lookingFor": [
+  "Knowledge of the main index types and their data structures",
+  "Understanding of the trade-off between read speed and write cost",
+  "Clustered vs non-clustered distinction",
+  "Ability to say when an index will or will not be used",
+  "Practical awareness such as composite index column order"
+ ],
+ "answer": "An index is a separate data structure that lets the database find rows without scanning the whole table, at the cost of extra storage and slower inserts, updates and deletes.\n\n**By storage structure**\n- **B-tree / B+ tree**: the default in most systems. Keeps keys sorted, supports equality, range queries, `ORDER BY` and prefix matches in O(log n).\n- **Hash index**: O(1) equality lookups only, no ranges or ordering. Available in some engines (e.g. PostgreSQL, in-memory tables).\n- **Bitmap index**: one bitmap per distinct value, good for low-cardinality columns in read-heavy analytics (common in Oracle and warehouses), poor under heavy concurrent writes.\n- **Specialised**: full-text (inverted) indexes for text search, spatial indexes (R-tree, GiST) for geometry, and others such as GIN or BRIN in PostgreSQL.\n\n**By relationship to the table**\n- **Clustered index**: determines the physical order of the rows, so the table data is the leaf level. There can be only one per table. In MySQL InnoDB the primary key is the clustered index.\n- **Non-clustered (secondary) index**: a separate structure whose leaves hold the key plus a pointer to the row (row id or the clustering key). A table can have many.\n\n**By definition**\n- **Primary key** and **unique index**: enforce uniqueness.\n- **Composite index**: on several columns. Column order matters because of the leftmost-prefix rule: an index on `(a, b)` helps filters on `a` or on `a` and `b`, but not on `b` alone.\n- **Covering index**: contains all columns a query needs, so the table is not touched (an index-only scan).\n- **Partial / filtered** and **function-based** indexes: index only some rows or an expression such as `LOWER(email)`.\n\n**When indexes do not help.** Tiny tables, low-selectivity columns, functions applied to the indexed column in the `WHERE` clause (unless a function index exists), and leading wildcards such as `LIKE '%abc'`.\n\nCheck with `EXPLAIN` to confirm the planner uses the index. Index only what queries need, since each extra index adds write cost.",
+ "followUps": [
+  "What is the difference between a clustered and non-clustered index?",
+  "Why does column order matter in a composite index?",
+  "What is a covering index and why can it be faster?",
+  "Why can a B+ tree be better than a binary search tree for databases?"
+ ]
+}

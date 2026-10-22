@@ -1,0 +1,18 @@
+{
+ "qid": "3032867fcf",
+ "question": "In round 3 of ServiceNow's on-campus Associate Software Engineer process, after being asked about the three pillars of OOP and polymorphism, the candidate was asked to **design a parking lot system**. The interviewer wanted the **classes and the design patterns** to be thoroughly explained.",
+ "lookingFor": [
+  "Can you extract requirements and identify entities (lot, floor, spot, vehicle, ticket)?",
+  "Is your class design clean, with sensible responsibilities and relationships?",
+  "Do you use design patterns for a reason (Strategy, Factory, Singleton) rather than naming them?",
+  "Can you handle concurrency and extensibility (new vehicle types, pricing)?",
+  "Can you explain entry and exit flows end to end?"
+ ],
+ "answer": "**Requirements (state assumptions).** Multiple floors; spots of types (compact, regular, large, handicapped, EV); vehicles of types (bike, car, truck); issue a ticket on entry, calculate the fee on exit, accept payment; show availability. Out of scope unless asked: reservations, hardware.\n\n**Classes**\n- `ParkingLot` (holds floors, entry and exit gates), `ParkingFloor` (list of spots), `ParkingSpot` (id, type, `isFree`, `park(vehicle)`, `unpark()`).\n- `Vehicle` (abstract; `licensePlate`, `type`) with `Car`, `Bike`, `Truck`.\n- `Ticket` (id, vehicle, spot, entryTime), `Payment` / `PaymentStrategy`, `Receipt`.\n- `ParkingService` coordinating entry (`park(vehicle) -> Ticket`) and exit (`unpark(ticket) -> fee`).\n\n**Design patterns and why**\n- **Strategy** for spot allocation (nearest to the entrance, lowest floor) and for pricing (hourly, flat, peak). New rules are added without editing the service.\n- **Factory** to create the right `Vehicle` or `ParkingSpot` subtype.\n- **Singleton** for `ParkingLot`, if there is a single lot instance (mention its testing downsides; dependency injection is an alternative).\n- **Observer** to update display boards when availability changes.\n\n**Flow.** Entry: the service asks the allocation strategy for a free compatible spot, marks it occupied, creates a `Ticket`. Exit: compute duration, apply the pricing strategy, take payment, free the spot.\n\n**Concurrency and extensibility.** Two cars must not get the same spot: make spot assignment atomic (synchronised or a compare-and-set on the spot state, or a DB row lock). Keep a per-type free-spot queue or set for fast lookup instead of scanning all spots. Open for extension: add `EVSpot` or a new vehicle type through subclasses and the Strategy interfaces (Open/Closed principle).",
+ "followUps": [
+  "How do you ensure two vehicles never get the same spot under concurrent entries?",
+  "How would you add reservations or EV charging pricing?",
+  "Why might Singleton be a poor choice here?",
+  "How would the design change for a chain of parking lots across a city?"
+ ]
+}

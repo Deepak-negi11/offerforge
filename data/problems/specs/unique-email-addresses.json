@@ -1,0 +1,45 @@
+{
+ "pid": "unique-email-addresses",
+ "title": "Unique Email Addresses",
+ "difficulty": "Easy",
+ "source_note": "standard",
+ "statement": "An email address has the form `local@domain`: a **local name**, a single `@`, and a **domain name**. Mail systems apply two rules to the local name only, and the domain name is never changed:\n\n- Every `.` in the local name is ignored, so `a.b` and `ab` reach the same mailbox.\n- The first `+` in the local name and every character after it (up to the `@`) are ignored. The `.` rule is applied to the part that remains. A `+` in the domain name has no special meaning.\n\nGiven a list of `n` addresses, find how many **distinct mailboxes** they deliver to, that is, the number of different results after applying both rules to every address.\n\nEvery address contains exactly one `@`, and its local name is guaranteed not to start with `+`. After the rules are applied, the local name always keeps at least one letter or digit.",
+ "input_format": "The first line contains `n`. Each of the next `n` lines contains one email address (no spaces).",
+ "output_format": "Print a single integer: the number of distinct mailboxes.",
+ "constraints": [
+  "1 ≤ n ≤ 2 * 10^4",
+  "6 ≤ length of each address ≤ 60",
+  "Addresses use lowercase letters, digits, `.`, `+` and exactly one `@`",
+  "The local name does not start with `+` and keeps a letter or digit after the rules are applied"
+ ],
+ "examples": [
+  {
+   "input": "5\njohn.doe+news@mail.org\njohndoe@mail.org\nj.o.h.n.d.o.e@mail.org\njohn.doe@mail.net\njohn+x+y@mail.org",
+   "output": "3",
+   "explanation": "The first three all become `johndoe@mail.org`. The fourth keeps its different domain, `johndoe@mail.net`. The last becomes `john@mail.org`. That is 3 distinct mailboxes."
+  },
+  {
+   "input": "4\na.b@x.io\nab+z@x.io\nab+c.d@x.io\nab@x.co",
+   "output": "2",
+   "explanation": "The first three all deliver to `ab@x.io` (everything after the first `+` is dropped, dots included). The last one has another domain."
+  }
+ ],
+ "complexity": {
+  "time": "O(total length of all addresses)",
+  "space": "O(total length of all addresses)"
+ },
+ "hints": [
+  "Split each address at the `@` so that you only clean the local name.",
+  "Cut the local name at the first `+`, then remove every `.` from what is left.",
+  "Put the cleaned `local@domain` strings in a set and print its size."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    seen = set()\n    for e in data[1:1 + n]:\n        local, domain = e.split('@')\n        local = local.split('+')[0].replace('.', '')\n        seen.add(local + '@' + domain)\n    print(len(seen))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nres = []\nfor e in data[1:1 + n]:\n    at = e.index('@')\n    local = e[:at]\n    out = ''\n    for ch in local:\n        if ch == '+':\n            break\n        if ch != '.':\n            out += ch\n    res.append(out + e[at:])\ndistinct = []\nfor r in res:\n    if r not in distinct:\n        distinct.append(r)\nprint(len(distinct))\n",
+ "generator": "def gen(rng):\n    doms = ['mail.org', 'mail.net', 'x.io', 'a.b.com', 'corp.co.uk', 'q+z.com']\n\n    def make(alpha, maxbase, junk_len):\n        b = ''.join(rng.choice(alpha) for _ in range(rng.randint(1, maxbase)))\n        s = ''\n        for ch in b:\n            while rng.random() < 0.3:\n                s += '.'\n            s += ch\n        s += '.' * rng.randint(0, 2) if rng.random() < 0.4 else ''\n        if rng.random() < 0.5:\n            s += '+' + ''.join(rng.choice('ab.+1') for _ in range(rng.randint(0, junk_len)))\n        d = rng.choice(doms)\n        e = s + '@' + d\n        if len(e) > 60:\n            e = s[:60 - len(d) - 1] + '@' + d\n        if len(e) < 6:\n            e = s + 'k' * (6 - len(e)) + '@' + d if False else e\n        return e\n\n    def case(n, alpha, maxbase, junk_len):\n        es = []\n        while len(es) < n:\n            e = make(alpha, maxbase, junk_len)\n            local = e.split('@')[0].split('+')[0].replace('.', '')\n            if len(e) >= 6 and local and e[0] != '+':\n                es.append(e)\n        return str(n) + '\\n' + '\\n'.join(es)\n\n    tests = ['1\\nabc.d@x.io', '3\\nabc@x.io\\nabc@x.io\\nabc@x.io', '2\\na.b@x.io\\nab@x.io.', '2\\nab+c@x.io\\nab@x.io']\n    tests.append('3\\nxy+@q.org\\nxy@q.org\\nx.y.@q.org')\n    for _ in range(14):\n        tests.append(case(rng.randint(2, 9), rng.choice(['ab', 'abc', 'abcdef']), 4, 4))\n    tests.append(case(300, 'abc', 3, 6))\n    tests.append(case(5000, 'abcdefgh', 6, 20))\n    tests.append(case(20000, 'ab', 4, 35))\n    tests.append(case(20000, 'abcdefghijklmnop0123456789', 12, 45))\n    tests.append(case(20000, 'abc', 5, 45))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_unique(emails: List[str]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    emails = data[1:1 + n]\n    print(count_unique(emails))\n\n\nmain()\n",
+  "javascript": "function countUnique(emails) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0])\nconst emails = t.slice(1, 1 + n)\nconsole.log(String(countUnique(emails)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint countUnique(vector<string>& emails) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<string> emails(n);\n    for (int i = 0; i < n; i++) cin >> emails[i];\n    cout << countUnique(emails) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int countUnique(String[] emails) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StringTokenizer st = new StringTokenizer(new String(System.in.readAllBytes()));\n        int n = Integer.parseInt(st.nextToken());\n        String[] emails = new String[n];\n        for (int i = 0; i < n; i++) emails[i] = st.nextToken();\n        System.out.println(countUnique(emails));\n    }\n}\n"
+ }
+}

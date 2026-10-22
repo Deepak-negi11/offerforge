@@ -1,0 +1,46 @@
+{
+ "pid": "uber-vertical-lines-crossing-rectangles",
+ "title": "Vertical Lines Crossing Rectangles",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "In the XY plane there are `n` vertical lines of infinite length, the `i`-th one being the line `x = lines[i]`, and `m` axis-aligned rectangles. Rectangle `j` is given by its bottom-left corner `(x1, y1)` and its top-right corner `(x2, y2)`, with `x1 < x2` and `y1 < y2`.\n\nWhen a vertical line cuts through a rectangle it creates **two intersection points** with it: one with the upper horizontal edge and one with the lower horizontal edge. If a line coincides with (lies on) one of the rectangle's vertical edges, that line is **not** considered to intersect the rectangle at all and contributes no points.\n\nCount the total number of intersection points over all lines and all rectangles. Aim for a solution that is efficient in both time and space (a hint from the interviewer was to use binary search).\n\nThe answer can exceed the range of a 32-bit integer.",
+ "input_format": "The first line contains two integers `n` and `m`.\nThe second line contains `n` distinct integers: the x-coordinates of the vertical lines.\nEach of the next `m` lines contains four integers `x1 y1 x2 y2` describing one rectangle.",
+ "output_format": "Print a single integer: the total number of intersection points.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ m ≤ 5 · 10^4",
+  "0 ≤ lines[i] ≤ 10^6, all distinct",
+  "0 ≤ x1 < x2 ≤ 10^6",
+  "0 ≤ y1 < y2 ≤ 1000"
+ ],
+ "examples": [
+  {
+   "input": "3 2\n2 5 8\n1 1 6 4\n5 0 9 3",
+   "output": "6",
+   "explanation": "The first rectangle spans x from 1 to 6, so the lines x=2 and x=5 cut it: 4 points. The second spans x from 5 to 9: the line x=5 lies on its left edge and does not count, but x=8 cuts it: 2 points. Total 6."
+  },
+  {
+   "input": "1 2\n3\n3 0 7 2\n0 0 3 5",
+   "output": "0",
+   "explanation": "The only line x=3 lies on the left edge of the first rectangle and on the right edge of the second, so it counts for neither."
+  }
+ ],
+ "complexity": {
+  "time": "O((n + m) log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Every line that strictly crosses a rectangle adds exactly 2 points, so the answer is 2 times the sum over rectangles of the number of lines with `x1 < x < x2`.",
+  "The y-coordinates do not matter for the count.",
+  "Sort the line positions once; for each rectangle, binary search for how many lines are `<= x1` and how many are `< x2` and subtract."
+ ],
+ "reference": "import sys\nfrom bisect import bisect_left, bisect_right\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    lines = sorted(int(x) for x in data[2:2 + n])\n    total = 0\n    base = 2 + n\n    for j in range(m):\n        x1 = int(data[base + 4 * j])\n        x2 = int(data[base + 4 * j + 2])\n        total += bisect_left(lines, x2) - bisect_right(lines, x1)\n    print(2 * total)\n\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nlines = [int(x) for x in data[2:2 + n]]\nbase = 2 + n\ncount = 0\nfor j in range(m):\n    x1, y1, x2, y2 = (int(data[base + 4 * j + k]) for k in range(4))\n    for a in lines:\n        if x1 < a < x2:\n            count += 2\nprint(count)\n",
+ "generator": "def gen(rng):\n    def fmt(lines, rects):\n        out = [str(len(lines)) + ' ' + str(len(rects)), ' '.join(map(str, lines))]\n        out += [' '.join(map(str, r)) for r in rects]\n        return '\\n'.join(out)\n\n    def rect(lo, hi, ymax, maxw=None):\n        x1 = rng.randint(lo, hi - 1)\n        top = hi if maxw is None else min(hi, x1 + maxw)\n        x2 = rng.randint(x1 + 1, top)\n        y1 = rng.randint(0, ymax - 1)\n        y2 = rng.randint(y1 + 1, ymax)\n        return (x1, y1, x2, y2)\n\n    tests = [\n        fmt([3], [(3, 0, 7, 2), (0, 0, 3, 5)]),\n        fmt([5], [(0, 0, 10, 10)]),\n        fmt([0, 10**6], [(0, 0, 10**6, 1000)]),\n        fmt([1], [(0, 0, 1, 1)]),\n        fmt([4, 5, 6], [(3, 1, 7, 2)]),\n    ]\n    for _ in range(40):\n        hi = rng.randint(2, 14)\n        n = rng.randint(1, min(8, hi + 1))\n        lines = rng.sample(range(hi + 1), n)\n        rects = [rect(0, hi, rng.randint(1, 10)) for _ in range(rng.randint(1, 8))]\n        tests.append(fmt(lines, rects))\n    for _ in range(2):\n        lines = rng.sample(range(10**6 + 1), 2000)\n        rects = [rect(0, 10**6, 1000) for _ in range(2000)]\n        tests.append(fmt(lines, rects))\n    lines = rng.sample(range(10**6 + 1), 10**5)\n    tests.append(fmt(lines, [rect(0, 10**6, 1000) for _ in range(5 * 10**4)]))\n    lines = rng.sample(range(10**6 + 1), 10**5)\n    tests.append(fmt(lines, [rect(0, 10**6, 1000, maxw=100) for _ in range(5 * 10**4)]))\n    lines = list(range(10**5))\n    rng.shuffle(lines)\n    tests.append(fmt(lines, [(0, 0, 10**6, 1000)] * 3 * 10**4 + [rect(0, 10**6, 1000) for _ in range(2 * 10**4)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_intersections(lines: List[int], rects: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    lines = [int(x) for x in data[2:2 + n]]\n    rects = []\n    for j in range(m):\n        b = 2 + n + 4 * j\n        rects.append([int(x) for x in data[b:b + 4]])\n    print(count_intersections(lines, rects))\n\n\nmain()\n",
+  "javascript": "function countIntersections(lines, rects) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst lines = t.slice(2, 2 + n)\nconst rects = []\nfor (let j = 0; j < m; j++) {\n  const b = 2 + n + 4 * j\n  rects.push([t[b], t[b + 1], t[b + 2], t[b + 3]])\n}\nconsole.log(String(countIntersections(lines, rects)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countIntersections(vector<int>& lines, vector<array<int, 4>>& rects) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<int> lines(n);\n    for (int i = 0; i < n; i++) cin >> lines[i];\n    vector<array<int, 4>> rects(m);\n    for (int j = 0; j < m; j++) cin >> rects[j][0] >> rects[j][1] >> rects[j][2] >> rects[j][3];\n    cout << countIntersections(lines, rects) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countIntersections(int[] lines, int[][] rects) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[] lines = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            lines[i] = (int) in.nval;\n        }\n        int[][] rects = new int[m][4];\n        for (int j = 0; j < m; j++) {\n            for (int k = 0; k < 4; k++) {\n                in.nextToken();\n                rects[j][k] = (int) in.nval;\n            }\n        }\n        System.out.println(countIntersections(lines, rects));\n    }\n}\n"
+ }
+}

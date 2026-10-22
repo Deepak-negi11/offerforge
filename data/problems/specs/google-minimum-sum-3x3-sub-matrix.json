@@ -1,0 +1,49 @@
+{
+ "pid": "google-minimum-sum-3x3-sub-matrix",
+ "title": "Minimum-Sum 3x3 Sub-Matrix",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "A farmer owns an `N x M` field and is short of money. He wants to sell most of it but keep one `3 x 3` section of contiguous plots, and he wants to keep the section that uses the least water. Each `1 x 1` plot needs a known amount of water.\n\nYou are given an `r x c` grid of non-negative integers, where each value is the water need of one plot. Find the `3 x 3` sub-matrix (nine plots forming a square block of consecutive rows and consecutive columns) whose sum of values is as small as possible, and print that sum.\n\nFor instance, in a `6 x 6` grid whose rows 1 to 3 and columns 3 to 5 (0-indexed) contain `1 0 4 / 0 1 1 / 0 0 1`, that block has sum 8.\n\n**Follow-up:** Now suppose some plots have the value zero (they are unusable). Find the minimum-sum `3 x 3` block in which all nine plots are non-zero. Can you do this in `O(r * c)` time with only `O(c)` extra space?",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains `c` integers: one row of the grid.",
+ "output_format": "Print a single integer: the minimum sum over all `3 x 3` sub-matrices.",
+ "constraints": [
+  "3 ≤ r, c",
+  "r * c ≤ 160000",
+  "0 ≤ grid[i][j] ≤ 10^4"
+ ],
+ "examples": [
+  {
+   "input": "6 6\n1 2 3 4 5 4\n3 1 2 1 0 4\n2 6 7 0 1 1\n4 6 7 0 0 1\n1 2 4 6 2 3\n2 7 9 8 1 5",
+   "output": "8",
+   "explanation": "The block covering rows 1 to 3 and columns 3 to 5 (0-indexed) holds 1 0 4, 0 1 1 and 0 0 1, which sum to 5 + 2 + 1 = 8. No other 3 x 3 block has a smaller sum."
+  },
+  {
+   "input": "3 3\n7 1 4\n2 0 9\n3 3 3",
+   "output": "32",
+   "explanation": "The grid is exactly one 3 x 3 block, so the answer is the sum of all nine values."
+  },
+  {
+   "input": "3 4\n5 5 5 1\n5 5 5 1\n5 5 5 1",
+   "output": "33",
+   "explanation": "There are two blocks. Columns 0 to 2 sum to 45; columns 1 to 3 have 5 + 5 + 1 = 11 in each of the three rows, so 33. The smaller one is 33."
+  }
+ ],
+ "complexity": {
+  "time": "O(r * c)",
+  "space": "O(r * c)"
+ },
+ "hints": [
+  "Checking every block by summing its nine cells works, but think about what you can reuse between two neighbouring blocks.",
+  "Build a 2D prefix-sum table so that the sum of any rectangle can be read in constant time.",
+  "The sum of the block with bottom-right corner `(i, j)` is `P[i][j] - P[i-3][j] - P[i][j-3] + P[i-3][j-3]`. Take the minimum over all valid corners."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    d = sys.stdin.read().split()\n    r, c = int(d[0]), int(d[1])\n    P = [[0] * (c + 1) for _ in range(r + 1)]\n    pos = 2\n    for i in range(r):\n        run = 0\n        prow, crow = P[i], P[i + 1]\n        for j in range(c):\n            run += int(d[pos])\n            pos += 1\n            crow[j + 1] = prow[j + 1] + run\n    best = None\n    for i in range(3, r + 1):\n        a, b = P[i], P[i - 3]\n        for j in range(3, c + 1):\n            s = a[j] - a[j - 3] - b[j] + b[j - 3]\n            if best is None or s < best:\n                best = s\n    print(best)\n\n\nmain()\n",
+ "brute": "import sys\n\nd = sys.stdin.read().split()\nr, c = int(d[0]), int(d[1])\ng = [[int(d[2 + i * c + j]) for j in range(c)] for i in range(r)]\nbest = None\nfor i in range(r - 2):\n    for j in range(c - 2):\n        s = sum(g[i + a][j + b] for a in range(3) for b in range(3))\n        if best is None or s < best:\n            best = s\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(g):\n        return f\"{len(g)} {len(g[0])}\\n\" + \"\\n\".join(\" \".join(map(str, row)) for row in g)\n    def rnd(r, c, hi, zero_p=0.0):\n        return [[0 if rng.random() < zero_p else rng.randint(0, hi) for _ in range(c)] for _ in range(r)]\n    sample = [\n        [1, 2, 3, 4, 5, 4],\n        [3, 1, 2, 1, 0, 4],\n        [2, 6, 7, 0, 1, 1],\n        [4, 6, 7, 0, 0, 1],\n        [1, 2, 4, 6, 2, 3],\n        [2, 7, 9, 8, 1, 5],\n    ]\n    tests = [fmt(sample), fmt([[5] * 3] * 3), fmt([[0] * 3] * 3), fmt([[7, 1, 4], [2, 0, 9], [3, 3, 3]])]\n    tests.append(fmt([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]))\n    tests.append(fmt([[9, 9, 9], [9, 9, 9], [9, 9, 9], [0, 0, 0]]))\n    tests.append(fmt([[10 ** 4] * 5 for _ in range(4)]))\n    for _ in range(30):\n        r, c = rng.randint(3, 7), rng.randint(3, 7)\n        tests.append(fmt(rnd(r, c, rng.choice([1, 9, 99]), rng.choice([0.0, 0.3]))))\n    tests.append(fmt(rnd(400, 400, 10 ** 4)))\n    tests.append(fmt(rnd(3, 50000, 10 ** 4)))\n    tests.append(fmt(rnd(50000, 3, 10 ** 4)))\n    g = rnd(400, 400, 10 ** 4)\n    g[399][399] = 0\n    g[398][398] = 0\n    tests.append(fmt([[10 ** 4] * 400 for _ in range(400)]))\n    tests.append(fmt(g))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_sum(grid: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    d = sys.stdin.read().split()\n    r, c = int(d[0]), int(d[1])\n    grid = [[int(d[2 + i * c + j]) for j in range(c)] for i in range(r)]\n    print(min_sum(grid))\n\n\nmain()\n",
+  "javascript": "function minSum(grid) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst r = t[0], c = t[1]\nconst grid = []\nfor (let i = 0; i < r; i++) {\n  grid.push(t.slice(2 + i * c, 2 + (i + 1) * c))\n}\nconsole.log(String(minSum(grid)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minSum(vector<vector<long long>>& grid) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<vector<long long>> grid(r, vector<long long>(c));\n    for (int i = 0; i < r; i++)\n        for (int j = 0; j < c; j++) cin >> grid[i][j];\n    cout << minSum(grid) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minSum(long[][] grid) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int r = (int) in.nval;\n        in.nextToken();\n        int c = (int) in.nval;\n        long[][] grid = new long[r][c];\n        for (int i = 0; i < r; i++) {\n            for (int j = 0; j < c; j++) {\n                in.nextToken();\n                grid[i][j] = (long) in.nval;\n            }\n        }\n        System.out.println(minSum(grid));\n    }\n}\n"
+ }
+}

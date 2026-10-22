@@ -1,0 +1,19 @@
+{
+ "qid": "2bd3067f4f",
+ "question": "Walmart Global Tech, Senior Software Engineer (6+ years), Low Level Design round. **Design a notification service that can send notifications over email, SMS and WhatsApp.** The same round included resume questions on Kafka, event-driven architecture, Java Spring Boot, CI/CD, Docker and Kubernetes, and how you used them.\n\nAnother candidate who answered with an **Observer + Strategy** design was told it was not enough and was asked to think of something else that would **scale the design to thousands of services** (many producer services sending notifications).",
+ "lookingFor": [
+  "Clean object-oriented decomposition: channel abstraction, extensibility for new channels (Open/Closed).",
+  "Ability to move from an in-process pattern design to a decoupled, asynchronous architecture when scale is raised.",
+  "Reliability thinking: retries, idempotency, dead-letter handling, provider failures.",
+  "Practical depth on the tools on your resume (Kafka, Spring Boot, Docker, Kubernetes).",
+  "Handling user preferences, templating and rate limiting."
+ ],
+ "answer": "**Requirements.** Send a notification to a user over one or more channels (email, SMS, WhatsApp); support templates, user preferences/opt-outs, priority (OTP vs marketing), retries, and easy addition of new channels. Non-functional: high throughput, no lost or duplicate sends, per-provider rate limits.\n\n**Core classes (LLD).**\n- `Notification` (id, userId, type, payload, channels, priority) and `NotificationChannel` interface with `send(Message)`; implementations `EmailChannel`, `SmsChannel`, `WhatsAppChannel` wrapping providers. This is the **Strategy**.\n- `ChannelFactory`/registry to look up a channel by enum, so adding Push needs one new class and one registration.\n- `TemplateService` (renders payload per channel and locale), `PreferenceService` (which channels the user allows), `NotificationService` (orchestrator).\n- Optional Decorator/chain for cross-cutting concerns: retry, rate limit, logging around a channel.\n\n**Where Observer falls short.** In-process observers are synchronous and tightly coupled: one slow SMS provider blocks the caller, and thousands of services cannot register as observers in one process.\n\n**Scaling to thousands of services.**\n1. Producers call one API (or publish an event) and get an ack; they never talk to providers.\n2. Persist the request, then publish to a broker such as Kafka, with a topic per channel (and per priority) keyed by userId for ordering.\n3. Channel workers consume, check preferences, render, call the provider, and record status. Scale workers horizontally; partitions give parallelism.\n4. **Idempotency key** per notification so redelivery does not double-send; retries with exponential backoff, then a dead-letter topic.\n5. Per-provider rate limiting and a fallback provider; circuit breaker when a provider is down.\n6. Status tracking (queued, sent, failed) and a delivery-callback webhook handler.\n\n**Trade-offs.** At-least-once delivery plus idempotent consumers is simpler than exactly-once; OTPs need a separate high-priority path so marketing bursts do not delay them.\n\nFor the resume part, be ready to say why you chose Kafka (decoupling, replay, partition scaling) and how you deployed (Docker image, Kubernetes deployments with autoscaling, CI/CD pipeline stages).",
+ "followUps": [
+  "How would you guarantee a notification is not sent twice?",
+  "How do you keep OTP notifications fast when a marketing campaign floods the system?",
+  "How would you add a new channel such as push notifications?",
+  "How do you handle a provider outage or rate limit?",
+  "How would you support scheduled and batched (digest) notifications?"
+ ]
+}

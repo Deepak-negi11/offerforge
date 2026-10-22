@@ -1,0 +1,19 @@
+{
+ "qid": "ebbdf10812",
+ "question": "Uber SDE-2 (L4) high-level design round. **Design the Uber Eats homepage.** Reported focus areas: location-based search using geohashing/geo-indexing, API design for the homepage and search results, schema for restaurants, dishes and orders, SQL vs NoSQL with justification, and caching for performance. The interviewer also asked about metrics to capture: the most-ordered restaurant, the most-ordered dish and orders per restaurant. A whiteboard/drawing tool was used.",
+ "lookingFor": [
+  "Defining the homepage scope and read/write ratio.",
+  "Geospatial indexing for nearby restaurant lookup.",
+  "Clean API and data model design.",
+  "Database choice justified by access patterns.",
+  "Caching strategy and an analytics pipeline for order metrics."
+ ],
+ "answer": "**Requirements.** Show nearby open restaurants for the user's location, with search, filters and ranking; show dishes/menus on tap. Out of scope: checkout and delivery tracking. Read-heavy: assume millions of daily users, a read:write ratio far above 100:1, a latency target of about 200 ms for the feed.\n\n**API**\n- `GET /home?lat=&lng=&cursor=` returns sections (nearby, popular, offers) with cursor pagination.\n- `GET /search?q=&lat=&lng=&filters=`.\n- `GET /restaurants/{id}/menu`.\n\n**Geo lookup.** Encode restaurant locations as geohash (or S2/H3) cells. For a user, compute their cell plus neighbouring cells, fetch restaurants in those cells, then filter by delivery radius and compute distance. Use a coarser precision in sparse areas and finer in dense ones. Search engines such as Elasticsearch support geo queries and text ranking together.\n\n**Data model**\n- `Restaurant(id, name, geohash, lat, lng, cuisine, rating, open_hours, status)`\n- `Dish(id, restaurant_id, name, price, available)`\n- `Order(id, user_id, restaurant_id, status, created_at)` and `OrderItem(order_id, dish_id, qty)`.\n\n**Database choice.** Orders need transactions, so use a relational DB (sharded by restaurant or user). The homepage read path is better served by a denormalised search index plus cache. A document store works for menus with flexible attributes. Justify with access patterns, not preference.\n\n**Caching.** Cache the feed per geohash cell (short TTL of 1-5 minutes) in Redis/CDN; cache menus until updated; personalise only the ranking on top of shared candidates. Availability and ETA need fresher data than static details.\n\n**Metrics.** Publish order events to a stream, aggregate counts per restaurant and dish in a stream or batch job, and store results in an analytics table, since running `GROUP BY` on the live orders table is costly. These feed ranking (\"popular near you\").\n\n**Scaling.** Shard the index by region, replicate reads, and degrade to cached results if ranking fails.",
+ "followUps": [
+  "Why geohash and not a plain latitude/longitude range query?",
+  "How do you handle a restaurant that sits on a cell boundary?",
+  "How fresh must restaurant availability be and how do you keep the cache correct?",
+  "How would you compute 'most ordered dish' in near real time?",
+  "SQL vs NoSQL: which parts of this system would you put in each?"
+ ]
+}

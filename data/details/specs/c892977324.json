@@ -1,0 +1,18 @@
+{
+ "qid": "c892977324",
+ "question": "In the low level design round for a Staff Engineer role at Walmart, the question was to **design an access control layer for a SaaS tool**.\n\nThe design had to cover the **RBAC, ABAC and ReBAC models** (and similar approaches), along with the **data modelling in the database**. Be ready to explain how a permission check is evaluated, how roles, attributes and relationships are stored, and the trade-offs between the models.",
+ "lookingFor": [
+  "Do you understand RBAC, ABAC and ReBAC and when each fits?",
+  "Can you design a data model that supports multi-tenancy and efficient permission checks?",
+  "Can you structure a clean authorization API separate from business logic?",
+  "Do you consider performance, caching, revocation and auditability?",
+  "Can you reason about evolving from simple roles to richer policies?"
+ ],
+ "answer": "**Requirements.** Multi-tenant SaaS. A call `check(user, action, resource)` returns allow/deny. Needs: roles per tenant, resource-level sharing, attribute rules (for example \"only in own region\"), auditing, and low-latency checks.\n\n**Models.**\n- **RBAC**: users get roles; roles hold permissions (`document:read`). Simple, easy to audit, but \"role explosion\" appears when rules depend on the resource.\n- **ABAC**: policies over attributes of user, resource, action and context (`user.dept == resource.dept AND time in office hours`). Flexible, but harder to reason about and test.\n- **ReBAC**: permissions derive from relationships in a graph (`user is editor of folder`, `document is in folder`, so editor access is inherited). This is the model behind Google Zanzibar style systems; it fits sharing and hierarchies.\n\n**Data model (relational example).**\n- `tenants`, `users`, `roles(id, tenant_id, name)`, `permissions(id, action)`, `role_permissions`, `user_roles(user_id, role_id, scope)`.\n- `relation_tuples(object_type, object_id, relation, subject_type, subject_id)` for ReBAC, with indexes on both object and subject.\n- `policies(id, tenant_id, effect, condition_json)` for ABAC, and an `audit_log`.\n\n**Code structure.**\n- `AuthorizationService.check(Request)` which delegates to a chain of `Authorizer` implementations (`RbacAuthorizer`, `RebacAuthorizer`, `AbacAuthorizer`). Combine results with an explicit rule: deny overrides allow.\n- `PolicyEvaluator`, `RelationStore`, `RoleStore` as interfaces so storage can change.\n- Enforcement through a middleware or decorator, never scattered `if` checks.\n\n**Key points.** Default deny. Cache role and relation lookups with a short TTL and invalidate on change. Walk relationship graphs with a depth limit to avoid cycles. Tenant id is part of every query. For list endpoints, filter in the query rather than check each row.\n\n**Evolution.** Start with RBAC, add ReBAC for sharing, and add ABAC conditions only where needed. A dedicated policy engine (for example OPA or a Zanzibar-style store) is an option at larger scale.",
+ "followUps": [
+  "How would you make permission checks fast for a list of 10,000 resources?",
+  "How do you handle revoking access immediately when caches are used?",
+  "How would you detect and prevent cycles in a relationship graph?",
+  "Where would you place enforcement: gateway, service or data layer?"
+ ]
+}

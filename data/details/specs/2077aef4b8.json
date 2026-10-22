@@ -1,0 +1,17 @@
+{
+ "qid": "2077aef4b8",
+ "question": "In a technical round for a **Staff Software Engineer** role at Visa, the candidate was grilled on **how security and authentication were handled in the microservices they had built**, followed by a LeetCode easy/medium coding problem written with a **full class and main method**.",
+ "lookingFor": [
+  "Can you describe security in a real system you built: authentication, authorisation, secrets, transport security?",
+  "Do you understand service-to-service trust, token flows and their trade-offs?",
+  "Can you reason about threats and defence in depth, which is vital in payments?",
+  "Do you answer as an owner, with what you did, not only theory?"
+ ],
+ "answer": "This question tests lived experience, so describe the system you actually built, then the layers. A strong structure:\n\n**1. Edge: authentication at the API gateway.**\n- Users authenticate with OAuth 2.0 and OpenID Connect; the identity provider issues short-lived **JWT** access tokens (signed, with expiry, audience, scopes) and refresh tokens.\n- The gateway validates the signature, expiry and audience, applies rate limiting and WAF rules, and forwards identity to services.\n\n**2. Authorisation.**\n- Role-based or attribute-based checks inside each service (the gateway knows who, the service knows whether the action is allowed on that resource). Always check object ownership to avoid insecure direct object reference bugs.\n- Least privilege for scopes and service accounts.\n\n**3. Service-to-service security.**\n- **Mutual TLS** (often via a service mesh) so services authenticate each other and traffic is encrypted internally; or signed service tokens (client credentials flow).\n- Network policies to limit which services can talk to which; zero-trust assumption: being inside the network is not trust.\n\n**4. Secrets and data.**\n- Secrets in a vault or cloud secrets manager, never in code or images; rotation.\n- Encryption in transit (TLS) and at rest; for payment data, tokenisation and masking so sensitive values (card numbers) are minimised and never logged. Mention that compliance frameworks like PCI DSS shape this in payments, if you worked with them.\n\n**5. Operational security.**\n- Input validation, dependency and image scanning, audit logs, anomaly alerts, token revocation or short TTLs, and secure defaults in CI/CD.\n\n**Trade-offs to mention.** JWTs are stateless and fast but hard to revoke (use short expiry and a deny-list for critical cases); mTLS adds certificate management; centralised auth at the gateway is simple but must not replace per-service authorisation.\n\n**Coding part.** Write a complete class with `main`, clarify input, state complexity, and test edge cases aloud.",
+ "followUps": [
+  "How do you revoke a JWT before it expires?",
+  "Where did you store secrets, and how were they rotated?",
+  "What is the difference between authentication and authorisation, with an example from your service?",
+  "How would you detect a compromised service account?"
+ ]
+}

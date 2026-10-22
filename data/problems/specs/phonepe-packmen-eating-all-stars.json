@@ -1,0 +1,49 @@
+{
+ "pid": "phonepe-packmen-eating-all-stars",
+ "title": "Packmen Eating All Stars",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "A corridor is a line of cells described by a string `s` made of three kinds of characters:\n\n- `P` is a Pacman,\n- `*` is a star,\n- `.` is an empty cell.\n\nEvery second, each Pacman independently moves one cell to the left or to the right, or stays where it is. All Pacmen move at the same time, and they may pass through each other and share cells. A Pacman cannot leave the corridor. When a Pacman is on a cell that holds a star, it eats the star. A Pacman that walks over many stars eats all of them.\n\nFind the **minimum number of seconds** after which all stars can have been eaten, if the Pacmen choose their routes optimally. The string contains at least one `P` and at least one `*`.",
+ "input_format": "A single line containing the string `s`.",
+ "output_format": "Print a single integer: the minimum number of seconds.",
+ "constraints": [
+  "2 ≤ |s| ≤ 10^5",
+  "`s` consists only of the characters `P`, `*` and `.`",
+  "`s` contains at least one `P` and at least one `*`"
+ ],
+ "examples": [
+  {
+   "input": "*..*PP*....*P",
+   "output": "4",
+   "explanation": "The Pacman at index 4 takes the stars at indices 3 and 0: walking left it reaches index 0 after 4 seconds. The Pacman at index 5 eats the star at index 6 in 1 second, and the Pacman at index 12 eats the star at index 11 in 1 second. The slowest Pacman needs 4 seconds, and no better split exists because the star at index 0 is 4 cells away from the nearest Pacman."
+  },
+  {
+   "input": "*P*",
+   "output": "3",
+   "explanation": "The only Pacman must visit both neighbours. It goes to one side and back (2 seconds), then to the other side (1 more second): 3 seconds in total."
+  },
+  {
+   "input": "P...*",
+   "output": "4",
+   "explanation": "The star is 4 cells away and no other Pacman can help."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "If you knew the time limit T in advance, you would only have to decide whether T seconds are enough. Is that answer monotonic in T, so that you can binary search on it?",
+  "For a fixed T, process Pacmen from left to right. Each one should first deal with the leftmost star that is still uneaten, if that star lies to its left, since nobody after it can reach that star more cheaply.",
+  "A Pacman whose leftmost required star is at distance d on its left can either go left first and then right, covering up to p + T - 2d, or go right first and then come back, covering p + (T - d) / 2. Take the larger. If there is no uneaten star on its left it simply covers p + T."
+ ],
+ "reference": "import sys\n\ndef main():\n    s = sys.stdin.readline().strip()\n    pac = [i for i, c in enumerate(s) if c == 'P']\n    stars = [i for i, c in enumerate(s) if c == '*']\n    S = len(stars)\n\n    def ok(T):\n        j = 0\n        for p in pac:\n            if j < S and stars[j] < p:\n                d = p - stars[j]\n                if d > T:\n                    return False\n                r = p + max(T - 2 * d, (T - d) // 2)\n            else:\n                r = p + T\n            while j < S and stars[j] <= r:\n                j += 1\n            if j == S:\n                return True\n        return j == S\n\n    lo, hi = 0, 2 * len(s)\n    while lo < hi:\n        mid = (lo + hi) // 2\n        if ok(mid):\n            hi = mid\n        else:\n            lo = mid + 1\n    print(lo)\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import product\n\ns = sys.stdin.readline().strip()\npac = [i for i, c in enumerate(s) if c == 'P']\nstars = [i for i, c in enumerate(s) if c == '*']\nbest = None\nfor assign in product(range(len(pac)), repeat=len(stars)):\n    worst = 0\n    for k, p in enumerate(pac):\n        mine = [stars[i] for i in range(len(stars)) if assign[i] == k]\n        if not mine:\n            continue\n        l = max(0, p - min(mine))\n        r = max(0, max(mine) - p)\n        worst = max(worst, min(2 * l + r, 2 * r + l))\n    if best is None or worst < best:\n        best = worst\nprint(best)\n",
+ "generator": "def gen(rng):\n    tests = ['P*', '*P', 'P.*', '*.P', '*P*', 'P.....*', '*..*PP*....*P', 'PP**', '*.P.*', '*P*P*', 'P' + '*' * 8, '*' * 8 + 'P']\n    def rnd(n, pp, ps):\n        while True:\n            s = ''.join('P' if x < pp else '*' if x < pp + ps else '.' for x in (rng.random() for _ in range(n)))\n            if 'P' in s and '*' in s:\n                return s\n    for _ in range(60):\n        n = rng.randint(2, 14)\n        while True:\n            s = rnd(n, rng.choice([0.1, 0.2, 0.3]), rng.choice([0.2, 0.4, 0.6]))\n            if s.count('P') <= 4 and s.count('*') <= 7:\n                break\n        tests.append(s)\n    N = 100000\n    tests.append(rnd(N, 0.1, 0.3))\n    tests.append(rnd(N, 0.002, 0.5))\n    tests.append('*' * (N // 2) + 'P' + '*' * (N // 2 - 1))\n    tests.append('P' + '.' * (N - 2) + '*')\n    tests.append(rnd(N, 0.3, 0.3))\n    tests.append(('P' + '.' * 40 + '*' * 20 + '.' * 30) * 700)\n    return [t if isinstance(t, str) else t for t in tests]\n",
+ "starters": {
+  "python": "import sys\n\n\ndef min_time(s: str) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    s = sys.stdin.readline().strip()\n    print(min_time(s))\n\n\nmain()\n",
+  "javascript": "function minTime(s) {\n  // Write your solution here\n  return 0\n}\n\nconst s = input.trim().split(/\\s+/)[0]\nconsole.log(String(minTime(s)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minTime(const string& s) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s;\n    cin >> s;\n    cout << minTime(s) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minTime(String s) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String s = br.readLine().trim();\n        System.out.println(minTime(s));\n    }\n}\n"
+ }
+}

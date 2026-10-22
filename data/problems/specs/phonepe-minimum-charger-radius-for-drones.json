@@ -1,0 +1,49 @@
+{
+ "pid": "phonepe-minimum-charger-radius-for-drones",
+ "title": "Minimum Charger Radius for Drones",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "There are `n` drones parked on numbered tiles along a line. The tile number of drone `i` is `drones[i]`. Several drones may share a tile, and the tile numbers are not necessarily sorted.\n\nYou must place exactly `k` chargers on integer tiles (a charger may be placed on any integer tile, whether or not a drone is parked there, and several chargers may share a tile). All chargers have the same integer radius `r`. A charger placed on tile `c` charges every drone whose tile `x` satisfies `|x - c| ≤ r`.\n\nFind the **minimum** integer `r ≥ 0` such that the `k` chargers can be placed so that every drone is charged.",
+ "input_format": "The first line contains two integers `n` and `k`.\nThe second line contains `n` integers, the tile numbers `drones[0..n-1]`.",
+ "output_format": "Print a single integer: the minimum radius `r`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ k ≤ n",
+  "1 ≤ drones[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "4 2\n3 5 9 11",
+   "output": "1",
+   "explanation": "Place chargers on tiles 4 and 10. With radius 1 the first covers tiles 3 to 5 and the second covers tiles 9 to 11, so all four drones are charged. Radius 0 would need four chargers."
+  },
+  {
+   "input": "5 2\n14 2 9 20 1",
+   "output": "4",
+   "explanation": "Sorted the drones are 1 2 9 14 20. With r = 4, put chargers on tiles 5 (covers 1 to 9) and 17 (covers 13 to 21). With r = 3 a charger covers a window of 7 tiles and three windows are needed, so r = 3 is not enough."
+  },
+  {
+   "input": "3 3\n4 8 15",
+   "output": "0",
+   "explanation": "There is one charger per drone, so each can sit on its drone's tile with radius 0."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n + n log M)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "If a radius r works, then any larger radius works too. What technique applies to a monotone yes/no question over a numeric range?",
+  "To test a fixed r after sorting the drones: take the leftmost uncharged drone at tile x. The best you can do is place a charger at x + r, which covers every tile up to x + 2r.",
+  "Count how many chargers the greedy uses. If it is at most k, r is feasible. Binary search r between 0 and the full span of the drones."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    a = sorted(int(x) for x in data[2:2 + n])\n    def ok(r):\n        w = 2 * r\n        cnt = 1\n        end = a[0] + w\n        for x in a:\n            if x > end:\n                cnt += 1\n                if cnt > k:\n                    return False\n                end = x + w\n        return True\n    lo, hi = 0, (a[-1] - a[0] + 1) // 2\n    while lo < hi:\n        mid = (lo + hi) // 2\n        if ok(mid):\n            hi = mid\n        else:\n            lo = mid + 1\n    print(lo)\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import combinations_with_replacement\n\ndata = sys.stdin.read().split()\nn, k = int(data[0]), int(data[1])\na = [int(x) for x in data[2:2 + n]]\npositions = range(min(a), max(a) + 1)\nr = 0\nwhile True:\n    found = False\n    for cs in combinations_with_replacement(positions, k):\n        if all(any(abs(x - c) <= r for c in cs) for x in a):\n            found = True\n            break\n    if found:\n        print(r)\n        break\n    r += 1\n",
+ "generator": "def gen(rng):\n    def fmt(a, k):\n        return f\"{len(a)} {k}\\n\" + ' '.join(map(str, a))\n    tests = [fmt([5], 1), fmt([7, 7, 7], 1), fmt([1, 30], 1), fmt([1, 30], 2), fmt([1, 2, 30], 2), fmt([3, 5, 9, 11], 2),\n             fmt([1, 2, 3, 4, 5], 1), fmt([14, 2, 9, 20, 1], 2), fmt([4, 8, 15], 3)]\n    for _ in range(60):\n        n = rng.randint(1, 8)\n        hi = rng.choice([10, 20, 30])\n        a = [rng.randint(1, hi) for _ in range(n)]\n        k = rng.randint(1, min(4, n))\n        tests.append(fmt(a, k))\n    wide = [1, 10**9] + [rng.randint(1, 10**9) for _ in range(48)]\n    tests.append(fmt(wide, 1))\n    tests.append(fmt([1, 10**9] * 45, 2))\n    N = 100000\n    tests.append(fmt([rng.randint(1, 10**9) for _ in range(N)], 1))\n    tests.append(fmt([rng.randint(1, 10**9) for _ in range(N)], 1000))\n    tests.append(fmt([rng.randint(1, 10**9) for _ in range(N)], N // 2))\n    tests.append(fmt([rng.randint(1, 10**9) for _ in range(N)], N))\n    # clustered drones\n    centers = [rng.randint(1, 10**9) for _ in range(50)]\n    a = []\n    for _ in range(N):\n        c = rng.choice(centers)\n        a.append(min(10**9, max(1, c + rng.randint(-100000, 100000))))\n    tests.append(fmt(a, 50))\n    tests.append(fmt(a, 49))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_radius(drones: List[int], k: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    drones = [int(x) for x in data[2:2 + n]]\n    print(min_radius(drones, k))\n\n\nmain()\n",
+  "javascript": "function minRadius(drones, k) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst drones = t.slice(2, 2 + n)\nconsole.log(minRadius(drones, k))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minRadius(vector<long long>& drones, int k) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<long long> drones(n);\n    for (int i = 0; i < n; i++) cin >> drones[i];\n    cout << minRadius(drones, k) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minRadius(long[] drones, int k) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        long[] drones = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            drones[i] = (long) in.nval;\n        }\n        System.out.println(minRadius(drones, k));\n    }\n}\n"
+ }
+}

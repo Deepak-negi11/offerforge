@@ -1,0 +1,18 @@
+{
+ "qid": "4aff44a8ba",
+ "question": "In the system design round (HLD) for a Software Engineer 2 role at PayPal in Bangalore, the candidate was asked to **design a key-value pair database based on file-system storage**, then to explain **how to optimize get and put operations**, and to discuss the **performance impact and the caching used**.",
+ "lookingFor": [
+  "Do you clarify requirements: value size, durability, concurrency, scale, range queries?",
+  "Do you know why append-only logs make writes fast on disk?",
+  "Can you describe an index, compaction and recovery?",
+  "Do you reason about read/write amplification and caching layers?",
+  "Can you extend a single node design to partitioning and replication?"
+ ],
+ "answer": "**Requirements.** `put(key, value)`, `get(key)`, `delete(key)`; durable after a crash; many concurrent clients; assume keys fit in memory or not (this changes the design); no range queries unless asked.\n\n**Design A: log-structured hash index (Bitcask style).**\n- Writes go to an **append-only data file** (sequential I/O is fast): record = `crc | timestamp | keySize | valueSize | key | value`. Deletes append a **tombstone**.\n- An in-memory hash map holds `key -> (file id, offset, size)`. `put` appends, then updates the map. `get` does one map lookup and one disk read.\n- Files are segmented: when the active segment reaches a size limit it becomes immutable and a new one starts.\n- **Compaction** merges old segments, keeping only the latest value per key, and drops tombstones. Optional hint files let startup rebuild the index without reading all values. On restart, replay segments (or hints) to rebuild the map; checksums detect torn writes.\n- Limit: all keys must fit in RAM.\n\n**Design B: LSM tree** when keys exceed memory or you need sorted order: write to a **WAL** plus an in-memory **memtable**; flush to sorted immutable **SSTable** files; reads check memtable, then SSTables newest to oldest, using **Bloom filters** and sparse indexes to skip files; background compaction merges levels.\n\n**Optimizations and performance.**\n- Writes: sequential appends, batch or group commit, fsync policy trade-off (every write for durability, periodic for speed).\n- Reads: in-memory index, a **block or value cache (LRU)** for hot keys, OS page cache, Bloom filters to avoid disk for missing keys.\n- Cost: write amplification from compaction, space amplification from stale versions, read amplification across SSTables.\n- Concurrency: one writer appending, many readers (immutable segments make reads lock-free).\n\n**Scaling out.** Partition by hash of key (consistent hashing), replicate each partition for availability, and choose consistency per operation.",
+ "followUps": [
+  "How do you guarantee durability when the machine crashes mid-write?",
+  "What happens during compaction while reads and writes continue?",
+  "How would you support range scans?",
+  "Why is a B-tree not always better than an LSM tree?"
+ ]
+}

@@ -1,0 +1,43 @@
+{
+ "pid": "friends-of-appropriate-ages",
+ "title": "Centaur Friend Requests",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A group of `n` centaurs (mythical half-human, half-horse creatures) all sign up for a social network at the same moment. Centaurs live for a very long time, so their ages, in whole years, can be large. The `i`-th centaur has age `ages[i]`.\n\nThey immediately start sending friend requests to each other, following ancient rules. A centaur can send a request to any **other** centaur (never to itself; two different centaurs may have the same age). A request from a sender of age `x` to a recipient of age `y` is valid if **at least one** of these rules holds:\n\n- **Rule 1:** `x < 100` and `y < 100`. Centaurs younger than 100 can befriend other centaurs younger than 100.\n- **Rule 2:** `x > 100` and `y > 100`. Centaurs older than 100 can befriend centaurs older than 100, but not those aged 100 or younger.\n- **Rule 3:** `x > 100` and `y ≥ x/2 + 7`, using exact arithmetic (for `x = 101` the bound is `57.5`, so `y ≥ 58`). For example, a 200-year-old centaur may send a request to anyone aged 107 or more.\n\nA centaur aged exactly 100 cannot send any request, because none of the rules applies to it as a sender. Requests are **directional**: a valid request from `A` to `B` says nothing about a request from `B` to `A`, and each ordered pair of centaurs counts separately.\n\nPrint the total number of valid friend requests, counting every ordered pair of different centaurs `(sender, recipient)` for which the request is valid. The original problem was explained loosely and candidates were expected to clarify it; the rules above fix the unclear points (strict versus non-strict bounds and the age exactly 100).\n\n**Follow-up:** If ages are bounded by a small number `A`, solve it in `O(n + A)` using counting and prefix sums.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` space-separated integers `ages[i]`.",
+ "output_format": "Print a single integer: the number of valid friend requests.",
+ "constraints": [
+  "1 ≤ n ≤ 3 * 10^4",
+  "1 ≤ ages[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "5\n50 150 120 100 30",
+   "output": "6",
+   "explanation": "The 50-year-old can ask the 30-year-old (Rule 1): 1. The 30-year-old can ask the 50-year-old: 1. The 100-year-old sends nothing. The 120-year-old can ask 150 (Rule 2) and 100 (Rule 3, since 100 ≥ 67): 2. The 150-year-old can ask 120 (Rule 2) and 100 (Rule 3, since 100 ≥ 82): 2. Total 1 + 1 + 0 + 2 + 2 = 6."
+  },
+  {
+   "input": "4\n99 101 60 150",
+   "output": "7",
+   "explanation": "The 99-year-old can only ask the 60-year-old (Rule 1): 1. The 60-year-old can ask the 99-year-old: 1. The 101-year-old can ask 99 and 60 (Rule 3, since both are at least 57.5) and 150 (Rule 2): 3. The 150-year-old can ask 101 (Rule 2) and 99 (Rule 3, 99 ≥ 82) but not 60: 2. Total 1 + 1 + 3 + 2 = 7."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Checking every ordered pair works in O(n^2), but the valid recipients for a sender depend only on the sender's age, so you can count them instead of listing them.",
+  "Both Rule 2 and Rule 3 are of the form `y ≥ something`, so for a sender over 100 the valid recipients are all ages at least `min(101, ceil((x + 14) / 2))`. For a sender under 100 they are all ages below 100.",
+  "Sort the ages and use binary search to count how many ages fall in the allowed range. Subtract 1 for the sender itself, which always lies inside the range."
+ ],
+ "reference": "import sys\nfrom bisect import bisect_left\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = sorted(int(x) for x in data[1:1 + n])\nbelow = bisect_left(a, 100)\ntotal = 0\nfor x in a:\n    if x < 100:\n        total += below - 1\n    elif x > 100:\n        th = min(101, (x + 14 + 1) // 2)\n        total += n - bisect_left(a, th) - 1\nprint(total)\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + n]]\ntotal = 0\nfor i in range(n):\n    for j in range(n):\n        if i == j:\n            continue\n        x, y = a[i], a[j]\n        if (x < 100 and y < 100) or (x > 100 and y > 100) or (x > 100 and 2 * y >= x + 14):\n            total += 1\nprint(total)\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n    tests = [fmt([1]), fmt([100]), fmt([100, 100, 100]), fmt([99, 100, 101]), fmt([30, 30]), fmt([101, 101]),\n             fmt([57, 101]), fmt([58, 101]), fmt([186, 100, 99, 101]), fmt([1000000000, 1]),\n             fmt([1000000000, 999999999, 101, 100]), fmt([102, 57, 58, 59]), fmt([99, 99, 99, 200, 200])]\n    for _ in range(20):\n        n = rng.randint(2, 14)\n        ages = []\n        for _ in range(n):\n            ages.append(rng.choice([rng.randint(1, 120), rng.randint(90, 110), rng.randint(1, 300), rng.randint(50, 110)]))\n        tests.append(fmt(ages))\n    n = 30000\n    tests.append(fmt([rng.randint(1, 10 ** 9) for _ in range(n)]))\n    tests.append(fmt([rng.randint(1, 200) for _ in range(n)]))\n    tests.append(fmt([rng.randint(1, 99) for _ in range(n)]))\n    tests.append(fmt([rng.choice([100, 101, 99, 58, 57, 150, 186, 187, 10 ** 9]) for _ in range(n)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_requests(ages: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    ages = [int(x) for x in data[1:1 + n]]\n    print(count_requests(ages))\n\n\nmain()\n",
+  "javascript": "function countRequests(ages) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst ages = t.slice(1, 1 + n)\nconsole.log(String(countRequests(ages)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countRequests(vector<long long>& ages) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> ages(n);\n    for (int i = 0; i < n; i++) cin >> ages[i];\n    cout << countRequests(ages) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countRequests(long[] ages) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] ages = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            ages[i] = (long) in.nval;\n        }\n        System.out.println(countRequests(ages));\n    }\n}\n"
+ }
+}

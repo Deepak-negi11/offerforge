@@ -1,0 +1,18 @@
+{
+ "qid": "b4aa422152",
+ "question": "Technical interview round 2 for an SDE Intern (6-month) role at Tower Research, a one-hour low-level design round that rewards strong OOP: **Design a cache system** (any language; the candidate chose C++ and was expected to list requirements first, such as the caching method and the data structures). A follow-up made it harder: **Design a cache system where the user can choose the caching (eviction) method**, implemented through inheritance.",
+ "lookingFor": [
+  "Can you clarify requirements before coding (capacity, API, thread safety, eviction)?",
+  "Do you pick data structures giving O(1) operations (hash map plus linked list)?",
+  "Do you apply OOP properly: abstraction, inheritance or the strategy pattern?",
+  "Is the design extensible and clean rather than a single giant class?"
+ ],
+ "answer": "**Requirements.** `get(key)`, `put(key, value)`, fixed capacity, evict when full, O(1) average operations. Clarify: generic key and value types, thread safety, TTL, statistics. State what you will skip.\n\n**Core design.** Separate storage from the eviction decision.\n\n- `Cache<K, V>` owns a `unordered_map<K, V>` (the data) and a pointer to an `EvictionPolicy<K>`.\n- `EvictionPolicy<K>` is an abstract class (or interface) with `onInsert(key)`, `onAccess(key)`, `onErase(key)` and `K evict()`.\n- Concrete policies:\n- **LRU:** a doubly linked list ordered by recency plus a `map<K, list::iterator>`; access moves the node to the front, evict removes the back. All O(1).\n- **LFU:** a map key to frequency plus a map frequency to list of keys and a tracked minimum frequency, giving O(1). Ties break by LRU within a frequency.\n- **FIFO:** a queue (`deque`) of insertion order plus a set; evict from the front.\n\n```cpp\ntemplate <class K> struct EvictionPolicy {\n    virtual void onInsert(const K&) = 0;\n    virtual void onAccess(const K&) = 0;\n    virtual void onErase(const K&) = 0;\n    virtual K evict() = 0;\n    virtual ~EvictionPolicy() = default;\n};\n```\n\n`put` on a full cache calls `policy->evict()`, erases that key from the map and then inserts the new entry. `get` calls `onAccess` on a hit.\n\n**Inheritance vs strategy.** The follow-up can be done by inheriting a `Cache` per policy, but **composition with a strategy** is better: the policy can be injected or swapped, there is no class explosion, and each class has one job. A small factory can build a policy from a config value.\n\n**Extras to mention.** Thread safety (a mutex, or sharded locks for concurrency), TTL expiry, write-through versus write-back for a backing store, metrics for hit ratio, and unit tests per policy.\n\n**Pitfalls.** Updating the map but not the policy bookkeeping, forgetting to update an existing key on `put`, and an O(n) eviction scan.",
+ "followUps": [
+  "How do you make this thread-safe without a single global lock?",
+  "How would you add TTL-based expiration?",
+  "How would you implement LFU in O(1)?",
+  "How would you design a distributed cache on top of this?",
+  "What is the difference between write-through and write-back?"
+ ]
+}

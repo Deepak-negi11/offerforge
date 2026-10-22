@@ -1,0 +1,17 @@
+{
+ "qid": "86806859fa",
+ "question": "Cognizant GenC technical interview, SQL. The task: **find and fetch the names and the count of professors in each department, only for departments with fewer than 5 professors.** A related Cognizant report mentions a query for \"department name and department count\".",
+ "lookingFor": [
+  "Using GROUP BY correctly with aggregate functions.",
+  "Knowing HAVING filters groups while WHERE filters rows.",
+  "Join logic when names are in a separate table.",
+  "Thinking about departments with zero professors."
+ ],
+ "answer": "Assume two tables (state your assumption in the interview):\n- `department(dept_id PK, dept_name)`\n- `professor(prof_id PK, prof_name, dept_id FK)`\n\n**Core query (departments with 1 to 4 professors).**\n\n```sql\nSELECT d.dept_name,\n       COUNT(p.prof_id) AS professor_count\nFROM department d\nJOIN professor p ON p.dept_id = d.dept_id\nGROUP BY d.dept_id, d.dept_name\nHAVING COUNT(p.prof_id) < 5;\n```\n\n**Why.** The join pairs each professor with their department. `GROUP BY` collapses rows to one per department, and `COUNT` computes the group size. `WHERE` runs before grouping, so it cannot reference an aggregate; `HAVING` runs after grouping, so `HAVING COUNT(*) < 5` filters the groups. Grouping by `dept_id` as well as the name avoids merging two departments that share a name.\n\n**If the department name lives in the professor table.**\n\n```sql\nSELECT dept_name, COUNT(*) AS professor_count\nFROM professor\nGROUP BY dept_name\nHAVING COUNT(*) < 5;\n```\n\n**Including departments with zero professors.** An inner join drops them. Use a left join and count a right-table column:\n\n```sql\nSELECT d.dept_name, COUNT(p.prof_id) AS professor_count\nFROM department d\nLEFT JOIN professor p ON p.dept_id = d.dept_id\nGROUP BY d.dept_id, d.dept_name\nHAVING COUNT(p.prof_id) < 5;\n```\n\n**If the interviewer wants the professor names as well**, a group can only return one row per department, so either aggregate names (`GROUP_CONCAT` in MySQL, `STRING_AGG` in PostgreSQL/SQL Server) or use a window function:\n\n```sql\nSELECT dept_name, prof_name, cnt FROM (\n  SELECT d.dept_name, p.prof_name,\n         COUNT(*) OVER (PARTITION BY d.dept_id) AS cnt\n  FROM department d JOIN professor p ON p.dept_id = d.dept_id\n) t WHERE cnt < 5;\n```\n\nMention the clarification you made (counts only, or names too), since the report's wording is ambiguous.",
+ "followUps": [
+  "What is the difference between WHERE and HAVING?",
+  "How do you list departments with the highest professor count?",
+  "What changes if some professors have NULL as their department?",
+  "How would you index these tables for this query?"
+ ]
+}

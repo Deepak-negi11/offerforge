@@ -1,0 +1,19 @@
+{
+ "qid": "20225c396f",
+ "question": "In the LLD round of an SDE-1 interview at Swiggy, the candidate was asked to **design and implement a working Splitwise (expense sharing) application, with a UML diagram, in about 45 minutes**.\n\nThe candidate spent about 10 minutes on functional requirements and key objects, started with a UML diagram, and then coded partially in an IDE. The interviewer expected a **fully working application**, and the candidate was rejected. Another candidate reported the same question at Swiggy where fully functional code was not required and only objects, classes, actors and relations were discussed.",
+ "lookingFor": [
+  "Can you quickly scope requirements and pick a minimal working core?",
+  "Do you model users, groups, expenses and splits cleanly?",
+  "Can you implement different split types (equal, exact, percent) with a clean extension point?",
+  "Do you track balances correctly and simplify debts?",
+  "Can you manage time: working code first, polish later?"
+ ],
+ "answer": "**Time plan (45 min).** 5 min requirements, 5 min classes, 25 min working code, 5 min demo and edge cases. Get a running vertical slice early; a diagram you drew but code that does not run scores worse.\n\n**Scope (state it aloud).** Users, expenses paid by one user and split among others, split types EQUAL, EXACT, PERCENT, show balances for a user and for everyone. Groups and simplification are extensions.\n\n**Classes.**\n- `User(id, name)`.\n- `Expense(id, paidBy, amount, splits: List<Split>)`.\n- `Split` (abstract) with `EqualSplit`, `ExactSplit`, `PercentSplit`, each holding `user` and `amount`.\n- `ExpenseService.addExpense(paidBy, amount, users, type, values)` creates splits through a factory or strategy and validates them.\n- `BalanceSheet`: `Map<User, Map<User, Double>>` where `balance[a][b]` is what `a` owes `b`.\n\n**Validation.** Exact amounts must sum to the total; percentages must sum to 100; equal split of an amount that does not divide evenly needs rounding. Use integer paise/cents to avoid floating-point drift, and assign the remainder to the payer or the first participant, stated explicitly.\n\n**Algorithm for an expense.** For each split where `user != paidBy`: `balance[user][paidBy] += share` and `balance[paidBy][user] -= share`. Showing balances: for each pair with a positive value print \"A owes B x\". Show nothing when zero.\n\n**Simplify debts (bonus).** Compute net balance per user (positive = should receive, negative = should pay). Put creditors in a max-heap and debtors in another; repeatedly match the largest of each, settle min of the two, and push back the remainder. This minimises the number of transactions in the greedy sense (finding the true minimum is NP-hard in general).\n\n**Design choices to mention.** Strategy for split types makes adding a new type a new class, not an edit to the service; in-memory storage behind a repository interface; thread safety through a lock on the balance sheet if concurrent.\n\n**Edge cases.** Payer is not in the split, user not found, negative or zero amounts, settle-up (payment between two users reduces the debt).",
+ "followUps": [
+  "How would you extend this to groups with a combined balance?",
+  "How would you minimise the number of transactions when settling?",
+  "How do you avoid floating-point errors in splits?",
+  "How would you make it safe for concurrent expense additions?",
+  "How would you persist this and keep an audit trail?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "41c4a240cd",
+ "question": "Meesho on-campus process for a 6-month intern converting to SDE-1: an LLD round in the style of a LeetCode design problem. You are given the signatures for a ride-sharing system, `addRide`, `findRide`, `bookRide` and `cancelRide`, and must fill them in within about an hour and pass a test case. The last 30 minutes were questions on OOP, SOLID principles, mutexes and race conditions.",
+ "lookingFor": [
+  "Reading the given signatures and test to infer the exact semantics.",
+  "Choosing data structures for efficient search and booking.",
+  "Understanding of OOP and SOLID with concrete examples.",
+  "Understanding of mutexes and race conditions in the very code you wrote.",
+  "Getting the test passing first, then discussing improvements."
+ ],
+ "answer": "**Part 1: the ride-sharing methods.** The statement is not fully known, so confirm semantics from the test, but a common shape is:\n- `addRide(driver, source, destination, departure, seats, price)` stores a `Ride` with an id and available seats.\n- `findRide(source, destination, time/seats)` returns matching rides (filter on route, time window and seats left; sort by price or time if asked).\n- `bookRide(user, rideId, seats)` checks the ride exists, the seats are available, then reduces the seat count and records a `Booking`.\n- `cancelRide(bookingId)` restores the seats and marks the booking cancelled.\n\nStore rides in a `Map<rideId, Ride>` plus an index `Map<(source,destination), List<Ride>>` so `findRide` does not scan everything. Validate inputs and return clear failures (ride not found, not enough seats, already cancelled). Pass the given test first, then tidy.\n\n**Part 2: OOP and SOLID, with examples.**\n- Encapsulation: ride seat count is changed only through `Ride.reserve(n)`, which validates.\n- Single responsibility: `Ride` holds state, `BookingService` the workflow, `SearchService` the queries.\n- Open/closed: sort and filter rules as strategy objects, so a new rule does not modify old code.\n- Liskov: subtypes honour the parent contract.\n- Interface segregation: small interfaces.\n- Dependency inversion: depend on a `RideRepository` interface, not a concrete map.\n\n**Part 3: mutexes and race conditions.** A race condition is when the result depends on the unpredictable interleaving of threads. In `bookRide`, two threads can both read `seats = 1`, both pass the check, and both decrement, giving -1. A **mutex** allows only one thread in the critical section at a time. Fix: lock around the check-and-decrement (per ride lock, `synchronized` or `ReentrantLock`), keeping the critical section small. Alternatives: an atomic compare-and-set on the seat count. Mention deadlock (acquiring several locks in different orders) and avoid it with a fixed lock order. Note that a mutex is owned and released by the same thread, whereas a semaphore is a counter that can allow several holders.",
+ "followUps": [
+  "Show a race condition in your bookRide and fix it.",
+  "What is the difference between a mutex and a semaphore?",
+  "Give a real example where you applied the open/closed principle.",
+  "How would you search rides efficiently with millions of entries?"
+ ]
+}

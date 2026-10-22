@@ -1,0 +1,19 @@
+{
+ "qid": "28d09a2fa8",
+ "question": "In the second interview round of a Sprinklr product intern process, the candidate was given this data structure design question. A database holds every batter and the runs they have scored. Define a data structure that minimises the time complexity of these operations:\n\n1. add a batter,\n2. remove a batter,\n3. `getRunsScored(String batter)`,\n4. `kthHighestRunScorer(int k)`.\n\nThe candidate took about ten minutes to devise a structure. Clarify with the interviewer whether runs can change over time and how ties are broken.",
+ "lookingFor": [
+  "Can you map each operation to a data structure and state its complexity?",
+  "Do you notice that a plain heap does not support arbitrary removal or kth queries well?",
+  "Do you know order-statistic trees (balanced BST with subtree sizes) or equivalents?",
+  "Do you handle ties, duplicates and updates with a clean key design?",
+  "Can you discuss alternatives and trade-offs, such as Fenwick tree or skip list?"
+ ],
+ "answer": "**Two lookups, so two structures kept in sync.**\n\n1. **Hash map** `name -> runs`. Gives O(1) average for `getRunsScored`, and lets `remove` find the batter's current score.\n2. **Order-statistic tree** keyed by `(runs, name)`: a balanced BST (red-black or AVL) where every node stores the size of its subtree. Using `(runs, name)` as the key makes duplicate scores unique and gives a deterministic tie-break.\n\n**Operations.**\n\n- `add(name, runs)`: put in the map, insert `(runs, name)` into the tree. O(log n).\n- `remove(name)`: look up runs in the map, delete `(runs, name)` from the tree, delete from the map. O(log n).\n- `getRunsScored(name)`: map lookup. O(1).\n- `kthHighestRunScorer(k)`: walk down the tree using subtree sizes. At a node, let `r` be the size of its right subtree (the higher scores). If `k <= r` go right; if `k == r + 1` this node is the answer; otherwise go left with `k - r - 1`. O(log n).\n- If a batter's runs change, treat it as remove then add: O(log n).\n\n**Why not a heap?** A max-heap gives the top in O(1) but the kth needs k pops (O(k log n)), and removing an arbitrary element needs an index map and is awkward. A sorted array gives O(1) kth but O(n) insert and remove.\n\n**Alternatives.**\n\n- A **Fenwick tree** (or segment tree) over run values if runs are bounded (say 0 to 10,000 per batter or a few hundred thousand career): count of batters per run value, kth via binary descent. O(log R).\n- A **skip list with spans**, which is what Redis sorted sets use (`ZRANK`, `ZRANGE`).\n- Two heaps (size-k min-heap) only works if `k` is fixed.\n\n**Edge cases.** `k` larger than the number of batters, a batter that does not exist, and batters sharing the same score. In Java `TreeMap` cannot return the rank in O(log n), so you write the tree yourself or use a library with ranking; in C++ `__gnu_pbds` tree provides `find_by_order`.",
+ "followUps": [
+  "How would you update a batter's runs after each match?",
+  "What changes if k is always the same, say the top 10?",
+  "How would you make this structure thread-safe?",
+  "How would you scale it if the data no longer fits in memory?",
+  "How would you also support rank(name), the position of a given batter?"
+ ]
+}

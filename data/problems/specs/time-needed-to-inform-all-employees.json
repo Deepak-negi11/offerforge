@@ -1,0 +1,50 @@
+{
+ "pid": "time-needed-to-inform-all-employees",
+ "title": "Time Needed to Inform All Employees",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A company has `n` employees numbered `0` to `n - 1`. Exactly one of them, `headID`, is the head and has no manager; every other employee `i` has exactly one direct manager `manager[i]` (for the head, `manager[headID] = -1`). The reporting structure forms a tree rooted at the head.\n\nThe head has some urgent news. It spreads like this: an employee who knows the news spends `informTime[i]` minutes informing **all** of their direct subordinates at once, and those subordinates then know the news at the same moment (after those `informTime[i]` minutes). Subordinates then start informing their own subordinates, and so on. An employee with no subordinates has `informTime[i] = 0`.\n\nThe head knows the news at minute `0`. Print the number of minutes until every employee knows it.",
+ "input_format": "The first line contains two integers `n` and `headID`.\nThe second line contains `n` integers `manager[0], ..., manager[n-1]`.\nThe third line contains `n` integers `informTime[0], ..., informTime[n-1]`.",
+ "output_format": "Print one integer: the number of minutes needed for the news to reach everyone.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ headID < n, manager[headID] = -1, and the structure is a valid tree",
+  "0 ≤ informTime[i] ≤ 10^4, and informTime[i] = 0 if employee i has no subordinates",
+  "No employee is more than 5000 levels below the head (so recursive solutions fit in the call stack)"
+ ],
+ "examples": [
+  {
+   "input": "7 0\n-1 0 0 1 1 2 2\n3 2 5 0 0 0 0",
+   "output": "8",
+   "explanation": "Employee 0 informs employees 1 and 2 at minute 3. Employee 1 informs 3 and 4 at minute 3 + 2 = 5. Employee 2 informs 5 and 6 at minute 3 + 5 = 8. The last person learns it at minute 8."
+  },
+  {
+   "input": "4 3\n3 0 1 -1\n4 2 0 7",
+   "output": "13",
+   "explanation": "It is a chain 3 -> 0 -> 1 -> 2. Employee 0 learns at minute 7, employee 1 at 7 + 4 = 11, employee 2 at 11 + 2 = 13."
+  },
+  {
+   "input": "1 0\n-1\n0",
+   "output": "0",
+   "explanation": "The head is the only employee, so nobody needs to be informed."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "The time at which an employee learns the news is the sum of informTime over all of their managers up the chain to the head.",
+  "So the answer is the largest such sum over all employees. Build a children list from manager[] and traverse from the head with DFS or BFS, carrying the accumulated time.",
+  "Alternatively, walk up from each employee and memoize the total time per employee so no chain is walked twice."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, head = int(data[0]), int(data[1])\n    manager = [int(x) for x in data[2:2 + n]]\n    inform = [int(x) for x in data[2 + n:2 + 2 * n]]\n    children = [[] for _ in range(n)]\n    for i in range(n):\n        if manager[i] >= 0:\n            children[manager[i]].append(i)\n    best = 0\n    stack = [(head, 0)]\n    while stack:\n        u, t = stack.pop()\n        if t > best:\n            best = t\n        for v in children[u]:\n            stack.append((v, t + inform[u]))\n    print(best)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, head = int(data[0]), int(data[1])\nmanager = [int(x) for x in data[2:2 + n]]\ninform = [int(x) for x in data[2 + n:2 + 2 * n]]\nbest = 0\nfor i in range(n):\n    total = 0\n    u = i\n    while manager[u] != -1:\n        u = manager[u]\n        total += inform[u]\n    best = max(best, total)\nprint(best)\n",
+ "generator": "def gen(rng):\n    def build(n, D, chain=0, maxT=10**4, zero_prob=0.0):\n        # structure on labels 0..n-1 (0 is the head), depth (levels) <= D\n        par = [-1] * n\n        depth = [1] * n\n        elig = [0] if D > 1 else []\n        for i in range(1, n):\n            if i < chain:\n                p = i - 1\n            else:\n                p = elig[rng.randrange(len(elig))] if elig else i - 1\n            par[i] = p\n            depth[i] = depth[p] + 1\n            if depth[i] < D:\n                elig.append(i)\n        has = [False] * n\n        for i in range(1, n):\n            has[par[i]] = True\n        tm = [(rng.randint(0, maxT) if rng.random() >= zero_prob else 0) if has[i] else 0 for i in range(n)]\n        perm = list(range(n))\n        rng.shuffle(perm)\n        manager = [-1] * n\n        inform = [0] * n\n        for i in range(n):\n            manager[perm[i]] = perm[par[i]] if par[i] >= 0 else -1\n            inform[perm[i]] = tm[i]\n        return f'{n} {perm[0]}\\n' + ' '.join(map(str, manager)) + '\\n' + ' '.join(map(str, inform))\n    tests = [build(1, 5), build(2, 5), build(3, 5, chain=3)]\n    for n in (4, 5, 6, 8, 10, 12, 15, 20, 30):\n        tests.append(build(n, rng.choice([2, 3, 100]), maxT=rng.choice([5, 100, 10**4])))\n    tests.append(build(12, 100, chain=12, maxT=9))\n    tests.append(build(10, 100, zero_prob=0.5, maxT=3))\n    tests.append(build(100000, 5000))\n    tests.append(build(100000, 5000, chain=4999, maxT=10**4))\n    tests.append(build(100000, 2))\n    tests.append(build(5000, 5000, chain=5000, maxT=10**4))\n    tests.append(build(100000, 5000, chain=2500))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef num_of_minutes(n: int, head_id: int, manager: List[int], inform_time: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    head_id = int(data[1])\n    manager = [int(x) for x in data[2:2 + n]]\n    inform_time = [int(x) for x in data[2 + n:2 + 2 * n]]\n    print(num_of_minutes(n, head_id, manager, inform_time))\n\n\nmain()\n",
+  "javascript": "function numOfMinutes(n, headId, manager, informTime) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], headId = t[1]\nconst manager = t.slice(2, 2 + n)\nconst informTime = t.slice(2 + n, 2 + 2 * n)\nconsole.log(numOfMinutes(n, headId, manager, informTime))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long numOfMinutes(int n, int headId, vector<int>& manager, vector<int>& informTime) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, headId;\n    cin >> n >> headId;\n    vector<int> manager(n), informTime(n);\n    for (int i = 0; i < n; i++) cin >> manager[i];\n    for (int i = 0; i < n; i++) cin >> informTime[i];\n    cout << numOfMinutes(n, headId, manager, informTime) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long numOfMinutes(int n, int headId, int[] manager, int[] informTime) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int headId = (int) in.nval;\n        int[] manager = new int[n], informTime = new int[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); manager[i] = (int) in.nval; }\n        for (int i = 0; i < n; i++) { in.nextToken(); informTime[i] = (int) in.nval; }\n        System.out.println(numOfMinutes(n, headId, manager, informTime));\n    }\n}\n"
+ }
+}

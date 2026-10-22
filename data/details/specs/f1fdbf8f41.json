@@ -1,0 +1,17 @@
+{
+ "qid": "f1fdbf8f41",
+ "question": "In a hiring manager round for a Deep Learning Engineer role at NVIDIA, the discussion covered deep learning basics and advanced topics: recent developments in the transformer architecture, parallel training methods and optimisation techniques. The candidate was asked to **implement multi-headed self-attention.**",
+ "lookingFor": [
+  "Do you understand scaled dot-product attention and why each step exists?",
+  "Can you write it correctly with the right tensor shapes, reshapes and masking?",
+  "Can you explain the computation and memory cost and how real systems optimise it?",
+  "Do you know common variants and parallelism strategies?"
+ ],
+ "answer": "**Idea.** Project the input into queries, keys and values. For each head compute `softmax(QK^T / sqrt(d_k)) V`, concatenate heads and apply an output projection. The scaling by `sqrt(d_k)` keeps dot products from growing with dimension and saturating the softmax.\n\n**Shapes.** Input `x`: `[B, T, D]`. With `h` heads, `d_k = D / h`. After projection and reshape, Q, K, V are `[B, h, T, d_k]`. Scores are `[B, h, T, T]`. Output after attention `[B, h, T, d_k]`, merged back to `[B, T, D]`.\n\n```python\nimport math, torch, torch.nn as nn\n\nclass MHSA(nn.Module):\n    def __init__(self, D, h):\n        super().__init__()\n        assert D % h == 0\n        self.h, self.dk = h, D // h\n        self.qkv = nn.Linear(D, 3 * D)       # fused Q, K, V projection\n        self.out = nn.Linear(D, D)\n\n    def forward(self, x, mask=None):         # x: [B,T,D]; mask: bool, True = keep\n        B, T, D = x.shape\n        q, k, v = self.qkv(x).chunk(3, dim=-1)\n        # [B,T,D] -> [B,h,T,dk]\n        q, k, v = (t.view(B, T, self.h, self.dk).transpose(1, 2) for t in (q, k, v))\n        scores = q @ k.transpose(-2, -1) / math.sqrt(self.dk)   # [B,h,T,T]\n        if mask is not None:\n            scores = scores.masked_fill(~mask, float(\"-inf\"))\n        attn = scores.softmax(dim=-1)\n        y = (attn @ v).transpose(1, 2).reshape(B, T, D)         # [B,T,D]\n        return self.out(y)\n```\n\nFor a decoder, pass a lower-triangular mask `torch.tril(torch.ones(T, T, dtype=torch.bool))` so a token cannot see the future.\n\n**Complexity.** Time and memory are O(T^2 * D) and O(T^2) per head for the score matrix, so long sequences are costly. FlashAttention computes the same result in tiles without materialising the full matrix. In PyTorch, `F.scaled_dot_product_attention` uses fused kernels.\n\n**Why multiple heads?** Each head can attend to different relationships in a lower-dimensional subspace, at a similar total cost to one big head.\n\n**Variants worth naming:** multi-query and grouped-query attention (shared K and V to cut the KV cache), rotary position embeddings, and sparse or sliding-window attention.",
+ "followUps": [
+  "Why divide by sqrt(d_k)?",
+  "How does the KV cache work during generation, and what does grouped-query attention change?",
+  "How would you parallelise training of a large transformer (data, tensor, pipeline parallelism)?",
+  "How does FlashAttention reduce memory use?"
+ ]
+}

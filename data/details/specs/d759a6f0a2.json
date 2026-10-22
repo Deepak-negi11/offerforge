@@ -1,0 +1,17 @@
+{
+ "qid": "d759a6f0a2",
+ "question": "Cisco software engineering internship (off-campus), technical round. Among OS and networks questions (TCP vs UDP, ARP): **what happens, from the OS level down to the network level, when you type www.google.com into Chrome and press Enter?**",
+ "lookingFor": [
+  "End-to-end understanding across application, OS and network layers.",
+  "Ordered, correct sequence of steps.",
+  "Knowing which protocols operate at each layer.",
+  "Depth on request, with a clear overview first."
+ ],
+ "answer": "Give a clear overview first, then go deeper where asked.\n\n1. **Browser input.** Chrome parses the text into a URL, applies HSTS and its caches, and checks whether it is a search or a URL. It may check its own cache for a ready response.\n2. **DNS resolution.** Look up the IP in the browser cache, then the OS cache and the hosts file, then ask the configured recursive resolver (from DHCP) over UDP port 53. The resolver walks root, TLD (`.com`) and authoritative servers if it has no cached answer. Result: an IP address.\n3. **Routing decision.** The OS network stack sees that the IP is outside the local subnet, so the next hop is the **default gateway**.\n4. **ARP.** If the gateway's MAC is not cached, the host broadcasts an ARP request and gets the gateway's MAC. The frame is addressed to that MAC.\n5. **TCP handshake.** The OS opens a socket from an ephemeral source port to destination port 443 (HTTPS): SYN, SYN-ACK, ACK. Packets pass through NAT at the home router, then across the Internet, routed hop by hop (IP, BGP between networks).\n6. **TLS handshake.** ClientHello, server certificate, verification against trusted CAs, key exchange, then encrypted traffic. Modern browsers may use HTTP/2 or HTTP/3 (QUIC over UDP).\n7. **HTTP request.** `GET /` with headers (Host, cookies, User-Agent) is sent. Load balancers and servers at Google process it and return a response with status 200 and HTML.\n8. **Rendering.** Chrome parses the HTML into the DOM and CSS into the CSSOM, fetches further resources (CSS, JS, images) possibly through the same connection, runs JavaScript, and paints the page.\n9. **OS involvement.** System calls (`socket`, `connect`, `send`, `recv`) move data between the browser and the kernel, where the TCP/IP stack and the NIC driver build frames and handle interrupts.\n\nMention caching, keep-alive connections and redirects (Google often redirects to the right region or www variant).",
+ "followUps": [
+  "What is the difference between a recursive and an iterative DNS query?",
+  "Why does TCP need a three-way handshake?",
+  "What changes if the site uses HTTP/3?",
+  "What happens at the router when NAT is involved?"
+ ]
+}

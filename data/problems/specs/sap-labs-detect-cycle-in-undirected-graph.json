@@ -1,0 +1,50 @@
+{
+ "pid": "sap-labs-detect-cycle-in-undirected-graph",
+ "title": "Detect Cycle in Undirected Graph",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an undirected graph with `n` vertices numbered `0` to `n - 1` and `m` edges. The graph may be disconnected. It has no self-loops and no repeated edges.\n\nA **cycle** is a path of at least three distinct vertices that starts and ends at the same vertex without reusing an edge. Determine whether the graph contains at least one cycle in any of its connected components.\n\nPrint `YES` if a cycle exists and `NO` otherwise.\n\n**Follow-up:** In the interview you were asked to solve it twice: first with DFS while tracking the parent of each vertex, then with BFS using a queue. Try both; the tests only check the final answer.",
+ "input_format": "The first line contains two integers `n` and `m`.\nEach of the next `m` lines contains two integers `u` and `v`, describing an undirected edge between vertices `u` and `v`.",
+ "output_format": "Print `YES` if the graph contains a cycle, otherwise print `NO`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ m ≤ 10^5",
+  "0 ≤ u, v < n, u ≠ v",
+  "No edge appears more than once (in either direction)"
+ ],
+ "examples": [
+  {
+   "input": "5 4\n0 1\n1 2\n2 0\n3 4",
+   "output": "YES",
+   "explanation": "Vertices 0, 1 and 2 form a triangle, so the graph has a cycle. The separate edge 3-4 does not matter."
+  },
+  {
+   "input": "6 4\n0 1\n1 2\n3 4\n4 5",
+   "output": "NO",
+   "explanation": "The graph is two disjoint paths (a forest), so there is no cycle."
+  },
+  {
+   "input": "5 5\n0 1\n1 2\n2 3\n3 1\n3 4",
+   "output": "YES",
+   "explanation": "Vertices 1, 2 and 3 form a cycle (1-2-3-1); vertex 0 and vertex 4 hang off it as tails."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Handle every connected component: start a traversal from each vertex that has not been visited yet.",
+  "During a DFS or BFS, remember which vertex you arrived from. Reaching an already visited vertex that is not that parent means you have found a cycle.",
+  "Alternatively, a connected component with `k` vertices is acyclic exactly when it has `k - 1` edges, so you can also use union-find: an edge joining two vertices already in the same set closes a cycle."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    adj = [[] for _ in range(n)]\n    for i in range(m):\n        a = int(data[2 + 2 * i])\n        b = int(data[3 + 2 * i])\n        adj[a].append(b)\n        adj[b].append(a)\n    seen = [False] * n\n    for s in range(n):\n        if seen[s]:\n            continue\n        seen[s] = True\n        q = deque([(s, -1)])\n        while q:\n            u, p = q.popleft()\n            for v in adj[u]:\n                if v == p:\n                    continue\n                if seen[v]:\n                    print('YES')\n                    return\n                seen[v] = True\n                q.append((v, u))\n    print('NO')\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nadj = [set() for _ in range(n)]\nfor i in range(m):\n    a = int(data[2 + 2 * i])\n    b = int(data[3 + 2 * i])\n    adj[a].add(b)\n    adj[b].add(a)\nalive = set(range(n))\nchanged = True\nwhile changed:\n    changed = False\n    for v in list(alive):\n        if len(adj[v]) <= 1:\n            for u in adj[v]:\n                adj[u].discard(v)\n            adj[v] = set()\n            alive.discard(v)\n            changed = True\nprint('YES' if alive else 'NO')\n",
+ "generator": "def gen(rng):\n    def fmt(n, edges):\n        return f\"{n} {len(edges)}\\n\" + \"\\n\".join(f\"{a} {b}\" for a, b in edges)\n\n    def orient(a, b):\n        return (a, b) if rng.random() < 0.5 else (b, a)\n\n    def forest(n, p):\n        perm = list(range(n))\n        rng.shuffle(perm)\n        edges = []\n        for i in range(1, n):\n            if rng.random() < p:\n                edges.append(orient(perm[i], perm[rng.randrange(i)]))\n        rng.shuffle(edges)\n        return edges\n\n    def add_extra(n, edges, k):\n        have = set()\n        for a, b in edges:\n            have.add((min(a, b), max(a, b)))\n        tries = 0\n        while k > 0 and tries < 200:\n            tries += 1\n            a, b = rng.randrange(n), rng.randrange(n)\n            if a == b or (min(a, b), max(a, b)) in have:\n                continue\n            have.add((min(a, b), max(a, b)))\n            edges.append(orient(a, b))\n            k -= 1\n        return edges\n\n    tests = [fmt(1, []), fmt(2, [(0, 1)]), fmt(3, [(0, 1), (1, 2), (2, 0)]), fmt(4, []),\n             fmt(4, [(0, 1), (2, 3)]), fmt(5, [(0, 1), (1, 2), (2, 3), (3, 4), (4, 0)])]\n    for _ in range(30):\n        n = rng.randint(1, 9)\n        edges = forest(n, rng.choice([0.6, 0.9, 1.0]))\n        if rng.random() < 0.5:\n            add_extra(n, edges, rng.randint(1, 2))\n        tests.append(fmt(n, edges))\n    for _ in range(8):\n        n = rng.randint(3, 9)\n        edges = []\n        for a in range(n):\n            for b in range(a + 1, n):\n                if rng.random() < 0.18:\n                    edges.append(orient(a, b))\n        tests.append(fmt(n, edges))\n    N = 100000\n    path = [(i, i + 1) for i in range(N - 1)]\n    tests.append(fmt(N, path))\n    p2 = list(path)\n    p2.append((0, N - 1 - rng.randint(0, 10)))\n    tests.append(fmt(N, p2))\n    tests.append(fmt(N, [(0, i) for i in range(1, N)]))\n    tests.append(fmt(N, forest(N, 0.9)))\n    rnd = set()\n    while len(rnd) < N:\n        a, b = rng.randrange(N), rng.randrange(N)\n        if a != b:\n            rnd.add((min(a, b), max(a, b)))\n    tests.append(fmt(N, list(rnd)))\n    tri = []\n    for t in range(33333):\n        a = 3 * t\n        tri += [(a, a + 1), (a + 1, a + 2), (a + 2, a)]\n    tests.append(fmt(99999, tri))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef has_cycle(n: int, edges: List[List[int]]) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    edges = [[int(data[2 + 2 * i]), int(data[3 + 2 * i])] for i in range(m)]\n    print('YES' if has_cycle(n, edges) else 'NO')\n\n\nmain()\n",
+  "javascript": "function hasCycle(n, edges) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst edges = []\nfor (let i = 0; i < m; i++) edges.push([t[2 + 2 * i], t[3 + 2 * i]])\nconsole.log(hasCycle(n, edges) ? 'YES' : 'NO')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool hasCycle(int n, vector<pair<int, int>>& edges) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<pair<int, int>> edges(m);\n    for (auto& e : edges) cin >> e.first >> e.second;\n    cout << (hasCycle(n, edges) ? \"YES\" : \"NO\") << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean hasCycle(int n, int[][] edges) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] edges = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); edges[i][0] = (int) in.nval;\n            in.nextToken(); edges[i][1] = (int) in.nval;\n        }\n        System.out.println(hasCycle(n, edges) ? \"YES\" : \"NO\");\n    }\n}\n"
+ }
+}

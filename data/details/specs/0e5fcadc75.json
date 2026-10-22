@@ -1,0 +1,19 @@
+{
+ "qid": "0e5fcadc75",
+ "question": "Oracle Health and AI (OHAI) SDE-3 system design round. Design a **healthcare medicine recommendation system** that suggests medications based on a patient's **disease and medical history**. Cover **data ingestion, a rule engine for recommendations, caching strategies, the database schema, and scalability**.",
+ "lookingFor": [
+  "Do you treat safety as a primary requirement (it assists clinicians, it does not replace them)?",
+  "Can you design a rules-first engine with an optional ML layer and explain why?",
+  "Do you model clinical data sensibly: patients, conditions, medications, allergies, interactions?",
+  "Do you consider privacy, audit and regulatory needs such as HIPAA?",
+  "Do you cover caching, scale and keeping rule and drug data up to date?"
+ ],
+ "answer": "**Scope and safety.** The system provides **decision support** for a clinician, not automatic prescribing. Every suggestion must show its reason and be auditable. Assume thousands of clinicians, requests in the low hundreds per second, and a latency target around 200-500 ms.\n\n**Inputs.** Patient record (age, weight, kidney function), diagnoses (coded, for example ICD-10), current medications, allergies, past reactions, lab results. Reference data: a drug database (such as a licensed formulary), dosing guidelines, contraindications and drug-drug interactions.\n\n**Data ingestion.** Integrate with EHR sources via HL7 FHIR APIs or messages. Put events on a queue, validate and normalise codes, and write to storage. Reference data is loaded by scheduled import jobs with versioning.\n\n**Schema (relational, because relationships and integrity matter).**\n- `patient`, `diagnosis(patient_id, code, date)`, `patient_medication`, `allergy`, `lab_result`\n- `drug`, `drug_interaction(drug_a, drug_b, severity)`, `guideline_rule(condition_code, drug_id, criteria, dosage, version)`\n- `recommendation_log(patient_id, request, output, rule_versions, clinician, time)` for audit.\n\n**Recommendation engine.**\n1. Fetch the patient profile.\n2. Candidate step: rules map the diagnosis to first-line drugs.\n3. Filter step: remove drugs that conflict with allergies, interactions, age or organ function.\n4. Rank by guideline strength, then optionally a model trained on outcomes for personalisation, with explanations.\n5. Return the list with warnings and evidence.\nA rule engine (Drools-style or a decision-table service) keeps clinical logic editable by clinicians without redeploying code.\n\n**Caching.** Cache reference data (drugs, interactions, rules) aggressively in memory or Redis, since it changes rarely and is invalidated on version change. Do not cache patient-specific output for long, because new data (allergy) must apply immediately.\n\n**Scalability.** Stateless engine instances behind a load balancer, read replicas for the database, queue-based ingestion. Partition by tenant (hospital).\n\n**Compliance.** Encryption in transit and at rest, role-based access, audit logs, de-identification for any ML training.",
+ "followUps": [
+  "Why start with rules rather than a machine-learning model?",
+  "How do you keep drug-interaction data up to date and versioned?",
+  "How would you evaluate whether recommendations are actually good?",
+  "How do you handle a patient record that is incomplete or conflicting?",
+  "How would you protect patient data and prove who accessed it?"
+ ]
+}

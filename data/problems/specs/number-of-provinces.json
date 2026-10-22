@@ -1,0 +1,50 @@
+{
+ "pid": "number-of-provinces",
+ "title": "Number of Provinces",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "There are `n` people, numbered `0` to `n - 1`. You are given `m` friendship pairs `(a, b)`, listed in a fixed order. Friendship is mutual, and a friend of a friend is part of the same **circle**: two people are in the same circle if they are connected by a chain of friendship pairs. A person with no pairs forms a circle on their own.\n\nCompute two numbers:\n\n- `c`: the number of circles once all `m` pairs are considered.\n- `r`: the number of **redundant** pairs. Process the pairs in the given order; a pair is redundant if its two people are already in the same circle at that moment (counting only the pairs processed before it). A pair that repeats an earlier pair is therefore redundant.\n\nPrint `c` and `r`.\n\n**Follow-up:** Solve it with a disjoint-set union (union-find) using path compression and union by rank.",
+ "input_format": "The first line contains two integers `n` and `m`.\nEach of the next `m` lines contains two integers `a` and `b`, a friendship pair.",
+ "output_format": "Print two space-separated integers: `c` and `r`.",
+ "constraints": [
+  "1 ≤ n ≤ 5000",
+  "0 ≤ m ≤ 20000",
+  "0 ≤ a, b < n and a ≠ b",
+  "The same pair may appear more than once"
+ ],
+ "examples": [
+  {
+   "input": "5 3\n0 1\n1 2\n0 2",
+   "output": "3 1",
+   "explanation": "People 0, 1, 2 form one circle; 3 and 4 are alone, so there are 3 circles. After pairs (0,1) and (1,2), people 0 and 2 are already connected, so the pair (0,2) is redundant."
+  },
+  {
+   "input": "6 5\n0 1\n2 3\n1 0\n4 5\n3 2",
+   "output": "3 2",
+   "explanation": "Circles are {0,1}, {2,3} and {4,5}. The third pair repeats pair 1 and the fifth repeats pair 2, so both are redundant."
+  },
+  {
+   "input": "4 0",
+   "output": "4 0",
+   "explanation": "With no pairs every person is alone, and nothing is redundant."
+  }
+ ],
+ "complexity": {
+  "time": "O((n + m) α(n))",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Treat people as nodes and pairs as edges. A circle is a connected component, so you can count them with a traversal or with union-find.",
+  "With union-find: for each pair, find the roots of both people. If the roots differ, merge them and reduce the circle count; if they are equal, the pair is redundant.",
+  "Start with `c = n`, and decrement it on every successful merge. Path compression plus union by rank keeps each operation almost constant."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    parent = list(range(n))\n    rank = [0] * n\n\n    def find(x):\n        while parent[x] != x:\n            parent[x] = parent[parent[x]]\n            x = parent[x]\n        return x\n\n    c, r = n, 0\n    for i in range(m):\n        a = find(int(data[2 + 2 * i]))\n        b = find(int(data[3 + 2 * i]))\n        if a == b:\n            r += 1\n        else:\n            if rank[a] < rank[b]:\n                a, b = b, a\n            parent[b] = a\n            if rank[a] == rank[b]:\n                rank[a] += 1\n            c -= 1\n    print(c, r)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nedges = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(m)]\n\ndef connected(done, a, b):\n    adj = [[] for _ in range(n)]\n    for x, y in done:\n        adj[x].append(y)\n        adj[y].append(x)\n    seen = {a}\n    stack = [a]\n    while stack:\n        u = stack.pop()\n        for v in adj[u]:\n            if v not in seen:\n                seen.add(v)\n                stack.append(v)\n    return b in seen\n\nred = 0\nfor i in range(m):\n    if connected(edges[:i], edges[i][0], edges[i][1]):\n        red += 1\nlabel = list(range(n))\nchanged = True\nwhile changed:\n    changed = False\n    for x, y in edges:\n        lo = min(label[x], label[y])\n        if label[x] != lo or label[y] != lo:\n            label[x] = label[y] = lo\n            changed = True\nprint(len(set(label)), red)\n",
+ "generator": "def gen(rng):\n    def fmt(n, es):\n        return f\"{n} {len(es)}\\n\" + '\\n'.join(f\"{a} {b}\" for a, b in es)\n    def rnd(n, m):\n        es = []\n        for _ in range(m):\n            a = rng.randrange(n)\n            b = rng.randrange(n)\n            while b == a:\n                b = rng.randrange(n)\n            es.append((a, b))\n        return es\n    tests = [fmt(1, []), fmt(4, []), fmt(2, [(0, 1)]), fmt(2, [(0, 1), (1, 0), (0, 1)]),\n             fmt(5, [(0, 1), (1, 2), (0, 2)]), fmt(6, [(0, 1), (2, 3), (1, 0), (4, 5), (3, 2)])]\n    for n in (2, 3, 4, 6, 8, 10):\n        for _ in range(3):\n            tests.append(fmt(n, rnd(n, rng.randint(0, 12))))\n    N = 5000\n    tests.append(fmt(N, rnd(N, 20000)))\n    tests.append(fmt(N, rnd(N, 3000)))\n    tests.append(fmt(N, [(i, i + 1) for i in range(N - 1)] + rnd(N, 100)))\n    tests.append(fmt(N, rnd(N, 2400)))\n    perm = list(range(N))\n    rng.shuffle(perm)\n    tests.append(fmt(N, [(perm[i], perm[i + 1]) for i in range(N - 1)]))\n    tests.append(fmt(N, [(0, i) for i in range(1, N)] * 4))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef count_circles(n: int, pairs: List[Tuple[int, int]]) -> Tuple[int, int]:\n    # Write your solution here\n    return (0, 0)\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    pairs = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(m)]\n    c, r = count_circles(n, pairs)\n    print(c, r)\n\n\nmain()\n",
+  "javascript": "function countCircles(n, pairs) {\n  // Write your solution here\n  return [0, 0]\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst pairs = []\nfor (let i = 0; i < m; i++) pairs.push([t[2 + 2 * i], t[3 + 2 * i]])\nconsole.log(countCircles(n, pairs).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\npair<int, int> countCircles(int n, vector<pair<int, int>>& pairs) {\n    // Write your solution here\n    return {0, 0};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<pair<int, int>> pairs(m);\n    for (int i = 0; i < m; i++) cin >> pairs[i].first >> pairs[i].second;\n    pair<int, int> res = countCircles(n, pairs);\n    cout << res.first << \" \" << res.second << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] countCircles(int n, int[][] pairs) {\n        // Write your solution here\n        return new int[]{0, 0};\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] pairs = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken();\n            pairs[i][0] = (int) in.nval;\n            in.nextToken();\n            pairs[i][1] = (int) in.nval;\n        }\n        int[] res = countCircles(n, pairs);\n        System.out.println(res[0] + \" \" + res[1]);\n    }\n}\n"
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "d268604d21",
+ "question": "Groww SDE-3 low level design round (7 years experience candidate). **Design a stock liquidation system.** The system accepts a userId and holdings details from a client and processes those holdings for liquidation. The actual liquidation criteria may be queried from a third-party service that is abstract to the system. The expectation was to come up with **relevant API contracts, DB schemas, and handling of concurrency.** The candidate was rejected, with feedback that more depth was expected in the design rounds.",
+ "lookingFor": [
+  "Clear API contracts, including async behaviour and idempotency.",
+  "Sensible state machine and schema for requests and per-holding items.",
+  "Integration thinking: an unreliable third-party dependency (timeouts, retries, fallbacks).",
+  "Concurrency and correctness: never sell the same holding twice.",
+  "Depth on failure handling, reconciliation and auditability."
+ ],
+ "answer": "**Requirements and assumptions.** Client submits `userId` and a list of holdings; for each, the system asks an external **criteria service** whether and how much to liquidate, then places sell orders. Assume liquidation is asynchronous and money-sensitive. Ask what the criteria return (eligible quantity? price limits?) and whether partial liquidation is allowed.\n\n**API contracts.**\n- `POST /v1/liquidations` with header `Idempotency-Key` and body `{userId, holdings:[{symbol, quantity}]}` returns `202 Accepted` with `liquidationId`.\n- `GET /v1/liquidations/{id}` returns overall status and per-holding status.\n- Optionally a webhook or event when the request finishes.\n\n**Data model.**\n- `liquidation_request`: `id`, `user_id`, `idempotency_key`, `status`, timestamps; **unique `(user_id, idempotency_key)`**.\n- `liquidation_item`: `id`, `request_id`, `symbol`, `requested_qty`, `approved_qty`, `status` (PENDING, ELIGIBLE, INELIGIBLE, ORDER_PLACED, COMPLETED, FAILED), `order_id`, `version`.\n\n**Flow.** API validates and stores the request in one transaction, then publishes it to a queue partitioned by `userId`. A worker loads the items, calls the criteria service behind an interface (`CriteriaProvider`) with a timeout, retries with backoff and a circuit breaker, and moves each item through the state machine. Eligible items create sell orders through the order service using a deterministic key (`itemId`).\n\n**Concurrency.**\n- Duplicate submissions: the idempotency unique key returns the original request.\n- The same user's requests overlapping on the same holding: partitioning by `userId` serialises processing, and a holding reservation (a lock row or optimistic `version` check) prevents selling the same quantity twice.\n- Workers crashing: items stay in a non-terminal state and a recovery job re-drives them; idempotent order keys make that safe.\n\n**Failure handling.** Criteria service down: items stay PENDING and retry, or fail after a deadline with a clear reason. Keep an audit log of every decision, and reconcile order status with the broker periodically.",
+ "followUps": [
+  "What happens if the criteria service times out after the sell order was already sent?",
+  "How do you prevent a user from selling the same holding through two simultaneous requests?",
+  "Would you process holdings in one transaction or one by one, and why?",
+  "How would you test the integration with an unreliable third-party service?"
+ ]
+}

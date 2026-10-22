@@ -1,0 +1,49 @@
+{
+ "pid": "phonepe-count-pairs-with-score-popularity-condition",
+ "title": "Count Pairs with Score/Popularity Condition",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given two integer arrays `score` and `popularity`, both of length `n`, and an integer `k`.\n\nCount the pairs of indices `(i, j)` with `i < j` for which the score grows at least `k` more than the popularity does:\n\n`score[j] - score[i] >= popularity[j] - popularity[i] + k`\n\nEvery pair of positions is counted separately, even when the values are equal. The answer can be larger than 32 bits.",
+ "input_format": "The first line contains two integers `n` and `k`.\nThe second line contains `n` integers: `score[0..n-1]`.\nThe third line contains `n` integers: `popularity[0..n-1]`.",
+ "output_format": "Print a single integer: the number of valid pairs.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ score[i], popularity[i] ≤ 10^9",
+  "-10^9 ≤ k ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "2 3\n15 20\n10 12",
+   "output": "1",
+   "explanation": "Only the pair (0, 1) exists. The score grows by 20 - 15 = 5, and popularity grows by 12 - 10 = 2, so the requirement is 2 + 3 = 5. Since 5 >= 5, the pair counts."
+  },
+  {
+   "input": "4 0\n4 1 6 3\n2 2 1 5",
+   "output": "2",
+   "explanation": "Let d[i] = score[i] - popularity[i] = [2, -1, 5, -2]. The condition with k = 0 says d[j] >= d[i] for i < j. This holds for (0, 2) and (1, 2) and for no other pair."
+  },
+  {
+   "input": "5 -1\n3 3 3 3 3\n1 2 3 4 5",
+   "output": "4",
+   "explanation": "d = [2, 1, 0, -1, -2]. The condition is d[j] - d[i] >= -1, which only holds for neighbouring indices: (0,1), (1,2), (2,3), (3,4)."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Move everything about index `i` to one side: the condition says `(score[j] - popularity[j]) - (score[i] - popularity[i]) >= k`. Define a single array `d[i] = score[i] - popularity[i]`.",
+  "The task is now: count pairs `i < j` with `d[i] <= d[j] - k`. For a fixed `j`, you need how many earlier values are at most `d[j] - k`.",
+  "Sweep `j` from left to right, keeping the earlier `d` values in a Fenwick tree over compressed coordinates (or count with a merge sort while merging)."
+ ],
+ "reference": "import sys\nfrom bisect import bisect_right\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    score = data[2:2 + n]\n    pop = data[2 + n:2 + 2 * n]\n    d = [int(score[i]) - int(pop[i]) for i in range(n)]\n    vals = sorted(set(d))\n    m = len(vals)\n    tree = [0] * (m + 1)\n    total = 0\n    for x in d:\n        c = bisect_right(vals, x - k)\n        s = 0\n        while c > 0:\n            s += tree[c]\n            c -= c & -c\n        total += s\n        p = bisect_right(vals, x)\n        while p <= m:\n            tree[p] += 1\n            p += p & -p\n    print(total)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, k = int(data[0]), int(data[1])\ns = [int(x) for x in data[2:2 + n]]\np = [int(x) for x in data[2 + n:2 + 2 * n]]\ncnt = 0\nfor i in range(n):\n    for j in range(i + 1, n):\n        if s[j] - s[i] >= p[j] - p[i] + k:\n            cnt += 1\nprint(cnt)\n",
+ "generator": "def gen(rng):\n    def fmt(k, s, p):\n        return f\"{len(s)} {k}\\n\" + ' '.join(map(str, s)) + '\\n' + ' '.join(map(str, p))\n    tests = [\n        fmt(0, [5], [5]),\n        fmt(3, [15, 20], [10, 12]),\n        fmt(0, [7, 7, 7], [7, 7, 7]),\n        fmt(-3, [0, 0], [0, 0]),\n        fmt(10**9, [0, 10**9], [10**9, 0]),\n        fmt(-10**9, [10**9, 0], [0, 10**9]),\n        fmt(1, [7, 7, 7], [7, 7, 7]),\n    ]\n    for _ in range(45):\n        n = rng.randint(1, 30)\n        hi = rng.choice([3, 10, 50])\n        k = rng.randint(-6, 6)\n        tests.append(fmt(k, [rng.randint(0, hi) for _ in range(n)], [rng.randint(0, hi) for _ in range(n)]))\n    for _ in range(5):\n        n = 1500\n        tests.append(fmt(rng.randint(-1000, 1000), [rng.randint(0, 10**6) for _ in range(n)], [rng.randint(0, 10**6) for _ in range(n)]))\n    n = 10**5\n    tests.append(fmt(rng.randint(-10**9, 10**9), [rng.randint(0, 10**9) for _ in range(n)], [rng.randint(0, 10**9) for _ in range(n)]))\n    tests.append(fmt(0, [i * 10000 for i in range(n)], [0] * n))\n    tests.append(fmt(0, [7] * n, [7] * n))\n    tests.append(fmt(5, [rng.randint(0, 100) for _ in range(n)], [rng.randint(0, 100) for _ in range(n)]))\n    tests.append(fmt(-300000, [(n - i) * 10000 for i in range(n)], [0] * n))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_pairs(score: List[int], popularity: List[int], k: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    score = [int(x) for x in data[2:2 + n]]\n    popularity = [int(x) for x in data[2 + n:2 + 2 * n]]\n    print(count_pairs(score, popularity, k))\n\n\nmain()\n",
+  "javascript": "function countPairs(score, popularity, k) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst score = t.slice(2, 2 + n)\nconst popularity = t.slice(2 + n, 2 + 2 * n)\nconsole.log(String(countPairs(score, popularity, k)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countPairs(vector<long long>& score, vector<long long>& popularity, long long k) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long k;\n    cin >> n >> k;\n    vector<long long> score(n), popularity(n);\n    for (int i = 0; i < n; i++) cin >> score[i];\n    for (int i = 0; i < n; i++) cin >> popularity[i];\n    cout << countPairs(score, popularity, k) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countPairs(long[] score, long[] popularity, long k) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        long k = (long) in.nval;\n        long[] score = new long[n], popularity = new long[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); score[i] = (long) in.nval; }\n        for (int i = 0; i < n; i++) { in.nextToken(); popularity[i] = (long) in.nval; }\n        System.out.println(countPairs(score, popularity, k));\n    }\n}\n"
+ }
+}

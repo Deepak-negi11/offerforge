@@ -1,0 +1,49 @@
+{
+ "pid": "phonepe-unique-height-ordering-from-relations",
+ "title": "Unique Height Ordering From Relations",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "There are `n` people, numbered `0` to `n - 1`, and no two of them have the same height. You do not know the heights, but you are given `m` relations. Each relation is of the form `a > b` (person `a` is taller than person `b`) or `a < b` (person `a` is shorter than person `b`).\n\nDecide whether the relations are enough to sort **all** `n` people by height in exactly one way. Print `YES` if there is exactly one ordering of the people, from tallest to shortest, that agrees with every relation. Print `NO` otherwise, which happens in two situations:\n\n- more than one ordering agrees with all the relations (the relations leave some pair of people undetermined), or\n- the relations contradict each other (for example `0 > 1`, `1 > 2` and `2 > 0`), so no ordering agrees with them.\n\nA person who appears in no relation is not determined unless `n = 1`. The same relation may be repeated, and it may be written in either direction (`a > b` is the same information as `b < a`).",
+ "input_format": "The first line contains two integers `n` and `m`.\nEach of the next `m` lines contains a relation written as three tokens `a op b`, where `a` and `b` are person numbers and `op` is the character `>` or `<`. The three tokens are separated by single spaces.",
+ "output_format": "Print `YES` if exactly one ordering agrees with all the relations, otherwise print `NO`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ m ≤ 10^5",
+  "0 ≤ a, b < n and a ≠ b"
+ ],
+ "examples": [
+  {
+   "input": "4 3\n0 > 1\n2 < 1\n3 > 0",
+   "output": "YES",
+   "explanation": "The relations give 3 > 0 > 1 > 2, and every consecutive pair is covered, so the only possible order from tallest to shortest is 3, 0, 1, 2."
+  },
+  {
+   "input": "4 3\n0 > 1\n0 > 2\n3 < 0",
+   "output": "NO",
+   "explanation": "Person 0 is the tallest, but nothing says whether 1, 2 or 3 comes next, so several orderings are consistent."
+  },
+  {
+   "input": "3 3\n0 > 1\n1 > 2\n2 > 0",
+   "output": "NO",
+   "explanation": "The relations form a cycle: 0 is taller than 1, 1 than 2, and 2 than 0. No ordering can satisfy them."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Turn each relation into a directed edge from the taller person to the shorter one. Then ask: when does a directed graph have exactly one valid topological order?",
+  "Run Kahn's algorithm (repeatedly remove people nobody taller is waiting on). The order is unique only if, at every step, exactly one person is available to be removed.",
+  "Also check that all n people were removed. If some were left, the relations contain a cycle and are contradictory."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    adj = [[] for _ in range(n)]\n    indeg = [0] * n\n    pos = 2\n    for _ in range(m):\n        a, op, b = int(data[pos]), data[pos + 1], int(data[pos + 2])\n        pos += 3\n        if op == '<':\n            a, b = b, a\n        adj[a].append(b)\n        indeg[b] += 1\n    q = deque(i for i in range(n) if indeg[i] == 0)\n    seen = 0\n    unique = True\n    while q:\n        if len(q) > 1:\n            unique = False\n        u = q.popleft()\n        seen += 1\n        for v in adj[u]:\n            indeg[v] -= 1\n            if indeg[v] == 0:\n                q.append(v)\n    print('YES' if unique and seen == n else 'NO')\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import permutations\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nrel = []\npos = 2\nfor _ in range(m):\n    a, op, b = int(data[pos]), data[pos + 1], int(data[pos + 2])\n    pos += 3\n    rel.append((a, b) if op == '>' else (b, a))\ncnt = 0\nfor perm in permutations(range(n)):\n    rank = [0] * n\n    for idx, p in enumerate(perm):\n        rank[p] = idx\n    if all(rank[a] < rank[b] for a, b in rel):\n        cnt += 1\n        if cnt > 1:\n            break\nprint('YES' if cnt == 1 else 'NO')\n",
+ "generator": "def gen(rng):\n    def fmt(n, rels):\n        return str(n) + ' ' + str(len(rels)) + ('\\n' if rels else '') + '\\n'.join('%d %s %d' % r for r in rels)\n    def write(a, b):\n        # a taller than b, written in a random direction\n        return (a, '>', b) if rng.random() < 0.5 else (b, '<', a)\n    def chain(n, extra, drop=0, cycle=False):\n        perm = list(range(n))\n        rng.shuffle(perm)\n        rels = [write(perm[i], perm[i + 1]) for i in range(n - 1)]\n        for _ in range(extra):\n            if n >= 2:\n                i = rng.randint(0, n - 2)\n                j = rng.randint(i + 1, n - 1)\n                rels.append(write(perm[i], perm[j]))\n        for _ in range(drop):\n            if rels:\n                rels.pop(rng.randrange(len(rels)))\n        if cycle and n >= 2:\n            i = rng.randint(0, n - 2)\n            j = rng.randint(i + 1, n - 1)\n            rels.append(write(perm[j], perm[i]))\n        rng.shuffle(rels)\n        return rels\n    tests = [\n        fmt(1, []),\n        fmt(2, []),\n        fmt(2, [(0, '>', 1)]),\n        fmt(2, [(0, '>', 1), (1, '>', 0)]),\n        fmt(3, [(0, '>', 1), (2, '<', 1)]),\n        fmt(3, [(0, '>', 1), (0, '>', 2)]),\n        fmt(3, [(0, '>', 1), (1, '>', 2), (2, '>', 0)]),\n        fmt(4, [(0, '>', 1), (1, '>', 2)]),\n        fmt(3, [(0, '>', 1), (0, '>', 1), (1, '>', 2)]),\n    ]\n    for _ in range(60):\n        n = rng.randint(1, 7)\n        kind = rng.randint(0, 3)\n        if kind == 0:\n            rels = chain(n, rng.randint(0, 4))\n        elif kind == 1:\n            rels = chain(n, rng.randint(0, 4), drop=1)\n        elif kind == 2:\n            rels = chain(n, rng.randint(0, 3), cycle=True)\n        else:\n            rels = [write(*rng.sample(range(n), 2)) for _ in range(rng.randint(0, 9))] if n >= 2 else []\n        tests.append(fmt(n, rels))\n    N = 100000\n    tests.append(fmt(N, chain(N, 1)))\n    tests.append(fmt(N, chain(N, 1, drop=1)))\n    tests.append(fmt(N, chain(N, 0, cycle=True)))\n    tests.append(fmt(N, chain(N, 0)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef is_unique_order(n: int, relations: List[Tuple[int, str, int]]) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    relations = []\n    for i in range(m):\n        relations.append((int(data[2 + 3 * i]), data[3 + 3 * i], int(data[4 + 3 * i])))\n    print('YES' if is_unique_order(n, relations) else 'NO')\n\n\nmain()\n",
+  "javascript": "function isUniqueOrder(n, relations) {\n  // relations[i] = [a, op, b] where op is '>' or '<'\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0]), m = parseInt(t[1])\nconst relations = []\nfor (let i = 0; i < m; i++) {\n  relations.push([parseInt(t[2 + 3 * i]), t[3 + 3 * i], parseInt(t[4 + 3 * i])])\n}\nconsole.log(isUniqueOrder(n, relations) ? 'YES' : 'NO')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\n// relations[i] = {a, op, b} where op is '>' or '<'\nbool isUniqueOrder(int n, vector<tuple<int, char, int>>& relations) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<tuple<int, char, int>> relations(m);\n    for (int i = 0; i < m; i++) {\n        int a, b;\n        char op;\n        cin >> a >> op >> b;\n        relations[i] = make_tuple(a, op, b);\n    }\n    cout << (isUniqueOrder(n, relations) ? \"YES\" : \"NO\") << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    // a[i] op[i] b[i] is the i-th relation, op[i] is '>' or '<'\n    static boolean isUniqueOrder(int n, int[] a, char[] op, int[] b) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int n = Integer.parseInt(st.nextToken());\n        int m = Integer.parseInt(st.nextToken());\n        int[] a = new int[m], b = new int[m];\n        char[] op = new char[m];\n        for (int i = 0; i < m; i++) {\n            st = new StringTokenizer(br.readLine());\n            a[i] = Integer.parseInt(st.nextToken());\n            op[i] = st.nextToken().charAt(0);\n            b[i] = Integer.parseInt(st.nextToken());\n        }\n        System.out.println(isUniqueOrder(n, a, op, b) ? \"YES\" : \"NO\");\n    }\n}\n"
+ }
+}

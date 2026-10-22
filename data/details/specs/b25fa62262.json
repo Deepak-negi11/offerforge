@@ -1,0 +1,19 @@
+{
+ "qid": "b25fa62262",
+ "question": "Morgan Stanley Associate - Software Engineering (Java) technical round 1 (candidate with 4 years of experience). After a resume discussion and a next-permutation problem, the interviewer asked for an **LLD discussion of a Snake and Ladder game: the classes, design patterns and OOP concepts** you would use.",
+ "lookingFor": [
+  "Requirement gathering before designing.",
+  "Clean object model with clear responsibilities.",
+  "Sensible use of design patterns without over-engineering.",
+  "Handling of edge cases and extensibility.",
+  "Ability to explain OOP principles through the design."
+ ],
+ "answer": "**Clarify requirements.** Board size (default 10x10), number of players (2+), one or more dice, exact roll needed to finish or not, whether a six gives another turn, how snakes and ladders are configured, and whether the game is single-process (no networking).\n\n**Entities.**\n- `Game`: owns the board, players queue, dice, status, winner; `play()` loop or `takeTurn()`.\n- `Board`: size and a map `startCell -> Jump`; `nextPosition(pos)` applies snake or ladder.\n- `Jump` (or `Snake` and `Ladder` as subclasses): `start`, `end`; snake has `end < start`, ladder `end > start`.\n- `Player`: name, current position.\n- `Dice`: `roll()`; configurable count of dice.\n- Enums: `GameStatus` (NOT_STARTED, IN_PROGRESS, FINISHED).\n\n**Turn logic.** Take the next player from a queue, roll, compute `target = pos + roll`; if `target > size`, stay (when exact finish is required); otherwise apply the jump (loop if a jump lands on another jump, usually forbidden by validation); if `target == size`, declare the winner; else re-enqueue the player.\n\n**Design patterns (use only where they earn their keep).**\n- *Strategy:* dice (normal, loaded for tests) or winning rules.\n- *Factory or Builder:* build a board from a config of snakes and ladders.\n- *Observer:* notify UI or logger on moves, jumps and winner.\n- *Singleton* is not needed; prefer dependency injection.\n- *State* if the game lifecycle grows.\n\n**OOP and principles to name.** Encapsulation (the board hides jump lookup), polymorphism (`Jump` subclasses or strategies), SRP (the board does not roll dice), DIP (the game depends on a `Dice` interface), testability by injecting a deterministic dice.\n\n**Validation and edge cases.** Snake head or ladder base on cell 1 or on the last cell, snake and ladder starting in the same cell, cycles (a ladder ending at a snake head that leads back), duplicate players, and the number of jumps being small relative to board size.\n\n**Extensions:** multiple dice, undo, persistence, a multiplayer server with a game-per-room.",
+ "followUps": [
+  "How would you test the game deterministically?",
+  "How would you validate a randomly generated board has no cycles?",
+  "How would you support different winning rules?",
+  "How would you make this a networked multiplayer game?",
+  "Why use composition rather than a deep inheritance tree here?"
+ ]
+}

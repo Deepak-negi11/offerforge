@@ -1,0 +1,49 @@
+{
+ "pid": "map-of-highest-peak",
+ "title": "Map of Highest Peak",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given a map of `r` rows and `c` columns. Each cell is either **water** (`1`) or **land** (`0`). The map contains at least one water cell.\n\nYou must assign a non-negative integer height to every cell so that:\n\n- every water cell has height exactly `0`;\n- any two cells that share an edge (up, down, left, right) have heights that differ by **at most** `1`.\n\nAmong all valid assignments, you want the highest peak to be as tall as possible. It can be shown that there is exactly one valid assignment in which **every** cell has the greatest height any valid assignment could give it, and that assignment also has the tallest possible peak. Print that assignment.\n\nDifferent assignments can share the same peak. For example, a single land cell far from the water could be given a smaller height than it is allowed to have. Only the assignment where every cell is as high as allowed is accepted.",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains a string of exactly `c` characters, each `0` (land) or `1` (water), with no spaces.",
+ "output_format": "Print `r` lines. Line `i` contains the `c` heights of row `i`, separated by single spaces.",
+ "constraints": [
+  "1 ≤ r, c ≤ 300",
+  "Each cell is 0 (land) or 1 (water)",
+  "At least one cell is water"
+ ],
+ "examples": [
+  {
+   "input": "3 3\n101\n000\n000",
+   "output": "0 1 0\n1 2 1\n2 3 2",
+   "explanation": "The two water cells in the top row have height 0. Heights then grow by one per step away from the nearest water: the bottom middle cell is three steps from the nearest water, so it gets 3, and the highest peak is 3. Other grids, such as one with a single 2 in the top middle, are valid but have a lower peak and lower cells."
+  },
+  {
+   "input": "1 5\n00100",
+   "output": "2 1 0 1 2",
+   "explanation": "The only water cell is in the middle, so heights rise by one on each side."
+  },
+  {
+   "input": "2 3\n000\n001",
+   "output": "3 2 1\n2 1 0",
+   "explanation": "The water cell is the bottom-right corner. Each land cell gets its Manhattan distance to it, so the top-left cell is 1 + 2 = 3 steps away."
+  }
+ ],
+ "complexity": {
+  "time": "O(r * c)",
+  "space": "O(r * c)"
+ },
+ "hints": [
+  "A land cell can never be higher than its distance to the nearest water cell, because each step changes the height by at most 1.",
+  "That upper bound is achievable for every cell at once, so the answer is simply 'distance to the nearest water' for each cell.",
+  "Compute all those distances together with one multi-source BFS that starts from every water cell at the same time."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    rows = data[2:2 + r]\n    h = [-1] * (r * c)\n    q = deque()\n    for i in range(r):\n        row = rows[i]\n        for j in range(c):\n            if row[j] == '1':\n                h[i * c + j] = 0\n                q.append(i * c + j)\n    while q:\n        x = q.popleft()\n        i, j = divmod(x, c)\n        v = h[x] + 1\n        if i > 0 and h[x - c] < 0:\n            h[x - c] = v\n            q.append(x - c)\n        if i < r - 1 and h[x + c] < 0:\n            h[x + c] = v\n            q.append(x + c)\n        if j > 0 and h[x - 1] < 0:\n            h[x - 1] = v\n            q.append(x - 1)\n        if j < c - 1 and h[x + 1] < 0:\n            h[x + 1] = v\n            q.append(x + 1)\n    out = []\n    for i in range(r):\n        out.append(' '.join(map(str, h[i * c:(i + 1) * c])))\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\nrows = data[2:2 + r]\nwater = [(i, j) for i in range(r) for j in range(c) if rows[i][j] == '1']\nout = []\nfor i in range(r):\n    line = []\n    for j in range(c):\n        line.append(min(abs(i - a) + abs(j - b) for a, b in water))\n    out.append(' '.join(map(str, line)))\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    def fmt(g):\n        return str(len(g)) + ' ' + str(len(g[0])) + '\\n' + '\\n'.join(''.join(map(str, row)) for row in g)\n\n    def rand_grid(r, c, p):\n        g = [[1 if rng.random() < p else 0 for _ in range(c)] for _ in range(r)]\n        g[rng.randrange(r)][rng.randrange(c)] = 1\n        return g\n\n    def single(r, c, i, j):\n        g = [[0] * c for _ in range(r)]\n        g[i][j] = 1\n        return g\n\n    tests = [\n        fmt([[1]]),\n        fmt([[1, 1, 1]]),\n        fmt([[1], [0], [0], [0]]),\n        fmt([[0, 0, 0, 0, 1]]),\n        fmt([[1, 0, 1], [0, 0, 0], [0, 0, 0]]),\n        fmt([[0, 0, 0], [0, 0, 0], [0, 0, 1]]),\n        fmt([[1, 1], [1, 1]]),\n    ]\n    for _ in range(30):\n        r = rng.randint(1, 6)\n        c = rng.randint(1, 6)\n        tests.append(fmt(rand_grid(r, c, rng.choice([0.05, 0.2, 0.5, 0.8]))))\n    tests.append(fmt(single(300, 300, 0, 0)))\n    tests.append(fmt(single(300, 300, 150, 150)))\n    tests.append(fmt(rand_grid(300, 300, 0.001)))\n    tests.append(fmt(rand_grid(300, 300, 0.5)))\n    tests.append(fmt(single(1, 300, 0, 299)))\n    tests.append(fmt([[1 if j % 2 == 0 else 0 for j in range(300)] for _ in range(300)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef highest_peak(is_water: List[List[int]]) -> List[List[int]]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    grid = [[int(ch) for ch in data[2 + i]] for i in range(r)]\n    res = highest_peak(grid)\n    print('\\n'.join(' '.join(map(str, row)) for row in res))\n\n\nmain()\n",
+  "javascript": "function highestPeak(isWater) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst r = Number(t[0])\nconst grid = []\nfor (let i = 0; i < r; i++) grid.push(t[2 + i].split('').map(Number))\nconsole.log(highestPeak(grid).map(row => row.join(' ')).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<vector<int>> highestPeak(vector<vector<int>>& isWater) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<vector<int>> grid(r, vector<int>(c));\n    for (int i = 0; i < r; i++) {\n        string s;\n        cin >> s;\n        for (int j = 0; j < c; j++) grid[i][j] = s[j] - '0';\n    }\n    vector<vector<int>> res = highestPeak(grid);\n    for (auto& row : res) {\n        for (size_t j = 0; j < row.size(); j++) cout << row[j] << (j + 1 < row.size() ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[][] highestPeak(int[][] isWater) {\n        // Write your solution here\n        return new int[0][0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        Scanner sc = new Scanner(System.in);\n        int r = sc.nextInt(), c = sc.nextInt();\n        int[][] grid = new int[r][c];\n        for (int i = 0; i < r; i++) {\n            String s = sc.next();\n            for (int j = 0; j < c; j++) grid[i][j] = s.charAt(j) - '0';\n        }\n        int[][] res = highestPeak(grid);\n        StringBuilder sb = new StringBuilder();\n        for (int[] row : res) {\n            for (int j = 0; j < row.length; j++) sb.append(row[j]).append(j + 1 < row.length ? \" \" : \"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

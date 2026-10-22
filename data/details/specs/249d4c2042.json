@@ -1,0 +1,17 @@
+{
+ "qid": "249d4c2042",
+ "question": "Arcesium Senior Software Engineer technical interview, SQL question: **find the 3rd highest salary in a table**. The same round also asked about unchecked exceptions in Java and finding the middle of a linked list.",
+ "lookingFor": [
+  "Can write a correct query for the Nth highest value.",
+  "Handles duplicates (distinct salary vs rank by row) and the fewer-than-N case.",
+  "Knows several alternatives and their trade-offs.",
+  "Awareness of window functions and NULL handling."
+ ],
+ "answer": "Assume `Employee(id, name, salary)`. \"3rd highest salary\" normally means the 3rd highest **distinct** value, so two people with the top salary do not take up two ranks. Clarify this with the interviewer.\n\n**1. LIMIT / OFFSET (MySQL, PostgreSQL)**\n```sql\nSELECT DISTINCT salary\nFROM Employee\nORDER BY salary DESC\nLIMIT 1 OFFSET 2;\n```\nSort distinct salaries descending, skip two, take one. If fewer than three distinct salaries exist it returns no row; wrap it as a subquery in `SELECT (...) AS third_highest` if you want `NULL` instead.\n\n**2. Window function (most general, works in SQL Server, Oracle, Postgres, MySQL 8)**\n```sql\nSELECT salary\nFROM (\n  SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk\n  FROM Employee\n) t\nWHERE rnk = 3\nGROUP BY salary;\n```\n`DENSE_RANK` gives tied salaries the same rank with no gaps; `RANK` would leave gaps and could skip rank 3, and `ROW_NUMBER` would count ties separately. Changing 3 to N gives the Nth highest.\n\n**3. Correlated subquery (works anywhere, slower)**\n```sql\nSELECT DISTINCT e1.salary\nFROM Employee e1\nWHERE 2 = (SELECT COUNT(DISTINCT e2.salary)\n           FROM Employee e2\n           WHERE e2.salary > e1.salary);\n```\nA salary is third highest if exactly two distinct salaries are larger. This is O(n squared) without an index.\n\n**4. Nested MAX (no ranking features)**\n`SELECT MAX(salary) FROM Employee WHERE salary < (SELECT MAX(salary) FROM Employee WHERE salary < (SELECT MAX(salary) FROM Employee));`\n\n**Performance:** an index on `salary` lets approaches 1 and 2 avoid a full sort. **NULLs:** `ORDER BY ... DESC` placement of NULLs varies by database, so filter with `WHERE salary IS NOT NULL` when needed.",
+ "followUps": [
+  "How would you return the 3rd highest salary per department?",
+  "What is the difference between RANK, DENSE_RANK and ROW_NUMBER?",
+  "How does the query behave when there are fewer than three distinct salaries?",
+  "What is the difference between checked and unchecked exceptions in Java?"
+ ]
+}

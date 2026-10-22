@@ -1,0 +1,18 @@
+{
+ "qid": "ac7689df28",
+ "question": "In a third technical round for a Product Engineer (SDE-1) role at Sprinklr, the candidate was asked to **implement a vector (dynamic array) in C++**, **explain how a vector differs from a static array**, and then **implement an LRU cache**.",
+ "lookingFor": [
+  "Do you understand dynamic arrays: size versus capacity, geometric growth, amortised cost?",
+  "Do you handle C++ resource management: constructors, destructor, copy and move semantics?",
+  "Can you explain stack versus heap, fixed versus resizable, and iterator invalidation?",
+  "Do you write correct code under time pressure, covering edge cases?"
+ ],
+ "answer": "**Static array vs vector.** A static array (`int a[10]`) has a size fixed at compile time (or at allocation) and lives on the stack (or static storage). A `std::vector` owns heap memory, grows and shrinks at runtime, knows its own size, and cleans up automatically (RAII). Both give contiguous storage and O(1) indexing.\n\n**Design.** Keep three members: `T* data`, `size_t size_`, `size_t cap_`. Growth is **geometric** (double the capacity when full), so `push_back` is **amortised O(1)**: copying n elements happens rarely, and the total over n pushes is O(n).\n\n```cpp\ntemplate <class T>\nclass Vector {\n  T* data_ = nullptr; size_t size_ = 0, cap_ = 0;\n  void grow(size_t n) {\n    T* p = static_cast<T*>(::operator new(n * sizeof(T)));\n    for (size_t i = 0; i < size_; ++i) {\n      new (p + i) T(std::move(data_[i]));\n      data_[i].~T();\n    }\n    ::operator delete(data_);\n    data_ = p; cap_ = n;\n  }\npublic:\n  Vector() = default;\n  Vector(const Vector& o) { for (size_t i = 0; i < o.size_; ++i) push_back(o.data_[i]); }\n  Vector(Vector&& o) noexcept : data_(o.data_), size_(o.size_), cap_(o.cap_) {\n    o.data_ = nullptr; o.size_ = o.cap_ = 0;\n  }\n  Vector& operator=(Vector o) noexcept { swap(o); return *this; }\n  ~Vector() { clear(); ::operator delete(data_); }\n  void push_back(const T& v) {\n    if (size_ == cap_) grow(cap_ ? cap_ * 2 : 1);\n    new (data_ + size_++) T(v);\n  }\n  void pop_back() { data_[--size_].~T(); }\n  T& operator[](size_t i) { return data_[i]; }\n  size_t size() const { return size_; }\n  void clear() { while (size_) pop_back(); }\n  void swap(Vector& o) noexcept { std::swap(data_, o.data_); std::swap(size_, o.size_); std::swap(cap_, o.cap_); }\n};\n```\n\n**Points to mention.**\n\n- **Rule of five**: destructor, copy and move constructors and assignments, to avoid leaks and double frees.\n- Use placement `new` and explicit destructor calls so that `T` need not be default-constructible.\n- Growing **invalidates** iterators, pointers and references.\n- `reserve(n)` avoids reallocations; `shrink_to_fit` is a non-binding request.\n- `emplace_back` constructs in place; make moves `noexcept` so `std::vector` can move rather than copy on growth.\n\n**LRU cache.** `unordered_map<Key, list<pair<Key,Value>>::iterator>` plus a `std::list` ordered by recency: `get` and `put` move the node to the front, and eviction removes the back. Both O(1).",
+ "followUps": [
+  "Why is `push_back` amortised O(1) and not O(n)?",
+  "Why is a growth factor of 1.5 sometimes preferred over 2?",
+  "What happens to iterators and references after `push_back`?",
+  "What is the difference between `size()` and `capacity()`, and between `reserve` and `resize`?",
+  "How does `std::vector<bool>` differ from other vectors?"
+ ]
+}

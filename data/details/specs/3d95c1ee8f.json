@@ -1,0 +1,19 @@
+{
+ "qid": "3d95c1ee8f",
+ "question": "Asked in a Paytm Senior Software Engineer system design round (September 2024). In the Paytm Recharge product, a user who has, for example, 1.5 GB of mobile data and is down to about 50 MB must be notified that data is low.\n\nScale to consider: 100 million notifications per day, and a database design that stores 100 million writes per day. The stored data must also support analytics.",
+ "lookingFor": [
+  "Back-of-envelope sizing from the stated numbers",
+  "Choosing an event-driven pipeline with queues and consumers",
+  "Database choice for high write volume plus analytics",
+  "Handling duplicates, retries and notification fatigue",
+  "Separating transactional and analytical workloads"
+ ],
+ "answer": "**Requirements.** Functional: detect that a user's remaining data crossed a threshold (for example 50 MB, or 5 percent), send a push/SMS/in-app notification once, store the usage and notification records, and support analytics. Non-functional: high write throughput, timely delivery (minutes, not hours), no duplicate spam, tolerate downstream failures.\n\n**Scale.** 100M writes per day is about 1,150 writes per second on average, perhaps 5 to 10 times that at peak. At around 200 bytes per record this is about 20 GB per day, so about 7 TB per year before replication. Notifications are similar in volume. This is moderate, not extreme, so a partitioned store plus a queue is enough.\n\n**Flow.**\n\n1. Usage events come from the telecom or operator integration (as a stream or a periodic balance poll) and are published to Kafka, keyed by user or number id.\n2. A stream processor or consumer group keeps the latest balance per user and evaluates the rule: crossed the threshold and not already notified in this billing cycle. State is kept in Redis or in the consumer's state store.\n3. When triggered, it writes a notification job to a second topic. Notification workers call the push/SMS provider, with retries, exponential backoff and a dead-letter queue.\n4. Idempotency: a key like `(user_id, plan_cycle, threshold)` stops duplicates when events are replayed.\n\n**Data model.** `usage_events(user_id, ts, remaining_mb, ...)` is append-only and time-partitioned. `notification_log(user_id, type, status, ts)` records what was sent. Choose a write-optimised store such as Cassandra, DynamoDB or a sharded MySQL for the hot path, with the shard key on `user_id`.\n\n**Analytics.** Do not run analytical queries on the operational store. Stream the same events (or a CDC feed) into a data lake or a columnar warehouse (S3 with Parquet, ClickHouse, BigQuery). Analysts can then ask questions such as \"how many users recharge within an hour of the alert\".\n\n**Trade-offs and bottlenecks.** Polling is simpler but late and expensive; streaming is timely but needs an event source. Hot partitions occur if keys are skewed. Provider rate limits require throttling. Add rate limits per user so they receive at most one alert per cycle, plus user opt-out preferences. Monitor queue lag and delivery rates.",
+ "followUps": [
+  "How do you avoid sending the same alert twice if a consumer crashes and replays events?",
+  "How would you pick the shard key and what happens with hot users?",
+  "What if the SMS or push provider is down?",
+  "Why not run analytics directly on the primary database?",
+  "How would you let users configure their own threshold?"
+ ]
+}

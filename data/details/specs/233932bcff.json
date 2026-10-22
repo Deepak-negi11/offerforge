@@ -1,0 +1,19 @@
+{
+ "qid": "233932bcff",
+ "question": "Salesforce AMTS (new grad) Technical Interview 2: **implement an LRU cache from scratch as production-ready OOP code** (class design, separation of responsibilities, time and space complexity), then **extend it to an LFU cache**. This pair was reported across AMTS, MTS and SMTS loops in 2025-26; in one MTS virtual round both were asked and solved with working code, and in one onsite drive LRU alone was the elimination round.",
+ "lookingFor": [
+  "O(1) get and put via the right combination of data structures.",
+  "Clean OOP: encapsulation, generics, small interfaces, error handling.",
+  "Pointer-handling correctness (doubly linked list updates, sentinels).",
+  "Ability to extend a design: from recency to frequency with tie-breaks.",
+  "Testing, edge cases and complexity analysis."
+ ],
+ "answer": "**LRU: data structures.** A `HashMap<K, Node>` for O(1) lookup, and a **doubly linked list** ordered by recency (head = most recent, tail = least recent). Use dummy head and tail nodes to avoid null checks.\n\n```java\nclass LRUCache<K, V> {\n    private final int capacity;\n    private final Map<K, Node<K, V>> map = new HashMap<>();\n    private final Node<K, V> head = new Node<>(null, null), tail = new Node<>(null, null);\n    LRUCache(int capacity) { this.capacity = capacity; head.next = tail; tail.prev = head; }\n    V get(K key) {\n        Node<K, V> n = map.get(key);\n        if (n == null) return null;\n        unlink(n); addFront(n); return n.val;\n    }\n    void put(K key, V val) {\n        Node<K, V> n = map.get(key);\n        if (n != null) { n.val = val; unlink(n); addFront(n); return; }\n        if (map.size() == capacity) { Node<K, V> lru = tail.prev; unlink(lru); map.remove(lru.key); }\n        n = new Node<>(key, val); map.put(key, n); addFront(n);\n    }\n}\n```\n`unlink` and `addFront` are four-pointer updates. The node stores its key so eviction can remove the map entry. Both operations are O(1), space O(capacity). Validate capacity > 0, and discuss `LinkedHashMap` with `accessOrder` as the one-line alternative, but implement manually when asked.\n\n**OOP design:** hide the list behind a small `EvictionPolicy` interface (`onAccess`, `onInsert`, `evict`), so `Cache` handles storage and the policy decides what to remove. This makes LFU a new policy rather than a rewrite. Thread safety: lock around get and put, since `get` also mutates order. A `ConcurrentHashMap` alone is not enough.\n\n**LFU extension.** Keep `Map<K, Node>` plus `Map<Integer, DoublyLinkedList>` keyed by frequency and a `minFreq` variable. On access: remove the node from its list for freq f, put it at the front of the list for f+1, and if list f is now empty and `minFreq == f`, increment `minFreq`. On insert at capacity: evict the **tail of the `minFreq` list** (least frequently used, and among ties the least recently used), insert the new node with frequency 1 and set `minFreq = 1`. All operations are O(1).\n\n**Edge cases:** capacity 0, updating an existing key (counts as an access), null keys, equal frequencies, and a key evicted then re-inserted starting at frequency 1.",
+ "followUps": [
+  "Why a doubly linked list rather than a singly linked list or an array?",
+  "How would you make the cache thread-safe without a global lock?",
+  "How would you add TTL expiry to the cache?",
+  "How does LFU behave with a burst of old popular keys, and how can you fix it (aging)?",
+  "How would you scale it as a distributed cache?"
+ ]
+}

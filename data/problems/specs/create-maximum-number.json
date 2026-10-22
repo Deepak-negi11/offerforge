@@ -1,0 +1,49 @@
+{
+ "pid": "create-maximum-number",
+ "title": "Create Maximum Number",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given two arrays of digits, `nums1` (length `m`) and `nums2` (length `n`), and an integer `k` with `k ≤ m + n`.\n\nBuild the numerically **largest** sequence of exactly `k` digits by choosing digits from the two arrays. You may take any number of digits from each array, but the digits taken from one array must keep their original relative order. Digits from the two arrays may be interleaved in any way.\n\nThe result always has exactly `k` digits, so a leading `0` is allowed and is printed. Comparing two results of the same length numerically is the same as comparing them lexicographically.",
+ "input_format": "The first line contains `m`, `n` and `k`.\nThe second line contains `m` digits separated by spaces (`nums1`).\nThe third line contains `n` digits separated by spaces (`nums2`).",
+ "output_format": "Print the `k` digits of the largest result as one string with no spaces.",
+ "constraints": [
+  "1 ≤ m, n ≤ 200",
+  "1 ≤ k ≤ m + n",
+  "0 ≤ nums1[i], nums2[i] ≤ 9"
+ ],
+ "examples": [
+  {
+   "input": "3 3 5\n6 7 4\n5 3 1",
+   "output": "75431",
+   "explanation": "Skip the leading `6` and take `7 4` from `nums1` and `5 3 1` from `nums2`. Merge greedily: 7 beats 5; then 5 beats 4; then 4 beats 3; then 3 and 1 follow. The result is 75431. Keeping the 6 instead (for example `6 7 4` plus `5 3`) starts with a smaller 6 and loses."
+  },
+  {
+   "input": "2 2 3\n9 1\n8 9",
+   "output": "991",
+   "explanation": "Take `9 1` from `nums1` and only the `9` from `nums2`. Both heads are 9, so compare the remaining suffixes: `9 1` is larger than `9` (it is longer with an equal prefix), so take the 9 from `nums1` first. Then 9 from `nums2` beats 1, and the 1 comes last: 991."
+  },
+  {
+   "input": "2 3 3\n1 2\n0 0 0",
+   "output": "200",
+   "explanation": "Taking `2` from the first array and `0 0` from the second gives 200, which beats 120 or 100."
+  }
+ ],
+ "complexity": {
+  "time": "O(k · (m + n)^2) worst case",
+  "space": "O(m + n)"
+ },
+ "hints": [
+  "Split the problem: decide how many digits `i` to take from `nums1` and `k - i` from `nums2`, and try every valid `i`.",
+  "For a fixed count from one array, the best subsequence of that length is found with a monotonic stack: pop smaller digits while you still have digits to spare.",
+  "Merge the two best subsequences greedily. When the heads are equal, look ahead: take from the array whose remaining suffix is lexicographically larger."
+ ],
+ "reference": "import sys\n\ndef pick(nums, t):\n    drop = len(nums) - t\n    st = []\n    for d in nums:\n        while drop and st and st[-1] < d:\n            st.pop()\n            drop -= 1\n        st.append(d)\n    return st[:t]\n\ndef merge(a, b):\n    out = []\n    i = j = 0\n    la, lb = len(a), len(b)\n    while i < la or j < lb:\n        if a[i:] >= b[j:]:\n            out.append(a[i]); i += 1\n        else:\n            out.append(b[j]); j += 1\n    return out\n\ndef main():\n    data = sys.stdin.read().split()\n    m, n, k = int(data[0]), int(data[1]), int(data[2])\n    a = [int(x) for x in data[3:3 + m]]\n    b = [int(x) for x in data[3 + m:3 + m + n]]\n    best = None\n    for i in range(max(0, k - n), min(k, m) + 1):\n        cand = merge(pick(a, i), pick(b, k - i))\n        if best is None or cand > best:\n            best = cand\n    print(''.join(map(str, best)))\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import combinations\n\ndata = sys.stdin.read().split()\nm, n, k = int(data[0]), int(data[1]), int(data[2])\na = [int(x) for x in data[3:3 + m]]\nb = [int(x) for x in data[3 + m:3 + m + n]]\n\ndef interleavings(x, y):\n    if not x:\n        yield list(y)\n        return\n    if not y:\n        yield list(x)\n        return\n    for rest in interleavings(x[1:], y):\n        yield [x[0]] + rest\n    for rest in interleavings(x, y[1:]):\n        yield [y[0]] + rest\n\nbest = None\nfor i in range(0, k + 1):\n    if i > m or k - i > n:\n        continue\n    for s1 in combinations(a, i):\n        for s2 in combinations(b, k - i):\n            for r in interleavings(list(s1), list(s2)):\n                if best is None or r > best:\n                    best = r\nprint(''.join(map(str, best)))\n",
+ "generator": "def gen(rng):\n    def fmt(a, b, k):\n        return f\"{len(a)} {len(b)} {k}\\n\" + \" \".join(map(str, a)) + \"\\n\" + \" \".join(map(str, b))\n    tests = [\n        fmt([3, 4, 6, 5], [9, 1, 2, 5, 8, 3], 5),\n        fmt([5], [5], 1),\n        fmt([5], [5], 2),\n        fmt([0], [0, 0], 3),\n        fmt([1, 2], [0, 0, 0], 3),\n        fmt([6, 7], [6, 0, 4], 5),\n        fmt([9, 1], [8, 9], 3),\n    ]\n    for _ in range(45):\n        m = rng.randint(1, 5)\n        n = rng.randint(1, 5)\n        k = rng.randint(1, m + n)\n        hi = rng.choice([1, 2, 9])\n        a = [rng.randint(0, hi) for _ in range(m)]\n        b = [rng.randint(0, hi) for _ in range(n)]\n        tests.append(fmt(a, b, k))\n    tests.append(fmt([rng.randint(0, 9) for _ in range(200)], [rng.randint(0, 9) for _ in range(200)], 200))\n    tests.append(fmt([rng.randint(0, 1) for _ in range(200)], [rng.randint(0, 1) for _ in range(200)], 400))\n    tests.append(fmt([7] * 200, [7] * 200, 399))\n    tests.append(fmt([9] * 199 + [8], [9] * 199 + [7], 300))\n    tests.append(fmt([rng.randint(0, 9) for _ in range(200)], [rng.randint(0, 9) for _ in range(150)], 77))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_number(nums1: List[int], nums2: List[int], k: int) -> str:\n    # Write your solution here\n    return ''\n\n\ndef main():\n    data = sys.stdin.read().split()\n    m, n, k = int(data[0]), int(data[1]), int(data[2])\n    nums1 = [int(x) for x in data[3:3 + m]]\n    nums2 = [int(x) for x in data[3 + m:3 + m + n]]\n    print(max_number(nums1, nums2, k))\n\n\nmain()\n",
+  "javascript": "function maxNumber(nums1, nums2, k) {\n  // Write your solution here\n  return ''\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst m = t[0], n = t[1], k = t[2]\nconst nums1 = t.slice(3, 3 + m)\nconst nums2 = t.slice(3 + m, 3 + m + n)\nconsole.log(maxNumber(nums1, nums2, k))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring maxNumber(vector<int>& nums1, vector<int>& nums2, int k) {\n    // Write your solution here\n    return \"\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int m, n, k;\n    cin >> m >> n >> k;\n    vector<int> nums1(m), nums2(n);\n    for (int i = 0; i < m; i++) cin >> nums1[i];\n    for (int i = 0; i < n; i++) cin >> nums2[i];\n    cout << maxNumber(nums1, nums2, k) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String maxNumber(int[] nums1, int[] nums2, int k) {\n        // Write your solution here\n        return \"\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int m = (int) in.nval;\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        int[] nums1 = new int[m], nums2 = new int[n];\n        for (int i = 0; i < m; i++) { in.nextToken(); nums1[i] = (int) in.nval; }\n        for (int i = 0; i < n; i++) { in.nextToken(); nums2[i] = (int) in.nval; }\n        System.out.println(maxNumber(nums1, nums2, k));\n    }\n}\n"
+ }
+}

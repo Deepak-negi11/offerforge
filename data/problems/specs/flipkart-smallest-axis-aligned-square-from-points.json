@@ -1,0 +1,49 @@
+{
+ "pid": "flipkart-smallest-axis-aligned-square-from-points",
+ "title": "Smallest Axis-Aligned Square From Points",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given `N` distinct points with integer coordinates on a 2D plane. Any 4 of the given points may form a square if the square's sides are parallel to the X and Y axes (an **axis-aligned** square). A valid square must use exactly 4 of the given points as its 4 corners, and its side length must be positive.\n\nFind the smallest possible side length of such a square. If no 4 of the points form an axis-aligned square, print `-1`.",
+ "input_format": "The first line contains `N`.\nEach of the next `N` lines contains two integers `x` and `y`, the coordinates of one point.",
+ "output_format": "Print a single integer: the smallest side length, or `-1` if no square exists.",
+ "constraints": [
+  "4 ≤ N ≤ 1000",
+  "-10^9 ≤ x, y ≤ 10^9",
+  "All points are distinct"
+ ],
+ "examples": [
+  {
+   "input": "5\n0 0\n0 1\n1 0\n1 1\n2 2",
+   "output": "1",
+   "explanation": "The points (0,0), (0,1), (1,0), (1,1) are the corners of a square of side 1. The point (2,2) is not needed."
+  },
+  {
+   "input": "5\n0 0\n3 0\n0 3\n3 3\n1 1",
+   "output": "3",
+   "explanation": "Only the four outer points form a square, with side 3."
+  },
+  {
+   "input": "4\n0 0\n2 0\n0 1\n2 1",
+   "output": "-1",
+   "explanation": "These four points form a 2 by 1 rectangle, not a square."
+  }
+ ],
+ "complexity": {
+  "time": "O(N^2)",
+  "space": "O(N)"
+ },
+ "hints": [
+  "Fix the bottom edge of a square: two points on the same horizontal line. Their distance gives the side length `d`.",
+  "Once you know the bottom edge and `d`, the top corners are forced. Check whether they exist using a hash set of all points.",
+  "Group points by `y` so you only pair points that share a row, and keep the best side seen so far."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    pts = set()\n    rows = {}\n    for i in range(n):\n        x, y = int(data[1 + 2 * i]), int(data[2 + 2 * i])\n        pts.add((x, y))\n        rows.setdefault(y, []).append(x)\n    best = -1\n    for y, xs in rows.items():\n        xs.sort()\n        m = len(xs)\n        for i in range(m):\n            xi = xs[i]\n            for j in range(i + 1, m):\n                d = xs[j] - xi\n                if best != -1 and d >= best:\n                    break\n                if (xi, y + d) in pts and (xs[j], y + d) in pts:\n                    best = d\n                    break\n    print(best)\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import combinations\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nP = [(int(data[1 + 2 * i]), int(data[2 + 2 * i])) for i in range(n)]\nbest = -1\nfor quad in combinations(P, 4):\n    xs = sorted(set(p[0] for p in quad))\n    ys = sorted(set(p[1] for p in quad))\n    if len(xs) == 2 and len(ys) == 2 and xs[1] - xs[0] == ys[1] - ys[0]:\n        d = xs[1] - xs[0]\n        if best == -1 or d < best:\n            best = d\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(pts):\n        return str(len(pts)) + \"\\n\" + \"\\n\".join(f\"{x} {y}\" for x, y in pts)\n    tests = [\n        fmt([(0, 0), (0, 1), (1, 0), (1, 1), (2, 2)]),\n        fmt([(0, 0), (3, 0), (0, 3), (3, 3), (1, 1)]),\n        fmt([(0, 0), (2, 0), (0, 1), (2, 1)]),\n        fmt([(-5, -5), (-5, 5), (5, -5), (5, 5)]),\n        fmt([(0, 0), (1, 1), (2, 2), (3, 3)]),\n        fmt([(-10**9, -10**9), (10**9, -10**9), (-10**9, 10**9), (10**9, 10**9)]),\n    ]\n    for _ in range(40):\n        n = rng.randint(4, 9)\n        size = rng.choice([3, 4, 5])\n        cells = [(x, y) for x in range(size) for y in range(size)]\n        if n > len(cells):\n            n = len(cells)\n        pts = rng.sample(cells, n)\n        off = rng.randint(-5, 5)\n        tests.append(fmt([(x + off, y - off) for x, y in pts]))\n    # large cases\n    tests.append(fmt(rng.sample([(x, y) for x in range(31) for y in range(32)], 992)))\n    tests.append(fmt([(i * 3, 0) for i in range(500)] + [(i * 3, 30) for i in range(500)]))\n    tests.append(fmt([(i * 7 - 3000, 5) for i in range(1000)]))\n    pts = set()\n    while len(pts) < 996:\n        pts.add((rng.randint(-10**9, 10**9), rng.randint(-10**9, 10**9)))\n    pts = list(pts)\n    pts += [(-12345, 777), (-12345 + 123457, 777), (-12345, 777 + 123457), (-12345 + 123457, 777 + 123457)]\n    rng.shuffle(pts)\n    tests.append(fmt(pts))\n    tests.append(fmt(sorted({(rng.randint(0, 25) * 1000, rng.randint(0, 25) * 1000) for _ in range(3000)})[:1000]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef smallest_square(xs: List[int], ys: List[int]) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    xs = [int(data[1 + 2 * i]) for i in range(n)]\n    ys = [int(data[2 + 2 * i]) for i in range(n)]\n    print(smallest_square(xs, ys))\n\n\nmain()\n",
+  "javascript": "function smallestSquare(xs, ys) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst xs = [], ys = []\nfor (let i = 0; i < n; i++) {\n  xs.push(t[1 + 2 * i])\n  ys.push(t[2 + 2 * i])\n}\nconsole.log(smallestSquare(xs, ys))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long smallestSquare(vector<long long>& xs, vector<long long>& ys) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> xs(n), ys(n);\n    for (int i = 0; i < n; i++) cin >> xs[i] >> ys[i];\n    cout << smallestSquare(xs, ys) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long smallestSquare(long[] xs, long[] ys) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] xs = new long[n], ys = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); xs[i] = (long) in.nval;\n            in.nextToken(); ys[i] = (long) in.nval;\n        }\n        System.out.println(smallestSquare(xs, ys));\n    }\n}\n"
+ }
+}

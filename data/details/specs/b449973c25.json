@@ -1,0 +1,17 @@
+{
+ "qid": "b449973c25",
+ "question": "Goldman Sachs Summer Analyst, HR/final round. After solving an open-ended problem with a **DSA approach** (the report does not say which problem), the interviewer asked the candidate to **solve the same problem using a MySQL query**. The specific problem was not reported, so this write-up covers the general skill: re-expressing an array/collection problem as set-based SQL.",
+ "lookingFor": [
+  "Can you move from procedural thinking (loops) to set-based thinking (joins, aggregates, windows)?",
+  "Solid SQL basics: GROUP BY, HAVING, joins, subqueries, window functions.",
+  "Awareness of NULLs, ties and duplicates, which silently break correct-looking queries.",
+  "Understanding of performance: indexes, scanning, and when SQL beats application code."
+ ],
+ "answer": "**Method.** Model the input as a table, then map the algorithm to relational operations:\n- Scan and filter becomes `WHERE`.\n- Counting or max/min per key becomes `GROUP BY` with aggregates.\n- Comparing an element with another (pairs, previous, next) becomes a self-join or `LAG`/`LEAD`.\n- Ranking or top-k per group becomes `ROW_NUMBER`, `RANK` or `DENSE_RANK` (MySQL 8+).\n- Running totals become `SUM() OVER (ORDER BY ...)`.\n\n**Worked example.** Typical DSA question: *find the second-highest distinct salary*. DSA approach: one pass tracking the top two values, O(n).\n\nSQL (MySQL 8):\n\n`SELECT MAX(salary) AS second_highest FROM (SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS r FROM employee) t WHERE r = 2;`\n\n`DENSE_RANK` gives tied salaries the same rank without gaps, so rank 2 is the second distinct value. `MAX` over the filtered rows returns one row, and it returns `NULL` (not an empty result) when there is no second value. A version without windows: `SELECT MAX(salary) FROM employee WHERE salary < (SELECT MAX(salary) FROM employee);`.\n\n**Another mapping.** *Two Sum* style: `SELECT a.id, b.id FROM nums a JOIN nums b ON a.id < b.id AND a.val + b.val = 9;`. This is a self-join, O(n^2) without an index; with an index on `val` and the condition rewritten as `b.val = 9 - a.val`, the join becomes an index lookup per row, similar to the hash-map idea.\n\n**Say these trade-offs aloud:**\n- SQL describes *what*, the optimizer chooses *how*, so add indexes on join/filter columns and read `EXPLAIN`.\n- Handle `NULL`s and duplicates explicitly.\n- Doing this in the database avoids moving large data to the application, but very algorithmic logic (graphs, DP) is awkward; recursive CTEs can cover some of it.\n\n**Avoid:** correlated subqueries that run once per row on large tables, `LIMIT 1 OFFSET 1` that breaks on ties, and not asking about the schema and sizes first.",
+ "followUps": [
+  "How would you write the same query without window functions, for MySQL 5.7?",
+  "What index would you add and how would you verify it is used?",
+  "How do `RANK`, `DENSE_RANK` and `ROW_NUMBER` differ with ties?",
+  "When would you keep the logic in application code instead of SQL?"
+ ]
+}

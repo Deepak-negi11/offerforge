@@ -3,10 +3,10 @@ import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { QuestionList } from '../components/QuestionRow'
 import { EmptyState, Select } from '../components/ui'
-import { PLATFORM_LABEL, TRACK_LABEL, byNewest, matchesText, useAtlas, type Platform, type Question } from '../lib/data'
+import { TRACK_LABEL, byNewest, matchesText, useAtlas, type Question } from '../lib/data'
 import { useAccount } from '../lib/account'
 
-const KEYS = ['company', 'track', 'round', 'category', 'topic', 'difficulty', 'platform', 'evidence', 'status'] as const
+const KEYS = ['company', 'track', 'round', 'category', 'topic', 'difficulty', 'status'] as const
 type Key = (typeof KEYS)[number]
 
 export function QuestionsPage() {
@@ -33,8 +33,6 @@ export function QuestionsPage() {
     (skip === 'category' || !f.category || q.category === f.category) &&
     (skip === 'topic' || !f.topic || q.topics.includes(f.topic)) &&
     (skip === 'difficulty' || !f.difficulty || q.difficulty === f.difficulty) &&
-    (skip === 'platform' || !f.platform || q.sources.some((s) => s.platform === f.platform)) &&
-    (skip === 'evidence' || !f.evidence || (f.evidence === 'verified' ? q.verified : q.reports > 1)) &&
     (skip === 'status' ||
       !f.status ||
       (f.status === 'unsolved' ? !solved.has(q.id) : f.status === 'solved' ? solved.has(q.id) : bookmarks.has(q.id)))
@@ -69,7 +67,6 @@ export function QuestionsPage() {
   const catFacet = facet('category', (q) => q.category)
   const topicFacet = facet('topic', (q) => q.topics)
   const diffFacet = facet('difficulty', (q) => q.difficulty)
-  const platFacet = facet('platform', (q) => [...new Set(q.sources.map((s) => s.platform))])
 
   const active = KEYS.filter((k) => f[k])
   const clearAll = () => setParams(text ? new URLSearchParams({ q: text }) : new URLSearchParams(), { replace: true })
@@ -114,22 +111,6 @@ export function QuestionsPage() {
         value={f.difficulty}
         onChange={(v) => set('difficulty', v)}
         options={['Easy', 'Medium', 'Hard'].map((d) => ({ value: d, label: d, count: diffFacet.get(d) ?? 0 }))}
-      />
-      <Select
-        label="Source platform"
-        value={f.platform}
-        onChange={(v) => set('platform', v)}
-        options={[...platFacet.entries()].sort((a, b) => b[1] - a[1]).map(([p, n]) => ({ value: p, label: PLATFORM_LABEL[p as Platform] ?? p, count: n }))}
-      />
-      <Select
-        label="Evidence"
-        value={f.evidence}
-        onChange={(v) => set('evidence', v)}
-        options={[
-          { value: 'verified', label: 'Verified on source' },
-          { value: 'multi', label: 'Reported 2+ times' },
-        ]}
-        allLabel="Any"
       />
       <Select
         label="My progress"
@@ -206,7 +187,7 @@ export function QuestionsPage() {
                 className="inline-flex items-center gap-1 rounded-full border border-accent-line bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent-ink"
                 aria-label={`Remove filter ${k}`}
               >
-                {k === 'company' ? atlas.companyBySlug.get(f[k])?.name : k === 'track' ? TRACK_LABEL[f[k] as 'intern'] : k === 'platform' ? PLATFORM_LABEL[f[k] as Platform] : k === 'evidence' ? (f[k] === 'verified' ? 'Verified' : 'Reported 2+ times') : f[k]}
+                {k === 'company' ? atlas.companyBySlug.get(f[k])?.name : k === 'track' ? TRACK_LABEL[f[k] as 'intern'] : f[k]}
                 <XIcon size={12} />
               </button>
             ))}

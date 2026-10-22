@@ -1,0 +1,17 @@
+{
+ "qid": "1e9638ce25",
+ "question": "An online assessment for the Associate Software Engineer role at ServiceNow included a SQL question: **A vaccine is administered in two doses, and it is best if the doses are given between 48 and 72 days apart, inclusive. Write a MySQL query to return the percentage of beneficiaries who received both doses within the recommended period, rounded to the nearest integer.** The table is `doses(dose_id, beneficiary_id, dose_type, vaccination_date)`.",
+ "lookingFor": [
+  "Can you self-join a table to compare two rows of the same person?",
+  "Do you use date functions correctly (DATEDIFF, inclusive BETWEEN)?",
+  "Do you avoid integer-division and duplicate-count mistakes?",
+  "Do you state your assumptions about the denominator and dose_type values?"
+ ],
+ "answer": "**Assumptions to state** (the original statement is not fully specified): `dose_type` is 1 for the first dose and 2 for the second; each beneficiary has at most one row per dose type; and the percentage is out of **all beneficiaries** in the table, including those with only one dose. If the problem means \"out of those with both doses\", change the denominator accordingly.\n\n**Query**\n\n    SELECT ROUND(\n             100 * COUNT(DISTINCT d2.beneficiary_id)\n             / (SELECT COUNT(DISTINCT beneficiary_id) FROM doses)\n           ) AS percentage\n    FROM doses d1\n    JOIN doses d2\n      ON d1.beneficiary_id = d2.beneficiary_id\n     AND d1.dose_type = 1\n     AND d2.dose_type = 2\n    WHERE DATEDIFF(d2.vaccination_date, d1.vaccination_date) BETWEEN 48 AND 72;\n\n**How it works**\n- The self-join pairs each beneficiary's first-dose row (`d1`) with their second-dose row (`d2`).\n- `DATEDIFF(later, earlier)` returns the number of days between the two dates in MySQL. The order of arguments matters: reversed, it would be negative and match nothing.\n- `BETWEEN 48 AND 72` is inclusive on both ends, which matches the \"inclusive\" requirement.\n- `COUNT(DISTINCT ...)` guards against double counting if data has duplicates.\n- Multiplying by 100 before dividing and the use of `/` in MySQL (which returns a decimal, not an integer division) keeps precision until `ROUND` rounds to the nearest integer.\n\nThe self-join form is the simplest and safest choice in an assessment.\n\n**Edge cases**: beneficiaries with a single dose, an empty table (division by zero gives `NULL`), and a second dose recorded before the first.",
+ "followUps": [
+  "How would the query change if the denominator were only beneficiaries with both doses?",
+  "How would you do this with a window function such as LAG?",
+  "What does ROUND do for exactly .5 values in MySQL?",
+  "Which index would speed this query up?"
+ ]
+}

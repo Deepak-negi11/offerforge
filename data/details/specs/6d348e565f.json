@@ -1,0 +1,17 @@
+{
+ "qid": "6d348e565f",
+ "question": "A program prints one number the first time it is run and a different number the next time it is run, then the first number again, and so on: the output alternates on every execution of the same code. How would you implement this? (Reported from an on-campus SAP Labs intern interview; the candidate first thought of semaphores, then proposed storing the next value in a file, and the interviewer followed up with a question the candidate did not understand.)",
+ "lookingFor": [
+  "Do you recognise that each run is a new process, so in-memory variables and semaphores cannot help?",
+  "Can you choose a persistence mechanism (file, database, environment/registry) and justify it?",
+  "Do you handle edge cases: first run with no state, corrupted file, two runs at once?",
+  "Can you write the small program cleanly and explain its failure modes?"
+ ],
+ "answer": "**Key insight.** Each execution is a separate process. A local variable, a `static` variable or a semaphore inside one process disappears when it exits, so the state must live *outside* the process: a file, a small database, the registry or an environment-backed store.\n\n**Simplest design: a state file.**\n1. On start, try to read the file (for example `state.txt`).\n2. If it is missing (first run) or unreadable, treat the state as \"first\".\n3. Print the number for the current state.\n4. Write the opposite state back, then exit.\n\n```python\nimport os\nF = \"state.txt\"\nstate = 0\nif os.path.exists(F):\n    try:\n        state = int(open(F).read().strip())\n    except ValueError:\n        state = 0          # corrupted file: fall back to the default\nprint(10 if state == 0 else 20)\ntmp = F + \".tmp\"\nopen(tmp, \"w\").write(str(1 - state))\nos.replace(tmp, F)         # atomic swap, so a crash cannot leave a half-written file\n```\n\n**Edge cases and improvements.**\n- First run: the file does not exist, so default to the first number.\n- Crash while writing: write to a temp file and rename; rename is atomic on the same filesystem.\n- Two runs at the same time: use a file lock (`flock`/`fcntl`) around read-modify-write, otherwise both read the same state and print the same number.\n- Do not hard-code the paths; keep the file in a known, writable directory.\n- The same idea works with a tiny SQLite table or a key in Redis if several machines run it.\n\n**Why not semaphores?** Named (POSIX or System V) semaphores can outlive a process, but their value is lost on reboot and they are meant for synchronisation, not for storing data. A file is simpler and survives restarts.\n\n**On follow-ups.** The reported interviewer followed up with a question the candidate did not understand and so left unanswered. If that happens, ask the interviewer to rephrase it, or state your assumption and answer on that basis, rather than staying silent. Also note that only one bit of state needs to persist here.",
+ "followUps": [
+  "What if two instances of the program start at exactly the same moment?",
+  "How would you make this work across several machines?",
+  "What if the numbers must cycle through three values instead of two?",
+  "How could you do this without writing any file, for example using the OS?"
+ ]
+}

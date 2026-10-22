@@ -1,0 +1,19 @@
+{
+ "qid": "31b303f515",
+ "question": "Build a Pipeline Manager to which many jobs can be submitted, where each job may depend on one or more earlier jobs (a DAG, for example A to B to C to G, A to E to F to G, and a separate chain K to L to M).\n\nEach job has a `jobId` and a `doWork()` method that may throw an error. Implement `execute()`. The pipeline ends in one of two ways: success when all jobs have executed, or failure as soon as at least one job fails, in which case no job may be left running.",
+ "lookingFor": [
+  "Can you model dependencies as a DAG and process in topological order (Kahn's algorithm)?",
+  "Do you run independent jobs in parallel safely?",
+  "Can you define and implement failure semantics: stop scheduling, cancel or wait for running jobs, report the error?",
+  "Do you handle cycles, missing dependencies and isolated chains?",
+  "Is your concurrency correct (no races on in-degree counters, no leaked threads)?"
+ ],
+ "answer": "**Model.** Build `children[job]` and `indegree[job]`. A job is *ready* when its indegree is 0. First detect cycles: if a topological pass over the graph cannot visit every job, reject with an error.\n\n**Execution (Kahn's algorithm with a thread pool):**\n1. Submit every ready job to an `ExecutorService`.\n2. When a job finishes successfully, decrement the indegree of each child (use `AtomicInteger`, or do the bookkeeping under one lock); submit children that reach 0.\n3. Keep a `completed` counter. When it equals the number of jobs, the pipeline succeeds.\n4. If `doWork()` throws, record the first failure (compare-and-set on an `AtomicReference`), set a `failed` flag, stop submitting new jobs, and cancel the rest.\n\n**\"No job is running\" on failure.** Two options, and you should state which you choose:\n- *Cooperative:* stop scheduling and wait for in-flight jobs to finish (`shutdown()` then `awaitTermination`). Safe, but may take long.\n- *Interrupting:* call `shutdownNow()` and require jobs to respond to interruption. Faster; it needs jobs to handle interrupts.\nEither way, `execute()` returns or throws only after the pool is quiescent.\n\n```java\nvoid execute() throws Exception {\n  CountDownLatch done = new CountDownLatch(total);\n  Runnable run = ...; // runs job, then on success: for child: if (indeg.get(child).decrementAndGet()==0 && !failed) pool.submit(child)\n  ready.forEach(pool::submit);\n  done.await();\n  pool.shutdown(); pool.awaitTermination(...);\n  if (failure.get() != null) throw failure.get();\n}\n```\n\nOn failure, count down the latch for jobs that will never run so `await` does not hang.\n\n**Complexity:** O(V+E) bookkeeping; parallelism is limited by the pool size and the DAG's width.\n\n**Edge cases:** cycle, duplicate ids, a dependency that was never submitted, an empty pipeline, and two jobs failing at the same time (keep the first, attach the rest as suppressed).",
+ "followUps": [
+  "How do you detect a cycle before running anything?",
+  "What happens if two jobs fail simultaneously?",
+  "How would you add retries with backoff for flaky jobs?",
+  "How would you limit concurrency, or run jobs across machines?",
+  "How would you resume a failed pipeline from the failed job?"
+ ]
+}

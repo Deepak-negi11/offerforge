@@ -1,0 +1,19 @@
+{
+ "qid": "c78b069524",
+ "question": "Razorpay backend engineer (about 3 years of experience), one-hour LLD round: build a logger system with different labels such as warning, error and delete. Logs must be published to different destinations based on the type and a configuration. For example, error logs go to a web endpoint and a file, while warning logs go to the console.\n\nThe expectation was to implement reading from the configuration, logging to different sinks based on the type, and using design patterns where applicable. The candidate implemented the full solution in Java and demonstrated it.",
+ "lookingFor": [
+  "Mapping the problem to suitable patterns (Strategy, Observer, Factory, Singleton)",
+  "A flexible, config-driven routing mechanism that needs no code change for new rules",
+  "Extensibility: new levels and sinks without modifying existing classes",
+  "Reasonable handling of failures in sinks and of concurrency",
+  "A working demonstration with tests"
+ ],
+ "answer": "**Clarify.** Is the label the same as a level (INFO, WARN, ERROR, plus a custom one like DELETE)? Can a level go to many sinks? Is the config a file (JSON or YAML) loaded at startup, or reloadable? Is logging synchronous? Assume config like `ERROR: [FILE, WEB]`, `WARN: [CONSOLE]`, read at startup.\n\n**Entities.**\n- `LogLevel` (enum, or a class if custom levels are required).\n- `LogMessage{level, text, timestamp, source}`.\n- `interface LogSink { void write(LogMessage m); }` with `ConsoleSink`, `FileSink`, `WebSink` (HTTP post, stubbed in the exercise). This is the Strategy idea: behaviour behind one interface.\n- `SinkFactory.create(name, options)` builds sinks from config names (Factory).\n- `LoggerConfig`: loaded from file into `Map<LogLevel, List<LogSink>>`.\n- `Logger`: `log(level, text)` looks up the sinks for that level and calls each. A facade methods `error(...)`, `warn(...)`.\n\n**Patterns, and why.**\n- Strategy and Factory for sinks and their creation, so adding a `KafkaSink` means one class and one factory entry (open-closed principle).\n- Observer view: sinks are subscribers to a level.\n- Chain of Responsibility alternative: a handler chain per level, useful if a level should pass through several handlers.\n- Singleton for the logger instance (or inject one shared instance, which tests better).\n\n**Extras worth a mention.**\n- Per-sink minimum level filtering and formatting (a `Formatter` interface).\n- Isolating failures: one sink throwing must not stop the others or crash the app (catch and report).\n- Async logging: put messages on a queue and let a worker thread write, so slow sinks like HTTP do not block callers; flush on shutdown.\n- Thread safety: a synchronized file append or a single writer thread.\n- Reloading config at runtime (swap the routing map atomically).\n\n**Tests.** Error goes to file and web; warning goes to console only; unknown level in config fails fast with a clear error; one failing sink does not block others.",
+ "followUps": [
+  "How would you make logging asynchronous without losing messages on shutdown?",
+  "How would you reload configuration without restarting the application?",
+  "How would you add log rotation and structured (JSON) formatting?",
+  "Why might Singleton be a poor choice for a logger in tests?",
+  "How would you avoid blocking the request path when the web sink is slow?"
+ ]
+}

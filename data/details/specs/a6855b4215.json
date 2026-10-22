@@ -1,0 +1,18 @@
+{
+ "qid": "a6855b4215",
+ "question": "Systems design round for a Software Engineer Intern role at Tower Research: **design and code a task scheduler.** An earlier round for the same candidate covered deadlocks, networking and file-system permissions. No requirements or constraints were reported beyond this.",
+ "lookingFor": [
+  "Do you clarify requirements before designing (one-shot vs recurring, priorities, delays, concurrency)?",
+  "Do you choose the right data structure (a priority queue by next run time) and worker model?",
+  "Can you write thread-safe code with a lock and condition variable and avoid deadlock?",
+  "Do you think about cancellation, shutdown, failures and testing?"
+ ],
+ "answer": "**Clarify.** Tasks run once at a time or after a delay? Recurring? Priorities? Dependencies between tasks? How many worker threads? In-memory only or persistent? State assumptions, for example: in-memory scheduler running delayed and periodic tasks on a fixed thread pool.\n\n**Entities.**\n- `Task`: id, a callable, `runAt`, optional `period`, status (pending, running, cancelled, done).\n- `Scheduler`: `schedule(task, delay)`, `scheduleAtFixedRate(task, period)`, `cancel(id)`, `shutdown()`.\n- A min-heap (`PriorityQueue`) ordered by `runAt`, and a pool of worker threads.\n\n**Algorithm.** Workers loop under one lock:\n1. If the queue is empty, wait on a condition variable.\n2. Otherwise look at the earliest task. If its time has not arrived, wait for the **remaining delay** (a timed wait). If a new earlier task is added, `signal` so waiters recompute.\n3. When due, **remove it from the heap, release the lock, then run it** (never run user code while holding the scheduler lock, to avoid deadlock and blocking).\n4. If periodic, compute the next time and reinsert it.\n\n```java\nvoid workerLoop() {\n    lock.lock();\n    try {\n        while (!shutdown) {\n            Task t = heap.peek();\n            if (t == null) { notEmpty.await(); continue; }\n            long wait = t.runAt - System.nanoTime();\n            if (wait > 0) { notEmpty.awaitNanos(wait); continue; }\n            heap.poll();\n            lock.unlock();\n            try { t.run(); } finally { lock.lock(); }\n            if (t.periodic) { t.runAt += t.period; heap.add(t); }\n        }\n    } finally { lock.unlock(); }\n}\n```\n\n**Complexity.** Insert and removal are O(log n); looking at the next task is O(1).\n\n**Edge cases and extensions.** Lazy cancellation (mark cancelled and skip it), exception handling so a failing task does not kill a worker, graceful versus immediate shutdown, priority tie-breaking by sequence number, retry with backoff, a task DAG with dependencies, and persistence. In Java, mention `ScheduledThreadPoolExecutor` as the production equivalent.\n\n**Pitfalls:** busy-waiting, one thread per task, running tasks under the lock, and missing a signal when an earlier task arrives.",
+ "followUps": [
+  "How would you support task dependencies (a DAG)?",
+  "How do you avoid starvation of low-priority tasks?",
+  "How would you make the scheduler survive a restart?",
+  "What are the four conditions for deadlock, and how does your design avoid them?",
+  "How would you distribute it across several machines?"
+ ]
+}

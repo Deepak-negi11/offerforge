@@ -1,0 +1,18 @@
+{
+ "qid": "f351364468",
+ "question": "AMD onsite interview for a Software Engineer role, design question: **design a phonebook that stores names, addresses and phone numbers and supports add, delete, search and modify.** One name may have **multiple addresses and multiple phone numbers**. Scale and language were not specified, so state your assumptions.",
+ "lookingFor": [
+  "Clarifying requirements before designing, and stating assumptions.",
+  "Good data modelling: entities, one-to-many relations, handling duplicates.",
+  "Choosing data structures with justified complexity (hash map, trie, ordered map).",
+  "Clean class and API design, edge cases and extensibility."
+ ],
+ "answer": "**Clarify first:** Are names unique? Do we need prefix search or search by phone number? In memory or persisted? Expected size and concurrency? Assume an in-memory single-process library to start, then discuss extensions.\n\n**Entities:**\n- `Contact`: `id`, `name`, `List<Address>`, `List<PhoneNumber>` (a name can have several of each).\n- `Address`, `PhoneNumber`: value objects, with an optional label (\"home\", \"work\").\n- `PhoneBook`: the aggregate that owns the indexes and exposes the API.\n\n**API:**\n- `addContact(name, addresses, phones) -> id`\n- `addPhone(id, phone)`, `addAddress(id, address)`\n- `deleteContact(id)`, `deletePhone(id, phone)`\n- `modifyContact(id, ...)`\n- `searchByName(name)`, `searchByPrefix(prefix)`, `searchByPhone(number)`\n\n**Data structures and complexity:**\n- `Map<id, Contact>` (hash map): O(1) average access by id.\n- `Map<normalizedName, Set<id>>`: allows duplicate names (two different people named \"John\"), O(1) exact lookup. If sorted or prefix output is needed, use a **trie** or a balanced tree (`TreeMap`), costing O(L) for a prefix of length L or O(log n) plus the output size.\n- `Map<phone, id>`: reverse lookup by number, supports uniqueness validation.\n- Keep every index consistent in add, modify and delete (update all of them in one method, ideally transactionally).\n\n**Design points:**\n- Normalise names (case, trimming) and phone numbers (strip spaces and dashes, handle country codes) before indexing.\n- Validate input and handle duplicates deterministically.\n- Modify = remove old index entries and insert new ones, since the key may change.\n- Make `PhoneBook` thread safe with a read-write lock if concurrent use is expected.\n- Persistence: serialise to a file or database with tables `contact`, `phone`, `address` (one-to-many by `contact_id`).\n- Test: empty book, delete missing id, duplicate numbers, many contacts per name.\n\n**Scaling:** move indexes to a database, with an index on name and phone and a full-text or prefix index for search.",
+ "followUps": [
+  "How would you support fast prefix search (autocomplete) on names?",
+  "How would you handle two contacts that share the same phone number?",
+  "How would you make the phonebook thread safe?",
+  "How would you persist this and which schema would you use?",
+  "How would you extend it to search by partial phone number?"
+ ]
+}

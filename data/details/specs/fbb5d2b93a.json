@@ -1,0 +1,17 @@
+{
+ "qid": "fbb5d2b93a",
+ "question": "In a later technical round of an Oracle on-campus process, the interview ended with a DBMS question: is it always necessary to have a primary key in any relation? What happens if we do not explicitly declare a primary key while creating the table schema?",
+ "lookingFor": [
+  "Separating the relational theory view from what SQL databases actually enforce",
+  "Knowing what a key guarantees: uniqueness and identity",
+  "Awareness of the practical consequences of having no key",
+  "Mentioning what real engines do internally"
+ ],
+ "answer": "**Short answer.** No, a primary key is not required for a table to be created, but you should almost always define one.\n\n**Theory vs practice.** In relational theory a relation is a *set* of tuples, so duplicates cannot exist, and every relation automatically has at least one candidate key (in the worst case, all attributes together). SQL tables are *bags*: a table with no key accepts duplicate rows, so the theoretical guarantee is lost unless you add a constraint. Most database systems (Oracle, MySQL, PostgreSQL, SQL Server) allow `CREATE TABLE` without a primary key; some managed services and replication setups insist on one.\n\n**What a primary key gives you:**\n- uniqueness and `NOT NULL` for the identifying column(s), enforced by the database;\n- a stable identity so that rows can be updated or deleted precisely;\n- a target for foreign keys (a foreign key must reference a unique key, so a child table has nothing to point to without one);\n- an automatic unique index, which makes lookups fast; and, in some engines, the clustering key that defines the physical order of rows.\n\n**If you do not declare one:**\n- duplicate rows can be inserted, and updating or deleting \"one\" row may affect several rows;\n- joins and foreign keys are harder, and the data can become inconsistent;\n- ORMs, replication, and change-data-capture tools often need a key and may fail or behave badly.\n\n**What engines do internally.** InnoDB in MySQL uses the first `UNIQUE NOT NULL` index if there is one, otherwise it creates a hidden internal row id as the clustered key. Oracle always has a `ROWID` pseudo-column giving each row's physical address, and PostgreSQL has the internal `ctid`. These are internal locators, not meaningful or stable business keys, and cannot be used reliably in foreign keys.\n\n**Good practice:** choose a natural key if one is truly unique and immutable, otherwise a surrogate key (auto-increment or UUID). Tables with no sensible key, such as pure log tables, can be an acceptable exception, but add an id anyway.",
+ "followUps": [
+  "What is the difference between a primary key, a unique key and a candidate key?",
+  "Natural key versus surrogate key: which would you choose?",
+  "Can a primary key be composite? When would you use one?",
+  "What is a foreign key and what does it enforce?"
+ ]
+}

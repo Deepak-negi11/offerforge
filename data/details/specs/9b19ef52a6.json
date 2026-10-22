@@ -1,0 +1,17 @@
+{
+ "qid": "9b19ef52a6",
+ "question": "In Apple software engineering interviews (infra/senior/staff and a Java/Spring Boot role), a coding round asked the candidate to **implement a time-based key-value store API** (like LeetCode's Time Based Key-Value Store: `set(key, value, timestamp)` and `get(key, timestamp)` returning the value with the latest timestamp not later than the one requested). Follow-ups covered **how TTL expiry behaves under read-heavy workloads**, and in another report the code was then made **thread-safe** (using a concurrent hash map).",
+ "lookingFor": [
+  "Choosing data structures that give efficient lookups per key and by time.",
+  "Applying binary search correctly on timestamp history.",
+  "Reasoning about expiry strategies and their cost on reads.",
+  "Concurrency awareness: atomicity, locks and concurrent collections."
+ ],
+ "answer": "**Data structure.** `Map<String, List<(timestamp, value)>>`: each key holds its history ordered by timestamp. In the LeetCode version, timestamps for a key are strictly increasing, so appends keep the list sorted.\n\n- `set(key, value, ts)`: append `(ts, value)` to the key's list, **O(1)** amortized.\n- `get(key, ts)`: **binary search** for the largest timestamp <= `ts`; return its value or empty if none. **O(log m)** for m versions of that key.\nIf timestamps can arrive out of order, use a `TreeMap<Long, String>` per key and `floorEntry(ts)`: O(log m) for both operations.\n\n```java\nclass TimeMap {\n    private final Map<String, TreeMap<Long, String>> store = new HashMap<>();\n    public void set(String k, String v, long ts) {\n        store.computeIfAbsent(k, x -> new TreeMap<>()).put(ts, v);\n    }\n    public String get(String k, long ts) {\n        TreeMap<Long, String> m = store.get(k);\n        if (m == null) return \"\";\n        Map.Entry<Long, String> e = m.floorEntry(ts);\n        return e == null ? \"\" : e.getValue();\n    }\n}\n```\n\n**TTL expiry under read-heavy load.**\n- **Lazy expiry:** check the expiry time on read and treat an expired entry as missing. Cheap, but expired data lingers in memory and each read does extra work.\n- **Active expiry:** a background sweeper (or a priority queue/timing wheel ordered by expiry) removes dead entries; this keeps memory bounded but competes with reads for locks.\n- Best practice is both: lazy check for correctness plus a periodic sampled or batched cleanup. Beware a **thundering herd** when many keys expire together (add jitter), and avoid taking a global write lock to expire on a read path.\n\n**Making it thread-safe.**\n- Simple: wrap operations in `synchronized` or a `ReentrantReadWriteLock` (many readers, one writer).\n- Better: `ConcurrentHashMap` with a thread-safe per-key structure (`ConcurrentSkipListMap` gives sorted, lock-free-ish `floorEntry`), and `computeIfAbsent` for atomic creation. A plain `TreeMap` inside is **not** thread-safe even in a `ConcurrentHashMap`.\n\nState complexity and memory growth (all versions are kept) explicitly, and mention compaction of old versions.",
+ "followUps": [
+  "How would you handle out-of-order timestamps?",
+  "How would you bound memory if versions grow without limit?",
+  "Why is `ConcurrentHashMap` alone not enough here?",
+  "How would you shard this store across machines?"
+ ]
+}

@@ -1,0 +1,50 @@
+{
+ "pid": "atlassian-buildable-robots-from-parts-bin",
+ "title": "Buildable Robots From Parts Bin",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "You work in a robotics factory. Each robot has a unique name, and every robot is built from the same standard set of parts (for example `sensors`, `case`, `speaker`). All parts lying in the factory bin are labelled `<robot_name>_<part_name>`, for example `Rosie_claw` or `Optimus_speaker`: the part belongs to the robot named before the underscore.\n\nYou are given:\n\n1. a list of strings, the parts available in the bin (the same label can appear several times);\n2. one string with the **comma-separated** list of parts needed to fully build **one** robot.\n\nReturn the names of all robots for which at least one complete robot can be built from the available parts, that is, the bin contains at least one part of every required kind labelled with that robot's name. Parts of a robot that are not in the required list are ignored. Robot names are case-sensitive (`rosie` and `Rosie` are different robots). A robot name or part name never contains an underscore.\n\nThe order of the result does not matter in the original problem; to make the output unique, print the robot names sorted in ascending ASCII order, comma-separated, inside square brackets with no spaces, for example `[Optimus,Rosie]`. If no robot can be built, print `[]`.\n\n**Follow-up:** how would you scale this to millions of parts, optimize time and space, and which data structures minimize lookup time? Only the core problem is tested here.",
+ "input_format": "The first line contains `N`, the number of parts in the bin.\nEach of the next `N` lines contains one part label `<robot_name>_<part_name>`.\nThe last line contains the required parts, comma-separated, with no spaces.",
+ "output_format": "Print the buildable robot names sorted in ascending order, comma-separated, inside square brackets (`[]` if there are none).",
+ "constraints": [
+  "1 ≤ N ≤ 4·10^4",
+  "Robot names and part names are 1 to 8 letters or digits long",
+  "1 ≤ number of required parts ≤ 50, all distinct",
+  "Every part label has the form `<robot_name>_<part_name>`"
+ ],
+ "examples": [
+  {
+   "input": "19\nRosie_claw\nRosie_sensors\nDustie_case\nOptimus_sensors\nRust_sensors\nRosie_case\nRust_case\nOptimus_speaker\nRosie_wheels\nRosie_speaker\nDustie_case\nDustie_arms\nRust_claw\nDustie_case\nDustie_speaker\nOptimus_case\nOptimus_wheels\nRust_legs\nOptimus_sensors\nsensors,case,speaker,wheels",
+   "output": "[Optimus,Rosie]",
+   "explanation": "Rosie has sensors, case, speaker and wheels. Optimus has sensors, speaker, case and wheels. Dustie lacks sensors and wheels, and Rust lacks speaker and wheels."
+  },
+  {
+   "input": "19\nRosie_claw\nRosie_sensors\nDustie_case\nOptimus_sensors\nRust_sensors\nRosie_case\nRust_case\nOptimus_speaker\nRosie_wheels\nRosie_speaker\nDustie_case\nDustie_arms\nRust_claw\nDustie_case\nDustie_speaker\nOptimus_case\nOptimus_wheels\nRust_legs\nOptimus_sensors\nsensors,case,speaker,wheels,claw",
+   "output": "[Rosie]",
+   "explanation": "Now a claw is required too. Only Rosie has a claw in addition to the other four parts; Optimus has no claw."
+  },
+  {
+   "input": "19\nRosie_claw\nRosie_sensors\nDustie_case\nOptimus_sensors\nRust_sensors\nRosie_case\nRust_case\nOptimus_speaker\nRosie_wheels\nRosie_speaker\nDustie_case\nDustie_arms\nRust_claw\nDustie_case\nDustie_speaker\nOptimus_case\nOptimus_wheels\nRust_legs\nOptimus_sensors\nsensors,case,screws",
+   "output": "[]",
+   "explanation": "No robot has any `screws` part, so none can be built."
+  }
+ ],
+ "complexity": {
+  "time": "O(N + P·R)",
+  "space": "O(N)"
+ },
+ "hints": [
+  "Split each label at the underscore into a robot name and a part name, and group the parts by robot.",
+  "Use a map from robot name to a set of part names, so duplicates do not matter and membership checks are O(1).",
+  "A robot is buildable if its set contains every required part. Collect those names and sort them before printing."
+ ],
+ "reference": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nlabels = data[1:1 + n]\nrequired = data[1 + n].split(',')\nhave = {}\nfor s in labels:\n    robot, part = s.split('_', 1)\n    have.setdefault(robot, set()).add(part)\nres = sorted(r for r, parts in have.items() if all(p in parts for p in required))\nprint('[' + ','.join(res) + ']')\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nlabels = data[1:1 + n]\nrequired = data[1 + n].split(',')\nrobots = sorted(set(s.split('_')[0] for s in labels))\nres = []\nfor r in robots:\n    ok = True\n    for p in required:\n        if (r + '_' + p) not in labels:\n            ok = False\n    if ok:\n        res.append(r)\nprint('[' + ','.join(res) + ']')\n",
+ "generator": "def gen(rng):\n    def fmt(labels, req):\n        return str(len(labels)) + '\\n' + '\\n'.join(labels) + '\\n' + ','.join(req)\n    tests = [\n        fmt(['A_x'], ['x']),\n        fmt(['A_x'], ['y']),\n        fmt(['A_x', 'a_x'], ['x']),\n        fmt(['A_x', 'A_x', 'A_x'], ['x', 'y']),\n        fmt(['A_x', 'A_y', 'B_x'], ['x', 'y']),\n        fmt(['Z_a', 'Y_a', 'X_a', 'Y_b', 'X_b', 'Z_b'], ['a', 'b']),\n        fmt(['R1_p', 'R10_p', 'R1_q', 'R10_q', 'R2_p'], ['p', 'q']),\n    ]\n    for _ in range(14):\n        robots = rng.sample(['A', 'B', 'C', 'D', 'a', 'Bo', 'b1'], rng.randint(1, 5))\n        pool = ['x', 'y', 'z', 'w']\n        labels = [rng.choice(robots) + '_' + rng.choice(pool) for _ in range(rng.randint(1, 18))]\n        req = rng.sample(pool + ['q'], rng.randint(1, 3))\n        tests.append(fmt(labels, req))\n    for _ in range(4):\n        robots = ['A', 'B']\n        pool = ['x', 'y']\n        labels = [r + '_' + p for r in robots for p in pool]\n        rng.shuffle(labels)\n        tests.append(fmt(labels, ['x', 'y']))\n    pool = ['p' + str(i) for i in range(12)]\n    labels = []\n    for r in range(4000):\n        for p in rng.sample(pool, 10):\n            labels.append('R' + str(r) + '_' + p)\n    rng.shuffle(labels)\n    tests.append(fmt(labels, rng.sample(pool, 8)))\n    labels = ['Rob_part' + str(rng.randint(0, 3)) for _ in range(40000)]\n    tests.append(fmt(labels, ['part0', 'part1', 'part2', 'part3']))\n    labels = ['R' + str(i) + '_a' for i in range(40000)]\n    tests.append(fmt(labels, ['a', 'b']))\n    letters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'\n    robots = [''.join(rng.choice(letters) for _ in range(8)) for _ in range(3000)]\n    pool = [''.join(rng.choice(letters) for _ in range(8)) for _ in range(6)]\n    labels = []\n    for r in robots:\n        for p in rng.sample(pool, rng.randint(4, 6)):\n            labels.append(r + '_' + p)\n    labels = labels[:40000]\n    rng.shuffle(labels)\n    tests.append(fmt(labels, pool[:5]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef get_robots(all_parts: List[str], required_parts: str) -> List[str]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    all_parts = data[1:1 + n]\n    required_parts = data[1 + n]\n    res = get_robots(all_parts, required_parts)\n    print('[' + ','.join(res) + ']')\n\n\nmain()\n",
+  "javascript": "function getRobots(allParts, requiredParts) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = Number(t[0])\nconst allParts = t.slice(1, 1 + n)\nconst requiredParts = t[1 + n]\nconsole.log('[' + getRobots(allParts, requiredParts).join(',') + ']')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<string> getRobots(vector<string>& allParts, string requiredParts) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<string> allParts(n);\n    for (int i = 0; i < n; i++) cin >> allParts[i];\n    string requiredParts;\n    cin >> requiredParts;\n    vector<string> res = getRobots(allParts, requiredParts);\n    cout << '[';\n    for (size_t i = 0; i < res.size(); i++) cout << (i ? \",\" : \"\") << res[i];\n    cout << \"]\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<String> getRobots(String[] allParts, String requiredParts) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        int n = Integer.parseInt(br.readLine().trim());\n        String[] allParts = new String[n];\n        for (int i = 0; i < n; i++) allParts[i] = br.readLine().trim();\n        String requiredParts = br.readLine().trim();\n        List<String> res = getRobots(allParts, requiredParts);\n        System.out.println(\"[\" + String.join(\",\", res) + \"]\");\n    }\n}\n"
+ }
+}

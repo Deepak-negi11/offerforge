@@ -1,0 +1,19 @@
+{
+ "qid": "890acb6a22",
+ "question": "In the Technical Interview 2 round for SDE-1 Backend Post Trade at Tower Research, one of the rapid-fire Java and memory questions was: **what happens when we do `int a = 10`?**\n\nExplain what happens in memory, and where primitives and objects are allocated, in terms of the stack versus the heap. The same round also asked about heap and stack memory and how strings are stored.",
+ "lookingFor": [
+  "Do you understand stack frames versus heap allocation?",
+  "Can you distinguish a primitive local variable from a reference to an object?",
+  "Do you know where object fields, static fields and string literals live?",
+  "Can you go beyond the textbook rule and mention the JIT, escape analysis and registers?",
+  "Can you explain lifetime and cleanup (frame pop vs garbage collection)?"
+ ],
+ "answer": "**The textbook answer (Java).** A method call creates a **stack frame** in the thread's stack. It holds local variables, parameters and the operand stack. Executing `int a = 10;` in a method stores the 32-bit value `10` directly in a local variable slot of that frame (bytecode: `bipush 10` then `istore`). There is no object and no garbage collection involved. When the method returns, the frame is popped and the slot disappears.\n\n**Objects.** `new Foo()` allocates the object on the **heap**, shared by all threads and managed by the garbage collector. A local variable `Foo f` is only a **reference** (a pointer-sized value) stored on the stack; the object it points to is on the heap. Object fields, including primitive fields such as `int x` inside an object, live inside the heap object. A primitive local lives on the stack; the same `int` as a field lives on the heap.\n\n**Strings.** `String s = \"hi\"` stores a reference on the stack to a `String` object in the heap (literals are interned in the string pool, which is part of the heap in modern JVMs). `new String(\"hi\")` creates a separate heap object.\n\n**Static fields** belong to the class and are not on any thread stack; class metadata lives in Metaspace.\n\n**Nuances worth mentioning.**\n\n- The Java language spec does not mandate stack versus heap; this is how HotSpot behaves.\n- The JIT may keep `a` purely in a CPU register or eliminate it, and **escape analysis** can allocate non-escaping objects on the stack or remove them (scalar replacement).\n- In C++ the same idea holds: `int a = 10` as a local is on the stack, `new int(10)` is on the heap, but a global or static `int` lives in the data segment.\n- Stack memory is fast and automatically reclaimed; deep recursion causes `StackOverflowError`, while heap exhaustion causes `OutOfMemoryError`.",
+ "followUps": [
+  "What is the difference between `StackOverflowError` and `OutOfMemoryError`?",
+  "Where is an `int` field of an object stored?",
+  "What is the string constant pool and how does `intern()` work?",
+  "What is escape analysis and when can an object avoid the heap?",
+  "Is the stack per thread or shared? What about the heap?"
+ ]
+}

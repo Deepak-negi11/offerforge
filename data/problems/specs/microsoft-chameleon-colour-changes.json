@@ -1,0 +1,49 @@
+{
+ "pid": "microsoft-chameleon-colour-changes",
+ "title": "Chameleon Colour Changes",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A chameleon can take on `n` different colours, numbered `0` to `n - 1`. An `n × n` matrix `M` describes which changes it can make: if `M[i][j] = 1` the chameleon can change directly from colour `i` to colour `j` in one change, and if `M[i][j] = 0` it cannot. The matrix is **not** necessarily symmetric, so being able to go from `i` to `j` says nothing about going from `j` to `i`.\n\nThe chameleon currently has colour `X` and wants to become colour `Y`. Find the **minimum number of colour changes** needed. If `X = Y` no change is needed, so the answer is `0`. If `Y` can never be reached from `X`, print `-1`.",
+ "input_format": "The first line contains three integers `n`, `X` and `Y`.\nEach of the next `n` lines contains a string of exactly `n` characters, each `0` or `1`, with no spaces: row `i` of the matrix.",
+ "output_format": "Print a single integer: the minimum number of changes, or `-1` if colour `Y` is unreachable.",
+ "constraints": [
+  "1 ≤ n ≤ 1000",
+  "0 ≤ X, Y < n",
+  "M[i][j] ∈ {0, 1}"
+ ],
+ "examples": [
+  {
+   "input": "5 0 4\n01100\n00010\n00010\n00001\n00000",
+   "output": "3",
+   "explanation": "From colour 0 the chameleon can reach 1 or 2 in one change, either of them reaches 3, and 3 reaches 4. The shortest route has 3 changes, for example 0 → 1 → 3 → 4."
+  },
+  {
+   "input": "3 2 0\n011\n001\n000",
+   "output": "-1",
+   "explanation": "Colour 2 has no outgoing changes, so colour 0 can never be reached from it, even though 0 can reach 2."
+  },
+  {
+   "input": "4 1 1\n0101\n1010\n0101\n1010",
+   "output": "0",
+   "explanation": "The chameleon already has the target colour."
+  }
+ ],
+ "complexity": {
+  "time": "O(n²)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Treat colours as nodes of a directed graph and M[i][j] = 1 as an edge i → j. You want the fewest edges on a path from X to Y.",
+  "All changes cost the same, so a breadth-first search from X finds the fewest changes to every colour.",
+  "Scanning a row of the matrix to find a colour's neighbours costs O(n), so BFS over all colours is O(n²), which is linear in the input size."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    n, x, y = int(data[0]), int(data[1]), int(data[2])\n    rows = data[3:3 + n]\n    dist = [-1] * n\n    dist[x] = 0\n    q = deque([x])\n    while q:\n        u = q.popleft()\n        if u == y:\n            break\n        row = rows[u]\n        j = row.find('1')\n        while j != -1:\n            if dist[j] < 0:\n                dist[j] = dist[u] + 1\n                q.append(j)\n            j = row.find('1', j + 1)\n    print(dist[y])\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, x, y = int(data[0]), int(data[1]), int(data[2])\nM = [[int(ch) for ch in data[3 + i]] for i in range(n)]\nINF = 10**9\nd = [[INF] * n for _ in range(n)]\nfor i in range(n):\n    d[i][i] = 0\n    for j in range(n):\n        if M[i][j] == 1 and i != j:\n            d[i][j] = 1\nfor k in range(n):\n    for i in range(n):\n        for j in range(n):\n            if d[i][k] + d[k][j] < d[i][j]:\n                d[i][j] = d[i][k] + d[k][j]\nprint(d[x][y] if d[x][y] < INF else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(n, x, y, M):\n        return f\"{n} {x} {y}\\n\" + '\\n'.join(''.join(map(str, row)) for row in M)\n\n    def zeros(n):\n        return [[0] * n for _ in range(n)]\n\n    def rand_m(n, p):\n        return [[1 if rng.random() < p else 0 for _ in range(n)] for _ in range(n)]\n\n    tests = [\n        fmt(1, 0, 0, [[0]]),\n        fmt(1, 0, 0, [[1]]),\n        fmt(2, 0, 1, [[0, 0], [0, 0]]),\n        fmt(2, 0, 1, [[0, 1], [0, 0]]),\n        fmt(2, 1, 0, [[0, 1], [0, 0]]),\n        fmt(5, 0, 4, [[0, 1, 1, 0, 0], [0, 0, 0, 1, 0], [0, 0, 0, 1, 0], [0, 0, 0, 0, 1], [0, 0, 0, 0, 0]]),\n        fmt(3, 2, 0, [[0, 1, 1], [0, 0, 1], [0, 0, 0]]),\n        fmt(4, 1, 1, [[0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0]]),\n    ]\n    for _ in range(40):\n        n = rng.randint(1, 12)\n        p = rng.choice((0.05, 0.1, 0.15, 0.25, 0.5))\n        tests.append(fmt(n, rng.randrange(n), rng.randrange(n), rand_m(n, p)))\n    N = 1000\n    # long chain, answer N - 1\n    M = zeros(N)\n    for i in range(N - 1):\n        M[i][i + 1] = 1\n    tests.append(fmt(N, 0, N - 1, M))\n    # chain going backwards, answer N - 1\n    M = zeros(N)\n    for i in range(N - 1):\n        M[i + 1][i] = 1\n    tests.append(fmt(N, N - 1, 0, M))\n    # shuffled chain with a few shortcuts forward in the chain order\n    perm = list(range(N))\n    rng.shuffle(perm)\n    M = zeros(N)\n    for k in range(N - 1):\n        M[perm[k]][perm[k + 1]] = 1\n    for _ in range(3):\n        a = rng.randrange(N - 50)\n        M[perm[a]][perm[a + rng.randint(2, 40)]] = 1\n    tests.append(fmt(N, perm[0], perm[N - 1], M))\n    # sparse random, probably reachable in a few hops\n    tests.append(fmt(N, 3, 997, rand_m(N, 0.004)))\n    # dense random\n    tests.append(fmt(N, 5, 6, rand_m(N, 0.5)))\n    # unreachable target: no edge enters it\n    M = rand_m(N, 0.01)\n    for i in range(N):\n        M[i][999] = 0\n    tests.append(fmt(N, 0, 999, M))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_changes(n: int, x: int, y: int, matrix: List[str]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, x, y = int(data[0]), int(data[1]), int(data[2])\n    matrix = data[3:3 + n]\n    print(min_changes(n, x, y, matrix))\n\n\nmain()\n",
+  "javascript": "function minChanges(n, x, y, matrix) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = Number(t[0]), x = Number(t[1]), y = Number(t[2])\nconst matrix = t.slice(3, 3 + n)\nconsole.log(minChanges(n, x, y, matrix))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minChanges(int n, int x, int y, vector<string>& matrix) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, x, y;\n    cin >> n >> x >> y;\n    vector<string> matrix(n);\n    for (int i = 0; i < n; i++) cin >> matrix[i];\n    cout << minChanges(n, x, y, matrix) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minChanges(int n, int x, int y, String[] matrix) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int n = Integer.parseInt(st.nextToken());\n        int x = Integer.parseInt(st.nextToken());\n        int y = Integer.parseInt(st.nextToken());\n        String[] matrix = new String[n];\n        for (int i = 0; i < n; i++) matrix[i] = br.readLine().trim();\n        System.out.println(minChanges(n, x, y, matrix));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "ffa0aaf0d9",
+ "question": "Groww SDE-2 machine coding round (2 hours). The whole problem statement was: **build a scalable cache end to end**, and the candidate had to make assumptions. The candidate implemented add, contains, invalidate, validate, setMaxSize, fetchSize and printMap, with FIFO eviction via a queue and hardcoded test data. The interviewer's feedback was that this is not scalable: **FIFO is not enough, what if we want different eviction logic?** The expectation was a design where the eviction policy is pluggable (FIFO, LRU and others) rather than hard-coded.",
+ "lookingFor": [
+  "Recognising the Strategy pattern: separating storage from eviction policy.",
+  "Interface design: a small, correct contract that supports FIFO, LRU, LFU.",
+  "Complexity awareness: O(1) get/put for LRU with the right data structures.",
+  "Handling edge cases: resize, duplicates, invalidate, empty cache.",
+  "Thread-safety and generics, plus how the design scales (sharding, TTL)."
+ ],
+ "answer": "**Clarify.** Generic key/value types? Thread-safe? TTL needed? Is `setMaxSize` allowed at runtime? Assume generics and thread-safety.\n\n**Core idea.** Split the cache into two responsibilities: **storage** (a `Map<K, V>`) and **eviction policy** (decides which key leaves). The cache depends only on an interface.\n\n    interface EvictionPolicy<K> {\n        void onInsert(K key);\n        void onAccess(K key);\n        void onRemove(K key);\n        K evict();            // returns the key to remove\n    }\n\n    class Cache<K, V> {\n        private final Map<K, V> store = new HashMap<>();\n        private final EvictionPolicy<K> policy;\n        private int maxSize;\n        // put, get, contains, invalidate, setMaxSize, size\n    }\n\n**Operations.** `put`: if the key exists, update the value and call `onAccess`; otherwise, while `size >= maxSize`, call `policy.evict()` and remove that key from the store; then insert and call `onInsert`. `get` calls `onAccess` on a hit. `invalidate` removes from the store and calls `onRemove`. `setMaxSize` evicts until `size <= maxSize`.\n\n**Policies.**\n- **FIFO**: a `LinkedHashSet` or queue of keys; access does nothing.\n- **LRU**: a doubly linked list plus a map of key to node, giving O(1) move-to-front on access and O(1) eviction from the tail (Java's `LinkedHashMap` in access order is a shortcut, but implement the list yourself if asked).\n- **LFU**: frequency buckets, O(1) with a map of counts to linked sets.\nChoose the policy through the constructor or a small factory.\n\n**Concurrency.** Even `get` mutates the policy for LRU, so use one lock per cache, or shard keys over N independent caches by `hash(key) % N` to cut contention.\n\n**Scaling beyond one process.** Consistent hashing across cache nodes, TTL expiry, and a loader callback (cache-aside) are natural extensions to mention.\n\n**Test.** Fill to capacity under each policy and assert which key is evicted; resize down; invalidate a missing key.",
+ "followUps": [
+  "Why does an LRU `get` need a write lock, and how would you reduce lock contention?",
+  "How would you add TTL expiry without scanning the whole map?",
+  "What is the difference between write-through, write-back and cache-aside?",
+  "How would you test that your LFU breaks ties correctly?"
+ ]
+}

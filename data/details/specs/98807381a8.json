@@ -1,0 +1,18 @@
+{
+ "qid": "98807381a8",
+ "question": "In the Microsoft Hiring Manager round for SDE-2, which was described as an \"AA\" round, after some behavioural questions you were asked a design-and-implementation question: **implement N stacks using a single array of fixed size**. You explained your approach and the interviewer closed the round by asking what kind of AI experience you have.",
+ "lookingFor": [
+  "Can you spot the naive solution (equal fixed partitions) and explain why it wastes space?",
+  "Can you design a structure that uses the whole array and gives O(1) push and pop?",
+  "Do you handle edge cases: empty stack, full array, invalid stack index?",
+  "Can you explain pointer bookkeeping clearly, with a free list or linked indices?",
+  "Do you discuss trade-offs: extra memory for the next array, thread safety, resizing?"
+ ],
+ "answer": "**Clarify first:** fixed total capacity `C`, `n` stacks, operations `push(s, x)`, `pop(s)`, `peek(s)`. Is it acceptable to use O(C + n) extra memory for bookkeeping?\n\n**Approach 1: equal partitions.** Give each stack a slice of size `C/n` with its own top index. Trivial and O(1), but one stack can overflow while others are nearly empty, so space is poorly used.\n\n**Approach 2: shifting stacks.** Keep stacks contiguous and shift neighbours when one grows. Uses all space but a push can cost O(C). Complex and slow.\n\n**Approach 3 (preferred): linked indices with a free list.** Every array cell belongs either to some stack or to the free list.\n\n- `data[C]` holds values.\n- `nxt[C]` holds, for a used cell, the index below it in its stack, and for a free cell, the next free cell.\n- `top[n]` holds the index of each stack's top cell, `-1` if empty.\n- `free` is the head of the free list; initially `0 -> 1 -> ... -> C-1`.\n\n```python\ndef push(s, x):\n    if free == -1: raise OverflowError\n    i = free; free = nxt[i]        # take a free cell\n    data[i] = x\n    nxt[i] = top[s]; top[s] = i    # link under the new top\n\ndef pop(s):\n    i = top[s]\n    if i == -1: raise IndexError\n    top[s] = nxt[i]\n    nxt[i] = free; free = i        # return the cell to the free list\n    return data[i]\n```\n\nBoth operations are **O(1)**. Space is O(C + n): the array is fully usable by any stack, and overflow happens only when all C cells are in use. The stacks are not contiguous in memory, which costs cache locality, and each cell carries an extra integer.\n\n**Test:** push to stack 0 and 2 alternately, pop all, confirm the free list is restored; fill the array from one stack; pop from an empty stack.\n\n**Extensions:** to make capacity dynamic, grow `data` and `nxt` and chain the new cells into the free list (amortised O(1)). For concurrent use, lock per stack plus a lock on the free list, or use a lock-free free list.",
+ "followUps": [
+  "How would you make the array resizable and what is the amortised cost?",
+  "How would you make it thread-safe, and where is the contention?",
+  "What changes if stacks must stay contiguous in memory?",
+  "How would you test this structure, including a randomised comparison against N separate stacks?"
+ ]
+}

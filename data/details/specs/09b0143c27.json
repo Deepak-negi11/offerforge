@@ -1,0 +1,18 @@
+{
+ "qid": "09b0143c27",
+ "question": "PhonePe machine coding round: **design an app version management system** (like a store that ships updates to devices). Required functions: `uploadNewVersion(...)` stores a version and its file byte stream; `createUpdatePatch(app, fromVersion, toVersion)` creates a **diff patch** as a byte array that a pre-installed app can apply; `releaseVersion(...)` releases according to a **rollout strategy**, either **beta** (only specific devices) or **percentage** (some percent of devices); `isAppVersionSupported(...)`, `checkForInstall(...)` and `checkForUpdates(...)` check whether a device's hardware and OS support a version and whether an update is available. Extensions are encouraged.",
+ "lookingFor": [
+  "Modelling apps, versions, devices and releases cleanly.",
+  "Strategy pattern for rollout, and extensibility for new strategies.",
+  "Deterministic and fair percentage rollout.",
+  "Clear handling of compatibility rules and edge cases.",
+  "Reasonable patch generation design."
+ ],
+ "answer": "**Entities.** `App(id, name)`, `AppVersion(app, versionNumber, bytes, minOsVersion, supportedHardware, releaseStatus)`, `Device(id, osVersion, hardware, installedVersions)`, `Release(app, version, RolloutStrategy)`, and `Patch(from, to, bytes)`.\n\n**Services.**\n- `VersionService.uploadNewVersion` stores metadata and bytes; validate that version numbers are comparable (semantic versioning) and unique.\n- `PatchService.createUpdatePatch(app, from, to)` returns the diff as `byte[]`. For the exercise, a simple block or byte-range diff is acceptable; mention real binary-diff algorithms (bsdiff-style) and caching patches per (from, to) pair so they are computed once. Verify both versions exist and `to > from`.\n- `ReleaseService.releaseVersion` attaches a `RolloutStrategy` to a version.\n- `CompatibilityService` checks OS and hardware against the version's requirements for `checkForInstall` and `isAppVersionSupported`.\n- `checkForUpdates(device, app)` finds the latest version that is released, compatible and for which the device is eligible under its strategy; return a patch if the device has an older version installed, or a full install otherwise.\n\n**Rollout strategies (Strategy pattern).** `RolloutStrategy.isEligible(Device, Version)`:\n- `BetaRollout`: a set of allowed device IDs.\n- `PercentageRollout(p)`: compute `hash(deviceId + versionId) % 100 < p`. Hashing makes the decision deterministic, so the same device gets a stable answer, and raising p only adds devices.\n- Full rollout is the default; new strategies (by region, OS) are new classes.\n\n**Concerns.** Thread safety on release state, rollback of a bad release, storing large binaries outside the metadata store, and idempotent uploads. Write tests for incompatible OS, no update available, and boundary percentages.",
+ "followUps": [
+  "Why hash the device ID instead of using a random number for percentage rollout?",
+  "How would you roll back a bad release?",
+  "How would you store and serve large binaries at scale?",
+  "How would you add a rule that a version needs a minimum previously installed version?"
+ ]
+}

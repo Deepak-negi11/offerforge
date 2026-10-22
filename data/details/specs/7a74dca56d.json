@@ -1,0 +1,18 @@
+{
+ "qid": "7a74dca56d",
+ "question": "Amazon SDE-1 (fresher, off-campus), second online interview of 60 minutes. After 2-3 behavioral questions the interviewer asked the candidate to **design a parking lot** using object-oriented design. The candidate was surprised to get a design question for a fresher role, so expect to clarify requirements, define classes and walk through the main flows.",
+ "lookingFor": [
+  "Requirement gathering and scoping before designing.",
+  "Clean object model with sensible responsibilities.",
+  "Use of OOP principles and suitable patterns without over-engineering.",
+  "Correct handling of concurrency and edge cases.",
+  "Ability to extend the design when requirements change."
+ ],
+ "answer": "**1. Clarify requirements.** Single or multi-level lot? Vehicle types (motorcycle, car, truck)? Spot types? Entry and exit gates? Pricing (hourly, per type)? Payment methods? Do we need reservations, or only walk-in? Assume: multiple levels, several spot sizes, tickets issued at entry, fee computed at exit.\n\n**2. Core entities.**\n- `ParkingLot` (singleton or one instance per site): levels, entry and exit panels, `getTicket(vehicle)` and `exit(ticket)`.\n- `Level`: list of `ParkingSpot`.\n- `ParkingSpot`: id, `SpotType` (compact, regular, large), occupied flag, `canFit(vehicle)`, `park`, `free`.\n- `Vehicle` (abstract) with subclasses `Motorcycle`, `Car`, `Truck`.\n- `Ticket`: id, vehicle plate, spot, entry time.\n- `PricingStrategy` (interface) with e.g. `HourlyPricing`.\n- `Payment` handled behind an interface.\n\n**3. Key flows.**\n- *Park:* find the nearest free spot that fits using a `SpotAllocationStrategy` (nearest to entrance, lowest level first); mark it occupied; create a ticket. If none, reject with \"lot full\".\n- *Exit:* read the ticket, compute duration, ask `PricingStrategy` for the fee, take payment, free the spot.\n\n**4. Design choices.**\n- Strategy pattern for pricing and spot allocation so they can change without touching the lot.\n- Keep a free-spot structure per type (a queue or min-heap by distance) so allocation is O(log n) instead of scanning all spots.\n- Concurrency: two cars must not get the same spot; guard allocation with a lock per spot type or an atomic compare-and-set on the spot.\n- Sensible validation: unknown or already-used ticket, lost ticket policy.\n\n**5. Extensions.** EV charging spots, reservations, display boards showing free counts per level, multiple lots with a central service.\n\nDraw the class diagram, then walk through one park and one exit scenario.",
+ "followUps": [
+  "How do you prevent two vehicles from being assigned the same spot?",
+  "How would you add EV charging spots and different price tiers?",
+  "How would the design change for a lot with a million daily entries across many sites?",
+  "Which design patterns did you use and why?"
+ ]
+}

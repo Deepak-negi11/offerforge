@@ -1,0 +1,18 @@
+{
+ "qid": "47cfbc2a87",
+ "question": "Intuit SWE intern technical round 2 (off campus, 90 minutes), OOP section: **questions about virtual functions and a request to code them, operator overloading, and OOP MCQs** (the same round also included polymorphism discussion).",
+ "lookingFor": [
+  "Correct C++ syntax for virtual functions and operator overloading.",
+  "Understanding of dynamic dispatch, abstract classes and virtual destructors.",
+  "Knowing which operators are overloaded as members versus friends or free functions.",
+  "Ability to spot pitfalls in MCQ-style snippets.",
+  "Clean, compilable code under time pressure."
+ ],
+ "answer": "**Virtual functions: code**\n\n    #include <iostream>\n    #include <memory>\n    #include <vector>\n    using namespace std;\n\n    class Shape {\n    public:\n        virtual double area() const = 0;       // pure virtual: Shape is abstract\n        virtual ~Shape() = default;            // virtual destructor\n    };\n    class Rect : public Shape {\n        double w, h;\n    public:\n        Rect(double w, double h) : w(w), h(h) {}\n        double area() const override { return w * h; }\n    };\n    class Circle : public Shape {\n        double r;\n    public:\n        explicit Circle(double r) : r(r) {}\n        double area() const override { return 3.14159265 * r * r; }\n    };\n\n    int main() {\n        vector<unique_ptr<Shape>> v;\n        v.push_back(make_unique<Rect>(2, 3));\n        v.push_back(make_unique<Circle>(1));\n        for (auto& s : v) cout << s->area() << \"\\n\";   // dynamic dispatch\n    }\n\nExplain: the base pointer calls the derived `area()` through the vtable; a class with a pure virtual function cannot be instantiated; `override` makes the compiler check the signature; the base destructor is virtual so deletion through a base pointer is safe.\n\n**Operator overloading**\n\n    struct Complex {\n        double re, im;\n        Complex operator+(const Complex& o) const { return {re + o.re, im + o.im}; }\n        bool operator==(const Complex& o) const { return re == o.re && im == o.im; }\n    };\n    ostream& operator<<(ostream& os, const Complex& c) { return os << c.re << \"+\" << c.im << \"i\"; }\n\nRules: you cannot create new operators, nor overload `::`, `.`, `.*`, `?:` or `sizeof`; at least one operand must be a user-defined type; precedence and arity do not change. Binary operators are often members or free functions; `<<` and `>>` for streams must be free (often friend) functions because the left operand is the stream. Keep semantics intuitive; `operator=` and the copy constructor matter when the class owns resources (rule of three/five).\n\n**MCQ traps:** calling a virtual function in a constructor, object slicing, default arguments in virtual functions, hiding versus overriding, `static` functions cannot be virtual, and constructors cannot be virtual.",
+ "followUps": [
+  "Why can't a constructor be virtual?",
+  "What is the cost of a virtual function call?",
+  "Why must operator<< for ostream be a non-member?",
+  "What is object slicing and how do you avoid it?"
+ ]
+}

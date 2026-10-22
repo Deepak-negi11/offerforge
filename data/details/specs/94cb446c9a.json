@@ -1,0 +1,18 @@
+{
+ "qid": "94cb446c9a",
+ "question": "JPMorgan Chase, Software Engineer II (Associate), Technical Interview. Resume deep dive on AI: **how RAG works end to end**, **embeddings**, **chunking and how chunks are stored**, **LangChain vs LangGraph**, and **precision vs recall**. The same round asked about **authentication vs authorization** and **token-based role restrictions**.",
+ "lookingFor": [
+  "Understanding the full RAG pipeline, not only the retrieval step.",
+  "Practical decisions: chunk size, overlap, index type, top-k.",
+  "Correct use of precision and recall for retrieval and for classification.",
+  "Clear security distinction between authentication and authorization.",
+  "Awareness that retrieval must respect access control."
+ ],
+ "answer": "**RAG end to end.** Retrieval-Augmented Generation grounds an LLM in your own documents.\n1. **Ingest:** load documents, clean them, **split into chunks** (for example a few hundred tokens with some overlap so context is not cut mid-idea; respect headings or sentences).\n2. **Embed:** convert each chunk to a vector with an embedding model, so semantically similar text is close in vector space.\n3. **Store:** put vectors with the chunk text and metadata (source, section, permissions) in a **vector store** (FAISS, pgvector, a managed vector database) with an approximate-nearest-neighbour index.\n4. **Query:** embed the user's question with the same model, retrieve the **top-k** nearest chunks (optionally hybrid with keyword search and a **reranker**).\n5. **Generate:** put the retrieved chunks in the prompt with instructions to answer only from them and cite sources, then call the LLM.\nEvaluate retrieval and answers separately; common failures are bad chunking, wrong embeddings for the domain, and the model ignoring context.\n\n**Precision vs recall.** For retrieval: precision is the fraction of retrieved chunks that are relevant; recall is the fraction of all relevant chunks that were retrieved. Raising k raises recall and usually lowers precision. For RAG, recall at k matters most (the answer must be in the context) followed by precision (noise confuses the model).\n\n**LangChain vs LangGraph.** LangChain provides components and chains for LLM apps; LangGraph models stateful, branching, looping agent workflows as graphs with persistence and human-in-the-loop.\n\n**Authentication vs authorization.** Authentication verifies **who you are** (password, SSO, MFA). Authorization decides **what you may do** (roles, permissions). A token-based flow: the user logs in, the server issues a signed token (for example a JWT or an OAuth access token) containing identity and **claims or roles**. Each request carries the token; the server verifies the signature and expiry, then checks the role or scope against the endpoint (for example `hasRole('ADMIN')`). Keep tokens short-lived, use HTTPS, and enforce checks on the server, never only in the client.\n\n**Link them:** in a RAG system, filter retrieved chunks by the caller's permissions (store ACL metadata and filter at query time) so users never see documents they should not.",
+ "followUps": [
+  "How do you choose chunk size and overlap?",
+  "How would you evaluate whether the RAG system is working?",
+  "What is the difference between a JWT and an opaque session token?",
+  "How do you prevent a user from retrieving documents they are not allowed to see?"
+ ]
+}

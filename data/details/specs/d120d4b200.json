@@ -1,0 +1,18 @@
+{
+ "qid": "d120d4b200",
+ "question": "Apple, Software Engineer (IS&T), first interview. Given this class: `class LongIterator implements Iterator { long val = 0; long max = 1000000; public boolean hasNext() { return val < max; } public long next() { return ++val; } }`. **Write a driver function that calculates the sum of all values it yields (1 to 1,000,000), then parallelize it to use two threads.** The candidate used `CompletableFuture`, `AtomicLong` and `ExecutorService`. The same round asked why use an `ExecutorService` rather than raw threads.",
+ "lookingFor": [
+  "Correct sequential baseline and awareness of the closed-form check.",
+  "Noticing that the iterator is stateful and not thread-safe.",
+  "Choosing a sound concurrency tool (ExecutorService, futures) and avoiding data races.",
+  "Reducing contention with per-thread partial sums instead of a shared counter.",
+  "Honesty about when parallelism actually helps."
+ ],
+ "answer": "**Sequential driver.**\n\n    long sum = 0;\n    LongIterator it = new LongIterator();\n    while (it.hasNext()) sum += it.next();\n\nThe expected result is n(n+1)/2 = 500,000,500,000, a handy correctness check. Note `long` is needed: the sum overflows `int`.\n\n**Parallel version, the catch.** The iterator keeps mutable state (`val`), and `hasNext()` followed by `next()` is a check-then-act sequence. If two threads call them freely, you can get duplicates, skipped values, or values past `max`. So the pair must be made atomic. A clean approach is each worker keeping a local sum and pulling values under a lock:\n\n    ExecutorService pool = Executors.newFixedThreadPool(2);\n    Callable<Long> worker = () -> {\n        long local = 0;\n        while (true) {\n            long v;\n            synchronized (it) {\n                if (!it.hasNext()) break;\n                v = it.next();\n            }\n            local += v;\n        }\n        return local;\n    };\n    Future<Long> a = pool.submit(worker), b = pool.submit(worker);\n    long total = a.get() + b.get();\n    pool.shutdown();\n\nLocal sums avoid contention on a shared counter; the final addition is done once. Using a shared `AtomicLong` with `addAndGet` also works, but it is a contended hot spot. `CompletableFuture.supplyAsync(worker, pool)` with `thenCombine(...)` is the same idea.\n\n**Honest trade-off.** Because the source can only be read sequentially, the locked section serialises work and the speed-up may be poor, even negative. Parallelism pays off when the *per-element work* is expensive, or when you can split the source into independent ranges (for example ranges 1..500000 and 500001..1000000), which a plain iterator does not expose. Another design is one reader thread batching values into chunks for workers.\n\n**Why ExecutorService over raw threads:** reuses a bounded pool, returns results and exceptions through futures, and separates task submission from execution policy.",
+ "followUps": [
+  "What happens if you remove the synchronized block?",
+  "How would you split the work if you could change the iterator's API?",
+  "What is the difference between Runnable and Callable?",
+  "When would you choose a parallel stream instead?"
+ ]
+}

@@ -279,8 +279,16 @@ export function TopicPage() {
   const atlas = useAtlas()
   const [params, setParams] = useSearchParams()
   const track = (params.get('track') as Track) || ''
+  const difficulty = params.get('difficulty') ?? ''
+  const setParam = (k: string, v: string) => {
+    const next = new URLSearchParams(params)
+    if (v) next.set(k, v)
+    else next.delete(k)
+    setParams(next, { replace: true })
+  }
   const all = useMemo(() => atlas.questions.filter((q) => q.kind === 'question' && q.topics.includes(topic)), [atlas, topic])
-  const qs = useMemo(() => all.filter((q) => !track || q.track === track).sort((a, b) => b.reports - a.reports), [all, track])
+  const inTrack = useMemo(() => all.filter((q) => !track || q.track === track), [all, track])
+  const qs = useMemo(() => inTrack.filter((q) => !difficulty || q.difficulty === difficulty).sort((a, b) => b.reports - a.reports), [inTrack, difficulty])
   const companies = useMemo(() => {
     const m = new Map<string, number>()
     for (const q of qs) m.set(q.company, (m.get(q.company) ?? 0) + 1)
@@ -307,11 +315,28 @@ export function TopicPage() {
             {qs.length} questions from {companies.length} companies
           </p>
         </div>
-        <TrackPicker value={track} onChange={(v) => setParams(v ? { track: v } : {}, { replace: true })} />
+        <div className="flex flex-wrap items-center gap-4">
+          <label className="flex items-center gap-2">
+            <span className="text-sm text-muted">Difficulty</span>
+            <select
+              value={difficulty}
+              onChange={(e) => setParam('difficulty', e.target.value)}
+              className="h-9 rounded-lg border border-line bg-surface px-2 text-sm text-fg outline-none hover:border-line-strong focus-visible:border-accent"
+            >
+              <option value="">All</option>
+              {(['Easy', 'Medium', 'Hard'] as const).map((d) => (
+                <option key={d} value={d}>
+                  {d} ({inTrack.filter((q) => q.difficulty === d).length})
+                </option>
+              ))}
+            </select>
+          </label>
+          <TrackPicker value={track} onChange={(v) => setParam('track', v)} />
+        </div>
       </header>
       <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_280px]">
         <div className="min-w-0">
-          {qs.length ? <QuestionList questions={qs} showCompany /> : <EmptyState title="Nothing for this track" body="Switch the hiring track to see more." />}
+          {qs.length ? <QuestionList questions={qs} showCompany /> : <EmptyState title="Nothing matches" body="Switch the hiring track or difficulty to see more." />}
         </div>
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <p className="mb-3 text-sm font-semibold text-fg">Companies asking {topic}</p>

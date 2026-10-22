@@ -1,0 +1,48 @@
+{
+ "pid": "jump-game-iv",
+ "title": "Jump Game IV",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given an array `arr` of `n` integers. You start at index `0` and want to reach index `n - 1` using as few moves as possible.\n\nIn one move, from index `i` you may go to any of these indices (as long as it is inside the array):\n\n- `i + 1`\n- `i - 1`\n- any index `j` with `j != i` and `arr[j] == arr[i]` (a teleport to a position holding the same value)\n\nPrint the minimum number of moves needed to reach index `n - 1`. If `n = 1` you are already there and the answer is `0`. It is always possible to reach the last index, since you can always step one index at a time.\n\n**Follow-up:** how would you handle the problem if each move also had an associated weight or cost? (This is not tested here: the version above counts every move as 1.)",
+ "input_format": "The first line contains the integer `n`.\nThe second line contains `n` integers: the array `arr`.",
+ "output_format": "Print one integer: the minimum number of moves from index `0` to index `n - 1`.",
+ "constraints": [
+  "1 ≤ n ≤ 5 · 10^4",
+  "-10^8 ≤ arr[i] ≤ 10^8"
+ ],
+ "examples": [
+  {
+   "input": "8\n3 8 1 6 8 2 6 5",
+   "output": "5",
+   "explanation": "One shortest route is 0 → 1 (step) → 4 (teleport, both hold 8) → 3 (step) → 6 (teleport, both hold 6) → 7 (step), which is 5 moves. No route with 4 moves exists."
+  },
+  {
+   "input": "5\n7 7 7 7 7",
+   "output": "1",
+   "explanation": "Index 0 holds 7 and so does index 4, so you can teleport straight to the end."
+  },
+  {
+   "input": "1\n42",
+   "output": "0",
+   "explanation": "You start on the last index already."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Every move costs the same, so think of indices as graph nodes and use breadth-first search for the shortest path.",
+  "Group indices by value in a hash map. When a value's teleports are used once, they never need to be used again: the first time you reach any index of that value is already the shortest.",
+  "After you expand all teleport edges of a value, clear (or delete) its list. Otherwise an array with many equal values makes the search quadratic."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = list(map(int, data[1:1 + n]))\n    groups = {}\n    for i, v in enumerate(a):\n        groups.setdefault(v, []).append(i)\n    dist = [-1] * n\n    dist[0] = 0\n    dq = deque([0])\n    while dq:\n        i = dq.popleft()\n        if i == n - 1:\n            break\n        d = dist[i] + 1\n        if i + 1 < n and dist[i + 1] < 0:\n            dist[i + 1] = d\n            dq.append(i + 1)\n        if i - 1 >= 0 and dist[i - 1] < 0:\n            dist[i - 1] = d\n            dq.append(i - 1)\n        for j in groups.pop(a[i], ()):\n            if dist[j] < 0:\n                dist[j] = d\n                dq.append(j)\n    print(dist[n - 1])\n\nmain()\n",
+ "brute": "import sys\nfrom collections import deque\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = list(map(int, data[1:1 + n]))\ndist = [-1] * n\ndist[0] = 0\ndq = deque([0])\nwhile dq:\n    i = dq.popleft()\n    nxt = [i - 1, i + 1] + [j for j in range(n) if j != i and a[j] == a[i]]\n    for j in nxt:\n        if 0 <= j < n and dist[j] < 0:\n            dist[j] = dist[i] + 1\n            dq.append(j)\nprint(dist[n - 1])\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return f'{len(a)}\\n' + ' '.join(map(str, a))\n    tests = [\n        fmt([3, 8, 1, 6, 8, 2, 6, 5]),\n        fmt([7, 7, 7, 7, 7]),\n        fmt([42]),\n        fmt([1, 2]),\n        fmt([5, 5]),\n        fmt([-10**8, 10**8, -10**8]),\n        fmt([1, 2, 3, 4, 5]),\n        fmt([1, 2, 3, 1]),\n        fmt([100, -23, -23, 404, 100, 23, 23, 23, 3, 404]),\n    ]\n    for n in (3, 5, 8, 12, 20, 30):\n        for _ in range(3):\n            k = rng.choice([2, 3, 5, n])\n            tests.append(fmt([rng.randint(-k, k) for _ in range(n)]))\n    N = 5 * 10**4\n    tests.append(fmt([7] * N))\n    tests.append(fmt([1] + [2] * (N - 2) + [3]))\n    tests.append(fmt(list(range(N))))\n    tests.append(fmt([rng.randint(-10**8, 10**8) for _ in range(N)]))\n    tests.append(fmt([rng.randint(0, 10) for _ in range(N)]))\n    tests.append(fmt([rng.randint(0, N // 3) for _ in range(N)]))\n    # long answer with many duplicates: values repeat only locally so teleports do not shortcut much\n    tests.append(fmt([i // 2 for i in range(N)]))\n    tests.append(fmt([(i // 3) * (10**3) + (i % 3 == 1) for i in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_jumps(arr: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    arr = list(map(int, data[1:1 + n]))\n    print(min_jumps(arr))\n\n\nmain()\n",
+  "javascript": "function minJumps(arr) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst arr = t.slice(1, 1 + n)\nconsole.log(String(minJumps(arr)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minJumps(vector<int>& arr) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> arr(n);\n    for (int i = 0; i < n; i++) cin >> arr[i];\n    cout << minJumps(arr) << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minJumps(int[] arr) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] arr = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            arr[i] = (int) in.nval;\n        }\n        System.out.println(minJumps(arr));\n    }\n}\n"
+ }
+}

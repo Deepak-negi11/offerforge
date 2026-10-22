@@ -1,0 +1,48 @@
+{
+ "pid": "minimum-cost-to-hire-k-workers",
+ "title": "Minimum Cost to Hire K Workers",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "There are `n` workers. Worker `i` has a work **quality** `quality[i]` and a **minimum expected wage** `wage[i]`.\n\nYou must hire **exactly `k` workers** and pay each hired worker according to these rules:\n\n- Every hired worker must be paid **at least** their minimum expected wage.\n- Pay is proportional to quality inside the hired group: for any two hired workers `a` and `b`, `pay[a] / quality[a] = pay[b] / quality[b]`.\n\nPay amounts may be fractional, so the cheapest total cost of a group can be a fraction. Find the minimum total cost over all possible groups of `k` workers, and print it **rounded up to the nearest integer** (the ceiling of the exact minimum).",
+ "input_format": "The first line contains two integers `n` and `k`.\nThe second line contains `n` integers: `quality`.\nThe third line contains `n` integers: `wage`.",
+ "output_format": "Print a single integer: the ceiling of the minimum total cost.",
+ "constraints": [
+  "1 ≤ k ≤ n ≤ 10^5",
+  "1 ≤ quality[i], wage[i] ≤ 10^4"
+ ],
+ "examples": [
+  {
+   "input": "4 2\n4 8 2 6\n10 12 9 15",
+   "output": "25",
+   "explanation": "Hire workers 0 and 3. Their wage-to-quality ratios are both 2.5, so the group is paid at rate 2.5 per unit of quality: 10 and 15, total 25. Workers 0 and 1 would cost 2.5 * 12 = 30, and any pair containing worker 2 needs rate 4.5."
+  },
+  {
+   "input": "3 2\n3 2 5\n4 3 9",
+   "output": "8",
+   "explanation": "Hire workers 0 and 1: ratios 4/3 and 3/2, so the rate is 1.5 and the total is 1.5 * (3 + 2) = 7.5, which rounds up to 8. Pairs (0, 2) and (1, 2) cost 14.4 and 12.6."
+  },
+  {
+   "input": "2 2\n1 2\n3 4",
+   "output": "9",
+   "explanation": "Both workers must be hired. The ratios are 3 and 2, so the rate is 3: pay 3 and 6, total 9."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Fix the worker with the largest wage/quality ratio in the group. That ratio sets the pay rate for everyone, so the cost is rate * (sum of qualities).",
+  "Sort workers by ratio. When you consider worker i as the highest ratio, any earlier worker is allowed in the group, and you want the k smallest qualities among them (including worker i if possible).",
+  "Maintain a max-heap of qualities and their running sum while sweeping in ratio order; pop the largest quality whenever the heap exceeds k workers."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    q = [int(v) for v in data[2:2 + n]]\n    w = [int(v) for v in data[2 + n:2 + 2 * n]]\n    # ratios have denominators <= 10^4, so floor(w * 10^9 / q) orders them exactly\n    order = sorted(range(n), key=lambda i: w[i] * 10**9 // q[i])\n    heap = []\n    s = 0\n    best = None\n    for i in order:\n        heapq.heappush(heap, -q[i])\n        s += q[i]\n        if len(heap) > k:\n            s += heapq.heappop(heap)\n        if len(heap) == k:\n            c = (s * w[i] + q[i] - 1) // q[i]\n            if best is None or c < best:\n                best = c\n    print(best)\n\nmain()\n",
+ "brute": "import sys\nfrom fractions import Fraction\nfrom itertools import combinations\n\ndata = sys.stdin.read().split()\nn, k = int(data[0]), int(data[1])\nq = [int(v) for v in data[2:2 + n]]\nw = [int(v) for v in data[2 + n:2 + 2 * n]]\nbest = None\nfor grp in combinations(range(n), k):\n    rate = max(Fraction(w[i], q[i]) for i in grp)\n    cost = rate * sum(q[i] for i in grp)\n    c = -((-cost.numerator) // cost.denominator)\n    if best is None or c < best:\n        best = c\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(k, q, w):\n        return f'{len(q)} {k}\\n' + ' '.join(map(str, q)) + '\\n' + ' '.join(map(str, w))\n\n    tests = [\n        fmt(1, [1], [1]),\n        fmt(1, [10000], [10000]),\n        fmt(2, [1, 2], [3, 4]),\n        fmt(2, [4, 8, 2, 6], [10, 12, 9, 15]),\n        fmt(2, [3, 2, 5], [4, 3, 9]),\n        fmt(3, [5, 5, 5, 5], [7, 7, 7, 7]),\n        fmt(1, [3, 1, 4, 1, 5], [9, 9, 9, 9, 9]),\n        fmt(4, [1, 1, 1, 1], [10000, 10000, 10000, 10000]),\n        fmt(2, [10000, 1, 9999], [1, 10000, 2]),\n        fmt(3, [2, 4, 6, 8], [1, 2, 3, 4]),\n    ]\n    for n in (2, 3, 4, 5, 6, 7, 8, 9):\n        for _ in range(3):\n            hi = rng.choice([4, 10, 50, 10000])\n            k = rng.randint(1, n)\n            tests.append(fmt(k, [rng.randint(1, hi) for _ in range(n)], [rng.randint(1, hi) for _ in range(n)]))\n    N = 100000\n    tests.append(fmt(N // 2, [rng.randint(1, 10000) for _ in range(N)], [rng.randint(1, 10000) for _ in range(N)]))\n    tests.append(fmt(30000, [rng.randint(1, 10000) for _ in range(N)], [rng.randint(1, 10000) for _ in range(N)]))\n    tests.append(fmt(N, [rng.randint(1, 10000) for _ in range(N)], [rng.randint(1, 10000) for _ in range(N)]))\n    q = [rng.randint(1, 10000) for _ in range(N)]\n    tests.append(fmt(70000, q, [max(1, min(10000, x + rng.randint(0, 5))) for x in q]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_cost_to_hire(quality: List[int], wage: List[int], k: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    quality = [int(v) for v in data[2:2 + n]]\n    wage = [int(v) for v in data[2 + n:2 + 2 * n]]\n    print(min_cost_to_hire(quality, wage, k))\n\n\nmain()\n",
+  "javascript": "function minCostToHire(quality, wage, k) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst quality = t.slice(2, 2 + n)\nconst wage = t.slice(2 + n, 2 + 2 * n)\nconsole.log(String(minCostToHire(quality, wage, k)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minCostToHire(vector<long long>& quality, vector<long long>& wage, int k) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<long long> quality(n), wage(n);\n    for (int i = 0; i < n; i++) cin >> quality[i];\n    for (int i = 0; i < n; i++) cin >> wage[i];\n    cout << minCostToHire(quality, wage, k) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minCostToHire(long[] quality, long[] wage, int k) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        long[] quality = new long[n], wage = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            quality[i] = (long) in.nval;\n        }\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            wage[i] = (long) in.nval;\n        }\n        System.out.println(minCostToHire(quality, wage, k));\n    }\n}\n"
+ }
+}

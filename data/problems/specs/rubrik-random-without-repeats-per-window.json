@@ -1,0 +1,49 @@
+{
+ "pid": "rubrik-random-without-repeats-per-window",
+ "title": "Random Without Repeats per Window",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "Design a generator of random numbers in the range `1..N` that **never repeats a number until all `N` numbers have been returned**. Calls are grouped into **windows** of `N` consecutive calls: inside one window every number from `1` to `N` is returned exactly once, in random order. After `N` calls a new window starts and all numbers become available again. For example, with `N = 3` a valid sequence of outputs is `1 3 2 | 3 1 2 | ...`. Every call must run in `O(1)` time.\n\nReal randomness cannot be graded, so each call is given its own integer `r` (the \"random draw\") and the generator must use it in a precisely specified way. Keep an array `arr` that initially holds `1, 2, ..., N`, and a counter `m` of numbers not yet returned in the current window (initially `m = N`). A call with draw `r` does the following:\n\n- Let `idx = r mod m`. The answer is `arr[idx]`.\n- Swap `arr[idx]` with `arr[m - 1]`, then decrease `m` by one. The numbers already returned in this window are parked at the end of `arr`.\n- If `m` is now `0`, the window is over: set `m = N`. The array is **not** rebuilt; it keeps its current order for the next window.\n\nYou are given `Q` calls with their draws. Print the value returned by each call.\n\n**Follow-up:** the interviewer first accepted a solution with two hash sets (`O(1)` per call, `O(N)` space) but asked for one built on a plain array, using `push_back`/`pop_back`-style section handling, as the rules above do.",
+ "input_format": "The first line contains two integers `N` and `Q`.\nEach of the next `Q` lines contains one integer `r`: the random draw for that call.",
+ "output_format": "Print `Q` lines: the number returned by each call, in order.",
+ "constraints": [
+  "1 ≤ N ≤ 10^6",
+  "1 ≤ Q ≤ 2·10^5",
+  "0 ≤ r ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3 5\n4\n0\n5\n1\n1",
+   "output": "2\n1\n3\n1\n2",
+   "explanation": "`arr = [1,2,3]`, `m = 3`. Draw 4: `idx = 1`, return `2`, swap → `[1,3,2]`, `m = 2`. Draw 0: return `1`, → `[3,1,2]`, `m = 1`. Draw 5: `idx = 0`, return `3`; `m` hits 0 and resets to 3 (array stays `[3,1,2]`). Draw 1: `idx = 1`, return `1`, → `[3,2,1]`, `m = 2`. Draw 1: `idx = 1`, return `2`."
+  },
+  {
+   "input": "4 4\n0\n0\n0\n0",
+   "output": "1\n4\n3\n2",
+   "explanation": "`[1,2,3,4]` → return `1`, swap with last → `[4,2,3,1]`; return `4` → `[3,2,4,1]`; return `3` → `[2,3,4,1]`; return `2`. All four numbers appear exactly once."
+  },
+  {
+   "input": "1 3\n9\n4\n0",
+   "output": "1\n1\n1",
+   "explanation": "With `N = 1` every window has a single call, so the answer is always `1`."
+  }
+ ],
+ "complexity": {
+  "time": "O(1) per call, O(N + Q) total",
+  "space": "O(N)"
+ },
+ "hints": [
+  "Which numbers are still available in the current window? You need to pick one uniformly and remove it, without shifting anything.",
+  "Keep the available numbers in a prefix `arr[0..m-1]` of an array. To remove `arr[idx]`, swap it with `arr[m-1]` and shrink the prefix.",
+  "When the prefix becomes empty, all numbers sit in the array again. Just reset `m = N`, do not rebuild or reshuffle anything."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, q = int(data[0]), int(data[1])\n    arr = list(range(1, n + 1))\n    m = n\n    out = []\n    for t in range(q):\n        r = int(data[2 + t])\n        idx = r % m\n        v = arr[idx]\n        arr[idx] = arr[m - 1]\n        arr[m - 1] = v\n        m -= 1\n        if m == 0:\n            m = n\n        out.append(v)\n    print('\\n'.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, q = int(data[0]), int(data[1])\npool = list(range(1, n + 1))\ndrawn = []\nout = []\nfor t in range(q):\n    r = int(data[2 + t])\n    idx = r % len(pool)\n    v = pool[idx]\n    pool[idx] = pool[-1]\n    pool.pop()\n    drawn.append(v)\n    out.append(v)\n    if not pool:\n        pool = drawn[::-1]\n        drawn = []\nprint('\\n'.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def fmt(n, rs):\n        return f\"{n} {len(rs)}\\n\" + \"\\n\".join(map(str, rs))\n    def rnd(n, q, hi=10**9):\n        return fmt(n, [rng.randint(0, hi) for _ in range(q)])\n    tests = [fmt(1, [0]), fmt(1, [5, 9, 3]), fmt(2, [0, 0, 0, 0, 1, 1]), fmt(3, [4, 0, 5, 1, 1]), fmt(4, [0, 0, 0, 0])]\n    for n, q in [(2, 9), (3, 12), (5, 20), (6, 30), (7, 40), (10, 50), (13, 60), (20, 70)]:\n        tests.append(rnd(n, q, 10**rng.randint(1, 9)))\n    for _ in range(5):\n        n = rng.randint(1, 15)\n        tests.append(rnd(n, rng.randint(1, 60), 100))\n    tests.append(rnd(10**6, 200000))\n    tests.append(rnd(1000, 200000))\n    tests.append(rnd(2, 200000))\n    tests.append(rnd(450, 200000))\n    tests.append(fmt(10**6, [10**9 - i for i in range(200000)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\nclass NoRepeatGenerator:\n    def __init__(self, n: int):\n        # Write your solution here\n        pass\n\n    def next(self, r: int) -> int:\n        # Write your solution here\n        # r is the random draw for this call; follow the rules in the statement\n        return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, q = int(data[0]), int(data[1])\n    gen = NoRepeatGenerator(n)\n    out = [gen.next(int(data[2 + i])) for i in range(q)]\n    print('\\n'.join(map(str, out)))\n\n\nmain()\n",
+  "javascript": "class NoRepeatGenerator {\n  constructor(n) {\n    // Write your solution here\n  }\n\n  next(r) {\n    // Write your solution here\n    // r is the random draw for this call; follow the rules in the statement\n    return 0\n  }\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], q = t[1]\nconst gen = new NoRepeatGenerator(n)\nconst out = []\nfor (let i = 0; i < q; i++) out.push(gen.next(t[2 + i]))\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nclass NoRepeatGenerator {\npublic:\n    NoRepeatGenerator(int n) {\n        // Write your solution here\n    }\n\n    int next(long long r) {\n        // Write your solution here\n        // r is the random draw for this call; follow the rules in the statement\n        return 0;\n    }\n};\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, q;\n    cin >> n >> q;\n    NoRepeatGenerator gen(n);\n    string out;\n    for (int i = 0; i < q; i++) {\n        long long r;\n        cin >> r;\n        out += to_string(gen.next(r)) + \"\\n\";\n    }\n    cout << out;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static class NoRepeatGenerator {\n        NoRepeatGenerator(int n) {\n            // Write your solution here\n        }\n\n        int next(long r) {\n            // Write your solution here\n            // r is the random draw for this call; follow the rules in the statement\n            return 0;\n        }\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int q = (int) in.nval;\n        NoRepeatGenerator gen = new NoRepeatGenerator(n);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < q; i++) {\n            in.nextToken();\n            sb.append(gen.next((long) in.nval)).append(\"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

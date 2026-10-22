@@ -1,0 +1,17 @@
+{
+ "qid": "af24df46ae",
+ "question": "From the first (mathematics-based, phone) interview for an SDE Intern role at Tower Research: **Find the number of binary strings of length `n` that have at most `k` consecutive 1's in them** (that is, whose longest run of 1s is at most `k`).",
+ "lookingFor": [
+  "Can you set up a clean DP or recurrence for a constrained counting problem?",
+  "Do you handle base cases and edge cases (n < k, k = 0)?",
+  "Can you optimize the recurrence to O(n) with a sliding window?",
+  "Can you relate it to known sequences (Fibonacci for k = 1) and check small cases?"
+ ],
+ "answer": "**Approach 1: classify by the leading run of 1s.** Let `f(n)` be the count of valid strings of length `n`, with `f(0) = 1` (the empty string). Look at where the first 0 occurs. A valid string starts with `j` ones (`0 <= j <= k`) followed by a `0` and then any valid string of length `n - j - 1`. The only string with no 0 is all ones, which is valid only when `n <= k`. Therefore:\n\n`f(n) = f(n-1) + f(n-2) + ... + f(n-k-1)` for `n > k`,\nand `f(n) = 2^n` for `0 <= n <= k` (every string is valid).\n\nThis is a \"(k+1)-step Fibonacci\" recurrence.\n\n**Check with k = 1** (no two adjacent 1s): `f(0)=1`, `f(1)=2`, `f(2)=f(1)+f(0)=3`, `f(3)=5`. This matches the Fibonacci numbers, and the strings of length 2 are 00, 01, 10. \n\n**Approach 2: DP on trailing ones.** Let `dp[i][j]` be the number of valid strings of length `i` ending in exactly `j` ones (`0 <= j <= k`). Then `dp[i][0] = sum over j of dp[i-1][j]` (append 0) and `dp[i][j] = dp[i-1][j-1]` for `j >= 1` (append 1). The answer is `sum over j of dp[n][j]`. This takes O(nk) time and O(k) space with rolling arrays.\n\n**Optimization.** Keep a running window sum so each `f(n)` costs O(1): `S += f(n-1) - f(n-k-2)`, giving O(n) total. For very large `n`, matrix exponentiation of the `(k+1) x (k+1)` companion matrix gives O(k^3 log n). When `n` is large, the counts are huge, so the problem normally asks for the result modulo a prime.\n\n```python\ndef count(n, k, mod=10**9 + 7):\n    f = [0] * (n + 1)\n    f[0] = 1\n    for i in range(1, n + 1):\n        if i <= k:\n            f[i] = (2 * f[i - 1]) % mod      # all 2^i strings are valid\n        else:\n            f[i] = sum(f[i - k - 1:i]) % mod  # O(k); use a running sum for O(1)\n    return f[n]\n```",
+ "followUps": [
+  "How would you compute the answer for n = 10^18?",
+  "How does this change if you need exactly k consecutive ones somewhere?",
+  "How would you count strings with no 3 consecutive equal characters?",
+  "What is the relationship to the probability that a random string has such a run?"
+ ]
+}

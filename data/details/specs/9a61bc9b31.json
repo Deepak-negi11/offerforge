@@ -1,0 +1,18 @@
+{
+ "qid": "9a61bc9b31",
+ "question": "A table `BST(N, P)` stores a binary tree: `N` is a node value and `P` is the value of its parent node (NULL for the root). Write a SQL query that outputs every node value together with its type: **Root** if it has no parent, **Leaf** if it has no children, and **Inner** otherwise. Order the result by node value.\n\nThis was asked in an online assessment for a Senior Software Engineer role at Walmart Global Tech.",
+ "lookingFor": [
+  "Translating a tree definition into SQL conditions (root: no parent; leaf: nobody lists it as a parent)",
+  "Correct use of CASE with a subquery or EXISTS",
+  "Awareness of the NOT IN / NULL trap",
+  "Ordering and clean output formatting",
+  "Ability to verify the query on a small example"
+ ],
+ "answer": "**Idea.** Classify each row by looking at `P` and at whether the node appears in the `P` column of any other row.\n- Root: `P IS NULL`.\n- Inner: has a parent and is the parent of someone (its value appears in `P`).\n- Leaf: has a parent and is nobody's parent.\n\n**Query.**\n\n    SELECT b.N,\n           CASE\n             WHEN b.P IS NULL THEN 'Root'\n             WHEN EXISTS (SELECT 1 FROM BST c WHERE c.P = b.N) THEN 'Inner'\n             ELSE 'Leaf'\n           END AS node_type\n    FROM BST b\n    ORDER BY b.N;\n\nThe CASE branches are evaluated in order, so a root is caught first and is never labelled Inner, even when it has children. `EXISTS` is a correlated subquery: for each node it asks whether any row has this node as its parent.\n\n**The NULL trap.** A common alternative is `WHEN N IN (SELECT P FROM BST)`. That works. But `N NOT IN (SELECT P FROM BST)` returns no rows if the subquery contains a NULL (the root's parent), because the comparison becomes UNKNOWN. If you use it, add `WHERE P IS NOT NULL` inside the subquery. EXISTS avoids this problem.\n\n**Check on a small tree.** Rows (N, P): (1, 2), (3, 2), (6, 8), (9, 8), (2, 5), (8, 5), (5, NULL).\n- 1, 3, 6, 9 never appear in P, so Leaf.\n- 2, 8 have a parent and appear in P, so Inner.\n- 5 has NULL parent, so Root.\nResult sorted by N: 1 Leaf, 2 Inner, 3 Leaf, 5 Root, 6 Leaf, 8 Inner, 9 Leaf.\n\n**Complexity.** With an index on `P`, each EXISTS lookup is an index probe, so the query is roughly O(n log n). Without an index it is O(n^2).",
+ "followUps": [
+  "What happens if you use NOT IN and the column contains NULL?",
+  "How would you write this with a LEFT JOIN instead of EXISTS?",
+  "What index would you add to make it fast on millions of rows?",
+  "How would you find the depth of each node using a recursive CTE?"
+ ]
+}

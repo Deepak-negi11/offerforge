@@ -1,0 +1,18 @@
+{
+ "qid": "1d6433fa39",
+ "question": "In a technical and HR round for a Visa **SWE intern** role the candidate was given a system design question: **identify the high-level components required to enable secure remote printing on home printers**, so that the **owner or a whitelisted user** can send print-ready content to a home printer and have it printed. Requirements: (1) only the owner or whitelisted users may send remote print jobs; (2) the user is **reliably notified if the printer cannot process the job** (paper jam, low ink); (3) the job is delivered and **starts within 15 seconds** of being sent. The candidate said they were not prepared and could not answer.",
+ "lookingFor": [
+  "Can you break an open-ended problem into components and flows?",
+  "Do you handle authentication, authorisation and the whitelist model?",
+  "Do you handle the home-network problem (printers behind NAT and firewalls)?",
+  "Do you design for reliability, status reporting and the 15 second latency target?",
+  "Do you think about security of documents in transit and at rest?"
+ ],
+ "answer": "**Key challenge.** The printer is on a home network behind NAT, so the cloud cannot connect inward. The usual solution: the printer (or a small agent or hub) opens an **outbound, persistent connection** to the cloud.\n\n**Components.**\n1. **Printer agent or firmware:** registers the device, keeps a long-lived secure connection (MQTT or WebSocket over TLS), receives jobs, reports status.\n2. **Device registry and identity service:** each printer has a unique id and credentials (a certificate or token) issued at setup; the owner claims the printer by proving possession (code on the device or QR).\n3. **User authentication and authorisation:** login (OAuth or similar), the owner manages a **whitelist** (access-control list: printer to allowed users, optionally with expiry). Every print request is checked against it.\n4. **Print API and job service:** `POST /printers/{id}/jobs` with the document; validates the user, size and type; stores the job with state (QUEUED, SENT, PRINTING, DONE, FAILED).\n5. **Document storage:** upload to object storage with a short-lived signed URL; encrypt at rest, delete after printing or a short retention; the printer downloads over TLS.\n6. **Message queue or broker:** per-printer topic so a job is pushed immediately; if the printer is offline, jobs wait in the queue with a timeout.\n7. **Status and notification service:** the printer reports events (paper jam, low ink, offline); the service updates the job and sends push, email or SMS to the sender and the owner, with retries.\n8. **Monitoring:** heartbeats to detect offline printers.\n\n**Meeting the 15 second target.** Push through the persistent connection rather than polling; keep documents small or stream them; show the user a clear \"printer offline\" status immediately instead of waiting.\n\n**Reliability.** Acknowledgements and retries with idempotent job ids, so a job is not printed twice; dead-letter handling for failed jobs.\n\n**Security.** TLS everywhere, per-device credentials, rate limits, audit logs, malware scanning of uploads, and revocation of a whitelisted user.",
+ "followUps": [
+  "How do you stop a job from printing twice after a reconnect?",
+  "What if the printer is offline when the job is sent?",
+  "How would you handle a stolen or resold printer?",
+  "Would you use polling or push? Why?"
+ ]
+}

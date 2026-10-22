@@ -1,0 +1,17 @@
+{
+ "qid": "4572e86d86",
+ "question": "In a C++-only Adobe MTS (experienced, 3 years) round, the candidate was asked to write a **Singleton** class and then **design and implement their own smart pointer classes**, covering RAII, ownership and reference counting. No further detail was reported, so expect to write `unique_ptr`-like and `shared_ptr`-like classes by hand and explain the design.",
+ "lookingFor": [
+  "Do you understand RAII and ownership semantics, not just the library API?",
+  "Can you get copy/move semantics and the rule of five right?",
+  "Do you handle thread-safe reference counting and know what is and is not thread-safe?",
+  "Can you write a correct, thread-safe Singleton and discuss its drawbacks?"
+ ],
+ "answer": "**Singleton (Meyers)**:\n```cpp\nclass Config {\n public:\n  static Config& instance() { static Config c; return c; }  // thread-safe since C++11\n  Config(const Config&) = delete;\n  Config& operator=(const Config&) = delete;\n private:\n  Config() = default;\n};\n```\nFunction-local statics are initialised exactly once and thread-safely. Drawbacks: global state, hidden dependencies, and hard testing.\n\n**`unique_ptr`-like (exclusive ownership)**:\n```cpp\ntemplate <class T> class UniquePtr {\n  T* p_ = nullptr;\n public:\n  explicit UniquePtr(T* p = nullptr) : p_(p) {}\n  ~UniquePtr() { delete p_; }\n  UniquePtr(const UniquePtr&) = delete;\n  UniquePtr& operator=(const UniquePtr&) = delete;\n  UniquePtr(UniquePtr&& o) noexcept : p_(o.p_) { o.p_ = nullptr; }\n  UniquePtr& operator=(UniquePtr&& o) noexcept {\n    if (this != &o) { delete p_; p_ = o.p_; o.p_ = nullptr; }\n    return *this;\n  }\n  T& operator*() const { return *p_; }\n  T* operator->() const { return p_; }\n  T* get() const { return p_; }\n  T* release() { T* t = p_; p_ = nullptr; return t; }\n  void reset(T* p = nullptr) { delete p_; p_ = p; }\n};\n```\nCopy is deleted, move transfers ownership, and the destructor releases the resource (RAII).\n\n**`shared_ptr`-like (shared ownership)**: keep a heap-allocated control block `{ std::atomic<long> count; }` shared by all owners. Copy: copy the pointers and increment. Destructor: decrement, and when it reaches zero delete the object and the control block. Copy-assign: guard self-assignment (increment the new one first, then release the old). Move: steal both pointers and leave the source null. The count must be atomic so copies on different threads are safe; the pointee itself is not made thread-safe. Real `shared_ptr` also has a custom deleter, `weak_ptr` (weak count to break cycles) and `make_shared` (one allocation).\n\n**Mistakes to avoid**: missing rule of five, double delete, forgetting self-assignment, creating two control blocks from the same raw pointer, and reference cycles (use `weak_ptr`).",
+ "followUps": [
+  "Why does `make_shared` exist, and what does it save?",
+  "How do you break a reference cycle between two `shared_ptr` objects?",
+  "Is `shared_ptr` thread-safe? What exactly is?",
+  "How would you support a custom deleter and arrays?"
+ ]
+}

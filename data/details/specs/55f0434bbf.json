@@ -1,0 +1,19 @@
+{
+ "qid": "55f0434bbf",
+ "question": "Microsoft SDE-2, a resume-based OS and C++ round (reported for the Windows team). One of the main questions: **how would you implement the Linux `cp` command?** The discussion then went deep into operating systems and C++ low-level concepts, including topics from the candidate's resume.",
+ "lookingFor": [
+  "Knowledge of system calls and file descriptors, not just library calls.",
+  "Error handling and edge cases (permissions, same file, partial writes).",
+  "Understanding of buffering, performance and kernel features.",
+  "Ability to move from a naive version to production concerns.",
+  "Comfort with low-level C/C++ concepts."
+ ],
+ "answer": "**Core flow (POSIX).**\n1. Parse arguments: `cp src dst`. Use `stat` on both. If `dst` is a directory, the target is `dst/basename(src)`. If src and dst are the same file (same `st_dev` and `st_ino`), refuse.\n2. `open(src, O_RDONLY)`; `open(dst, O_WRONLY | O_CREAT | O_TRUNC, mode)` with the source's permission bits (subject to `umask`).\n3. Loop: `n = read(in, buf, BUFSZ)`; write all `n` bytes with an inner loop, because `write` can be partial. Handle `EINTR` by retrying. Stop when `read` returns 0; treat -1 as an error.\n4. `close` both and check the return value of `close` on the output, since delayed write errors can appear there. Optionally `fsync` for durability.\n\n**Details that show depth.**\n- **Buffer size:** a few KB to 1 MB; larger reduces syscall count. Using `mmap` or stdio adds little for sequential copy.\n- **Zero-copy:** Linux offers `copy_file_range`, `sendfile`, and reflink clones (`FICLONE`) on supporting filesystems (btrfs, xfs), avoiding copying data through user space.\n- **Sparse files:** detect holes with `SEEK_HOLE`/`SEEK_DATA` and preserve them.\n- **Metadata:** `-p` preserves mode, ownership, timestamps (`fchmod`, `fchown`, `futimens`); symlinks via `lstat`/`readlink`; hard links.\n- **Recursion (`-r`):** `opendir`/`readdir`, recreate the directories, guard against cycles.\n- **Safety:** write to a temp file and `rename` for atomic replacement; clean up partial output on failure.\n- **Errors:** report with `errno`/`strerror`, return a non-zero exit code.\n\n**Windows-flavoured note.** The same approach maps to `CreateFile`, `ReadFile`, `WriteFile`, `CopyFileEx`.\n\nIn C++, wrap file descriptors in an RAII class so they close on every error path.",
+ "followUps": [
+  "What is the difference between read() and fread()?",
+  "What happens if the disk fills up halfway through the copy?",
+  "How does copy_file_range or sendfile avoid user-space copies?",
+  "How would you make the copy resumable or atomic?",
+  "What is the difference between a hard link and a symbolic link?"
+ ]
+}

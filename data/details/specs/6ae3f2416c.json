@@ -1,0 +1,19 @@
+{
+ "qid": "6ae3f2416c",
+ "question": "LinkedIn Senior Software Engineer phone screen: a discussion on **Java internals**, covering:\n\n- Multithreading concepts such as **`Callable` vs `Runnable`**.\n- **`HashMap` internals.**\n- **`ConcurrentHashMap`.**\n- **The JVM.**\n\nA DSA question (determining whether two people in a parent-child graph share a common ancestor) was also asked.",
+ "lookingFor": [
+  "Depth of Java knowledge beyond API usage",
+  "Understanding of hashing, collisions and resizing in `HashMap`",
+  "Awareness of concurrency hazards and how `ConcurrentHashMap` addresses them",
+  "JVM architecture: memory areas, class loading, JIT, garbage collection",
+  "Ability to discuss trade-offs and failure modes"
+ ],
+ "answer": "**`Runnable` vs `Callable`.** `Runnable.run()` returns nothing and cannot throw checked exceptions. `Callable<V>.call()` returns a value and may throw checked exceptions. Submit either to an `ExecutorService`; `submit(Callable)` returns a `Future<V>` whose `get()` blocks for the result or throws `ExecutionException` wrapping any failure.\n\n**`HashMap` internals.** An array of buckets. For a key, compute `hashCode()`, spread the bits, and take `index = hash & (n - 1)` (capacity is a power of two). Collisions are stored in a linked list per bucket; since Java 8 a bucket converts to a red-black tree when it grows long (threshold 8, with table size at least 64), giving O(log n) worst-case lookups. Lookup uses `hashCode` then `equals`, so the **`equals`/`hashCode` contract** matters and keys should be immutable. When size exceeds `capacity * loadFactor` (default 0.75), the table doubles and entries are redistributed. Average operations are O(1). It allows one null key and is **not thread-safe**: concurrent writes can lose updates or corrupt state.\n\n**`ConcurrentHashMap`.** Thread-safe without locking the whole map. In Java 8+, reads are mostly lock-free (volatile reads), inserts into empty bins use CAS, and otherwise it synchronises on the head node of one bin, so contention is per bin. It disallows null keys and values, iterators are weakly consistent (no `ConcurrentModificationException`), and compound operations should use atomic methods such as `computeIfAbsent`, `merge` and `putIfAbsent`; check-then-act sequences using separate `get` and `put` are still racy. Compare `Collections.synchronizedMap`, which uses one lock.\n\n**JVM.** Source compiles to bytecode; class loaders load classes; the runtime has heap (young and old generations), per-thread stacks, and metaspace. The interpreter plus the **JIT** compiler turn hot code into native code. The garbage collector reclaims unreachable objects (G1, ZGC and others). Know the effects of heap sizing and GC pauses.",
+ "followUps": [
+  "Why does `HashMap` use a power-of-two capacity and `hash & (n-1)`?",
+  "What goes wrong if `hashCode` is mutable or inconsistent with `equals`?",
+  "Why is `if (!map.containsKey(k)) map.put(k, v)` unsafe on a `ConcurrentHashMap`?",
+  "What happens inside `HashMap` during resize in a concurrent setting?",
+  "How does the JIT decide what to compile?"
+ ]
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "bdddac6b9f",
+ "question": "Intel software engineering intern, technical interview, operating systems section. Reported questions: **What is a semaphore, and how does it differ from a mutex?** and **What is the critical section problem?** The OS round also covered scheduling (Round Robin and time quantum), interrupts, deadlock, paging vs segmentation.",
+ "lookingFor": [
+  "Clear distinction between a lock with ownership and a signalling counter.",
+  "Understanding of the critical section problem and its three requirements.",
+  "Awareness of race conditions, deadlock and typical misuse.",
+  "Ability to give practical examples such as producer-consumer."
+ ],
+ "answer": "**Critical section problem.** Several threads or processes share data; the code that touches it is the *critical section*. If two run it simultaneously, the result depends on timing (a race condition). A correct solution must satisfy:\n1. **Mutual exclusion**: only one at a time in the critical section.\n2. **Progress**: if no one is inside, a thread that wants in is not blocked indefinitely by threads that are not interested.\n3. **Bounded waiting**: a limit on how long a thread can be bypassed, so no starvation.\nSolutions: Peterson's algorithm (software, two processes), hardware atomics such as test-and-set or compare-and-swap, and OS primitives like mutexes and semaphores.\n\n**Mutex.** A locking mechanism with ownership: only the thread that locked it may unlock it. Binary state (locked or unlocked). Use it to protect a critical section.\n\n**Semaphore.** An integer counter with two atomic operations: `wait()`/`P()` (decrement, block if the value would go below zero) and `signal()`/`V()` (increment and wake a waiter). No ownership: any thread can signal.\n- **Binary semaphore**: value 0 or 1, similar to a mutex but without ownership.\n- **Counting semaphore**: value N, to control access to a pool of N identical resources (e.g. 10 database connections).\n\n**Key differences**\n- Purpose: mutex is for mutual exclusion; semaphore is also for signalling and counting resources.\n- Ownership: mutex has an owner; semaphore does not.\n- A semaphore can let a producer thread signal a consumer thread; a mutex cannot be released by a different thread.\n- A mutex can offer features such as priority inheritance and recursive locking in some implementations.\n\n**Example.** Producer-consumer with a bounded buffer uses `empty` (counting, starts at N), `full` (counting, starts at 0) and a mutex around the buffer operations.\n\n**Pitfalls:** forgetting to release (deadlock), acquiring locks in inconsistent order (deadlock), and wrong semaphore ordering that blocks while holding the mutex.",
+ "followUps": [
+  "How would you implement the producer-consumer problem with semaphores?",
+  "What are the four conditions for deadlock, and how do you prevent it?",
+  "What is a spinlock, and when is it better than a blocking mutex?",
+  "What is priority inversion and how is it mitigated?"
+ ]
+}

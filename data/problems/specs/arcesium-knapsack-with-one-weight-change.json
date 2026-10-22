@@ -1,0 +1,50 @@
+{
+ "pid": "arcesium-knapsack-with-one-weight-change",
+ "title": "Knapsack With One Weight Change",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "This is the classic 0/1 knapsack with one twist: you are allowed to **change the weight of at most one item**.\n\nThere are `n` items. Item `i` has a profit `profit[i]` and a normal weight `weight[i]`. It also has an alternative weight `alt_weight[i]` that it takes instead if you choose it as the one item whose weight is changed (the alternative may be smaller or larger than the normal weight). You may pick **at most one** item to change; every other item keeps its normal weight. Each item can be taken at most once, and the total weight of the items you take must not exceed the capacity `W`.\n\nChanging an item that you do not end up taking has no effect, so \"at most one change\" simply means you may use one alternative weight among the items you take, or none.\n\nReturn the maximum total profit you can collect.\n\n**Follow-up:** the question was reported as \"you can change the weight of at most one item, then find the maximum profit\", with the hint that a 3-dimensional DP is needed. Can you explain why one extra dimension (changed or not) is enough, and reduce the memory to O(W)?",
+ "input_format": "The first line contains two integers `n` and `W`.\nEach of the next `n` lines contains three integers `weight[i]`, `alt_weight[i]` and `profit[i]`.",
+ "output_format": "Print a single integer: the maximum total profit.",
+ "constraints": [
+  "1 ≤ n ≤ 200",
+  "1 ≤ W ≤ 5000",
+  "1 ≤ weight[i], alt_weight[i] ≤ 1000",
+  "1 ≤ profit[i] ≤ 10^6"
+ ],
+ "examples": [
+  {
+   "input": "3 6\n5 2 10\n4 4 6\n3 3 4",
+   "output": "16",
+   "explanation": "Without a change the best you can do is the first item alone for 10. Changing the first item's weight from 5 to 2 lets you take items 0 and 1 for a total weight of 2 + 4 = 6 and profit 16."
+  },
+  {
+   "input": "2 5\n3 6 4\n2 9 3",
+   "output": "7",
+   "explanation": "Both alternative weights are larger, so changing nothing is best: 3 + 2 = 5 fits exactly, for profit 4 + 3 = 7."
+  },
+  {
+   "input": "2 3\n3 1 5\n3 1 5",
+   "output": "5",
+   "explanation": "Only one weight may change. With one item at weight 1 and the other at weight 3 the total is 4 > 3, so only a single item fits and the profit is 5. Changing both would allow 10, but that is not permitted."
+  }
+ ],
+ "complexity": {
+  "time": "O(n · W)",
+  "space": "O(W)"
+ },
+ "hints": [
+  "Start from the standard 0/1 knapsack DP over (items considered, capacity used) and ask what extra fact you must remember about the choices made so far.",
+  "Add a flag: has the single weight change already been used? Keep two tables, one for 'no change used yet' and one for 'at most one change used'.",
+  "When item i is taken in the 'at most one change' table, either take it at its normal weight from the same table, or take it at its alternative weight from the 'no change used' table. Update capacities in decreasing order so each item is used once."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, W = int(data[0]), int(data[1])\n    items = [(int(data[2 + 3 * i]), int(data[3 + 3 * i]), int(data[4 + 3 * i])) for i in range(n)]\n    # dp0[c]: best profit with total weight <= c and no change used\n    # dp1[c]: best profit with total weight <= c and at most one change used\n    dp0 = [0] * (W + 1)\n    dp1 = [0] * (W + 1)\n    for w, a, p in items:\n        for c in range(W, 0, -1):\n            best = dp1[c]\n            if c >= w:\n                v = dp1[c - w] + p\n                if v > best:\n                    best = v\n            if c >= a:\n                v = dp0[c - a] + p\n                if v > best:\n                    best = v\n            dp1[c] = best\n            if c >= w:\n                v = dp0[c - w] + p\n                if v > dp0[c]:\n                    dp0[c] = v\n    print(dp1[W])\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, W = int(data[0]), int(data[1])\nw = [int(data[2 + 3 * i]) for i in range(n)]\na = [int(data[3 + 3 * i]) for i in range(n)]\np = [int(data[4 + 3 * i]) for i in range(n)]\nbest = 0\nfor changed in range(-1, n):\n    ws = list(w)\n    if changed >= 0:\n        ws[changed] = a[changed]\n    for mask in range(1 << n):\n        tw = tp = 0\n        for i in range(n):\n            if mask >> i & 1:\n                tw += ws[i]\n                tp += p[i]\n        if tw <= W and tp > best:\n            best = tp\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(W, items):\n        return f\"{len(items)} {W}\\n\" + \"\\n\".join(f\"{w} {a} {p}\" for w, a, p in items)\n    tests = [fmt(1, [(1, 1, 1)]), fmt(1, [(2, 1, 5)]), fmt(1, [(2, 3, 5)]), fmt(3, [(3, 1, 5), (3, 1, 5)]),\n             fmt(5, [(6, 2, 7)]), fmt(10, [(4, 4, 3), (5, 5, 4), (6, 6, 5)]), fmt(6, [(5, 2, 10), (4, 4, 6), (3, 3, 4)])]\n    for n in (2, 3, 4, 5, 6, 7, 8, 9):\n        for _ in range(3):\n            W = rng.randint(1, 20)\n            items = [(rng.randint(1, 12), rng.randint(1, 12), rng.randint(1, 30)) for _ in range(n)]\n            tests.append(fmt(W, items))\n    for _ in range(3):\n        W = rng.randint(5, 60)\n        items = [(rng.randint(5, 20), rng.randint(1, 25), rng.randint(1, 100)) for _ in range(9)]\n        tests.append(fmt(W, items))\n    # large\n    W = 5000\n    tests.append(fmt(W, [(rng.randint(1, 1000), rng.randint(1, 1000), rng.randint(1, 10 ** 6)) for _ in range(200)]))\n    tests.append(fmt(W, [(rng.randint(100, 400), rng.randint(1, 400), rng.randint(1, 10 ** 6)) for _ in range(200)]))\n    tests.append(fmt(W, [(rng.randint(1, 60), rng.randint(1, 60), rng.randint(1, 10 ** 6)) for _ in range(200)]))\n    tests.append(fmt(W, [(rng.randint(20, 40), rng.randint(1, 5), 10 ** 6 - rng.randint(0, 100)) for _ in range(200)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_profit(capacity: int, weight: List[int], alt_weight: List[int], profit: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, capacity = int(data[0]), int(data[1])\n    weight = [int(data[2 + 3 * i]) for i in range(n)]\n    alt_weight = [int(data[3 + 3 * i]) for i in range(n)]\n    profit = [int(data[4 + 3 * i]) for i in range(n)]\n    print(max_profit(capacity, weight, alt_weight, profit))\n\n\nmain()\n",
+  "javascript": "function maxProfit(capacity, weight, altWeight, profit) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], capacity = t[1]\nconst weight = [], altWeight = [], profit = []\nfor (let i = 0; i < n; i++) {\n  weight.push(t[2 + 3 * i])\n  altWeight.push(t[3 + 3 * i])\n  profit.push(t[4 + 3 * i])\n}\nconsole.log(maxProfit(capacity, weight, altWeight, profit))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxProfit(int capacity, vector<int>& weight, vector<int>& altWeight, vector<long long>& profit) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, capacity;\n    cin >> n >> capacity;\n    vector<int> weight(n), altWeight(n);\n    vector<long long> profit(n);\n    for (int i = 0; i < n; i++) cin >> weight[i] >> altWeight[i] >> profit[i];\n    cout << maxProfit(capacity, weight, altWeight, profit) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxProfit(int capacity, int[] weight, int[] altWeight, long[] profit) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int capacity = (int) in.nval;\n        int[] weight = new int[n], altWeight = new int[n];\n        long[] profit = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); weight[i] = (int) in.nval;\n            in.nextToken(); altWeight[i] = (int) in.nval;\n            in.nextToken(); profit[i] = (long) in.nval;\n        }\n        System.out.println(maxProfit(capacity, weight, altWeight, profit));\n    }\n}\n"
+ }
+}

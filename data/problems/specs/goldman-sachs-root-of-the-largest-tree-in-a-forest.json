@@ -1,0 +1,44 @@
+{
+ "pid": "goldman-sachs-root-of-the-largest-tree-in-a-forest",
+ "title": "Root of the Largest Tree in a Forest",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A **forest** is a set of one or more disconnected rooted trees. It is described by a map `immediateParent` of `child -> parent` pairs: the key is a node and the value is its one immediate parent. A node can have any number of children but never more than one parent, and the pairs form a well-formed forest (a tree with `k` nodes contributes exactly `k - 1` pairs, with no cycles). Every node of the forest appears in at least one pair; the **root** of a tree is the node that appears only as a parent and never as a child.\n\nThe **size** of a tree is its number of nodes. Print the id of the **root of the largest tree**. If several trees share the largest size, print the **smallest** root id among them.\n\nNode ids are arbitrary integers, not necessarily consecutive. The pairs can be given in any order.",
+ "input_format": "The first line contains an integer `m`, the number of `child -> parent` pairs.\nEach of the next `m` lines contains two integers `child` and `parent`.",
+ "output_format": "Print one integer: the id of the root of the largest tree.",
+ "constraints": [
+  "1 ≤ m ≤ 10^5",
+  "1 ≤ node id ≤ 10^9",
+  "Each child appears in exactly one pair; the pairs form a forest (no cycles)"
+ ],
+ "examples": [
+  {
+   "input": "2\n1 2\n3 4",
+   "output": "2",
+   "explanation": "The forest has two trees, {1, 2} rooted at 2 and {3, 4} rooted at 4. Both have 2 nodes, so the smaller root id, 2, is printed."
+  },
+  {
+   "input": "7\n1 3\n2 3\n3 7\n4 8\n5 8\n9 8\n6 9",
+   "output": "8",
+   "explanation": "Root 7 owns {1, 2, 3, 7}, which is 4 nodes. Root 8 owns {4, 5, 9, 6, 8}, which is 5 nodes (6 hangs below 9). The larger tree is rooted at 8."
+  }
+ ],
+ "complexity": {
+  "time": "O(m)",
+  "space": "O(m)"
+ },
+ "hints": [
+  "The roots are the ids that never appear as a child. The question is how many nodes hang below each root.",
+  "Walking from every node up to its root works but costs the depth of the tree per node, which is quadratic on a long chain.",
+  "Remember the root you found for every node on the walk (path compression), or use union-find, so each node's root is computed once. Then count nodes per root and pick the largest, smallest id on ties."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    m = int(data[0])\n    parent = {}\n    nodes = set()\n    for i in range(m):\n        u, p = int(data[1 + 2 * i]), int(data[2 + 2 * i])\n        parent[u] = p\n        nodes.add(u)\n        nodes.add(p)\n    root = {}\n    for v in nodes:\n        if v in root:\n            continue\n        path = []\n        x = v\n        while x in parent and x not in root:\n            path.append(x)\n            x = parent[x]\n        r = root.get(x, x)\n        root[r] = r\n        for q in path:\n            root[q] = r\n    cnt = {}\n    for v in nodes:\n        r = root[v]\n        cnt[r] = cnt.get(r, 0) + 1\n    best = min(cnt, key=lambda r: (-cnt[r], r))\n    print(best)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nm = int(data[0])\nparent = {}\nnodes = set()\nfor i in range(m):\n    u, p = int(data[1 + 2 * i]), int(data[2 + 2 * i])\n    parent[u] = p\n    nodes.add(u)\n    nodes.add(p)\nsize = {}\nfor v in nodes:\n    x = v\n    while x in parent:\n        x = parent[x]\n    size[x] = size.get(x, 0) + 1\ntop = max(size.values())\nprint(min(r for r in size if size[r] == top))\n",
+ "generator": "def gen(rng):\n    def fmt(edges):\n        return str(len(edges)) + '\\n' + '\\n'.join(f'{u} {p}' for u, p in edges)\n    def forest(ids, ntrees, depthy):\n        # returns child->parent edges of a random forest on ids\n        ids = ids[:]\n        rng.shuffle(ids)\n        edges = []\n        roots = ids[:ntrees]\n        placed = roots[:]\n        for v in ids[ntrees:]:\n            if depthy and rng.random() < 0.8:\n                p = placed[-1]\n            else:\n                p = rng.choice(placed)\n            edges.append((v, p))\n            placed.append(v)\n        rng.shuffle(edges)\n        return edges\n    tests = [\n        fmt([(1, 2), (3, 4)]),\n        fmt([(1, 3), (2, 3), (3, 7), (4, 8), (5, 8), (9, 8), (6, 9)]),\n        fmt([(5, 6)]),\n        fmt([(10**9, 1)]),\n        fmt([(1, 2), (2, 3), (3, 4)]),\n        fmt([(1, 9), (2, 9), (3, 8), (4, 8), (5, 7), (6, 7)]),\n    ]\n    for _ in range(40):\n        n = rng.randint(2, 18)\n        ids = rng.sample(range(1, rng.choice([30, 1000, 10**9])), n)\n        nt = rng.randint(1, max(1, n // 2))\n        edges = forest(ids, nt, rng.random() < 0.5)\n        if not edges:\n            edges = [(ids[1], ids[0])]\n        tests.append(fmt(edges))\n    N = 100000\n    ids = rng.sample(range(1, 10**9), N + 1)\n    tests.append(fmt([(ids[i], ids[i + 1]) for i in range(N)]))  # one long chain\n    tests.append(fmt(forest(ids[:N], 1, False)))\n    tests.append(fmt(forest(ids[:N], 5, True)))\n    tests.append(fmt(forest(ids[:N], 30000, False)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import Dict\n\n\ndef largest_tree_root(parent: Dict[int, int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    m = int(data[0])\n    parent = {}\n    for i in range(m):\n        parent[int(data[1 + 2 * i])] = int(data[2 + 2 * i])\n    print(largest_tree_root(parent))\n\n\nmain()\n",
+  "javascript": "function largestTreeRoot(parent) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst m = t[0]\nconst parent = new Map()\nfor (let i = 0; i < m; i++) parent.set(t[1 + 2 * i], t[2 + 2 * i])\nconsole.log(String(largestTreeRoot(parent)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long largestTreeRoot(unordered_map<long long, long long>& parent) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int m;\n    cin >> m;\n    unordered_map<long long, long long> parent;\n    for (int i = 0; i < m; i++) {\n        long long u, p;\n        cin >> u >> p;\n        parent[u] = p;\n    }\n    cout << largestTreeRoot(parent) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long largestTreeRoot(Map<Long, Long> parent) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int m = (int) in.nval;\n        Map<Long, Long> parent = new HashMap<>();\n        for (int i = 0; i < m; i++) {\n            in.nextToken();\n            long u = (long) in.nval;\n            in.nextToken();\n            long p = (long) in.nval;\n            parent.put(u, p);\n        }\n        System.out.println(largestTreeRoot(parent));\n    }\n}\n"
+ }
+}

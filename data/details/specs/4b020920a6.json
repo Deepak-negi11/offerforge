@@ -1,0 +1,19 @@
+{
+ "qid": "4b020920a6",
+ "question": "Flipkart SDE-2 system design round: **design an application like MySQL or Postgres** (a relational database). Cover **functional and non-functional requirements, entity relationships and component design**, with focus on **efficient reads and writes**.",
+ "lookingFor": [
+  "Knowledge of database internals at a high level.",
+  "Mapping requirements to components (parser, optimiser, storage, transactions).",
+  "Understanding of indexing structures and the read/write trade-off.",
+  "Durability and concurrency control concepts.",
+  "Clarity in scoping an enormous problem."
+ ],
+ "answer": "**Scope it.** A single-node relational database with SQL, tables, indexes, transactions and crash recovery; mention replication and sharding as extensions. Functional: create tables, insert/update/delete, query with filters, joins and aggregates, transactions. Non-functional: durability, ACID, concurrent clients, good latency for point and range reads, high write throughput.\n\n**Components.**\n1. **Client protocol and connection manager** (sessions, authentication).\n2. **Parser** (SQL to AST) and **analyser** (checks the catalog for tables, columns and types).\n3. **Query optimiser**: builds a plan, picks join order and access paths using statistics (cost-based).\n4. **Executor** (iterator or Volcano model: scan, filter, join, sort, aggregate).\n5. **Catalog** (metadata: tables, columns, indexes, constraints).\n6. **Storage engine**: data in fixed-size **pages** (for example 8 KB), a **buffer pool** caching pages in memory with an eviction policy (LRU or clock), heap files or clustered B+ tree for rows.\n7. **Index manager**: **B+ trees** for point and range lookups (shallow, high fan-out, sequential leaves); hash indexes for equality.\n8. **Transaction manager and lock manager**: ACID with two-phase locking or **MVCC** (readers do not block writers).\n9. **WAL (write-ahead log) and recovery**: log changes before flushing pages, with checkpoints and replay after a crash (ARIES-style redo/undo).\n\n**Reads and writes.** Reads: indexes, buffer pool and covering indexes; the optimiser avoids full scans. Writes: sequential WAL appends are fast, pages are flushed lazily (group commit batches fsyncs); LSM-tree engines trade read cost for write throughput. More indexes speed reads but slow writes.\n\n**Scale-out.** Primary with replicas for reads, partitioning/sharding by key, consensus for failover.",
+ "followUps": [
+  "Why is a B+ tree preferred over a binary tree or hash index for databases?",
+  "How does the write-ahead log guarantee durability and recovery?",
+  "How does MVCC let readers and writers work concurrently?",
+  "How does the query optimiser choose between an index scan and a full scan?",
+  "When would you choose an LSM-tree engine over a B+ tree?"
+ ]
+}

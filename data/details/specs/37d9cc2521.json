@@ -1,0 +1,18 @@
+{
+ "qid": "37d9cc2521",
+ "question": "In the first round of a ServiceNow Senior Software Engineer (IC3, full stack, Hyderabad) interview, after coding questions and JavaScript output questions, the candidate was given an **open-ended design question: design the database schema and APIs for handling credit and debit transactions in a bank**. The interviewer added follow-up requirements during the discussion, which the candidate incorporated into the design.",
+ "lookingFor": [
+  "Do you start by clarifying requirements and scope before drawing tables?",
+  "Is the money model and ledger design correct and auditable?",
+  "Can you handle concurrency and duplicate requests safely?",
+  "Do you absorb new requirements (limits, reversals, statements) without redesigning from scratch?",
+  "Do you design clean, versioned, secure APIs?"
+ ],
+ "answer": "**Step 1: clarify.** Ask: single currency or many? Is overdraft allowed? Only deposits and withdrawals, or also transfers? Do we need statements, reversals, daily limits? What consistency and scale are expected? State assumptions out loud.\n\n**Core entities**\n- `accounts(id, customer_id, currency, balance_minor BIGINT, status, version)`.\n- `transactions(id, idempotency_key UNIQUE, type, status, reference, created_at)` with statuses such as PENDING, POSTED, FAILED, REVERSED.\n- `ledger_entries(id, transaction_id, account_id, direction, amount_minor, balance_after, created_at)`, append-only. Every posting is a pair of entries, so debits equal credits.\nUse integer minor units, not floats.\n\n**APIs (REST, versioned)**\n- `POST /v1/transactions` with `{type, accountId, amount, currency}` and an `Idempotency-Key` header; transfers take `fromAccountId` and `toAccountId`.\n- `GET /v1/accounts/{id}/balance`, `GET /v1/accounts/{id}/transactions?from=&to=&cursor=`.\n- `POST /v1/transactions/{id}/reverse` creates a compensating transaction.\nAuth with tokens, check the caller owns the account, validate inputs, rate limit.\n\n**Consistency**\n- A posting runs in one ACID transaction: write entries, update balance, mark transaction POSTED.\n- Concurrency: `SELECT ... FOR UPDATE` on the account row, or optimistic `version` check with retry; lock two accounts in a consistent order.\n- Idempotency key uniqueness makes client retries safe.\n- Constraint `balance_minor >= 0` enforced by the database as the last line of defense.\n\n**Follow-ups the interviewer may add and how to absorb them**\n- *Daily withdrawal limit:* a `limits` table or a query over today's entries, checked in the same transaction.\n- *Statements:* index `(account_id, created_at)` and use keyset pagination.\n- *Scale:* shard by account id; cross-shard transfers need a saga with compensation.\n- *Audit and reconciliation:* nightly job comparing summed entries to balances.",
+ "followUps": [
+  "How would you support reversals or refunds without editing history?",
+  "How would you handle a transfer between accounts on different shards or banks?",
+  "What isolation level would you use, and what anomalies could occur at a lower one?",
+  "How would you expose the transaction history API efficiently for accounts with millions of entries?"
+ ]
+}

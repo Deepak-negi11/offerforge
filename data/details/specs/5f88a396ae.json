@@ -1,0 +1,18 @@
+{
+ "qid": "5f88a396ae",
+ "question": "In a Salesforce MTS LLD round (60 minutes, in person, rated hard), the candidate was asked to **implement a variation of an Excel-like spreadsheet**, followed by **several challenging follow-up requirements**. The specific follow-ups were not reported; typical ones for this problem are formulas that refer to other cells, dependency-based recalculation, cycle detection and undo.",
+ "lookingFor": [
+  "Can you design the core data model of a spreadsheet and write working code?",
+  "Do you model formulas as dependencies between cells?",
+  "Can you recompute only affected cells in the right order?",
+  "Do you detect cyclic references?",
+  "Do you adapt cleanly when new requirements arrive?"
+ ],
+ "answer": "**Basic requirements.** `setCell(cell, value)`, `getCell(cell)`, cells hold numbers or text; then formulas such as `=A1+B2` or `=SUM(A1:A5)`.\n\n**Core model**\n- `Sheet`: a sparse map `Map<CellId, Cell>` (rows and columns can be huge; do not allocate a grid).\n- `Cell`: raw input, cached value, an `Expression` (null for a plain value), a set of cells it depends on, and a set of cells that depend on it.\n- `Expression` (Composite): `Literal`, `CellRef`, `BinaryOp`, `SumRange`. An evaluator walks the tree. A small parser (tokeniser plus precedence handling) builds it.\n\n**Follow-up 1: formulas referencing cells.** When a cell is set, parse the formula, collect referenced cells, and register edges in a **dependency graph** (this cell depends on those cells, and they have it as a dependent).\n\n**Follow-up 2: recalculation.** When a cell changes, find all its transitive dependents and recompute them in **topological order** (DFS or Kahn's algorithm), so each is computed after what it depends on and only once. Cache values so `getCell` is O(1). Remove old edges before adding new ones when a formula is replaced.\n\n**Follow-up 3: cycles.** Before committing a change, check whether the new edges create a cycle (DFS from the cell through dependents back to itself). Reject the change and leave the sheet unchanged, or mark the cells with an error value.\n\n**Follow-up 4: errors and ranges.** Handle division by zero, missing cells as 0, and range expansion (`A1:A5`). For huge ranges, consider incremental aggregates.\n\n**Follow-up 5: undo/redo.** Command pattern with an undo stack storing the previous raw input and formula per change.\n\n**Follow-up 6: concurrency.** Read-write lock around the sheet, or lock per update.\n\n**Complexity.** Update costs O(affected cells + edges). Say this and mention tests for chains, diamonds and cycles.",
+ "followUps": [
+  "How do you detect a circular reference efficiently?",
+  "How would you support copy and paste with relative references?",
+  "How would you make the spreadsheet collaborative for multiple users?",
+  "How would you store a sheet with millions of cells?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "f51c42b21e",
+ "question": "In an in-person high-level design round for an Associate Full Stack Developer (3 years of experience) role at Morgan Stanley in Mumbai, the candidate was asked to **Design Uber** at a high level. The same round included a DSA problem (Reverse Nodes in K-Group) and a discussion of the candidate's current project architecture. Start by agreeing on scope, since the full product is huge.",
+ "lookingFor": [
+  "Scoping a large product into a core flow (request, match, trip, pay)",
+  "Geospatial thinking: how to find nearby drivers quickly",
+  "Handling high write volume from driver location updates",
+  "Consistency in matching so one driver is not assigned two riders",
+  "Choosing and justifying components, not just naming them"
+ ],
+ "answer": "**Requirements.** Functional: rider requests a ride with pickup and drop-off, sees nearby drivers and an ETA/fare estimate, gets matched to a driver, tracks the trip live, pays. Driver goes online/offline, accepts or rejects. Non-functional: low-latency matching (seconds), high availability, scale of, say, a few million daily rides and a million concurrently online drivers sending a location every 4 to 5 seconds, which is on the order of hundreds of thousands of writes per second.\n\n**APIs.** `POST /rides` (pickup, drop, type) -> ride id; `POST /drivers/location`; `POST /rides/{id}/accept`; `GET /rides/{id}` plus a WebSocket/push channel for live updates.\n\n**Components.**\n- API gateway + auth, then stateless services: Ride, Matching, Location, Trip, Pricing, Payment, Notification.\n- **Location service**: drivers stream GPS to a gateway; the latest position goes to an in-memory geo store (e.g. Redis geo or a geohash/S2/H3 cell index). Only the latest position is needed for matching; history goes asynchronously through Kafka to storage for analytics and trip replay.\n- **Matching**: query drivers in the rider's cell and neighbours, filter by availability and vehicle type, rank by ETA (road distance, not straight line), send the offer to the best driver with a timeout, then fall through to the next. Take a short-lived lock or use an atomic state change on the driver (`AVAILABLE -> OFFERED`) to prevent double assignment.\n- **Trip**: a state machine (REQUESTED, MATCHED, ARRIVED, STARTED, COMPLETED, CANCELLED) persisted in a relational DB; trip events published to Kafka.\n- **Pricing**: base + distance + time, with surge computed per cell from the demand/supply ratio over a sliding window.\n- **Payment**: asynchronous, idempotent charges with retries.\n\n**Data.** Users, drivers, vehicles, trips and payments in a transactional store (sharded by city or region); location history in a time-series or wide-column store.\n\n**Trade-offs and scaling.** Shard by geography since rides are local; keep location in memory and accept eventual consistency for the map view but strong consistency for assignment. Handle driver app disconnects with heartbeats and expiry. Mention failure of the matching service (retry with idempotent ride ids) and cache ETA results.",
+ "followUps": [
+  "How does a geohash or quadtree help find nearby drivers, and what are the boundary problems?",
+  "How do you guarantee a driver is not offered to two riders at the same time?",
+  "How would you implement and smooth surge pricing?",
+  "How would you handle a city-wide spike such as after a concert?"
+ ]
+}

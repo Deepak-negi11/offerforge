@@ -1,0 +1,18 @@
+{
+ "qid": "44c92ab55e",
+ "question": "Adobe MTS-1 (1-5 years experience), technical round 2. The interviewer asked basic **multithreading** questions (synchronization and the use of the **volatile** keyword), asked about **garbage collection algorithms**, and, because the candidate had a Java background, asked about the **new features in Java 8**.",
+ "lookingFor": [
+  "Correct mental model of the Java memory model: visibility versus atomicity.",
+  "Knowing when volatile is enough and when synchronized or atomics are needed.",
+  "Awareness of how the JVM reclaims memory and the main GC families.",
+  "Familiarity with modern Java features, not just syntax recall."
+ ],
+ "answer": "**Synchronization.** When threads share mutable state, you need **mutual exclusion** (only one thread in a critical section) and **visibility** (writes become seen by other threads). `synchronized` (method or block) takes the object's monitor, giving both. `ReentrantLock` adds try-lock, timeouts and fairness. Without it you get race conditions, for example two threads doing `count++` (read, add, write) and losing updates.\n\n**volatile.** A volatile field guarantees **visibility** and ordering: a write is immediately visible to other threads, and reads/writes are not reordered across it (happens-before). It does **not** make compound actions atomic, so `volatile int count; count++` is still a race. Good uses: a stop flag (`volatile boolean running`), or safe publication of an immutable object. For atomic counters use `AtomicInteger`; for compound invariants use locks.\n\n**Garbage collection.** The JVM finds unreachable objects (tracing from GC roots such as thread stacks and statics) and reclaims them. Core ideas:\n- **Mark-sweep** and **mark-compact** (compaction removes fragmentation).\n- **Copying** collectors split the heap and copy live objects, fast for young objects.\n- **Generational GC**: most objects die young, so collect the young generation often and the old generation rarely.\n- Collectors: Serial, Parallel, G1 (region-based, default in modern JDKs), ZGC/Shenandoah (low pause, mostly concurrent).\n\n**Java 8 features.** Lambdas and functional interfaces; the Stream API; `Optional`; default and static methods in interfaces; method references; the new `java.time` date-time API; `CompletableFuture`.\n\n**Tip.** Tie answers to a short example, and mention trade-offs such as throughput versus pause time for collectors.",
+ "followUps": [
+  "Is volatile enough for a double-checked locking singleton? Why or why not?",
+  "What is the difference between synchronized and ReentrantLock?",
+  "What causes a deadlock and how do you prevent it?",
+  "Explain generational GC and what a stop-the-world pause is.",
+  "How do streams differ from collections, and what is lazy evaluation?"
+ ]
+}

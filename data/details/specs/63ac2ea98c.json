@@ -1,0 +1,17 @@
+{
+ "qid": "63ac2ea98c",
+ "question": "Zoho incubation task for Technical Trainees (day 6 of the on-campus process). Build a **file management system with command-line operations**: `cd`, `mkdir`, `touch`, `pwd`, **deleting files and folders**, and **adding content to files**. The exact command syntax was not reported.",
+ "lookingFor": [
+  "Do you model a hierarchy with a tree and a current-directory pointer?",
+  "Can you apply OOP (shared Node abstraction with File and Directory) cleanly?",
+  "Do you parse commands and paths (absolute, relative, `..`) robustly?",
+  "Do you handle edge cases such as duplicates, deleting the working directory and missing paths?"
+ ],
+ "answer": "**Model (composite pattern).** An abstract `Node(name, parent)` with two subclasses: `Directory` holding `Map<String, Node> children` (a `LinkedHashMap` keeps insertion order for listing), and `File` holding a `StringBuilder content`. A root directory `/` has no parent. The shell keeps `cwd`, a reference to the current `Directory`.\n\n**Path resolution.** One helper does most of the work: `resolve(path)`. If the path starts with `/`, begin at root, else at `cwd`. Split on `/` and walk the parts: `.` stays, `..` moves to `parent` (root stays root), anything else looks up `children`. Return the node or null (so each command can print a clear error).\n\n**Commands (parse by splitting the input line, then dispatch via a `Map<String, Command>` or a switch).**\n\n- `pwd`: walk `parent` pointers up to the root, collecting names, and join them.\n- `mkdir name`: fail if the name already exists in `cwd`; create `Directory`.\n- `touch name`: create an empty `File` if absent.\n- `cd path`: resolve; if it is a directory, set `cwd`, else error.\n- `rm path` or `delete`: remove from the parent's map. Decide and state whether non-empty directories need a recursive flag (recursive removal is natural: dropping the reference is enough in Java). Prevent deleting the root or any ancestor of `cwd`.\n- `write file text` (or `echo text > file`): append or overwrite the content; `cat file` to read it back; `ls` to list.\n\n**Complexity.** Each lookup is O(1) per path component thanks to the hash map; `pwd` is O(depth).\n\n**Edge cases.** Names containing `/`, empty names, duplicates, writing to a directory, `cd` into a file, deleting a path that does not exist, and extra whitespace.\n\n**Extensions.** `mv`, `cp`, file sizes and total size per directory (recursive), permissions, and undo.\n\n**Tip.** Keep parsing in a `Shell` class and the tree operations in a `FileSystem` class so the logic is testable without the console.",
+ "followUps": [
+  "How would you implement `mv` and `cp -r`?",
+  "How would you compute the size of a directory efficiently and keep it updated?",
+  "How would you add file permissions and multiple users?",
+  "How would you add undo for delete?"
+ ]
+}

@@ -1,0 +1,44 @@
+{
+ "pid": "search-a-2d-matrix",
+ "title": "Search a 2D Matrix",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given a matrix of integers with `r` rows and `c` columns with these two properties:\n\n- every row is sorted in non-decreasing order from left to right;\n- the first integer of every row is strictly greater than the last integer of the previous row.\n\nYou are then given `q` queries. For each query value `x`, decide whether `x` appears somewhere in the matrix, and print `true` or `false`.\n\nBecause there are many queries, scanning the whole matrix for each one is too slow. Aim for logarithmic time per query.\n\n**Follow-up:** the interviewer asked to explain several approaches with their complexities: a full scan, a per-row binary search, a staircase walk from a corner, and a single binary search over the matrix treated as one flattened sorted array. Be ready to state the cost of each and why the last one is best here.",
+ "input_format": "The first line contains `r` and `c`.\nEach of the next `r` lines contains `c` integers: one row of the matrix.\nThe next line contains `q`.\nEach of the next `q` lines contains one integer: a query value.",
+ "output_format": "Print `q` lines. Line `j` is `true` if the `j`-th query value is in the matrix and `false` otherwise.",
+ "constraints": [
+  "1 ≤ r, c and r · c ≤ 10^5",
+  "1 ≤ q ≤ 10^5",
+  "-10^7 ≤ matrix values, query values ≤ 10^7"
+ ],
+ "examples": [
+  {
+   "input": "3 3\n2 4 4\n7 9 12\n15 15 21\n4\n9\n5\n15\n1",
+   "output": "true\nfalse\ntrue\nfalse",
+   "explanation": "9 is in row 2 and 15 is in row 3. 5 falls between 4 and 7 and is not present, and 1 is smaller than every entry."
+  },
+  {
+   "input": "1 1\n5\n2\n5\n6",
+   "output": "true\nfalse",
+   "explanation": "The matrix has a single cell holding 5."
+  }
+ ],
+ "complexity": {
+  "time": "O(q log(r · c))",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Read the second property carefully: if you list the rows one after another, the whole matrix is a single sorted sequence.",
+  "A cell (i, j) corresponds to flattened index i * c + j, and the flattened index k maps back to row k // c and column k % c.",
+  "Run an ordinary binary search on indices 0 .. r * c - 1, converting the middle index back to a row and a column to read the value."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    flat = [int(x) for x in data[2:2 + r * c]]\n    q = int(data[2 + r * c])\n    out = []\n    for k in range(q):\n        x = int(data[3 + r * c + k])\n        lo, hi = 0, r * c - 1\n        found = False\n        while lo <= hi:\n            mid = (lo + hi) // 2\n            v = flat[mid]\n            if v == x:\n                found = True\n                break\n            if v < x:\n                lo = mid + 1\n            else:\n                hi = mid - 1\n        out.append('true' if found else 'false')\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\nrows = [[int(x) for x in data[2 + i * c:2 + (i + 1) * c]] for i in range(r)]\nq = int(data[2 + r * c])\nout = []\nfor k in range(q):\n    x = int(data[3 + r * c + k])\n    out.append('true' if any(x in row for row in rows) else 'false')\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    def build(r, c, q, step=99, start=None):\n        if start is None:\n            start = rng.randint(-10**7, -10**7 + 50)\n        v = start - 1\n        rows = []\n        vals = []\n        for i in range(r):\n            row = []\n            for j in range(c):\n                v += rng.randint(1, step) if j == 0 else rng.randint(0, step)\n                row.append(v)\n                vals.append(v)\n            rows.append(row)\n        lo, hi = max(-10**7, vals[0] - 5), min(10**7, vals[-1] + 5)\n        qs = []\n        for _ in range(q):\n            t = rng.random()\n            if t < 0.45:\n                qs.append(rng.choice(vals))\n            elif t < 0.7:\n                qs.append(max(-10**7, min(10**7, rng.choice(vals) + rng.choice([-1, 1]))))\n            else:\n                qs.append(rng.randint(lo, hi))\n        return f'{r} {c}\\n' + '\\n'.join(' '.join(map(str, row)) for row in rows) + f'\\n{q}\\n' + '\\n'.join(map(str, qs))\n    tests = [build(1, 1, 3, 3), build(1, 5, 6, 3), build(5, 1, 6, 3), build(2, 2, 5, 2)]\n    for _ in range(14):\n        tests.append(build(rng.randint(1, 5), rng.randint(1, 5), rng.randint(1, 8), rng.choice([1, 3, 20])))\n    tests.append(build(1, 100000, 100000))\n    tests.append(build(100000, 1, 100000))\n    tests.append(build(316, 316, 100000))\n    tests.append(build(250, 400, 100000))\n    tests.append(build(1, 1, 100000, 1))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef search_matrix(matrix: List[List[int]], target: int) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    matrix = [[int(x) for x in data[2 + i * c:2 + (i + 1) * c]] for i in range(r)]\n    q = int(data[2 + r * c])\n    out = []\n    for k in range(q):\n        target = int(data[3 + r * c + k])\n        out.append('true' if search_matrix(matrix, target) else 'false')\n    print('\\n'.join(out))\n\n\nmain()\n",
+  "javascript": "function searchMatrix(matrix, target) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst r = t[0], c = t[1]\nconst matrix = []\nfor (let i = 0; i < r; i++) matrix.push(t.slice(2 + i * c, 2 + (i + 1) * c))\nconst q = t[2 + r * c]\nconst out = []\nfor (let k = 0; k < q; k++) {\n  out.push(searchMatrix(matrix, t[3 + r * c + k]) ? 'true' : 'false')\n}\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool searchMatrix(vector<vector<int>>& matrix, int target) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<vector<int>> matrix(r, vector<int>(c));\n    for (int i = 0; i < r; i++)\n        for (int j = 0; j < c; j++) cin >> matrix[i][j];\n    int q;\n    cin >> q;\n    while (q--) {\n        int target;\n        cin >> target;\n        cout << (searchMatrix(matrix, target) ? \"true\" : \"false\") << \"\\n\";\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean searchMatrix(int[][] matrix, int target) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int r = (int) in.nval;\n        in.nextToken();\n        int c = (int) in.nval;\n        int[][] matrix = new int[r][c];\n        for (int i = 0; i < r; i++)\n            for (int j = 0; j < c; j++) { in.nextToken(); matrix[i][j] = (int) in.nval; }\n        in.nextToken();\n        int q = (int) in.nval;\n        StringBuilder sb = new StringBuilder();\n        for (int k = 0; k < q; k++) {\n            in.nextToken();\n            sb.append(searchMatrix(matrix, (int) in.nval) ? \"true\" : \"false\").append('\\n');\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

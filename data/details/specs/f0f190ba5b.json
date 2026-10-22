@@ -1,0 +1,18 @@
+{
+ "qid": "f0f190ba5b",
+ "question": "In a high-level design round for a Senior Software Engineer role at PayPal (a pool hire, not team-specific), the candidate was asked to **design a web crawler**. The next round was a DSA round with the Zigzag Conversion problem. No further details of the crawler discussion were reported, so scope it yourself: purpose, scale, politeness and freshness.",
+ "lookingFor": [
+  "Do you clarify scale and purpose (search index, archive, monitoring)?",
+  "Can you lay out the core loop: frontier, fetch, parse, dedupe, store?",
+  "Do you handle politeness, robots.txt, traps and duplicates?",
+  "Can you distribute the crawl and avoid bottlenecks?",
+  "Do you discuss failures, retries and freshness?"
+ ],
+ "answer": "**Requirements and scale.** Crawl the web to feed a search index. Assume 1 billion pages per month, which is roughly 400 pages per second on average, with a peak of a few times that. Average page about 100 KB, so about 100 TB per month raw. Must be polite, robust to bad pages, extensible to new content types and able to re-crawl for freshness.\n\n**Components.**\n1. **Seed URLs** and a **URL frontier** (priority queue plus per-host queues).\n2. **Scheduler/politeness layer:** one queue per host with a delay and `robots.txt` rules cached per domain, so you never hammer a site.\n3. **Fetcher workers** (many, async, with DNS cache and timeouts and retries with backoff).\n4. **Parser/extractor:** pull out text, metadata and links; normalize URLs (lowercase host, resolve relative paths, strip fragments).\n5. **Dedupe:** a *URL-seen* check with a Bloom filter backed by a persistent store, and *content-seen* with a hash or SimHash to catch duplicate and near-duplicate pages.\n6. **Storage:** raw pages to object storage, metadata (URL, hash, last crawled, status) in a key-value or wide-column store, and extracted text to the indexing pipeline.\n\n**Loop:** frontier -> fetcher -> parser -> new URLs filtered by dedupe -> frontier.\n\n**Distribution.** Partition the frontier by **hash of hostname**, so one worker owns a host and politeness is local. Use a message queue between stages for backpressure. Add or remove workers with consistent hashing.\n\n**Hard problems.**\n- *Crawler traps* (infinite calendars, session ids): depth limits, URL length limits, pattern detection.\n- *Priority and freshness:* rank by importance (link signals) and change frequency, re-crawl with adaptive intervals, use `If-Modified-Since`.\n- *JavaScript-heavy pages:* optional headless rendering on a separate slower tier.\n- *Failures:* checkpoint the frontier, make workers stateless, and dead-letter repeated failures.\n\nMention monitoring (pages per second, error rate by domain, queue depth) and legal and ethical constraints (robots rules, rate limits).",
+ "followUps": [
+  "How would you detect near-duplicate pages?",
+  "How do you keep per-site politeness across many workers?",
+  "How would you prioritize which URLs to crawl first?",
+  "How would you re-crawl pages to keep the index fresh?"
+ ]
+}

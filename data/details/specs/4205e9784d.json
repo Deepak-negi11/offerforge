@@ -1,0 +1,17 @@
+{
+ "qid": "4205e9784d",
+ "question": "Adobe MTS-1 on-campus, round 3. The interviewer asked: **why is row-major traversal of a very big 2D array faster than column-major traversal?** Explain with reference to memory layout and the CPU cache.",
+ "lookingFor": [
+  "Understanding of memory layout of multi-dimensional arrays.",
+  "Knowledge of cache lines, spatial locality and prefetching.",
+  "Ability to quantify the effect and give a mitigation such as loop interchange or tiling.",
+  "Awareness that layout depends on the language."
+ ],
+ "answer": "**Memory layout.** In C and C++ a 2D array is stored **row-major**: `a[i][j]` and `a[i][j+1]` are adjacent in memory, and `a[i+1][0]` follows the end of row `i`. Walking row by row visits addresses in increasing, contiguous order. Walking column by column jumps by a whole row (`N * sizeof(element)` bytes) on every access.\n\n**Why the CPU cares.** Main memory is far slower than the CPU, so data moves through caches in **cache lines** (typically 64 bytes). When you read one `int`, the entire line holding it is loaded, which also contains the next 15 ints.\n- **Row-major traversal:** the first access to a line misses, the next 15 hit. That is **spatial locality**. Roughly 1 miss per 16 accesses.\n- **Column-major traversal:** each access lands in a different line far from the previous one. For a large array (rows larger than the cache can hold), a line loaded for `a[i][j]` is evicted before you come back for `a[i][j+1]`, so almost **every access misses** the cache. The memory traffic is up to 16x more for 4-byte ints.\n- **Prefetching:** hardware prefetchers detect sequential access and fetch ahead, which works well for row-major and poorly for large strides. Large strides can also hit TLB misses (each row may be on a different page) and cache-set conflicts when the stride is a power of two.\n\n**Result.** Both loops do the same number of operations (O(N^2)), but the row-major one can be several times faster on large arrays. Small arrays that fit in cache show little difference.\n\n**Fixes.** Interchange loops so the innermost loop runs over the contiguous dimension. For operations that require column access (matrix multiplication, transpose), use **loop tiling/blocking** so small blocks fit in cache. Note that Fortran, MATLAB and R are **column-major**, so the opposite order is fast there.\n\n**How to demonstrate.** Time summing a 10000 x 10000 int matrix both ways, or use `perf stat` to compare cache-miss counts.",
+ "followUps": [
+  "How does loop tiling speed up matrix multiplication?",
+  "What is a cache line, and what is the difference between temporal and spatial locality?",
+  "Would the answer change in Java or Python for a 2D array?",
+  "What is false sharing and how is it related to cache lines?"
+ ]
+}

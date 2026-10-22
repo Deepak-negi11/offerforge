@@ -1,0 +1,19 @@
+{
+ "qid": "378db22045",
+ "question": "In the HLD round of an SDE-3 interview for the Instamart team at Swiggy, the candidate was asked to **design an Instamart-like service with support for search and discovery of inventory and order management**.\n\nThe candidate described using **Elasticsearch for search, an inventory cache with small TTLs plus cache invalidation when a dark store's inventory changes, and pessimistic and optimistic locking to handle contention while placing orders**. They followed a standard local-delivery design framework, felt the interview went well, but received negative feedback.",
+ "lookingFor": [
+  "Do you clarify scope and derive scale and non-functional requirements?",
+  "Do you recognise that availability is per dark store and location-dependent?",
+  "Can you design search with correct inventory freshness trade-offs?",
+  "Do you prevent overselling during order placement and explain the mechanism?",
+  "Do you go beyond a textbook answer with depth, failure handling and trade-offs?"
+ ],
+ "answer": "**Requirements.** Functional: search and browse products available near the user, view availability, add to cart, place order, track. Non-functional: low-latency search, high availability for reads, no overselling, handles peak load. Key insight: **inventory is per dark store**, and the user is served by the dark store(s) covering their location, so catalogue and availability are separate concerns.\n\n**High-level components.**\n- *Serviceability service*: maps a user's location to dark store(s).\n- *Catalogue service*: product details (mostly static, heavily cached, CDN for images).\n- *Search service*: an index (for example Elasticsearch or OpenSearch) of products with text, category and attributes. Availability handling: either index per-store availability as a field, or search the global catalogue and filter results by availability from the inventory cache, to avoid reindexing on each stock change.\n- *Inventory service*: source of truth per (store, SKU) quantity in a database; a Redis cache for fast reads.\n- *Order service* and *Payment*.\n\n**Inventory freshness.** Search results may show slightly stale availability (acceptable), but the **order path must re-check against the source of truth**. Update the cache on inventory events (published via a queue or change data capture), with a short TTL as a safety net.\n\n**Order placement without overselling.**\n- Atomic conditional decrement: `UPDATE inventory SET qty = qty - n WHERE store=? AND sku=? AND qty >= n`. If no row updates, the item is out of stock.\n- Optimistic locking (version column with retry) works when contention is low; pessimistic row locks (`SELECT ... FOR UPDATE`) suit hot items but reduce throughput.\n- A reserve-then-confirm flow: decrement into a `reserved` count with an expiry, confirm on payment, release on failure or timeout.\n- For flash-sale hot SKUs, use a Redis atomic counter as a first gate, then reconcile to the database.\n\n**Data model.** `Product`, `Store`, `Inventory(storeId, sku, qty, reserved, version)`, `Order`, `OrderItem`.\n\n**Scale and failure.** Shard by store/city, replicate for reads, queue-based event flow, idempotent order creation by client request id, graceful degradation (serve search from cache if inventory service is slow).\n\n**Trade-offs to state.** Freshness versus cost of cache invalidation, reserve-at-cart versus reserve-at-checkout (affects abandoned carts), consistency versus latency.",
+ "followUps": [
+  "Should search results be filtered by inventory at query time or index time, and why?",
+  "How would you handle a hot SKU during a flash sale?",
+  "What happens if payment fails after inventory was reserved?",
+  "How do you keep the inventory cache consistent with the database?",
+  "How would you rank search results for quick commerce?"
+ ]
+}

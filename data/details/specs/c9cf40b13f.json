@@ -1,0 +1,17 @@
+{
+ "qid": "c9cf40b13f",
+ "question": "Cisco software engineering intern, technical round (operating systems). Questions: **mutexes versus semaphores**, **deadlock**, and **program versus process versus thread**. Then a follow-up: **if a process has 10 threads but only 8 are executing, what could explain it?** The candidate said they guessed several possibilities.",
+ "lookingFor": [
+  "Precise distinction between mutex and semaphore, including ownership.",
+  "Deadlock conditions and prevention.",
+  "Clear definitions of program, process and thread.",
+  "Reasoning about thread states and scheduling when asked an open-ended question."
+ ],
+ "answer": "**Mutex vs semaphore.**\n- A **mutex** is a lock for mutual exclusion: only one thread holds it, and the thread that locked it must unlock it (ownership). Use it to protect a critical section.\n- A **semaphore** is a counter with atomic `wait` (decrement, block at zero) and `signal` (increment). A *binary* semaphore looks like a mutex but has no ownership: any thread can signal. A *counting* semaphore limits access to N resources (a connection pool) or signals events between producer and consumer.\n\n**Deadlock.** Threads wait forever for each other. Four conditions must all hold: mutual exclusion, hold and wait, no preemption, circular wait. Prevent by breaking one of them: acquire locks in a global order (breaks circular wait), take all locks at once, or use timeouts/try-lock. Also detection and recovery, and the banker's algorithm for avoidance.\n\n**Program vs process vs thread.** A *program* is passive code on disk. A *process* is a running instance with its own address space, file descriptors and resources. A *thread* is a unit of execution within a process; threads share code, heap and open files but each has its own stack, registers and program counter. Thread switches are cheaper than process switches.\n\n**Why 10 threads but only 8 executing?** \"Created\" does not mean \"running\". Reasons:\n- **Fewer CPU cores:** with 8 cores, only 8 threads run at once; the rest are *ready* and waiting for a time slice.\n- **Blocked on I/O:** waiting for disk, network or user input.\n- **Blocked on synchronisation:** waiting for a mutex, semaphore or condition variable; possibly a deadlock.\n- **Sleeping or waiting** on a timer, or suspended.\n- **Not started or already finished:** two may have terminated or not yet been scheduled.\n- **Limits:** priority starvation, cgroup/CPU quotas, or a thread pool that caps concurrent work.\nSay how you would check: thread dump or debugger, `top -H`, or look at thread states.",
+ "followUps": [
+  "Can a semaphore be used to build a mutex? What is missing?",
+  "What is priority inversion and how is it solved?",
+  "How do user-level and kernel-level threads differ?",
+  "How would you diagnose a hung multi-threaded program?"
+ ]
+}

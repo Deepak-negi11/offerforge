@@ -1,0 +1,18 @@
+{
+ "qid": "28e0cfab0e",
+ "question": "Infosys SP / DSE second technical round (about one hour, with a senior technical lead), distributed systems section: **explain the CAP theorem, the possible scenarios under it, why it matters, and where different approaches fit.** Related follow-ups included how SQL databases and Redis relate to CAP. The same interview later asked for a high-level design of WhatsApp.",
+ "lookingFor": [
+  "Correct statement of the theorem, including that partitions are unavoidable.",
+  "Ability to reason about CP versus AP with concrete systems.",
+  "Understanding of consistency, availability and partition tolerance definitions.",
+  "Practical judgement: which choice for which product.",
+  "Awareness that real systems are tunable and that PACELC refines CAP."
+ ],
+ "answer": "**Statement.** In a distributed data store you can guarantee at most two of three properties during a network partition:\n\n- **Consistency (C)**: every read sees the latest successful write (linearizability), as if there were a single copy.\n- **Availability (A)**: every request to a non-failed node gets a non-error response, without the guarantee that it is the latest data.\n- **Partition tolerance (P)**: the system keeps working when messages between nodes are dropped or delayed.\n\nSince networks do fail, P is not optional in a distributed system. The real choice is what to do **during a partition**: refuse some requests to stay consistent (**CP**) or answer with possibly stale data (**AP**). When there is no partition, you can have both C and A.\n\n**Scenarios.**\n\n- **CP**: a minority side of the partition rejects writes or reads (returns an error or waits). Good for money balances, inventory counts, leader election and configuration. Examples: systems built on consensus such as ZooKeeper/etcd, HBase, MongoDB with majority write concern (configuration-dependent).\n- **AP**: all sides keep accepting requests and reconcile later (eventual consistency, via last-write-wins, vector clocks or CRDTs). Good for shopping carts, feeds, likes and sessions. Examples: Cassandra and DynamoDB in their default modes.\n- **CA** is only meaningful on a single node, such as a single-instance relational database, because it ignores partitions.\n\n**SQL and Redis.** A single-node SQL database gives strong consistency (ACID) but no partition tolerance at that level. Replicated or clustered setups choose: synchronous replication leans CP, asynchronous replicas serving reads lean AP. Redis in a primary-replica or Sentinel setup replicates asynchronously, so a failover can lose recent writes, so it leans AP. Redis Cluster behaves similarly. Treat these as typical behaviours that depend on configuration.\n\n**Refinement.** PACELC adds that even without partition there is a latency versus consistency trade-off.",
+ "followUps": [
+  "Why can't a distributed system simply give up partition tolerance?",
+  "What does eventual consistency mean and how are conflicts resolved?",
+  "How would you classify Cassandra with tunable consistency levels?",
+  "How does the CAP choice change the design of a chat application like WhatsApp?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "365b1e2776",
+ "question": "In a Sprinklr SSE (Backend) second round (DSA plus system design, one hour), the candidate was asked to **design T9 predictive search over phone contacts**, the feature where typing digits such as 2-6-6 on a phone keypad suggests matching contacts. The candidate proposed a typical trie and then discussed how to **modify the standard trie** to search contacts more efficiently. The interviewer then asked **how to productionise** the system and **what the table schema** would look like.",
+ "lookingFor": [
+  "Can you model the digit-to-letters mapping and search efficiently with a trie?",
+  "Can you improve the naive trie (digit-keyed nodes, caching suggestions, ranking)?",
+  "Do you consider ranking, prefix versus substring matching, and multiple words (first/last name)?",
+  "Can you take a data structure into production: storage, sync, updates, latency, scale?"
+ ],
+ "answer": "**Problem.** Keys 2-9 map to letters (2: abc, 3: def, ... 9: wxyz). A digit string such as `\"227\"` should return contacts whose name (or any word of the name) starts with a matching letter combination, such as \"Carl\" (encoded 2275) or \"Bar\" (227).\n\n**Standard approach and its cost.** A normal letter trie would need to explore every letter combination for the digits (3 to 4 branches per digit, so 4^n paths). That wastes work.\n\n**Modified trie: index contacts by their digit encoding.** Convert each contact name to its T9 digit string (`\"Amy\"` becomes `\"269\"`) and insert that into a **digit trie** (8 children per node, digits 2-9). Searching the typed digits is then one walk of length n. Each node stores the contacts whose encoding passes through it, or, to save memory, the top-k by rank plus a pointer to the full list at the end. Index every word of the name (first and last), and optionally the phone number, with the node pointing at the contact id.\n\n**Ranking.** Order suggestions by recency, call frequency, or favourites. Precompute top-k contacts per node so the lookup is O(n + k).\n\n**Updates.** Insert and delete contacts by walking their encoding; remove ids from the nodes. For huge sets, compress chains (radix trie) to save memory.\n\n**Productionising.**\n\n- Contacts live on the device, so build the trie in memory at app start (and rebuild or update incrementally on contact changes). Server-side, shard by user id.\n- Persist in a table, for example `contacts(contact_id, user_id, name, normalized_name, phone, t9_key, last_contacted_at, call_count)` with an index on `(user_id, t9_key)` for prefix lookups (`t9_key LIKE '269%'`) as an alternative to an in-memory trie.\n- Handle Unicode and accents (normalise), non-Latin scripts, and duplicates.\n- Cache hot users' tries, expose a low-latency search API (target tens of ms), debounce input on the client, and monitor latency and memory.\n\n**Trade-off.** In-memory trie gives the fastest queries with high memory; the database index approach is simpler but slower for deep prefixes.",
+ "followUps": [
+  "How much memory does the trie need for 10,000 contacts, and how can you reduce it?",
+  "How would you support matching in the middle of a name?",
+  "How would you handle the same digit string mapping to many contacts?",
+  "How would you sync the index across a user's devices?",
+  "How would you support other languages with different keypad layouts?"
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "qid": "3fa75d7f33",
+ "question": "Hiring manager round for an MTS role, with a Director. After a discussion of a technical challenge and a coding question, the interviewer asked a system design question: **design the authentication system of a social networking site.** The candidate covered three areas: the models and database schema, how passwords and other sensitive information are stored, and how to scale the system and make it reliable.",
+ "lookingFor": [
+  "Do you know secure credential storage (hashing, salting, never plain text)?",
+  "Can you design sensible tables and flows for signup, login and sessions?",
+  "Do you know session versus token approaches and their trade-offs?",
+  "Do you consider attacks: brute force, credential stuffing, token theft?",
+  "Can you scale and make the auth path highly available?"
+ ],
+ "answer": "**Requirements.** Sign up, log in, log out, password reset, optionally OAuth login (Google), multi-device sessions, optional two-factor authentication. Authentication runs on almost every request, so it must be fast and highly available. Assume tens of millions of users.\n\n**Schema.**\n\n- `users(id, email UNIQUE, password_hash, created_at, status, email_verified)`.\n- `sessions` or `refresh_tokens(id, user_id, device, token_hash, expires_at, revoked_at)`.\n- `oauth_identities(provider, provider_user_id, user_id)`.\n- `password_reset_tokens(user_id, token_hash, expires_at, used)`; `login_attempts` for rate limiting.\n\n**Password storage.** Never store plain text or a fast hash. Store a **salted, slow hash** using bcrypt, scrypt or Argon2, with the algorithm parameters stored so cost can be raised later. The salt is unique per password and defeats rainbow tables; slowness makes brute force costly. Compare in constant time. Store other secrets (reset tokens, refresh tokens) as hashes too, and encrypt sensitive personal data at rest.\n\n**Login flow.** Client sends credentials over HTTPS; server looks up the user, verifies the hash, then issues credentials:\n\n- **Server-side sessions** (random session id in an HttpOnly, Secure, SameSite cookie, stored in Redis): easy to revoke, needs a shared store.\n- **Tokens (JWT access token, short-lived, plus a refresh token):** stateless verification by other services, but revocation is hard, so keep access tokens to minutes and store refresh tokens server side.\n\n**Security.** Rate limit by IP and account, lockout or CAPTCHA after failures, detect credential stuffing, generic error messages (do not reveal whether an email exists), CSRF protection, MFA, and token rotation on refresh.\n\n**Scale and reliability.** Stateless auth servers behind a load balancer; session cache in replicated Redis; user table sharded by user id or replicated with read replicas (login is read-heavy); cache user records; separate the hashing workload because it is CPU-heavy; multi-region deployment with a fallback behaviour; audit logging and monitoring.",
+ "followUps": [
+  "Why bcrypt or Argon2 rather than SHA-256?",
+  "JWT versus server-side sessions: which and why?",
+  "How would you implement a safe password reset?",
+  "How do you log a user out of all devices?",
+  "How would you detect and stop credential stuffing?"
+ ]
+}

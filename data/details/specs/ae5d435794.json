@@ -1,0 +1,18 @@
+{
+ "qid": "ae5d435794",
+ "question": "Groww SDE-2 low level design round, 'Expression Gate'. You are given an expression containing only logical operators and variables as operands, and a map holding the operand values. **Build an application using OOP that evaluates the expression and returns a boolean.** More operators must be addable without changing much code. Operators: `&&`, `||`, `!=`, `<=`, `>=`, `==`. Signature: `evaluate(String expression, Map<String, Object>)`. Example: `name == name && age <= 45 && location != NY` with `{name: name, age: 36, location: NY}` gives **false**. Example: `name == Bob && age <= 45 && location != NY` with `{name: Bob, age: 36, location: Boston}` gives **true**.",
+ "lookingFor": [
+  "Open/Closed design: operators as plug-in objects registered by symbol.",
+  "Parsing with correct operator precedence (comparison before `&&`, `&&` before `||`).",
+  "Type-aware comparison of numbers and strings.",
+  "Edge-case handling: missing variables, malformed expressions, invalid types.",
+  "Clean decomposition: tokenizer, parser, expression tree, evaluator."
+ ],
+ "answer": "**Clarify.** In the examples, the left side is a variable looked up in the map and the right side is a literal (`Bob`, `45`, `NY`). Confirm that. Are parentheses and `!` needed? Are tokens space-separated? Assume the answers and list them.\n\n**Design.**\n- `Operator` interface: `String symbol()`, `int precedence()`, and `boolean apply(Object left, Object right)` for comparisons; logical operators work on booleans.\n- Concrete classes: `EqualsOperator`, `NotEqualsOperator`, `LessOrEqualOperator`, `GreaterOrEqualOperator`, `AndOperator`, `OrOperator`.\n- `OperatorRegistry`: `Map<String, Operator>`. **Adding `<` or `>` means writing one class and registering it**, with no change to the parser or evaluator.\n- `Expression` interface with `boolean evaluate(Map<String,Object> ctx)`. Nodes: `ComparisonExpression(variable, operator, literal)` and `LogicalExpression(left, operator, right)`.\n\n**Pipeline.**\n1. **Tokenizer** splits the string into operands and operator tokens.\n2. **Parser** builds a tree. Use the shunting-yard algorithm or recursive descent with precedence: comparisons bind tighter than `&&`, which binds tighter than `||`.\n3. **Evaluator** calls `evaluate(ctx)` on the root.\n\n**Comparisons.** Resolve the left operand from the map. If the variable's value is a `Number`, parse the literal as a number and compare numerically (so `36 <= 45` is a numeric comparison, not a string one); for strings only `==` and `!=` are meaningful, and `<=` on strings should throw a clear error or use `compareTo` if you document it.\n\n**Errors.** Missing variable: throw `IllegalArgumentException` naming the variable (or define it as false, and say so). Unbalanced tokens or unknown operator: fail fast with a message.\n\n**Walkthrough of example 1.** `name == name` is true, `age <= 45` is true, `location != NY` is false, so the result is false.\n\n**Tests.** Each operator, precedence (`a || b && c`), missing key, and type mismatch. Parse once and reuse the tree if the same expression is evaluated against many maps.",
+ "followUps": [
+  "How would you add parentheses and the `!` operator?",
+  "How would you cache parsed expressions when the same rule is evaluated many times?",
+  "How would you support variables on both sides of a comparison?",
+  "How does this design follow the Open/Closed principle, and where is it still closed to extension?"
+ ]
+}

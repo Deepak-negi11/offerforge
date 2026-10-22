@@ -1,0 +1,50 @@
+{
+ "pid": "walmart-global-tech-search-in-a-bitonic-array",
+ "title": "Search in a Bitonic Array",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "An array is **bitonic** if its elements strictly increase up to a peak and then strictly decrease. Either part may be empty, so a strictly increasing array, a strictly decreasing array and a single element all count as bitonic. A value can appear at most once on each side of the peak, so it may appear twice in the array.\n\nYou are given a bitonic array `a` of `n` integers and `q` queries. For each query value `x`, print the **smallest index** `i` (0-indexed) with `a[i] = x`, or `-1` if `x` does not occur.\n\nThe array is fixed and there are many queries, so each query should be answered much faster than scanning the whole array.",
+ "input_format": "The first line contains `n`.\nThe second line contains `n` integers `a[0] ... a[n-1]`.\nThe third line contains `q`.\nThe fourth line contains `q` integers, the query values.",
+ "output_format": "Print `q` lines. Line `j` contains the answer to query `j`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ q ≤ 10^5",
+  "-10^9 ≤ a[i], x ≤ 10^9",
+  "`a` strictly increases up to its peak, then strictly decreases"
+ ],
+ "examples": [
+  {
+   "input": "7\n1 3 8 12 9 4 2\n4\n8 4 5 1",
+   "output": "2\n5\n-1\n0",
+   "explanation": "The peak is `12` at index 3. `8` is on the rising side at index 2, `4` is on the falling side at index 5, `5` is absent, and `1` is at index 0."
+  },
+  {
+   "input": "6\n2 5 9 5 3 2\n3\n5 2 9",
+   "output": "1\n0\n2",
+   "explanation": "`5` appears at indices 1 and 3, and `2` at indices 0 and 5; the smaller index is reported. `9` is the peak at index 2."
+  },
+  {
+   "input": "3\n9 6 1\n3\n9 1 7",
+   "output": "0\n2\n-1",
+   "explanation": "The array is strictly decreasing, so the peak is at index 0."
+  }
+ ],
+ "complexity": {
+  "time": "O((n + q) log n)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "First locate the peak with a binary search: compare `a[mid]` with `a[mid + 1]` to decide which side of the peak you are on.",
+  "The part up to the peak is sorted ascending and the part after it is sorted descending, so each can be searched with an ordinary binary search.",
+  "Search the rising side first; only if the value is not there search the falling side. This gives the smallest index when the value appears on both sides."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    q = int(data[1 + n])\n    qs = data[2 + n:2 + n + q]\n    lo, hi = 0, n - 1\n    while lo < hi:\n        mid = (lo + hi) // 2\n        if a[mid] < a[mid + 1]:\n            lo = mid + 1\n        else:\n            hi = mid\n    p = lo\n    out = []\n    for s in qs:\n        x = int(s)\n        l, r = 0, p\n        res = -1\n        while l <= r:\n            m = (l + r) // 2\n            if a[m] == x:\n                res = m\n                break\n            if a[m] < x:\n                l = m + 1\n            else:\n                r = m - 1\n        if res == -1:\n            l, r = p + 1, n - 1\n            while l <= r:\n                m = (l + r) // 2\n                if a[m] == x:\n                    res = m\n                    break\n                if a[m] > x:\n                    l = m + 1\n                else:\n                    r = m - 1\n        out.append(res)\n    print('\\n'.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + n]]\nq = int(data[1 + n])\nout = []\nfor s in data[2 + n:2 + n + q]:\n    x = int(s)\n    r = -1\n    for i in range(n):\n        if a[i] == x:\n            r = i\n            break\n    out.append(r)\nprint('\\n'.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def bit(n, lo, hi):\n        p = rng.randint(0, n - 1)\n        L, R = p, n - 1 - p\n        peak = rng.randint(lo + max(L, R), hi)\n        left = sorted(rng.sample(range(lo, peak), L))\n        right = sorted(rng.sample(range(lo, peak), R), reverse=True)\n        return left + [peak] + right\n    def mk(a, q, lo, hi):\n        qs = []\n        for _ in range(q):\n            t = rng.random()\n            if t < 0.5:\n                qs.append(rng.choice(a))\n            elif t < 0.75:\n                qs.append(max(lo, min(hi, rng.choice(a) + rng.choice([-1, 1]))))\n            else:\n                qs.append(rng.randint(lo, hi))\n        return str(len(a)) + '\\n' + ' '.join(map(str, a)) + '\\n' + str(q) + '\\n' + ' '.join(map(str, qs))\n    tests = ['1\\n5\\n3\\n5 4 6', '2\\n1 2\\n3\\n1 2 3', '2\\n2 1\\n3\\n1 2 0', '3\\n1 3 1\\n3\\n1 3 2',\n             '5\\n1 2 3 4 5\\n2\\n1 5', '5\\n5 4 3 2 1\\n2\\n1 5', '4\\n-5 0 7 -5\\n3\\n-5 7 0']\n    for n in (2, 3, 4, 5, 7, 10, 14, 20):\n        for _ in range(3):\n            lo, hi = (-n, n + 2) if rng.random() < 0.5 else (-50, 50)\n            a = bit(n, lo, hi)\n            tests.append(mk(a, rng.randint(1, 12), lo - 1, hi + 1))\n    N = 100000\n    a = bit(N, -10 ** 9, 10 ** 9)\n    tests.append(mk(a, N, -10 ** 9, 10 ** 9))\n    a = bit(N, -10 ** 9, 10 ** 9)\n    tests.append(mk(a, N, -10 ** 9, 10 ** 9))\n    a = bit(N, -10 ** 6, 10 ** 6)\n    tests.append(mk(a, N, -10 ** 6, 10 ** 6))\n    a = list(range(-50000, 50000))\n    tests.append(mk(a, N, -50000, 50000))\n    a = list(range(50000, -50000, -1))\n    tests.append(mk(a, N, -50000, 50000))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef search_bitonic(a: List[int], x: int) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(v) for v in data[1:1 + n]]\n    q = int(data[1 + n])\n    out = [search_bitonic(a, int(v)) for v in data[2 + n:2 + n + q]]\n    print('\\n'.join(map(str, out)))\n\n\nmain()\n",
+  "javascript": "function searchBitonic(a, x) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst a = t.slice(1, 1 + n)\nconst q = t[1 + n]\nconst out = []\nfor (let j = 0; j < q; j++) out.push(searchBitonic(a, t[2 + n + j]))\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint searchBitonic(vector<long long>& a, long long x) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    int q;\n    cin >> q;\n    for (int j = 0; j < q; j++) {\n        long long x;\n        cin >> x;\n        cout << searchBitonic(a, x) << \"\\n\";\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int searchBitonic(long[] a, long x) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (long) in.nval;\n        }\n        in.nextToken();\n        int q = (int) in.nval;\n        StringBuilder sb = new StringBuilder();\n        for (int j = 0; j < q; j++) {\n            in.nextToken();\n            sb.append(searchBitonic(a, (long) in.nval)).append(\"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

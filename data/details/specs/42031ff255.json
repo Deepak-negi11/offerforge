@@ -1,0 +1,18 @@
+{
+ "qid": "42031ff255",
+ "question": "In the second technical round of an AMD (Xilinx) Senior Software Engineer (embedded) interview, the candidate was asked about task stacks in an RTOS:\n\n**How do you detect stack overflow or monitor each task's stack usage? What do you specify when creating a task?**\n\nEarlier in the loop the candidate was also asked how they supervise stacks for multiple tasks.",
+ "lookingFor": [
+  "Knowledge of RTOS task creation parameters (stack size, priority, entry function)",
+  "Practical techniques for stack monitoring: high-water mark, stack painting, canaries, hardware checks",
+  "Understanding of why overflow is dangerous in embedded systems",
+  "How to size stacks and how to react to overflow",
+  "Awareness of the debugging and testing tools used"
+ ],
+ "answer": "**What you specify when creating a task** (FreeRTOS `xTaskCreate` as an example)\n- The **entry function**, a **name**, the **stack size** (FreeRTOS counts it in words, not bytes), an optional **parameter** pointer, the **priority**, and an optional **handle** to refer to the task later. Some RTOSes also let you pass a statically allocated stack and control block (`xTaskCreateStatic`) and, on MPU ports, memory regions.\n- Each task has its **own stack** that holds local variables, saved registers on a context switch and return addresses, so sizing it correctly matters.\n\n**Why overflow is dangerous**\n- On microcontrollers there is usually no MMU, so a task that overruns its stack silently corrupts adjacent memory (another task's stack, heap or data), causing hard-to-reproduce crashes.\n\n**Detecting and monitoring**\n1. **High-water mark:** the RTOS fills the stack with a known pattern at creation (stack painting); the minimum free space ever reached can be read later (in FreeRTOS, `uxTaskGetStackHighWaterMark()` returns the smallest remaining stack, in words). Log or print it during testing under worst-case load.\n2. **Overflow checking in the kernel:** FreeRTOS `configCHECK_FOR_STACK_OVERFLOW` has method 1 (checks that the stack pointer is within bounds at context switch) and method 2 (also checks that the last few bytes of the stack still hold the fill pattern). On detection it calls `vApplicationStackOverflowHook()`, where you log, set a fault flag and reset safely.\n3. **Hardware support:** MPU guard regions below each stack or stack-limit registers (ARMv8-M `PSPLIM`/`MSPLIM`) cause a fault at the moment of overflow.\n4. **Static and tooling analysis:** compiler `-fstack-usage`, call-graph analysis, and debugger or trace tools showing stack watermarks.\n\n**Sizing**\n- Estimate worst-case call depth plus interrupt frames, add a safety margin (say 20 to 30 percent), verify with the high-water mark, and avoid large local arrays and deep recursion in tasks.\n\n**Reaction:** treat overflow as a fatal fault: log, put outputs in a safe state, and reset (watchdog).",
+ "followUps": [
+  "What other things consume a task's stack besides local variables?",
+  "How do interrupts affect stack usage, and what is a separate interrupt stack?",
+  "What is the difference between a stack overflow and a heap exhaustion in an RTOS?",
+  "How would you debug a crash that you suspect is a stack overflow?"
+ ]
+}

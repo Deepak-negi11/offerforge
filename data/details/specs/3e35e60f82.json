@@ -1,0 +1,17 @@
+{
+ "qid": "3e35e60f82",
+ "question": "A Zomato SDE off-campus interview asked a chain of sorting and heap questions:\n\n- **Quick sort vs merge sort**: time complexity, stability and practical use;\n- how to **parallelise merge sort with multiple threads**;\n- can merge sort be done in **O(1) extra space**;\n- how a modified merge sort behaves on a **multi-core vs single-core** CPU;\n- **heap vs sorting**: when to prefer a heap;\n- **heap pseudocode** (insert, delete, heapify) with time and space complexity.",
+ "lookingFor": [
+  "Do you know the complexity, stability and cache behaviour of both sorts?",
+  "Can you reason about parallel speed-ups and their limits?",
+  "Do you understand when a heap beats a full sort?",
+  "Can you write heap operations correctly?"
+ ],
+ "answer": "**Quick sort vs merge sort**\n- Merge sort: always O(n log n), **stable**, needs O(n) extra space for arrays, great for linked lists and external sorting.\n- Quick sort: O(n log n) on average but O(n^2) worst case with bad pivots (mitigate with random or median-of-three pivots), **not stable**, in-place with O(log n) stack, and usually faster in practice thanks to cache-friendly partitioning.\n\n**Parallel merge sort.** The two halves are independent, so sort them in separate threads (fork-join) and then merge. Stop spawning threads below a size cutoff (for example a few thousand elements) and switch to sequential sort, because thread overhead would otherwise dominate. The final merge is sequential unless you use a parallel merge (split by binary-searching median elements). Speed-up is limited by that merge and by memory bandwidth (Amdahl's law).\n\n**Multi-core vs single-core.** On multi-core, a fork-join version can approach a speed-up near the core count for large inputs. On a single core, extra threads add only context-switch overhead and no gain, so the sequential version is better.\n\n**O(1)-space merge sort.** Merging in place is possible (for example the block-merge algorithms behind in-place stable merge sorts, or rotations), but it is complex and the time degrades toward O(n log^2 n) or has large constants. For linked lists, merge sort needs only O(1) extra space for the merge by relinking nodes (the recursion uses O(log n) stack in top-down form).\n\n**Heap vs sorting.** A heap finds the min/max in O(1) and supports insert and extract in O(log n). Prefer it for top-k (a size-k heap costs O(n log k)), streaming data, priority queues and repeated min-extraction; use sorting when you need the entire ordering once.\n\n**Heap (min-heap in an array).** Parent at `(i-1)/2`, children at `2i+1` and `2i+2`.\n- `insert(x)`: append, then sift up while smaller than parent. O(log n).\n- `extractMin()`: swap root with last, remove last, sift down. O(log n).\n- `heapify` (build-heap): sift down from `n/2 - 1` to 0. O(n).\nSpace is O(1) extra beyond the array.",
+ "followUps": [
+  "Why is build-heap O(n) and not O(n log n)?",
+  "How would you find the k-th largest element in a stream?",
+  "How does the choice of pivot affect quick sort, and how does introsort avoid the worst case?",
+  "Why is merge sort preferred for sorting data that does not fit in memory?"
+ ]
+}

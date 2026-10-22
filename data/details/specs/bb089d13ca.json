@@ -1,0 +1,18 @@
+{
+ "qid": "bb089d13ca",
+ "question": "Microsoft SDE-2 (L62) high-level design round: **design an e-commerce shopping system**.\n\nRequirements: **product search, filtering and sorting; viewing product details; purchasing; secure checkout; integration with an existing Inventory Management System through APIs**.\n\nScale assumptions given: **10M products, 1M users per day (about 11 requests/sec), 10K orders per hour (about 2.5 orders/sec), 5 to 10 products per order**. The discussion covered the architecture, APIs, data storage, product search, inventory integration and the checkout flow.",
+ "lookingFor": [
+  "Using the stated numbers to size the system sensibly (not over-engineering).",
+  "Clean service boundaries and APIs.",
+  "Search design versus transactional storage.",
+  "Safe integration with an external inventory system, including failures.",
+  "Checkout correctness: idempotency, stock reservation and payments."
+ ],
+ "answer": "**Reading the numbers.** 1M users/day is about 11 requests/s only if each user makes one request; realistically each makes dozens, so state assumptions: perhaps a few hundred requests/s at peak. 2.5 orders/s is tiny. 10M products at about 2 KB each is about 20 GB of catalog data, which fits comfortably on a few machines. So this is a correctness and integration problem rather than an extreme scale problem; avoid heavy sharding.\n\n**APIs.** `GET /products?query=&filters=&sort=&page=`, `GET /products/{id}`, `POST /cart/items`, `POST /orders` (with idempotency key), `POST /payments`, `GET /orders/{id}`.\n\n**Components.**\n- **Catalog service** with product DB (relational or document) and an **Elasticsearch/OpenSearch index** for full-text search, facets (filters) and sorting; an indexing pipeline fed by catalog changes.\n- **Product detail** served from cache (Redis/CDN), as it is read-heavy.\n- **Cart service** (Redis or DB) per user.\n- **Order service** with a relational DB (ACID) and an order state machine.\n- **Payment service** integrating a payment provider with tokenization (card data never stored by you; TLS; PCI scope reduced via a hosted payment page).\n- **Inventory adapter** that calls the existing inventory system's APIs.\n- A message queue for events (order placed, shipped) and notifications.\n\n**Inventory integration.** Product pages read availability from a local cached copy updated by the inventory system's events or periodic sync (stale by a few seconds is acceptable). At checkout, call the inventory API to **reserve** stock with a timeout/TTL, and then confirm after payment or release on failure or expiry. Wrap the external calls with timeouts, retries with backoff, and a circuit breaker, so inventory outages degrade gracefully (for example, show \"check availability at checkout\").\n\n**Checkout flow.** Validate cart and price, reserve inventory, create the order (PENDING), pay, then mark CONFIRMED and commit the reservation; failures run compensations (release stock, refund). Idempotency keys prevent duplicate orders on retries.\n\n**Scale.** Stateless services behind a load balancer, read replicas, caching, a CDN for images, and autoscaling for sales events.\n\n**Trade-offs.** A monolith may be enough at this scale; separate search because it has different access patterns.",
+ "followUps": [
+  "How do you avoid overselling the last unit of an item?",
+  "What happens if the inventory system is down at checkout?",
+  "How do you keep the search index in sync with the product database?",
+  "How does your design change for a flash sale with 100x orders?"
+ ]
+}

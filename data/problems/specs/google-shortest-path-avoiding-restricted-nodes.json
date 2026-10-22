@@ -1,0 +1,51 @@
+{
+ "pid": "google-shortest-path-avoiding-restricted-nodes",
+ "title": "Shortest Path Avoiding Restricted Nodes",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an undirected, unweighted graph with `n` nodes numbered `1` to `n`, a start node `s`, an end node `t`, and a set `L` of **restricted** nodes. A restricted node cannot be part of your path, including as the start or the end.\n\nFind the length (number of edges) of the shortest path from `s` to `t` that uses no restricted node. If `s` or `t` is restricted, or if no such path exists, print `-1`. If `s` and `t` are the same node and it is not restricted, the answer is `0`.\n\nFor example, with edges `1-2`, `2-3`, `1-4`, `4-5`, `3-5`, start `1`, end `3` and `L = {2}`, the path `1-2-3` is forbidden and the answer is the path `1-4-5-3` of length 3.\n\n**Follow-up:** Suppose there is a special, very costly pass that lets you cross a restricted node, and assume there is no path from `s` to `t` that avoids restricted nodes. Find the minimum number of passes you need to reach `t`. You do not need to minimise the path length, only the number of restricted nodes used (a 0-1 BFS or Dijkstra approach works).",
+ "input_format": "The first line contains `n` and `m`.\nEach of the next `m` lines contains two integers `u` and `v`: an undirected edge between nodes `u` and `v`.\nThe next line contains `s` and `t`.\nThe next line contains `k`, the number of restricted nodes, and the final line contains the `k` restricted node numbers (it is empty when `k = 0`).",
+ "output_format": "Print a single integer: the length of the shortest path avoiding restricted nodes, or `-1` if there is none.",
+ "constraints": [
+  "1 ≤ n ≤ 50000",
+  "0 ≤ m ≤ 100000",
+  "1 ≤ s, t ≤ n",
+  "0 ≤ k ≤ n",
+  "The graph has no self-loops or repeated edges"
+ ],
+ "examples": [
+  {
+   "input": "5 5\n1 2\n2 3\n1 4\n4 5\n3 5\n1 3\n1\n2",
+   "output": "3",
+   "explanation": "Node 2 is restricted, so the short route 1-2-3 cannot be used. The route 1-4-5-3 uses three edges and avoids node 2."
+  },
+  {
+   "input": "6 6\n1 2\n2 6\n1 3\n3 4\n4 5\n5 6\n1 6\n1\n2",
+   "output": "4",
+   "explanation": "The direct route 1-2-6 passes through the restricted node 2. The only other route is 1-3-4-5-6, which has four edges."
+  },
+  {
+   "input": "4 3\n1 2\n2 3\n3 4\n1 4\n1\n3",
+   "output": "-1",
+   "explanation": "Every route from 1 to 4 goes through node 3, which is restricted, so no valid path exists."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "In an unweighted graph a breadth-first search finds shortest paths. How do you stop it from stepping onto a restricted node?",
+  "Store the restricted nodes in a boolean array (or a set) so that each membership test costs constant time.",
+  "Check the special cases first: a restricted start or end gives `-1`, and `s = t` (not restricted) gives `0`."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\n\ndef main():\n    d = sys.stdin.read().split()\n    n, m = int(d[0]), int(d[1])\n    adj = [[] for _ in range(n + 1)]\n    pos = 2\n    for _ in range(m):\n        u, v = int(d[pos]), int(d[pos + 1])\n        pos += 2\n        adj[u].append(v)\n        adj[v].append(u)\n    s, t = int(d[pos]), int(d[pos + 1])\n    pos += 2\n    k = int(d[pos])\n    pos += 1\n    bad = [False] * (n + 1)\n    for i in range(k):\n        bad[int(d[pos + i])] = True\n    if bad[s] or bad[t]:\n        print(-1)\n        return\n    dist = [-1] * (n + 1)\n    dist[s] = 0\n    dq = deque([s])\n    while dq:\n        u = dq.popleft()\n        if u == t:\n            break\n        for v in adj[u]:\n            if dist[v] < 0 and not bad[v]:\n                dist[v] = dist[u] + 1\n                dq.append(v)\n    print(dist[t])\n\n\nmain()\n",
+ "brute": "import sys\n\nd = sys.stdin.read().split()\nn, m = int(d[0]), int(d[1])\nedges = [(int(d[2 + 2 * i]), int(d[3 + 2 * i])) for i in range(m)]\npos = 2 + 2 * m\ns, t, k = int(d[pos]), int(d[pos + 1]), int(d[pos + 2])\nbad = set(int(x) for x in d[pos + 3:pos + 3 + k])\nINF = 10 ** 9\ndist = [INF] * (n + 1)\nif s not in bad:\n    dist[s] = 0\nfor _ in range(n + 1):\n    for u, v in edges:\n        if u in bad or v in bad:\n            continue\n        if dist[u] + 1 < dist[v]:\n            dist[v] = dist[u] + 1\n        if dist[v] + 1 < dist[u]:\n            dist[u] = dist[v] + 1\nprint(dist[t] if dist[t] < INF and t not in bad else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(n, edges, s, t, bad):\n        lines = [f\"{n} {len(edges)}\"] + [f\"{u} {v}\" for u, v in edges]\n        lines.append(f\"{s} {t}\")\n        lines.append(str(len(bad)))\n        lines.append(\" \".join(map(str, bad)))\n        return \"\\n\".join(lines)\n    tests = [\n        fmt(5, [(1, 2), (2, 3), (1, 4), (4, 5), (3, 5)], 1, 3, [2]),\n        fmt(6, [(1, 2), (2, 6), (1, 3), (3, 4), (4, 5), (5, 6)], 1, 6, [2]),\n        fmt(4, [(1, 2), (2, 3), (3, 4)], 1, 4, [3]),\n        fmt(3, [(1, 2), (2, 3)], 2, 2, [3]),\n        fmt(1, [], 1, 1, []),\n        fmt(2, [(1, 2)], 1, 2, []),\n        fmt(2, [(1, 2)], 1, 2, [1]),\n        fmt(2, [(1, 2)], 1, 2, [2]),\n        fmt(3, [], 1, 3, []),\n        fmt(3, [(1, 2), (2, 3), (1, 3)], 1, 3, [2]),\n        fmt(3, [(1, 2), (2, 3), (1, 3)], 1, 3, [1, 2, 3]),\n    ]\n    for _ in range(40):\n        n = rng.randint(1, 9)\n        allp = [(u, v) for u in range(1, n + 1) for v in range(u + 1, n + 1)]\n        m = rng.randint(0, min(len(allp), 2 * n))\n        edges = rng.sample(allp, m)\n        edges = [(u, v) if rng.random() < 0.5 else (v, u) for u, v in edges]\n        k = rng.randint(0, max(0, n // 2))\n        bad = rng.sample(range(1, n + 1), k)\n        tests.append(fmt(n, edges, rng.randint(1, n), rng.randint(1, n), bad))\n    N = 50000\n    M = 100000\n    def big(structure, kbad, forbid_cut=False):\n        perm = list(range(1, N + 1))\n        rng.shuffle(perm)\n        es = set()\n        if structure == \"ladder\":\n            for i in range(N - 1):\n                es.add((i, i + 1))\n            for i in range(0, N - 2, 2):\n                es.add((i, i + 2))\n        else:\n            for i in range(1, N):\n                es.add((rng.randint(max(0, i - 3), i - 1), i))\n        while len(es) < M:\n            a = rng.randrange(N)\n            b = min(N - 1, a + rng.randint(1, 30)) if structure == \"local\" else rng.randrange(N)\n            if a != b:\n                es.add((min(a, b), max(a, b)))\n        edges = [(perm[a], perm[b]) for a, b in es]\n        rng.shuffle(edges)\n        s, t = perm[0], perm[N - 1]\n        cand = [perm[i] for i in range(1, N - 1)]\n        bad = rng.sample(cand, kbad)\n        return fmt(N, edges, s, t, bad)\n    tests.append(big(\"local\", 0))\n    tests.append(big(\"local\", 5000))\n    tests.append(big(\"ladder\", 3000))\n    # long single path with a restricted node in the middle: unreachable\n    perm = list(range(1, N + 1))\n    rng.shuffle(perm)\n    edges = [(perm[i], perm[i + 1]) for i in range(N - 1)]\n    tests.append(fmt(N, edges, perm[0], perm[N - 1], [perm[N // 2]]))\n    tests.append(fmt(N, edges, perm[0], perm[N - 1], []))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef shortest_path(n: int, edges: List[Tuple[int, int]], s: int, t: int, restricted: List[int]) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    d = sys.stdin.read().split()\n    n, m = int(d[0]), int(d[1])\n    edges = [(int(d[2 + 2 * i]), int(d[3 + 2 * i])) for i in range(m)]\n    pos = 2 + 2 * m\n    s, t, k = int(d[pos]), int(d[pos + 1]), int(d[pos + 2])\n    restricted = [int(x) for x in d[pos + 3:pos + 3 + k]]\n    print(shortest_path(n, edges, s, t, restricted))\n\n\nmain()\n",
+  "javascript": "function shortestPath(n, edges, s, t, restricted) {\n  // Write your solution here\n  return -1\n}\n\nconst tk = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = tk[0], m = tk[1]\nconst edges = []\nfor (let i = 0; i < m; i++) {\n  edges.push([tk[2 + 2 * i], tk[3 + 2 * i]])\n}\nlet pos = 2 + 2 * m\nconst s = tk[pos], t = tk[pos + 1], k = tk[pos + 2]\nconst restricted = tk.slice(pos + 3, pos + 3 + k)\nconsole.log(String(shortestPath(n, edges, s, t, restricted)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint shortestPath(int n, vector<pair<int, int>>& edges, int s, int t, vector<int>& restricted) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<pair<int, int>> edges(m);\n    for (int i = 0; i < m; i++) cin >> edges[i].first >> edges[i].second;\n    int s, t, k;\n    cin >> s >> t >> k;\n    vector<int> restricted(k);\n    for (int i = 0; i < k; i++) cin >> restricted[i];\n    cout << shortestPath(n, edges, s, t, restricted) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int shortestPath(int n, int[][] edges, int s, int t, int[] restricted) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] edges = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken();\n            edges[i][0] = (int) in.nval;\n            in.nextToken();\n            edges[i][1] = (int) in.nval;\n        }\n        in.nextToken();\n        int s = (int) in.nval;\n        in.nextToken();\n        int t = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        int[] restricted = new int[k];\n        for (int i = 0; i < k; i++) {\n            in.nextToken();\n            restricted[i] = (int) in.nval;\n        }\n        System.out.println(shortestPath(n, edges, s, t, restricted));\n    }\n}\n"
+ }
+}

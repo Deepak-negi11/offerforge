@@ -1,0 +1,17 @@
+{
+ "qid": "18329391e2",
+ "question": "Goldman Sachs Associate (experienced), Software Engineering Practices round. After saying they were comfortable with database table design, the candidate was **given one table that had some flaws and asked to optimise it so that redundancy is reduced and lookups are faster**. The candidate noted that you should be comfortable with **normalisation forms and foreign key concepts**. The exact table was not reported, so expect something like an orders or employees table with repeated customer or product details and multi-valued columns.",
+ "lookingFor": [
+  "Identifying redundancy and update/insert/delete anomalies in a design.",
+  "Applying 1NF, 2NF and 3NF correctly with functional dependencies.",
+  "Using primary keys, foreign keys and indexes for integrity and speed.",
+  "Knowing when denormalisation is a justified trade-off."
+ ],
+ "answer": "**Approach:** look for repeated data and dependencies, then split the table.\n\nSuppose a flawed table:\n`orders(order_id, customer_name, customer_email, customer_city, products, quantities, product_price, order_date)`\nwhere `products` holds \"Pen, Book\" in one cell.\n\n**Problems:**\n- *1NF violated:* `products` and `quantities` are multi-valued, so you cannot search or join on them cleanly.\n- *2NF/3NF violated:* customer details depend on the customer, not the order, and product price depends on the product. They are repeated on every row, leading to update anomalies (change an email in one place only), insert anomalies (cannot add a product without an order) and delete anomalies.\n\n**Normalised design:**\n\n    customers(customer_id PK, name, email UNIQUE, city)\n    products(product_id PK, name, price)\n    orders(order_id PK, customer_id FK -> customers, order_date)\n    order_items(order_id FK, product_id FK, quantity, unit_price,\n                PRIMARY KEY (order_id, product_id))\n\nNotes:\n- Each fact is stored once, and foreign keys enforce referential integrity (no order without a customer).\n- Store `unit_price` in `order_items` to keep the historical price, since the product price can change. This is a deliberate, justified copy.\n- Index foreign keys and common filters (`orders.customer_id`, `orders.order_date`); the primary key and UNIQUE email already create indexes. Lookups by integer keys are fast and joins stay cheap.\n\n**Normal forms in one line each:** 1NF atomic values; 2NF no partial dependency on part of a composite key; 3NF no non-key attribute depending on another non-key attribute (BCNF is the stricter form: every determinant is a candidate key).\n\n**Trade-off:** more tables mean more joins on reads. If a read path is hot, add a covering index, a cache, or a precomputed or denormalised read table, while keeping the normalised tables as the source of truth.",
+ "followUps": [
+  "What is the difference between 3NF and BCNF?",
+  "When would you deliberately denormalise?",
+  "What do you index and what is the cost of too many indexes?",
+  "How do ON DELETE CASCADE and RESTRICT differ in foreign keys?"
+ ]
+}

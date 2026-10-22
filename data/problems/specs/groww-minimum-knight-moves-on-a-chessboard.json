@@ -1,0 +1,48 @@
+{
+ "pid": "groww-minimum-knight-moves-on-a-chessboard",
+ "title": "Minimum Knight Moves on a Chessboard",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A knight stands on square `(x1, y1)` of an `n × n` chessboard. Rows and columns are numbered from `1` to `n`. In one move the knight jumps like a chess knight: two squares in one direction and one square in the perpendicular direction, i.e. from `(x, y)` to `(x ± 1, y ± 2)` or `(x ± 2, y ± 1)`. It must never leave the board.\n\nFind the **minimum number of moves** needed to reach square `(x2, y2)`. If the target square cannot be reached at all, print `-1`. If the knight already stands on the target, the answer is `0`.\n\nOn small boards the knight can get stuck, for example in the centre of a `3 × 3` board, which is why `-1` is possible.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains four integers `x1 y1 x2 y2`.",
+ "output_format": "Print one integer: the minimum number of knight moves, or `-1` if the target is unreachable.",
+ "constraints": [
+  "1 ≤ n ≤ 400",
+  "1 ≤ x1, y1, x2, y2 ≤ n"
+ ],
+ "examples": [
+  {
+   "input": "8\n1 1 8 8",
+   "output": null,
+   "explanation": "A knight needs several jumps to cross the board from one corner to the opposite one; a breadth-first search finds the minimum."
+  },
+  {
+   "input": "3\n2 2 1 1",
+   "output": "-1",
+   "explanation": "The centre square of a `3 × 3` board has no legal knight move at all, so nothing else can be reached."
+  },
+  {
+   "input": "5\n3 3 3 3",
+   "output": "0",
+   "explanation": "The knight already stands on the target square."
+  }
+ ],
+ "complexity": {
+  "time": "O(n^2)",
+  "space": "O(n^2)"
+ },
+ "hints": [
+  "Every move costs the same, so the board squares form an unweighted graph in which each square has up to 8 neighbours.",
+  "Run a breadth-first search from the start square, recording the distance of each square the first time you reach it.",
+  "Stop as soon as the target is reached. If the search finishes without reaching it, print `-1`."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    x1, y1, x2, y2 = (int(v) - 1 for v in data[1:5])\n    if (x1, y1) == (x2, y2):\n        print(0)\n        return\n    dist = [-1] * (n * n)\n    dist[x1 * n + y1] = 0\n    dq = deque([(x1, y1)])\n    moves = ((1, 2), (2, 1), (-1, 2), (-2, 1), (1, -2), (2, -1), (-1, -2), (-2, -1))\n    while dq:\n        x, y = dq.popleft()\n        d = dist[x * n + y]\n        for dx, dy in moves:\n            nx, ny = x + dx, y + dy\n            if 0 <= nx < n and 0 <= ny < n and dist[nx * n + ny] < 0:\n                dist[nx * n + ny] = d + 1\n                if nx == x2 and ny == y2:\n                    print(d + 1)\n                    return\n                dq.append((nx, ny))\n    print(-1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nstart = (int(data[1]), int(data[2]))\ngoal = (int(data[3]), int(data[4]))\nseen = {start}\nlayer = {start}\nsteps = 0\nans = -1\nwhile layer:\n    if goal in layer:\n        ans = steps\n        break\n    nxt = set()\n    for (x, y) in layer:\n        for dx in (-2, -1, 1, 2):\n            for dy in (-2, -1, 1, 2):\n                if abs(dx) != abs(dy):\n                    p = (x + dx, y + dy)\n                    if 1 <= p[0] <= n and 1 <= p[1] <= n and p not in seen:\n                        seen.add(p)\n                        nxt.add(p)\n    layer = nxt\n    steps += 1\nprint(ans)\n",
+ "generator": "def gen(rng):\n    def fmt(n, a, b, c, d):\n        return f'{n}\\n{a} {b} {c} {d}'\n    tests = [fmt(1, 1, 1, 1, 1), fmt(2, 1, 1, 2, 2), fmt(2, 1, 1, 1, 1), fmt(3, 2, 2, 1, 1), fmt(3, 1, 1, 3, 3),\n             fmt(3, 1, 1, 2, 3), fmt(3, 2, 2, 2, 2), fmt(4, 1, 1, 4, 4), fmt(5, 1, 1, 2, 2), fmt(8, 1, 1, 8, 8),\n             fmt(8, 1, 1, 1, 2), fmt(8, 4, 4, 5, 5), fmt(4, 1, 1, 2, 2), fmt(5, 3, 3, 3, 4), fmt(6, 1, 1, 6, 6)]\n    for n in (2, 3, 4, 5, 6, 7, 8, 10, 12, 15, 20, 25):\n        for _ in range(3):\n            tests.append(fmt(n, rng.randint(1, n), rng.randint(1, n), rng.randint(1, n), rng.randint(1, n)))\n    N = 400\n    tests.append(fmt(N, 1, 1, N, N))\n    tests.append(fmt(N, 1, N, N, 1))\n    tests.append(fmt(N, 200, 200, 201, 201))\n    tests.append(fmt(N, 1, 1, 2, 2))\n    tests.append(fmt(N, 1, 1, 1, N))\n    tests.append(fmt(N, rng.randint(1, N), rng.randint(1, N), rng.randint(1, N), rng.randint(1, N)))\n    tests.append(fmt(399, 1, 1, 399, 399))\n    tests.append(fmt(399, 1, 2, 399, 398))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef min_knight_moves(n: int, x1: int, y1: int, x2: int, y2: int) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    x1, y1, x2, y2 = (int(v) for v in data[1:5])\n    print(min_knight_moves(n, x1, y1, x2, y2))\n\n\nmain()\n",
+  "javascript": "function minKnightMoves(n, x1, y1, x2, y2) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconsole.log(String(minKnightMoves(t[0], t[1], t[2], t[3], t[4])))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minKnightMoves(int n, int x1, int y1, int x2, int y2) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    int n, x1, y1, x2, y2;\n    cin >> n >> x1 >> y1 >> x2 >> y2;\n    cout << minKnightMoves(n, x1, y1, x2, y2) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minKnightMoves(int n, int x1, int y1, int x2, int y2) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        Scanner sc = new Scanner(System.in);\n        int n = sc.nextInt(), x1 = sc.nextInt(), y1 = sc.nextInt(), x2 = sc.nextInt(), y2 = sc.nextInt();\n        System.out.println(minKnightMoves(n, x1, y1, x2, y2));\n    }\n}\n"
+ }
+}

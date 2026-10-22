@@ -1,0 +1,17 @@
+{
+ "qid": "41cff981d9",
+ "question": "Rubrik screening round (Software Engineer G5, one hour on CoderPad, code had to run): **crawl all URLs reachable from a start URL that share its hostname** (the LeetCode \"Web Crawler\" problem, using a provided `HtmlParser.getUrls(url)`), then **extend the solution to a multithreaded crawler.** The interviewer cross-questioned the **choice of data structures and algorithm, and asked for time and space complexity.**",
+ "lookingFor": [
+  "Correct graph traversal with a visited set.",
+  "Clean hostname matching.",
+  "Thread-safety reasoning in the multithreaded extension.",
+  "Complexity analysis and justification of data structures."
+ ],
+ "answer": "**Single-threaded solution (BFS or DFS).**\n- Extract the hostname of `startUrl` (the text between `http://` and the next `/`, or end of string).\n- Keep a `visited` hash set and a queue. Pop a URL, call `getUrls(url)`, and for each link whose hostname matches and which is not visited, mark it visited and enqueue it.\n- Mark on *enqueue*, not on dequeue, so a URL is never queued twice.\n```\ndef crawl(start, parser):\n    host = start.split('/')[2]\n    seen, q = {start}, deque([start])\n    while q:\n        for nxt in parser.getUrls(q.popleft()):\n            if nxt not in seen and nxt.split('/')[2] == host:\n                seen.add(nxt); q.append(nxt)\n    return list(seen)\n```\nCompare hostnames exactly; do not use a prefix match (`example.com` vs `example.com.evil.org`).\n\n**Complexity.** Each page is fetched once and each link examined once: time O(V + E) where V is the number of pages and E the links (plus URL hashing cost proportional to URL length, L); space O(V) for `seen` and the queue. A hash set gives O(1) average membership; a queue gives breadth-first order.\n\n**Multithreaded extension.** Fetching is I/O-bound, so threads help.\n- Shared `visited` set protected by a lock (or a concurrent set whose add returns whether the item was new; check-and-add must be atomic).\n- Approach A: a pool of N workers pulling from a shared work queue, with an outstanding-work counter; finish when the queue is empty and no worker is active.\n- Approach B (recursive): for each unvisited link submit a task to an executor and collect futures; join at the end.\n- The lock covers only the check-and-add, not the network call, otherwise you lose all parallelism.\n- Practical concerns: bound concurrency (thread count), per-host politeness and rate limits, timeouts and retries, and avoiding crawl traps with a depth or size limit.\n\n**Correctness check.** The race is two threads discovering the same URL at once. Atomic add-if-absent ensures only one proceeds.",
+ "followUps": [
+  "How do you detect termination in the multithreaded version?",
+  "BFS or DFS: does it matter here? When would you choose each?",
+  "How would you distribute the crawl across many machines?",
+  "How would you handle duplicate URLs that differ by fragment or trailing slash?"
+ ]
+}

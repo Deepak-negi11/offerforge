@@ -1,0 +1,18 @@
+{
+ "question": "Airbnb SDE-2 (L4) system design round: **\"Design a group messaging / group chat service.\"** The interviewer asked the candidate to define the APIs, the database schema and entities to store, and to draw a high-level design of the services involved. The reporter said the interviewer focused mostly on the DB and entities.",
+ "lookingFor": [
+  "A clear data model for users, groups, messages and membership.",
+  "Choosing a storage model that fits chat access patterns.",
+  "Real-time delivery design (connections, fan-out, ordering).",
+  "Handling offline users, delivery receipts and scale."
+ ],
+ "answer": "**Requirements.** 1:1 and group chats (say up to a few hundred members), real-time delivery, message history, delivery/read status, offline delivery via push, media optional. Assume 50M daily users, about 40 messages per user per day (about 2B messages per day).\n\n**API.**\n- REST: `POST /groups`, `POST /groups/{id}/members`, `GET /groups/{id}/messages?before=cursor&limit=50`.\n- Real time: a WebSocket per client with events `send_message`, `message_new`, `ack`, `typing`.\n\n**Entities.**\n- `user(id, name, ...)`\n- `group(id, name, created_by, created_at)`\n- `group_member(group_id, user_id, role, joined_at, last_read_message_id)`\n- `message(group_id, message_id, sender_id, body, type, created_at)`. Partition by `group_id`; `message_id` is time-ordered (Snowflake or ULID) so messages sort within a group.\n- `user_inbox / delivery(user_id, message_id, status)` if per-user receipts are needed.\n\n**Storage.** Messages are append-heavy and read by group in time order: a wide-column or key-value store (Cassandra, DynamoDB) with partition key `group_id` and clustering by `message_id` fits well. Membership and user data fit a relational DB. A very active group makes a hot partition; bucket the key by group and time window.\n\n**Components.** Clients connect through a load balancer to **chat/gateway servers** that hold WebSocket connections, with a session registry in Redis mapping user to gateway. The **message service** validates membership, assigns an ID, persists the message, and publishes to a queue (Kafka). Fan-out workers look up members, push to online users through their gateways, and send APNs/FCM notifications to offline users. Clients that reconnect sync from their last seen message ID.\n\n**Trade-offs.** Per-group ordering through the single sequence per group; at-least-once delivery plus client-side deduplication by message ID; fan-out on write is fine for small groups; use read-time fan-out for very large ones.",
+ "followUps": [
+  "How do you guarantee message ordering within a group?",
+  "How would you handle users who are offline for days?",
+  "How would you support read receipts without huge write amplification?",
+  "How do you scale to groups with 100k members?",
+  "How would you add end-to-end encryption?"
+ ],
+ "qid": "b69163d03c"
+}

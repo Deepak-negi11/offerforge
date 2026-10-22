@@ -1,0 +1,17 @@
+{
+ "qid": "e0e4ef33ec",
+ "question": "In the second interview round for an SDE Intern role at Ola Cabs, the questions included:\n\n- **Explain and implement quick sort and merge sort, with their complexities.**\n- OOP concepts, especially **polymorphism and inheritance**.\n- **How does a HashMap work?**\n- **What is the difference between statically and dynamically typed languages?**",
+ "lookingFor": [
+  "Can you implement both sorts correctly and state time, space and stability properties?",
+  "Can you compare them and say when you would pick each?",
+  "Do you understand HashMap internals (hashing, buckets, collisions, resizing)?",
+  "Do you understand typing systems and their trade-offs?"
+ ],
+ "answer": "**Merge sort.** Divide the array in halves, sort each recursively, merge the two sorted halves. Time O(n log n) in all cases, extra space O(n), **stable**. Good for linked lists and external sorting.\n\n**Quick sort.** Choose a pivot, partition so smaller elements go left and larger go right, recurse on both sides. Average O(n log n), worst case O(n^2) (already sorted input with a bad pivot choice; mitigate with a random or median-of-three pivot), in-place with O(log n) stack space, **not stable**. Usually faster in practice thanks to cache locality.\n\n```java\nstatic void quick(int[] a, int lo, int hi) {\n    if (lo >= hi) return;\n    int p = a[hi], i = lo;                       // Lomuto partition\n    for (int j = lo; j < hi; j++)\n        if (a[j] < p) { int t = a[i]; a[i] = a[j]; a[j] = t; i++; }\n    int t = a[i]; a[i] = a[hi]; a[hi] = t;\n    quick(a, lo, i - 1); quick(a, i + 1, hi);\n}\nstatic void merge(int[] a, int l, int r) {\n    if (r - l < 1) return;\n    int m = (l + r) >>> 1;\n    merge(a, l, m); merge(a, m + 1, r);\n    int[] tmp = new int[r - l + 1];\n    int i = l, j = m + 1, k = 0;\n    while (i <= m && j <= r) tmp[k++] = a[i] <= a[j] ? a[i++] : a[j++];\n    while (i <= m) tmp[k++] = a[i++];\n    while (j <= r) tmp[k++] = a[j++];\n    System.arraycopy(tmp, 0, a, l, tmp.length);\n}\n```\n\n**HashMap.** An array of buckets. For a key, compute `hashCode()`, spread the bits, take `index = hash & (capacity - 1)`. Store the entry in that bucket. Collisions (different keys, same bucket) are chained, as a linked list; in Java 8 and later a long chain becomes a tree. Lookup compares hash then `equals()`. When the load factor (default 0.75) is exceeded, the table doubles and entries are rehashed. Average O(1) get and put, worst case O(n) (O(log n) with trees). Keys need consistent `equals` and `hashCode`, and should be immutable.\n\n**Static versus dynamic typing.** Static (Java, C++): types are checked at compile time, so many errors are caught early and tooling and optimisation are better, but code is more verbose. Dynamic (Python, JavaScript): types are checked at run time; faster to write and flexible, but type errors appear only when the code runs.\n\n**Polymorphism and inheritance** are covered by overriding (run-time dispatch) and overloading (compile time).",
+ "followUps": [
+  "Why is quicksort often faster than merge sort despite the worse worst case?",
+  "How would you avoid worst-case behaviour in quicksort?",
+  "What happens in a HashMap if two keys have the same hashCode?",
+  "Why must you override both equals and hashCode?"
+ ]
+}

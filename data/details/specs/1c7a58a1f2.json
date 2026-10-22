@@ -1,0 +1,18 @@
+{
+ "qid": "1c7a58a1f2",
+ "question": "In an on-site whiteboard technical discussion for a Senior Software Engineer role at Walmart, the interviewer said: you have created a functionality; what all would you consider if you want to share this function with others? The conversation went into the different ways to expose functionality (RPC, web API, library), the principles to follow for each, and then moved to rate limiting, which led to the next question.",
+ "lookingFor": [
+  "Thinking about the consumer: contract, documentation, stability and versioning",
+  "Knowing the trade-offs between a library, an RPC service and a web API",
+  "Operational concerns: auth, rate limiting, observability, backward compatibility",
+  "Ability to choose a delivery mechanism based on requirements",
+  "A smooth transition to protecting a shared service (rate limiting)"
+ ],
+ "answer": "**Start with questions.** Who are the consumers (internal teams or external), in which languages, what latency and scale do they need, and how often will the function change? The answer drives the packaging choice.\n\n**Options and trade-offs.**\n- **Library (package/SDK):** runs in the caller's process, so there is no network cost and no extra failure mode. But you need one build per language, callers must upgrade to get fixes, and version skew across teams is hard to control. Principles: a small stable public API, semantic versioning, minimal dependencies, no global state, good docs.\n- **RPC service (gRPC, Thrift):** strongly typed contract (protobuf), compact binary format, generated clients in many languages, streaming support, good for internal service-to-service calls. Less browser-friendly and harder to debug by hand. Principles: backward-compatible schema evolution (add fields, never reuse numbers), deadlines and timeouts, retries only for idempotent calls.\n- **Web API (REST/HTTP+JSON):** universal, easy to discover and test, works from browsers and partners. Larger payloads, and weaker contract unless you publish an OpenAPI spec. Principles: resource-oriented URLs, correct status codes, pagination, idempotency keys for writes, versioning (`/v1`).\n\n**Cross-cutting concerns when sharing.**\n- A clear, documented contract and a deprecation policy.\n- Authentication and authorization, input validation, and a consistent error format.\n- Backward compatibility and versioning.\n- Observability: logs, metrics, tracing, and an SLA/SLO.\n- Idempotency and safe retries; timeouts.\n- **Protecting yourself from callers:** rate limiting, quotas, and isolation so one noisy client cannot take the service down.\n\nThat last point leads naturally into rate limiting (token bucket, sliding window, enforced at an API gateway), which is the follow-up the interviewer moved to.",
+ "followUps": [
+  "How would you version an API without breaking existing clients?",
+  "When would you choose gRPC over REST, and when not?",
+  "How do you deprecate a function that many teams depend on?",
+  "Explain how you would implement rate limiting for this service."
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "2eb336b378",
+ "question": "In an on-campus technical round for a Texas Instruments Software Engineer role, the interviewer asked: **What is memory alignment?** Then: **Write a C function that takes two arguments, `size` and `alignment`, and returns a memory block of that size with the given alignment.** The candidate wrote it using `malloc` and then adjusted the pointer; a discussion followed about **`free`** and how to use it in this code.",
+ "lookingFor": [
+  "Do you understand why alignment matters (hardware access, performance, faults)?",
+  "Can you do pointer arithmetic with integers and bit masks safely?",
+  "Do you realise `free` needs the original pointer and know how to keep it?",
+  "Do you validate inputs (alignment must be a power of two) and handle failure?",
+  "Do you know the library alternatives (`posix_memalign`, `aligned_alloc`)?"
+ ],
+ "answer": "**Memory alignment**\nA value of size N is *aligned* when its address is a multiple of N (or of its required alignment). CPUs read memory in aligned chunks, so a misaligned access may be slower (two bus accesses), may need extra instructions, or may **fault** on some architectures. DMA engines, SIMD instructions and cache lines (typically 64 bytes) often require stricter alignment. Compilers add *padding* in structs to keep members aligned.\n\n**Aligned allocation with malloc**\nOver-allocate, round the address up to the next multiple of `alignment`, and store the original pointer just before the returned block so `free` can find it.\n\n```c\n#include <stdint.h>\n#include <stdlib.h>\n\nvoid *aligned_malloc(size_t size, size_t align)\n{\n    if (align < sizeof(void *)) align = sizeof(void *);\n    if (align & (align - 1)) return NULL;          /* must be a power of two */\n\n    void *raw = malloc(size + align - 1 + sizeof(void *));\n    if (!raw) return NULL;\n\n    uintptr_t addr = ((uintptr_t)raw + sizeof(void *) + align - 1)\n                     & ~(uintptr_t)(align - 1);\n    ((void **)addr)[-1] = raw;                     /* remember original */\n    return (void *)addr;\n}\n\nvoid aligned_free(void *p)\n{\n    if (p) free(((void **)p)[-1]);\n}\n```\n\n**Why it works**\n- `+ align - 1` then `& ~(align - 1)` rounds up to a multiple of `align` (valid only for powers of two).\n- The extra `sizeof(void *)` guarantees room for the saved pointer before the aligned address, and the extra `align - 1` guarantees the aligned block still has `size` bytes inside the allocation.\n- Passing the aligned pointer directly to `free` would be **undefined behaviour**, since it was not returned by `malloc`. That is why a matching `aligned_free` is needed.\n\n**Alternatives**\n`posix_memalign` (POSIX) and `aligned_alloc` (C11, where size should be a multiple of the alignment) return blocks that can be released with plain `free` on typical platforms. On embedded systems you may also use static buffers with `__attribute__((aligned(N)))` or a linker section.",
+ "followUps": [
+  "Why must the alignment be a power of two for the bit-mask trick?",
+  "How would you do this without storing the original pointer?",
+  "What is the alignment of a pointer returned by plain malloc?",
+  "What problems can unaligned access cause on ARM or DSP targets?"
+ ]
+}

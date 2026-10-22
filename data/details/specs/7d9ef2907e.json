@@ -1,0 +1,19 @@
+{
+ "qid": "7d9ef2907e",
+ "question": "In a Samsung embedded software intern technical interview, the candidate was asked to **explain structure padding and memory alignment in C** and why it matters. The round also covered a digital logic problem, OOP concepts, and two coding problems: **the width of a binary tree** and **finding the missing number in an array of size n-1 holding values from 1 to n**.",
+ "lookingFor": [
+  "Do you know why compilers add padding and how alignment works?",
+  "Can you compute the size of a struct and reorder members to reduce it?",
+  "Do you know `#pragma pack`, `sizeof`, `offsetof` and their trade-offs?",
+  "Do you understand why this matters in embedded code and across systems (protocols, files)?",
+  "Can you solve the two follow-up coding problems cleanly?"
+ ],
+ "answer": "**Alignment.** CPUs read memory most efficiently when a value of size N sits at an address that is a multiple of N (natural alignment). Misaligned access can be slower, fault on some architectures, or break atomicity. So the compiler inserts **padding bytes** between members, and at the end of the struct, so that each member is aligned and arrays of the struct keep every element aligned.\n\n**Rules (typical ABI).** Each member is placed at an offset that is a multiple of its alignment. The struct's alignment equals the largest member alignment, and its total size is rounded up to a multiple of that alignment.\n\n    struct A { char c; int i; char d; };   // c at 0, 3 bytes padding, i at 4, d at 8, 3 bytes tail padding\n    // sizeof(A) = 12 (with 4-byte int)\n\n    struct B { int i; char c; char d; };   // i at 0, c at 4, d at 5, 2 bytes tail padding\n    // sizeof(B) = 8\n\nSame members, different order, and the size drops from 12 to 8. A good habit is to **order members from largest to smallest** alignment.\n\n**Controlling it.** `#pragma pack(1)` or `__attribute__((packed))` removes padding, which is useful for matching a wire format or hardware register layout, but can cause slower or unaligned accesses (and traps on some CPUs), so use with care. Use `sizeof` and `offsetof` to inspect layout, and never assume a struct's size when serialising; write fields individually or use fixed-width types and explicit layout.\n\n**Why it matters in embedded work:** memory is small, so wasted padding costs; hardware registers and network or file formats need exact layouts; and portability across compilers and architectures requires attention.\n\n**The coding follow-ups.**\n\n- **Missing number:** compute `n*(n+1)/2` and subtract the array's sum in O(n) time, O(1) space (or XOR all numbers 1..n with all array elements, which avoids overflow).\n- **Width of a binary tree:** do a level-order (BFS) traversal and take the maximum number of nodes at any level. If the definition counts the gap between the leftmost and rightmost nodes (nulls included), track each node's index (`2i`, `2i+1`) per level and take the largest `last - first + 1`. Ask which definition is meant.",
+ "followUps": [
+  "What is the size of a struct with a double, char and int in each order?",
+  "What problems can a packed struct cause?",
+  "Why do compilers pad the end of a struct?",
+  "How does a union differ from a struct in layout?",
+  "How does the XOR solution for the missing number work?"
+ ]
+}

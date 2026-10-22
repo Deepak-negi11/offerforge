@@ -1,0 +1,45 @@
+{
+ "pid": "sprinklr-xor-world-sum-queries",
+ "title": "XOR World Sum Queries",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You start with an empty array of integers and must process `q` operations in order. Each operation is a pair `(t, x)`:\n\n- `t = 1`: add the value `x` to the array. The array may hold the same value several times.\n- `t = 2`: delete **every** occurrence of the value `x` from the array. If `x` is not present, nothing happens.\n- `t = 3`: report the sum `(a1 XOR x) + (a2 XOR x) + ... + (aN XOR x)` over all elements currently in the array, where `XOR` is bitwise exclusive or and `N` is the current length. If the array is empty, the sum is `0`.\n\nPrint the answer to every operation of type 3, in the order the operations appear.\n\nRe-computing the sum from scratch on every query is too slow when there are many operations, so think about what information about the array is enough to answer a query.",
+ "input_format": "The first line contains an integer `q`, the number of operations.\nEach of the next `q` lines contains two integers `t` and `x`: the operation type and its parameter.",
+ "output_format": "For every operation of type 3, in order, print the required sum on its own line. Every test contains at least one operation of type 3.",
+ "constraints": [
+  "1 ≤ q ≤ 10^5",
+  "t ∈ {1, 2, 3}",
+  "1 ≤ x ≤ 10^9",
+  "Every test contains at least one operation of type 3"
+ ],
+ "examples": [
+  {
+   "input": "6\n1 5\n1 3\n3 4\n2 5\n3 4\n3 3",
+   "output": "8\n7\n0",
+   "explanation": "After the two additions the array is [5, 3]. Query 4: (5 XOR 4) + (3 XOR 4) = 1 + 7 = 8. Deleting 5 leaves [3], so the next query 4 gives 3 XOR 4 = 7. Query 3 gives 3 XOR 3 = 0."
+  },
+  {
+   "input": "8\n1 6\n1 6\n1 2\n3 1\n2 6\n3 6\n2 2\n3 5",
+   "output": "17\n4\n0",
+   "explanation": "The array is [6, 6, 2], so query 1 gives 7 + 7 + 3 = 17. Deleting 6 removes both copies, leaving [2]; query 6 gives 2 XOR 6 = 4. After deleting 2 the array is empty, so the last query prints 0."
+  }
+ ],
+ "complexity": {
+  "time": "O(q log V)",
+  "space": "O(q + log V)"
+ },
+ "hints": [
+  "Look at one bit position at a time: the value of (a XOR x) at bit b depends only on bit b of a and bit b of x.",
+  "For every bit b keep how many elements currently have that bit set, plus the array length. A query is then 30 multiplications of a count by 2^b.",
+  "Keep a hash map from value to its multiplicity so that \"delete all occurrences\" can subtract that many counts from each set bit of the value in O(log V)."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    cnt = {}\n    bits = [0] * 30\n    total = 0\n    out = []\n    p = 1\n    for _ in range(q):\n        t = int(data[p]); x = int(data[p + 1]); p += 2\n        if t == 1:\n            cnt[x] = cnt.get(x, 0) + 1\n            total += 1\n            b = 0\n            y = x\n            while y:\n                if y & 1:\n                    bits[b] += 1\n                y >>= 1\n                b += 1\n        elif t == 2:\n            c = cnt.pop(x, 0)\n            if c:\n                total -= c\n                b = 0\n                y = x\n                while y:\n                    if y & 1:\n                        bits[b] -= c\n                    y >>= 1\n                    b += 1\n        else:\n            s = 0\n            for b in range(30):\n                if (x >> b) & 1:\n                    s += (total - bits[b]) << b\n                else:\n                    s += bits[b] << b\n            out.append(s)\n    print('\\n'.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nq = int(data[0])\narr = []\nout = []\nfor i in range(q):\n    t = int(data[1 + 2 * i]); x = int(data[2 + 2 * i])\n    if t == 1:\n        arr.append(x)\n    elif t == 2:\n        arr = [a for a in arr if a != x]\n    else:\n        out.append(sum(a ^ x for a in arr))\nprint('\\n'.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def fmt(ops):\n        ops = list(ops)\n        if not any(t == 3 for t, _ in ops):\n            ops.append((3, 1))\n        return str(len(ops)) + '\\n' + '\\n'.join(f'{t} {x}' for t, x in ops)\n    tests = [\n        fmt([(3, 5)]),\n        fmt([(1, 1), (3, 1)]),\n        fmt([(1, 7), (1, 7), (2, 7), (3, 7), (2, 7), (3, 3)]),\n        fmt([(2, 4), (1, 4), (1, 4), (3, 4), (3, 10**9)]),\n        fmt([(1, 10**9), (1, 10**9), (3, 1), (2, 10**9), (3, 1)]),\n    ]\n    for _ in range(14):\n        q = rng.randint(2, 30)\n        hi = rng.choice([4, 8, 20, 1000])\n        ops = []\n        for _ in range(q):\n            t = rng.choice([1, 1, 2, 3, 3])\n            ops.append((t, rng.randint(1, hi)))\n        tests.append(fmt(ops))\n    # large tests\n    Q = 10**5\n    V = 10**9\n    ops = [(rng.choice([1, 2, 3]), rng.randint(1, V)) for _ in range(Q)]\n    tests.append(fmt(ops))\n    pool = [rng.randint(1, V) for _ in range(300)]\n    ops = []\n    for _ in range(Q):\n        t = rng.choice([1, 1, 2, 3])\n        ops.append((t, rng.choice(pool)))\n    tests.append(fmt(ops))\n    ops = [(1, rng.randint(1, V)) for _ in range(Q // 2)] + [(3, rng.randint(1, V)) for _ in range(Q // 2)]\n    tests.append(fmt(ops))\n    ops = [(1, rng.randint(1, V))] + [(3, rng.randint(1, V)) for _ in range(Q - 1)]\n    tests.append(fmt(ops))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef xor_world(types: List[int], xs: List[int]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    types = [int(data[1 + 2 * i]) for i in range(q)]\n    xs = [int(data[2 + 2 * i]) for i in range(q)]\n    print('\\n'.join(map(str, xor_world(types, xs))))\n\n\nmain()\n",
+  "javascript": "function xorWorld(types, xs) {\n  // Write your solution here\n  return []\n}\n\nconst tk = input.split(/\\s+/).filter(Boolean).map(Number)\nconst q = tk[0]\nconst types = [], xs = []\nfor (let i = 0; i < q; i++) {\n  types.push(tk[1 + 2 * i])\n  xs.push(tk[2 + 2 * i])\n}\nconsole.log(xorWorld(types, xs).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> xorWorld(vector<int>& types, vector<long long>& xs) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int q;\n    cin >> q;\n    vector<int> types(q);\n    vector<long long> xs(q);\n    for (int i = 0; i < q; i++) cin >> types[i] >> xs[i];\n    vector<long long> res = xorWorld(types, xs);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] xorWorld(int[] types, long[] xs) {\n        // Write your solution here\n        return new long[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int q = (int) in.nval;\n        int[] types = new int[q];\n        long[] xs = new long[q];\n        for (int i = 0; i < q; i++) {\n            in.nextToken(); types[i] = (int) in.nval;\n            in.nextToken(); xs[i] = (long) in.nval;\n        }\n        long[] res = xorWorld(types, xs);\n        StringBuilder sb = new StringBuilder();\n        for (long v : res) sb.append(v).append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

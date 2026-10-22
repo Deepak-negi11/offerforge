@@ -1,0 +1,17 @@
+{
+ "qid": "3f762746a8",
+ "question": "In a technical round for a Visa **new-grad Software Engineer** role, the candidate was asked: **How would you synchronise ticket booking across multiple locations in an IRCTC-like app?** The same round covered the difference between **horizontal and vertical scaling**, **process versus thread**, **semaphores with an example**, and **what a DDoS attack is**.",
+ "lookingFor": [
+  "Do you recognise this as a concurrency and consistency problem (no double booking)?",
+  "Can you choose between locking strategies and explain their trade-offs?",
+  "Do you handle a distributed setting: many app servers, many regions, one source of truth for seats?",
+  "Do you know the basic scaling and security vocabulary asked alongside?"
+ ],
+ "answer": "**Problem.** Many users in many locations try to book the same limited seats at the same moment. The invariant: a seat is never sold twice, and users see fair, mostly accurate availability.\n\n**Approach.**\n1. **Single source of truth for inventory.** All booking decisions go through one authoritative database for a train and date (partitioned by train and date so load spreads). Read replicas or caches can show approximate availability, but booking always checks the primary.\n2. **Atomic reservation.** Use a transaction with a conditional update, for example `UPDATE seats SET status='HELD', held_by=:u, hold_until=now()+interval '5 min' WHERE seat_id=:s AND status='FREE'` and check that exactly one row changed. This is optimistic: no long-held lock, and the loser retries or picks another seat. Alternatively use `SELECT ... FOR UPDATE` (pessimistic) when contention is high, keeping the transaction short.\n3. **Two-step booking.** Hold the seat temporarily during payment, then confirm; a background job (or TTL) releases expired holds.\n4. **Idempotency.** A booking request carries an idempotency key so retries after timeouts do not double-charge or double-book.\n5. **Scale.** Queue requests during peak (tatkal rush) with a virtual waiting room and rate limiting; shard by train and date; cache availability; use a distributed lock (Redis or ZooKeeper) only where needed.\n6. **Multi-region.** Route each train's writes to one primary region; other locations send requests to it. Multi-primary would need conflict resolution that cannot allow overselling.\n\n**Related questions.**\n- *Horizontal scaling* adds more machines (needs load balancing, stateless services); *vertical* makes one machine bigger (simple, but has a limit and a single point of failure).\n- *Process versus thread:* a process has its own address space; threads share the memory of their process and are cheaper to create and switch.\n- *Semaphore example:* a counting semaphore initialised to the number of available seats limits concurrent bookings; `wait` before booking, `signal` on cancellation.\n- *DDoS:* many distributed sources flood a service to make it unavailable; mitigated with rate limiting, CDNs, traffic scrubbing and bot detection.",
+ "followUps": [
+  "Optimistic versus pessimistic locking: when would you choose each?",
+  "What if the payment succeeds but the booking confirmation fails?",
+  "How do you handle the booking rush at 10 AM for the tatkal quota?",
+  "How would a distributed lock fail, and what protects against that?"
+ ]
+}

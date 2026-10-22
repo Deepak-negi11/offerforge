@@ -1,0 +1,17 @@
+{
+ "qid": "58ef618cf3",
+ "question": "Apple, Software Engineer (ICT4, Backend), technical interview. Reported: **write a SQL query over two tables that needs a set difference (`MINUS` / `EXCEPT`), then discuss common performance bottlenecks.** The exact tables were not reported, so the example below uses a typical pair such as `customers` and `orders`.",
+ "lookingFor": [
+  "Knowing set operators and their dialect names (MINUS, EXCEPT).",
+  "Awareness that set operators remove duplicates and compare whole rows.",
+  "Alternatives such as NOT EXISTS and LEFT JOIN, including the NOT IN NULL trap.",
+  "A practical approach to diagnosing slow queries."
+ ],
+ "answer": "**Example.** Tables: `customers(id, name)` and `orders(id, customer_id, amount)`. Find customers who never placed an order:\n\n    SELECT id FROM customers\n    MINUS\n    SELECT customer_id FROM orders;\n\n`MINUS` is Oracle's keyword. The standard and PostgreSQL, SQL Server, SQLite and recent MySQL (8.0.31 and later) spelling is `EXCEPT`. It returns rows from the first query that are not in the second, removes duplicates, and requires both queries to have the same number of columns with compatible types. PostgreSQL also has `EXCEPT ALL`, which keeps duplicate counts.\n\n**Equivalent forms** (often preferred in practice):\n\n    SELECT c.id FROM customers c\n    WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id);\n\n    SELECT c.id FROM customers c\n    LEFT JOIN orders o ON o.customer_id = c.id\n    WHERE o.id IS NULL;\n\n`NOT EXISTS` and the anti-join handle NULLs predictably and let the optimiser use an index. Avoid `NOT IN (subquery)` if the subquery can return NULL: the comparison becomes unknown and you get no rows.\n\n**Common performance bottlenecks.**\n- Missing indexes on join and filter columns, such as `orders(customer_id)`, causing full table scans.\n- Set operators sort or hash both inputs to de-duplicate, which is costly on big data and may spill to disk.\n- Selecting more columns than needed (`SELECT *`) and returning huge result sets.\n- Functions or casts on indexed columns (`WHERE LOWER(name) = ...`) that stop index use.\n- Stale statistics leading to bad join order or plan choice.\n- Poor join choices on large tables, correlated subqueries run per row, and lock contention.\n\n**Diagnosis workflow:** read the execution plan (`EXPLAIN` or `EXPLAIN ANALYZE`), find the most expensive node and row-estimate errors, add or adjust an index, rewrite the query, refresh statistics, and re-measure.",
+ "followUps": [
+  "What is the difference between EXCEPT and NOT EXISTS with duplicates and NULLs?",
+  "How would you write INTERSECT without the INTERSECT keyword?",
+  "How do you decide the column order in a composite index?",
+  "What does a sequential scan in an execution plan tell you?"
+ ]
+}

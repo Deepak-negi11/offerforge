@@ -16,6 +16,8 @@ export interface Question {
   kind: 'question' | 'format'
   title: string
   role: string
+  /** Seniority from the role text: intern, entry, mid, senior, or '' when the post doesn't say. */
+  level: Level
   round: string
   category: string
   topics: string[]
@@ -28,7 +30,107 @@ export interface Question {
   reports: number
   secondaryOnly: boolean
   verified?: boolean
+  /** Id of the full problem (statement, examples, hidden tests) in data/problems/<id>.json. */
+  problem?: string
+  /** A detailed write-up (full question, what they look for, how to answer) exists in data/details/<id>.json. */
+  detail?: boolean
 }
+
+export interface Detail {
+  question: string
+  lookingFor: string[]
+  answer: string
+  followUps: string[]
+}
+
+const detailCache = new Map<string, Promise<Detail | null>>()
+
+export function useDetail(q: Pick<Question, 'id' | 'detail'>): Detail | null {
+  const [state, setState] = useState<{ id: string; detail: Detail | null } | null>(null)
+  useEffect(() => {
+    if (!q.detail) return
+    let alive = true
+    if (!detailCache.has(q.id)) {
+      detailCache.set(
+        q.id,
+        fetch(`${import.meta.env.BASE_URL}data/details/${q.id}.json`)
+          .then((r) => (r.ok && r.headers.get('content-type')?.includes('json') ? (r.json() as Promise<Detail>) : null))
+          .catch(() => null),
+      )
+    }
+    detailCache.get(q.id)!.then((detail) => alive && setState({ id: q.id, detail }))
+    return () => {
+      alive = false
+    }
+  }, [q.id, q.detail])
+  return q.detail && state?.id === q.id ? state.detail : null
+}
+
+export interface ProblemTest {
+  input: string
+  output: string
+}
+
+/** A large hidden test: input rebuilt from the generator, checked by SHA-256 of input and expected output. */
+export interface HashedTest {
+  g: number
+  n: number
+  ih: string
+  oh: string
+}
+
+export interface Problem {
+  title: string
+  difficulty: 'Easy' | 'Medium' | 'Hard'
+  statement: string
+  inputFormat: string
+  outputFormat: string
+  constraints: string[]
+  examples: (ProblemTest & { explanation: string })[]
+  tests: (ProblemTest | HashedTest)[]
+  generator?: string
+  seed?: number
+  complexity: { time: string; space: string }
+  hints: string[]
+  starters: Record<'python' | 'javascript' | 'cpp' | 'java', string>
+  /** True when formats, constraints and examples were added around the candidate's description. */
+  reconstructed: boolean
+}
+
+const problemCache = new Map<string, Promise<Problem | null>>()
+
+/** Loads the full problem for a question, or null when there isn't one. */
+export function useProblem(q: Pick<Question, 'id' | 'problem'>): { problem: Problem | null; loading: boolean } {
+  const [state, setState] = useState<{ id: string; problem: Problem | null } | null>(null)
+  useEffect(() => {
+    if (!q.problem) return
+    let alive = true
+    const pid = q.problem
+    if (!problemCache.has(pid)) {
+      problemCache.set(
+        pid,
+        fetch(`${import.meta.env.BASE_URL}data/problems/${pid}.json`)
+          .then((r) => (r.ok && r.headers.get('content-type')?.includes('json') ? (r.json() as Promise<Problem>) : null))
+          .catch(() => null),
+      )
+    }
+    problemCache.get(pid)!.then((problem) => alive && setState({ id: q.id, problem }))
+    return () => {
+      alive = false
+    }
+  }, [q.id, q.problem])
+  if (!q.problem) return { problem: null, loading: false }
+  return state?.id === q.id ? { problem: state.problem, loading: false } : { problem: null, loading: true }
+}
+
+export type Level = 'intern' | 'entry' | 'mid' | 'senior' | ''
+
+export const LEVELS: { value: Exclude<Level, 'intern'>; label: string; short: string }[] = [
+  { value: 'entry', label: 'SDE-1 · 0–2 yrs', short: 'SDE-1' },
+  { value: 'mid', label: 'SDE-2 · 2–5 yrs', short: 'SDE-2' },
+  { value: 'senior', label: 'SDE-3+ · 5+ yrs', short: 'SDE-3+' },
+  { value: '', label: 'Level not stated', short: 'Not stated' },
+]
 
 export interface ProcessRound {
   name: string
@@ -40,6 +142,7 @@ export interface ProcessRound {
 export interface Process {
   track: Track
   role: string
+  level: Level
   location: string | null
   rounds: ProcessRound[]
   sources: string[]

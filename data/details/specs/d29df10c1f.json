@@ -1,0 +1,18 @@
+{
+ "qid": "d29df10c1f",
+ "question": "In an HLD/LLD round for a Senior Software Engineer role at Walmart, the candidate was asked to **implement one of Java's built-in API classes** and to **design a key-value system similar to Redis**.\n\nThe candidate described an unfriendly interview in which the interviewer questioned each line written. The post does not say which Java class was chosen, so assume something like `HashMap`, `LinkedList` or `ArrayList` could be requested, and prepare to write one from scratch and design a Redis-like store.",
+ "lookingFor": [
+  "Can you implement a core data structure from scratch with correct complexity and edge cases?",
+  "Do you understand what Redis offers (data types, TTL, persistence, single-threaded event loop)?",
+  "Can you separate an in-memory store's API, storage engine, expiry and persistence?",
+  "Can you explain concurrency choices and how you would scale to a cluster?",
+  "Can you stay calm and justify decisions when challenged line by line?"
+ ],
+ "answer": "**Part 1: implement a Java class (for example HashMap).** Array of buckets, each a linked list of entries (key, value, hash, next). `index = (hash ^ (hash >>> 16)) & (n - 1)` with power-of-two capacity. `put` replaces an existing key or appends; `get` walks the chain comparing `hash` then `equals`. Resize when `size > loadFactor * capacity` (0.75): double the table and re-bucket. Allow a null key as a special case, and note Java 8 converts long chains into trees. If `ArrayList` is asked instead: a growing array with amortized O(1) append.\n\n**Part 2: Redis-like key-value store.**\n\n*Requirements.* `GET`, `SET`, `DEL`, `EXPIRE/TTL`, a few data types (strings, lists, hashes), durability optional, high throughput, then clustering.\n\n*Single node.*\n- `Map<String, Value>` as the keyspace; `Value` is a typed object (string, list, hash) behind an interface so commands operate on the right type.\n- **Command layer**: parse protocol, dispatch to a handler via a `Command` interface (Command pattern); easy to add commands.\n- **Expiry**: store an expiry time; check lazily on access, plus a background sweeper that samples keys (or a min-heap / timing wheel) to remove expired entries.\n- **Eviction**: when memory is full, apply LRU or LFU, configurable.\n- **Concurrency**: Redis executes commands on a single thread, which makes each command atomic without locks; I/O is multiplexed with an event loop. Alternative: shard the keyspace and lock per shard.\n- **Persistence**: an append-only log of write commands (replayed on restart) plus periodic snapshots, trading durability for write speed through the fsync policy.\n\n*Scaling.* Replication (leader to followers) for reads and failover; sharding by consistent hashing or hash slots; clients route by key. Mention the trade-offs: asynchronous replication can lose recent writes; resharding moves data.\n\n**Handling the interviewer.** State assumptions, explain before coding, and welcome pushback as a design discussion.",
+ "followUps": [
+  "How would you implement TTL expiry efficiently for millions of keys?",
+  "Why is Redis fast even though it is single-threaded?",
+  "How do consistent hashing and hash slots differ for sharding?",
+  "How would you make writes durable without killing throughput?"
+ ]
+}

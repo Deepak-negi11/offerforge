@@ -1,0 +1,17 @@
+{
+  "qid": "11fcce6978",
+  "question": "Zomato SDE-2 round 1 (Nov 2025). SQL question: orders move through the states **Created -> Confirmed -> Reached Merchant -> Reached Customer -> Delivered**, and each transition is stored with a timestamp.\n\n1. Write a query that returns every order id with its **latest state** in the **last 1 hour**.\n2. **Exclude** orders that are already delivered.\n3. How would this query behave at scale?\n4. What indexes would you add?",
+  "lookingFor": [
+    "Window functions or an equivalent for the greatest-row-per-group pattern",
+    "Careful reading of the requirement (latest state, time window, exclusion)",
+    "Reasoning about scans, sorts and index choices on a large event table",
+    "Thinking about a better design (current-state table) at scale"
+  ],
+  "answer": "**Assumed table:** `order_events(order_id, state, event_ts)`, one row per transition.\n\n**Query (window function).**\n\n```sql\nSELECT order_id, state, event_ts\nFROM (\n  SELECT order_id, state, event_ts,\n         ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY event_ts DESC) AS rn\n  FROM order_events\n  WHERE event_ts >= NOW() - INTERVAL 1 HOUR\n) t\nWHERE rn = 1\n  AND state <> 'Delivered';\n```\n\n**Why it works.** The inner query keeps only events in the last hour. For each order the window function ranks events newest first and `rn = 1` is the latest one. The outer filter removes orders whose latest state is Delivered. Filtering the window first is correct because the latest event overall is inside the window if any event is; an order delivered more than an hour ago has no event in the window, so it is not returned either. Ties on `event_ts` need a tie-breaker (a state sequence number or an event id).\n\n**Alternative without windows:** join to `SELECT order_id, MAX(event_ts) ... GROUP BY order_id` on `(order_id, event_ts)`. Note that you should not select `state` next to `MAX` in a plain `GROUP BY`.\n\n**At scale.** The events table is append-heavy and large. Without a good index the query scans the whole table. With an index on `event_ts` the scan is limited to the last hour, but the window function still sorts and partitions those rows, which is fine for millions of rows in the window and costly for hundreds of millions.\n\n**Indexes.** `(event_ts)` for the range filter, or `(order_id, event_ts DESC)` for per-order lookups and to let the engine avoid sorting; a covering index adding `state` avoids table lookups. Partition the table by time so old partitions can be pruned and dropped.\n\n**Better design.** Keep an `orders_current(order_id, state, updated_at)` table (or a cache) updated on each transition, indexed on `(state, updated_at)`. The query then becomes a cheap indexed range read, with the event table kept as history.",
+  "followUps": [
+    "How would the query change if the same order can have two events with the same timestamp?",
+    "Why is `GROUP BY order_id` with a plain `MAX(event_ts)` not enough on its own?",
+    "How would you partition the events table and what are the downsides?",
+    "How would you keep `orders_current` consistent with the event log?"
+  ]
+}

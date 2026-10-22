@@ -1,0 +1,19 @@
+{
+ "qid": "eb5d9ba29e",
+ "question": "In a Paytm Senior Software Engineer high-level design round, the candidate was asked to **build a real-time analytics platform for a quick-commerce app such as Blinkit or Zepto**.\n\nThe interviewer asked in-depth questions about **every step and why a particular database and programming language was chosen**. Later, **role-based access control (RBAC)** requirements were added. The interviewer mainly wanted to understand the reasoning behind each choice.",
+ "lookingFor": [
+  "Can you clarify what 'analytics' means here (business dashboards, ops monitoring, inventory) before choosing technology?",
+  "Do you know a streaming pipeline (ingest, process, store, serve) and how each stage scales?",
+  "Can you justify database and language choices against alternatives with concrete trade-offs?",
+  "Do you handle access control cleanly (roles, permissions, data scoping per store or region)?",
+  "Do you discuss data quality, late events, failures and cost?"
+ ],
+ "answer": "**Clarify first.** Who uses it and for what? For quick commerce, typical needs are live orders per minute, delivery times, stock-outs per dark store, cancellations, and rider utilization. Ask the freshness target (seconds, not hours), volume (say 1M orders/day with many more app events), and retention.\n\n**Pipeline.**\n1. **Sources:** order, payment, inventory and rider services, plus app click events. Emit events via a log such as **Kafka**, partitioned by store or order ID, so producers are decoupled and events are replayable.\n2. **Stream processing:** Flink or Spark Structured Streaming does windowed aggregations (orders per store per minute), joins (order with store), deduplication, and late-event handling with watermarks. Java/Scala suits these engines; Go or Python can be used for lighter consumers. Choose the language the team can run and debug, not the fashionable one.\n3. **Storage by access pattern:**\n   - Real-time OLAP store (Druid, ClickHouse, or Pinot) for fast aggregates over recent data.\n   - Redis for hot counters and current state on live dashboards.\n   - Object storage plus a warehouse for the raw history and batch reports.\n   - A relational DB for configuration, users and roles (strong consistency, small data).\n4. **Serving layer:** an API service with caching feeding dashboards, with WebSocket or server-sent events (or short polling) for live tiles.\n\n**RBAC.** Model `users`, `roles`, `permissions` and `user_roles`, checked in the API gateway or a service layer, never only in the UI. Add **data scoping**: a store manager sees only their store, a city head sees their city, and finance sees revenue but not customer PII. Enforce it with a row-level filter on every query and audit-log access to sensitive data.\n\n**Trade-offs.** Lambda (batch plus stream) gives accuracy but is double the work, while Kappa (stream only, replay for corrections) is simpler. Exactly-once is expensive, so prefer at-least-once plus idempotent writes. Pre-aggregate to cut cost, at the price of flexibility.\n\n**Reliability.** Monitor consumer lag, set dead-letter queues, validate schemas (Avro/Protobuf with a registry), and degrade gracefully by showing stale data with a timestamp.",
+ "followUps": [
+  "Why a log like Kafka and not writing events directly to the database?",
+  "How do you handle late or out-of-order events in a windowed count?",
+  "Why ClickHouse or Druid instead of Postgres for this workload?",
+  "How would you implement row-level access for city managers?",
+  "How would the design change if freshness could be 15 minutes instead of 5 seconds?"
+ ]
+}

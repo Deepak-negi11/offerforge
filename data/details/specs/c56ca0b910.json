@@ -1,0 +1,18 @@
+{
+ "qid": "c56ca0b910",
+ "question": "Bloomberg Software Engineer (new grad, London), system design round with a senior engineer: **design a system that shows the top N news articles.** The candidate described it as a back-and-forth discussion and did not clear the round.",
+ "lookingFor": [
+  "Turning a vague prompt into concrete requirements, such as what \"top\" means.",
+  "Choosing a ranking signal and an efficient way to compute and serve it.",
+  "Caching and read-heavy workload design.",
+  "Handling freshness versus cost trade-offs.",
+  "Structured communication and responding to interviewer pushback."
+ ],
+ "answer": "**1. Clarify.** Ask: what does \"top\" mean (most viewed, most recent, trending, personalised)? Which window (last hour, day)? Global or per topic and region? How fresh must it be? Scale assumption: 10 million daily users, about 100 reads per second on average with much higher peaks, thousands of new articles per day, read-to-write ratio very high.\n\n**2. API and entities.** `GET /top?n=20&topic=&region=` returns article summaries. Entities: Article(id, title, source, published_at, topic), Engagement events (article_id, type, ts). Reads dominate.\n\n**3. Ranking.** A simple score such as `views_in_window` weighted by recency decay (for example `score = engagement / (age_hours + 2)^1.5`) so old stories fade. State that the formula is an assumption you would tune.\n\n**4. High-level design.**\n- **Event pipeline:** clients send view and click events to a queue (for example Kafka).\n- **Stream aggregation:** a stream processor counts events per article in sliding or tumbling windows (for example 5-minute buckets) and updates scores.\n- **Top-N store:** maintain a sorted set per topic and region (a Redis sorted set with `ZADD` and `ZREVRANGE`), pruned to the top few hundred.\n- **Serving layer:** stateless API servers read from Redis; add a CDN or short-TTL cache (10 to 30 seconds) because everyone sees mostly the same list.\n- **Durable store:** the article metadata in a database; raw events in a data lake for recomputation.\n\n**5. Trade-offs.**\n- Exact counts versus approximate (count-min sketch plus a heap) when volume is very high.\n- Freshness versus load: more frequent recomputation costs more; caching for a short time is acceptable.\n- Personalisation multiplies storage, so start with global and topic lists and re-rank per user at read time.\n\n**6. Failure and scale.** Replicate Redis; rebuild from the event log if lost; partition events by article id; guard against spam or bot inflation with rate limits and de-duplication of views per user.",
+ "followUps": [
+  "How would you stop one article being boosted by bots?",
+  "How would you personalise the top N for each user?",
+  "What data structure gives top-N in the stream, and what is its cost?",
+  "How do you handle breaking news that needs to appear immediately?"
+ ]
+}

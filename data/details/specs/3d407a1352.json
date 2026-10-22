@@ -1,0 +1,18 @@
+{
+ "qid": "3d407a1352",
+ "question": "Intel Graphics Software Engineer, technical round (C++/OS). Reported question: **compare a mutex and a spinlock**, and **which lock would you use on a single-core system?** The same interview cluster also covered related topics: what a **race condition** is, **critical section vs mutex**, and what makes code **thread-safe** and a function **reentrant**. The candidate was told the expected answer for the single-core case was a mutex.",
+ "lookingFor": [
+  "Clear understanding of blocking versus busy-waiting synchronization.",
+  "Ability to reason about cost: context switches versus wasted CPU cycles.",
+  "Awareness that the right choice depends on hardware (cores) and hold time.",
+  "Correct vocabulary: race condition, critical section, thread-safe, reentrant.",
+  "Judgement about where each primitive is appropriate (user code versus kernel/interrupt context)."
+ ],
+ "answer": "**Mutex.** A mutual-exclusion lock. If it is taken, the calling thread is put to *sleep* by the scheduler and woken when the lock is released. Cost: a context switch (and often a system call) per contended acquire. Good when the critical section may be long or the thread may block (I/O).\n\n**Spinlock.** The waiting thread *busy-loops* on an atomic test-and-set (or compare-and-swap) until the lock frees. No sleeping and no context switch, so acquiring a lock held only briefly is very fast. Cost: the spinning CPU does no useful work, so it is only sensible for very short critical sections, and the holder must be running on another CPU.\n\n**Single-core answer: use a mutex (blocking lock).** With one CPU, if thread A holds the lock and is preempted, thread B spinning for it just burns its whole time slice, because A cannot run (and so cannot release) until B gives up the CPU. Spinning can never succeed in that situation. Sleeping lets the scheduler run A. (Kernels on uniprocessors typically reduce spinlocks to just disabling preemption, which protects against the other thread without spinning.)\n\n**Multi-core rule of thumb:** spin only if the expected hold time is shorter than the cost of a sleep/wake cycle; otherwise use a mutex. Many implementations spin briefly, then sleep (adaptive mutex). Never sleep while holding a spinlock, and do not use a mutex in an interrupt handler that cannot block.\n\n**Related terms.**\n- *Race condition:* result depends on unsynchronised interleaving of threads accessing shared data, with at least one write.\n- *Critical section:* the code region that touches the shared state and must run by one thread at a time; a mutex is one mechanism to enforce it.\n- *Thread-safe:* correct when called concurrently, usually via locks, atomics or immutability.\n- *Reentrant:* can be safely re-entered before an earlier call finishes, because it uses no static or global mutable state (only its arguments and locals). Reentrant implies thread-safe for non-shared data, but a thread-safe function (e.g. one using a lock) is not necessarily reentrant: it can deadlock if re-entered from a signal handler.",
+ "followUps": [
+  "What is the difference between a mutex and a semaphore?",
+  "What is priority inversion and how is it mitigated?",
+  "How is a spinlock implemented with atomic instructions?",
+  "Give an example of a function that is thread-safe but not reentrant."
+ ]
+}

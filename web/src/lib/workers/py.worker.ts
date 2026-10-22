@@ -12,8 +12,14 @@ function load() {
 
 const HARNESS = `
 import sys, io, traceback
-_out, _err = io.StringIO(), io.StringIO()
-sys.stdin, sys.stdout, sys.stderr = io.StringIO(__stdin), _out, _err
+# Byte-backed streams, so sys.stdin.buffer / sys.stdout.buffer work like on a judge.
+_outb = io.BytesIO()
+_out = io.TextIOWrapper(_outb, encoding="utf-8", write_through=True)
+_err = io.StringIO()
+sys.stdin = io.TextIOWrapper(io.BytesIO(__stdin.encode("utf-8")), encoding="utf-8")
+sys.stdout, sys.stderr = _out, _err
+# Deep recursion (e.g. DFS on a 50,000-node chain) works up to here; infinite recursion still fails fast and cleanly.
+sys.setrecursionlimit(60000)
 _status = "ok"
 try:
     exec(compile(__code, "solution.py", "exec"), {"__name__": "__main__"})
@@ -23,11 +29,38 @@ except BaseException:
     _status = "error"
     traceback.print_exc()
 finally:
+    _out.flush()
     sys.stdout, sys.stderr = sys.__stdout__, sys.__stderr__
-(_out.getvalue()[:64000], _err.getvalue()[:64000], _status)
+(_outb.getvalue().decode("utf-8", "replace")[:2000000], _err.getvalue()[:64000], _status)
 `
 
-self.onmessage = async (e: MessageEvent<{ type: 'warm' } | { type: 'run'; code: string; stdin: string }>) => {
+// Rebuilds large hidden-test inputs from a problem's published generator (same seed as the build).
+const GEN = `
+import random as _r
+_g = {"__name__": "generator"}
+exec(compile(__code, "generator.py", "exec"), _g)
+_all = [str(x).strip("\\n") for x in _g["gen"](_r.Random(__seed))]
+[_all[i] for i in __idx]
+`
+
+type Msg = { type: 'warm' } | { type: 'run'; code: string; stdin: string } | { type: 'gen'; code: string; seed: number; indices: number[] }
+
+self.onmessage = async (e: MessageEvent<Msg>) => {
+  if (e.data.type === 'gen') {
+    try {
+      const py = await load()
+      py.globals.set('__code', e.data.code)
+      py.globals.set('__seed', e.data.seed)
+      py.globals.set('__idx', e.data.indices)
+      const res = (await py.runPythonAsync(GEN)) as { toJs: () => string[]; destroy: () => void }
+      const inputs = res.toJs()
+      res.destroy()
+      self.postMessage({ type: 'gen-result', inputs })
+    } catch (err) {
+      self.postMessage({ type: 'gen-result', error: (err as Error).message })
+    }
+    return
+  }
   try {
     const py = await load()
     if (e.data.type === 'warm') return self.postMessage({ type: 'ready' })

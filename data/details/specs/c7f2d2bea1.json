@@ -1,0 +1,18 @@
+{
+ "qid": "c7f2d2bea1",
+ "question": "Microsoft SDE intern, technical round 2, after a Min Stack DSA problem. A light design question, where the focus was on thinking and approach rather than deep system design: **how would you design a Notes app or file storage API?**",
+ "lookingFor": [
+  "Clarifying requirements and defining a minimal scope",
+  "Resource-oriented API design with sensible endpoints and status codes",
+  "A simple data model and storage choices",
+  "Awareness of auth, pagination, concurrency and scaling without over-engineering",
+  "Thinking out loud with trade-offs"
+ ],
+ "answer": "**Clarify scope.** Ask: single user or sharing? Plain text or rich content and attachments? Offline sync? Search? Assume a simple notes app with create, read, update, delete, list, search, and later file attachments.\n\n**Entities.**\n- `User(id, email)`\n- `Note(id, user_id, title, content, created_at, updated_at, version, deleted_at)`\n- `Attachment(id, note_id, filename, size, content_type, storage_key)`\n\n**REST API.**\n- `POST /notes` creates a note (returns 201 with the resource).\n- `GET /notes/{id}`, `PUT` or `PATCH /notes/{id}`, `DELETE /notes/{id}` (soft delete).\n- `GET /notes?cursor=&limit=&q=` lists with **cursor pagination** and optional search.\n- `POST /notes/{id}/attachments` returns a pre-signed upload URL; the client uploads the file directly to object storage.\n- Errors use standard codes: 400 validation, 401 and 403 auth, 404 missing, 409 conflict.\n\n**Storage.** Notes metadata and text in a relational (or document) database, indexed by `(user_id, updated_at)`. Large files in **object storage** (for example Azure Blob or S3), with only the key stored in the database. Full-text search through the database's text index first and a search service only if needed.\n\n**Cross-cutting concerns.**\n- **Authentication and authorisation:** token-based auth; check that `note.user_id` matches the caller on every request.\n- **Concurrent edits:** keep a `version` number and use optimistic concurrency (`If-Match` or a version field); a mismatch returns 409.\n- **Idempotency:** client-generated ids or an idempotency key for safe retries.\n- **Scaling:** stateless API servers behind a load balancer, read cache for hot notes, partition by user id if it grows. Use a CDN for downloads.\n\n**Trade-offs.** Soft versus hard delete, last-write-wins versus merge for conflicts, and storing content inline versus as blobs. Start simple and describe how you would evolve it.",
+ "followUps": [
+  "How would you support sharing a note with other users?",
+  "How would you handle edits made offline on two devices?",
+  "Why use pre-signed URLs for file upload instead of sending files through your server?",
+  "How would you add full-text search?"
+ ]
+}

@@ -1,0 +1,17 @@
+{
+  "qid": "9b46873cbe",
+  "question": "In a Zomato on-campus SDE-1 technical round (the candidate says about half an hour went on backend concepts from the resume), the interviewer asked about **B+ trees**: how does insertion work and what is its complexity, what is the effect of increasing the node order `k`, and why not simply keep the sorted keys in a single array?\n\nThe same round also had follow-ups: delete a node with two children from a BST (a modified version of the usual problem) and a graph + DP problem.",
+  "lookingFor": [
+    "Understanding of why databases use B+ trees instead of binary trees or flat arrays",
+    "Ability to reason about insertion, node splits and the cost in terms of disk/page accesses",
+    "Trade-off thinking: how fan-out (order k) changes height, node size and in-node search cost",
+    "Core DSA basics: BST deletion cases"
+  ],
+  "answer": "**What a B+ tree is.** A balanced multiway search tree. Internal nodes hold only separator keys and child pointers; all records (or record pointers) live in the leaves, and the leaves are linked in a list. Every leaf is at the same depth, and every non-root node is at least half full.\n\n**Insertion.**\n1. Descend from the root to the correct leaf, binary-searching the keys in each node.\n2. Insert the key in sorted position in the leaf.\n3. If the leaf overflows (more than `k-1` keys, with order `k` meaning up to `k` children), split it into two halves and push the middle key up to the parent.\n4. If the parent overflows, split it too. A split can cascade to the root, which is the only way the tree grows taller (by one level).\n\nCost: the tree height is `O(log_k n)`, so insertion touches `O(log_k n)` nodes/pages. Inside a node the shift and search is `O(k)` or `O(log k)` for the search. Splits are amortised cheap because a node must be refilled before it splits again.\n\n**Effect of increasing k.** Higher fan-out gives a shallower tree: height is about `log n / log k`, so fewer page reads per lookup. In databases `k` is chosen so a node fills one disk page (hundreds of keys), which makes 3-4 levels enough for hundreds of millions of rows. The costs are bigger nodes, more work shifting keys inside a node, more data rewritten per split, and, once `k` exceeds the page size, no extra benefit.\n\n**Why not one sorted array?** Lookup is `O(log n)`, but insertion and deletion are `O(n)` because elements shift. It needs one contiguous block, cannot be paged in partially from disk, and locking it for concurrency is coarse. A B+ tree keeps updates local to one leaf, grows without reallocating, and the linked leaves give fast range scans and ordered iteration (better than a hash index or a plain B-tree, which would need in-order traversal through internal nodes).\n\n**BST delete, two children.** Replace the node's value with its in-order successor (smallest in the right subtree) or predecessor, then delete that node, which has at most one child. The cost is `O(h)`.",
+  "followUps": [
+    "Why do B+ trees keep data only in leaves, and how does that differ from a B-tree?",
+    "How does deletion work in a B+ tree, including borrowing and merging?",
+    "How would you choose the node size for a disk-based index versus an in-memory one?",
+    "When would a hash index or LSM tree beat a B+ tree?"
+  ]
+}

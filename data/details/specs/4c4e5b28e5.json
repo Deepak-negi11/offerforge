@@ -1,0 +1,17 @@
+{
+ "qid": "4c4e5b28e5",
+ "question": "In a Low Level Design round for a System Software Engineer role at NVIDIA, the candidate was asked to **design a parking lot**. This was followed by in-depth questions on **polymorphism and virtual functions** (the role is C++ oriented).",
+ "lookingFor": [
+  "Can you turn a vague prompt into requirements and a clean object model?",
+  "Do you use polymorphism and composition where they help, not everywhere?",
+  "Do you understand how virtual functions work in C++ (vtable, vptr, virtual destructors)?",
+  "Do you handle edge cases: full lot, concurrency, pricing changes?"
+ ],
+ "answer": "**Requirements to clarify.** Multiple floors; spot types (motorcycle, compact, large, EV); vehicle types; entry and exit gates; ticket on entry; fee on exit by duration and vehicle type; payment; show availability. Concurrent entries must not assign the same spot.\n\n**Entities:**\n\n- `Vehicle` (abstract) with `Car`, `Motorcycle`, `Truck` deriving; each knows the spot type it needs.\n- `ParkingSpot` (id, type, occupied) and `ParkingFloor` (collection of spots).\n- `ParkingLot` (floors, gates), the facade: `park(vehicle)` returns a `Ticket`, `unpark(ticket)` returns a `Receipt`.\n- `Ticket` (id, vehicle, spot, entry time).\n- `PricingStrategy` (interface), with `HourlyPricing` and `FlatPricing`: strategy pattern so pricing is swappable.\n- `SpotAssignmentStrategy`: nearest to entrance, lowest floor, and so on.\n\n**Flow.** `park`: find a free spot compatible with the vehicle (a map from spot type to a queue of free spots gives O(1)), mark occupied under a lock, issue the ticket. `unpark`: compute the fee with the strategy, free the spot.\n\n**Concurrency.** Guard spot assignment with a mutex per spot type or an atomic compare-and-set on the spot state.\n\n**Polymorphism in C++.**\n\n```cpp\nstruct Vehicle {\n    virtual SpotType required() const = 0;\n    virtual ~Vehicle() = default;   // virtual destructor is essential\n};\nstruct Truck : Vehicle { SpotType required() const override { return SpotType::Large; } };\n```\n\n- A class with virtual functions has a hidden pointer (vptr) to a per-class table of function pointers (vtable). A virtual call is an indirect call resolved at run time.\n- Without a virtual destructor, deleting a derived object through a base pointer is undefined behaviour.\n- Use `override`, avoid calling virtual functions in constructors (the derived part is not built yet), and watch for object slicing when passing by value.\n\n**Extensions:** reservations, EV charging, multiple lots, persistence, and a display board updated via the observer pattern.",
+ "followUps": [
+  "What happens if you call a virtual function from a constructor?",
+  "What is object slicing?",
+  "How would you add a new vehicle type without changing existing code?",
+  "How would you make the spot assignment thread-safe and fast?"
+ ]
+}

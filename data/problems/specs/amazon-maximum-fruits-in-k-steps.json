@@ -1,0 +1,50 @@
+{
+ "pid": "amazon-maximum-fruits-in-k-steps",
+ "title": "Maximum Fruits in K Steps",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A grid has `r` rows and `c` columns. The value `g[i][j]` is the number of fruits you harvest each time you stand on cell `(i, j)`. You start on the cell `(sr, sc)` and may make **at most `k` moves**. In one move you step to one of the four neighbouring cells (up, down, left, right) without leaving the grid.\n\nYou harvest the fruits of your starting cell when you begin, and the fruits of every cell you step onto afterwards. Cells regrow instantly, so if you walk over the same cell again you harvest its fruits again.\n\nFind the maximum total number of fruits you can harvest.\n\nFor example, in the grid `[[1,2,4,8],[3,0,2,1],[1,2,4,9]]` starting at the top-left cell with `k = 3`, walking right along the top row collects `1 + 2 + 4 + 8`.\n\n**Follow-up:** what changes if the fruits of a cell can be harvested only once? Explain why the dynamic programming over (steps left, cell) no longer works directly.",
+ "input_format": "The first line contains `r` and `c`.\nEach of the next `r` lines contains `c` integers: the grid `g`.\nThe last line contains `sr`, `sc` and `k` (0-indexed start row, start column, and the maximum number of moves).",
+ "output_format": "Print a single integer: the maximum number of fruits that can be harvested.",
+ "constraints": [
+  "1 ≤ r, c ≤ 50",
+  "0 ≤ g[i][j] ≤ 1000",
+  "0 ≤ sr < r, 0 ≤ sc < c",
+  "0 ≤ k ≤ 100"
+ ],
+ "examples": [
+  {
+   "input": "3 4\n1 2 4 8\n3 0 2 1\n1 2 4 9\n0 0 3",
+   "output": "15",
+   "explanation": "Walk right along the top row: start on 1, then step onto 2, 4 and 8, for 1 + 2 + 4 + 8 = 15. Going down first (3, then 1) collects less."
+  },
+  {
+   "input": "3 4\n1 2 4 8\n3 0 2 1\n1 2 4 9\n2 2 2",
+   "output": "17",
+   "explanation": "Start on 4, step right onto 9, then step back onto 4 again, which regrows: 4 + 9 + 4 = 17."
+  },
+  {
+   "input": "1 1\n7\n0 0 5",
+   "output": "7",
+   "explanation": "There is nowhere to move, so only the starting cell is harvested."
+  }
+ ],
+ "complexity": {
+  "time": "O(k · r · c)",
+  "space": "O(r · c)"
+ },
+ "hints": [
+  "Let best[t][i][j] be the most fruits you can have collected after exactly t moves while standing on (i, j).",
+  "best[t][i][j] = g[i][j] + the maximum of best[t − 1] over the four neighbours of (i, j) that are reachable. Start with best[0][sr][sc] = g[sr][sc].",
+  "Because you may stop early, the answer is the maximum value seen over all t ≤ k and all cells. Only the previous layer is needed, so memory is O(r · c)."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    g = []\n    p = 2\n    for _ in range(r):\n        g.append([int(x) for x in data[p:p + c]])\n        p += c\n    sr, sc, k = int(data[p]), int(data[p + 1]), int(data[p + 2])\n    NEG = -1\n    cur = [[NEG] * c for _ in range(r)]\n    cur[sr][sc] = g[sr][sc]\n    best = cur[sr][sc]\n    for _ in range(k):\n        nxt = [[NEG] * c for _ in range(r)]\n        for i in range(r):\n            row = cur[i]\n            for j in range(c):\n                v = row[j]\n                if v < 0:\n                    continue\n                for ni, nj in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)):\n                    if 0 <= ni < r and 0 <= nj < c:\n                        w = v + g[ni][nj]\n                        if w > nxt[ni][nj]:\n                            nxt[ni][nj] = w\n        cur = nxt\n        for row in cur:\n            m = max(row)\n            if m > best:\n                best = m\n    print(best)\n\nmain()\n",
+ "brute": "import sys\nfrom functools import lru_cache\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\ng = []\np = 2\nfor _ in range(r):\n    g.append([int(x) for x in data[p:p + c]])\n    p += c\nsr, sc, k = int(data[p]), int(data[p + 1]), int(data[p + 2])\n\n@lru_cache(maxsize=None)\ndef best(i, j, left):\n    # best total collected from now on, standing on (i, j) whose fruits are already counted\n    res = 0\n    if left > 0:\n        for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n            ni, nj = i + di, j + dj\n            if 0 <= ni < r and 0 <= nj < c:\n                res = max(res, g[ni][nj] + best(ni, nj, left - 1))\n    return res\n\nprint(g[sr][sc] + best(sr, sc, k))\n",
+ "generator": "def gen(rng):\n    def fmt(g, sr, sc, k):\n        return f'{len(g)} {len(g[0])}\\n' + '\\n'.join(' '.join(map(str, row)) for row in g) + f'\\n{sr} {sc} {k}'\n\n    def rnd(r, c, hi):\n        return [[rng.randint(0, hi) for _ in range(c)] for _ in range(r)]\n\n    tests = [fmt([[7]], 0, 0, 5), fmt([[0]], 0, 0, 0), fmt([[1, 2, 4, 8], [3, 0, 2, 1], [1, 2, 4, 9]], 0, 0, 3),\n             fmt([[1, 2, 4, 8], [3, 0, 2, 1], [1, 2, 4, 9]], 2, 2, 2), fmt([[1, 2, 4, 8], [3, 0, 2, 1], [1, 2, 4, 9]], 1, 1, 0),\n             fmt([[5, 0, 0, 0, 100]], 0, 0, 3), fmt([[5, 0, 0, 0, 100]], 0, 0, 4), fmt([[0, 0], [0, 0]], 1, 0, 6)]\n    for _ in range(12):\n        r, c = rng.randint(1, 4), rng.randint(1, 4)\n        tests.append(fmt(rnd(r, c, rng.choice([1, 9, 1000])), rng.randrange(r), rng.randrange(c), rng.randint(0, 7)))\n    tests.append(fmt(rnd(50, 50, 1000), 25, 25, 100))\n    tests.append(fmt(rnd(50, 50, 1000), 0, 0, 100))\n    tests.append(fmt([[1000 if (i + j) % 17 == 0 else 0 for j in range(50)] for i in range(50)], 49, 0, 100))\n    tests.append(fmt(rnd(50, 50, 1), 49, 49, 100))\n    tests.append(fmt(rnd(1, 50, 1000), 0, 10, 100))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_fruits(g: List[List[int]], sr: int, sc: int, k: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    g = []\n    p = 2\n    for _ in range(r):\n        g.append([int(x) for x in data[p:p + c]])\n        p += c\n    sr, sc, k = int(data[p]), int(data[p + 1]), int(data[p + 2])\n    print(max_fruits(g, sr, sc, k))\n\n\nmain()\n",
+  "javascript": "function maxFruits(g, sr, sc, k) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst r = t[0], c = t[1]\nconst g = []\nlet p = 2\nfor (let i = 0; i < r; i++) {\n  g.push(t.slice(p, p + c))\n  p += c\n}\nconst sr = t[p], sc = t[p + 1], k = t[p + 2]\nconsole.log(maxFruits(g, sr, sc, k))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxFruits(vector<vector<int>>& g, int sr, int sc, int k) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<vector<int>> g(r, vector<int>(c));\n    for (int i = 0; i < r; i++)\n        for (int j = 0; j < c; j++) cin >> g[i][j];\n    int sr, sc, k;\n    cin >> sr >> sc >> k;\n    cout << maxFruits(g, sr, sc, k) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxFruits(int[][] g, int sr, int sc, int k) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int r = (int) in.nval;\n        in.nextToken();\n        int c = (int) in.nval;\n        int[][] g = new int[r][c];\n        for (int i = 0; i < r; i++)\n            for (int j = 0; j < c; j++) {\n                in.nextToken();\n                g[i][j] = (int) in.nval;\n            }\n        in.nextToken();\n        int sr = (int) in.nval;\n        in.nextToken();\n        int sc = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        System.out.println(maxFruits(g, sr, sc, k));\n    }\n}\n"
+ }
+}

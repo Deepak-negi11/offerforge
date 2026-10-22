@@ -1,0 +1,18 @@
+{
+ "qid": "78a189b3f6",
+ "question": "Reported in a Meta ML Research Scientist loop (ML system design round): design a places-to-visit recommender, similar to the recommendations in Google Maps.\n\nThe system should support **category filters** (for example restaurants, parks, museums), show **nearby locations** relative to the user, and use the **user's past interactions** (visits, clicks, saves, ratings) to personalise results.",
+ "lookingFor": [
+  "Turning a vague product ask into an ML problem: objective, users, and success metrics",
+  "Candidate generation plus ranking, and why a two-stage funnel is needed at scale",
+  "Geospatial retrieval combined with hard filters and personalised scoring",
+  "Feature and label design from interaction logs, including cold start and position bias",
+  "Offline versus online evaluation and how you would run an A/B test"
+ ],
+ "answer": "**Clarify and frame.** Goal: show a ranked list of places the user is likely to visit and enjoy, given location, optional category filter and history. Assume tens of millions of places, hundreds of millions of users, and p99 latency of roughly 200 ms. Optimise a proxy such as probability of a visit, save or navigation click, with guardrails on diversity and place quality.\n\n**Pipeline (funnel).**\n1. **Retrieval with hard constraints.** Use a geospatial index (geohash, S2 or H3 cells) to fetch places within a radius, then apply the category filter as a metadata filter. Several retrievers can run in parallel: nearby-popular, similar to places the user visited (item embeddings), and a two-tower model that matches user embedding to place embedding. Merge to roughly 500 to 1000 candidates.\n2. **Ranking.** A gradient-boosted tree or deep ranker predicts P(click) and P(visit). Features: distance and travel time, place popularity and rating, time of day and weekday, user-category affinity, recency of similar visits, session context, and whether the place is open.\n3. **Re-ranking.** Apply diversity (avoid ten near-identical cafes), remove places already visited, and apply business or safety rules.\n\n**Data and labels.** Impressions and clicks give weak positives. Visits come from check-ins or location signals and are stronger but sparse and privacy sensitive. Train on logged impressions, and correct position bias (include position as a training feature and set it to a constant at serving).\n\n**Cold start.** New places use content features (category, text, photos) and region priors. New users fall back to popular nearby places with exploration, for example a bandit that mixes in a small fraction of new items.\n\n**Evaluation.** Offline: recall@k for retrieval, NDCG and AUC for ranking, with a time-based split to avoid leakage. Online: A/B test on visit rate and click-through, with guardrails on latency, diversity and complaint rate.\n\n**Scaling.** Precompute place embeddings and serve them via an approximate nearest neighbour index; cache popular cell-and-category results; refresh user features through a streaming pipeline; monitor drift.",
+ "followUps": [
+  "How would you handle a user travelling to a new city where they have no history?",
+  "How would you evaluate the model offline given that you only observe feedback on places you already showed?",
+  "How would you balance popular places against long-tail discovery?",
+  "How would you incorporate time, such as opening hours and meal times?"
+ ]
+}

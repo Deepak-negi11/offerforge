@@ -1,0 +1,17 @@
+{
+ "qid": "ffbebef889",
+ "question": "Two backend questions from a Zomato SWE-1 interview.\n\n1. **Compare Kafka with SNS + SQS**: when to use each and the trade-offs around ordering, replayability and scale.\n2. **How would you handle a DDoS attack?** The reported discussion covered rate limiting (front end and back end), caching and queue-based buffering. The interviewer was not fully convinced by the approaches given.",
+ "lookingFor": [
+  "Do you understand a log-based broker versus a pub/sub plus queue model?",
+  "Can you reason about ordering guarantees, retention and consumer scaling?",
+  "Do you know layered DDoS defences, not only application-level rate limiting?",
+  "Can you say where each defence fails?"
+ ],
+ "answer": "**Kafka vs SNS + SQS**\n\n- **Model:** Kafka is a distributed, partitioned, append-only log; SNS fans a message out to several SQS queues.\n- **Ordering:** Kafka guarantees order per partition (use a key such as order ID); SQS FIFO orders per message group, while standard queues are best-effort.\n- **Replay:** Kafka keeps messages for the retention period and consumers can rewind their offset; SQS deletes a message once processed, so there is no replay unless you archive it.\n- **Scale:** Kafka has very high throughput, with parallelism limited by partition count; SNS/SQS is managed and auto-scaling, but FIFO has lower throughput limits.\n- **Consumers:** many independent Kafka consumer groups read the same log; each SNS subscriber gets its own queue copy.\n- **Operations:** Kafka needs more tuning (or a managed service); SNS/SQS is fully managed and simple.\n\nUse **Kafka** for event streaming, high volume, replay, stream processing and event sourcing. Use **SNS + SQS** for simple decoupled work queues and fan-out with retries and dead-letter queues, when you prefer no operations. Either way, design consumers to be idempotent, because delivery is at-least-once.\n\n**DDoS defence in layers**\n1. **Edge:** a CDN and a DDoS protection service or WAF (for example Cloudflare, AWS Shield) absorb volumetric traffic before it reaches you. Network-level attacks (SYN floods) cannot be solved in application code.\n2. **Rate limiting:** per IP, user and API key at the gateway (token bucket). It stops simple abuse, but a distributed botnet uses many IPs, so combine it with bot detection and challenges (CAPTCHA).\n3. **Caching:** serve cacheable content from the CDN so the origin is not hit; cache negative results too.\n4. **Load shedding and queues:** buffer or reject non-critical work, prioritise critical endpoints, and degrade gracefully. A queue protects downstream systems from bursts, but it does not protect the entry point and can fill up, so bound it.\n5. **Scaling and operations:** autoscaling (with cost limits), monitoring, alerting and an incident runbook.\n\nBe honest that no single measure suffices and that origin IP exposure, expensive endpoints and cost are common weaknesses.",
+ "followUps": [
+  "Why does Kafka limit consumer parallelism to the number of partitions?",
+  "How would you achieve exactly-once processing, or effectively once?",
+  "How do you tell a flash sale from a DDoS attack?",
+  "What is a token bucket and how do you implement it across several servers?"
+ ]
+}

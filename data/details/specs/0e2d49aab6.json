@@ -1,0 +1,18 @@
+{
+ "qid": "0e2d49aab6",
+ "question": "Microsoft SDE 2 hiring manager round, a concurrency question set: **print the numbers 1 to 100 using 3 threads, in order**, and **implement a thread-safe Singleton class**.\n\nThe candidate reported struggling to do the printing with 3 threads (they managed it with 2). The usual expectation is that thread 1 prints 1, thread 2 prints 2, thread 3 prints 3, thread 1 prints 4, and so on, with strict ordering.",
+ "lookingFor": [
+  "Understanding thread coordination (wait/notify, locks, semaphores).",
+  "Avoiding busy waiting, races and deadlock.",
+  "Correct lazy singleton with visibility guarantees.",
+  "Generalising the solution to N threads.",
+  "Explaining reasoning clearly in code."
+ ],
+ "answer": "**Ordered printing with 3 threads.** Each thread must print only when `counter % 3 == myId`. Use one shared lock and condition:\n\n```java\nclass Printer {\n    private int next = 1;\n    private final int max = 100, threads = 3;\n    synchronized void print(int id) throws InterruptedException {\n        while (next <= max) {\n            while (next <= max && (next - 1) % threads != id) wait();\n            if (next > max) break;\n            System.out.println(\"T\" + id + \": \" + next++);\n            notifyAll();\n        }\n        notifyAll();\n    }\n}\n```\nStart three threads calling `print(0)`, `print(1)`, `print(2)`. The inner `while` guards against spurious wakeups, `notifyAll` wakes every waiter (only the correct one proceeds), and the re-check of `next > max` lets all threads exit at the end. An alternative is three `Semaphore`s in a ring: thread i acquires its semaphore, prints, and releases the next thread's semaphore. This is cleaner and avoids `notifyAll` thundering, and generalises to N threads by changing the count.\n\n**Thread-safe Singleton.** Options:\n- **Eager initialization:** `private static final S INSTANCE = new S();` thread-safe by class loading, simple, but not lazy.\n- **Double-checked locking** with `volatile`:\n```java\nclass S {\n    private static volatile S instance;\n    private S() {}\n    static S get() {\n        if (instance == null) {\n            synchronized (S.class) {\n                if (instance == null) instance = new S();\n            }\n        }\n        return instance;\n    }\n}\n```\n`volatile` is essential: without it, another thread might see a non-null reference to a partially constructed object because of instruction reordering.\n- **Initialization-on-demand holder** (a static inner class holding the instance) is lazy and thread-safe without explicit locking; an **enum singleton** also resists reflection and serialization attacks.\n\n**Mistakes to avoid:** busy-spinning on a shared integer, using `if` instead of `while` around `wait()`, forgetting `volatile`, and a non-private constructor.",
+ "followUps": [
+  "How would you generalise the printer to N threads?",
+  "Why is `volatile` needed in double-checked locking?",
+  "How can reflection or serialization break a Singleton and how do you prevent it?",
+  "Implement the same ordering using semaphores or a ReentrantLock with conditions."
+ ]
+}

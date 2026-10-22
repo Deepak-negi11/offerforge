@@ -1,0 +1,18 @@
+{
+ "qid": "f328637a7e",
+ "question": "Adobe MTS-1 technical interview round 1 (reported across several campus and off-campus experiences): **What are threads and processes? Can two threads in a process communicate? Is communication possible between two threads of two different processes?** A related follow-up in another report asked what multiprocessing and multithreading are, and in which architecture debugging would be easier, with proper reasoning. Answer including inter-thread communication and inter-process communication (IPC).",
+ "lookingFor": [
+  "Accurate difference between a process and a thread, including memory and cost.",
+  "Knowing how threads share memory and why synchronisation is needed.",
+  "Knowing the main IPC mechanisms and their trade-offs.",
+  "Reasoning about multiprocessing versus multithreading, including debugging.",
+  "Awareness of concurrency bugs: races and deadlocks."
+ ],
+ "answer": "**Process:** a running program with its own virtual address space (code, data, heap, stack), file descriptors and OS resources. It is isolated from other processes. **Thread:** the smallest unit of CPU scheduling inside a process. Threads of one process share the code, heap and open files, but each has its own stack, registers and program counter.\n\n**Differences:** creating and context-switching a thread is cheaper than a process; a crash in one thread can bring down the whole process, while a crashed process does not usually affect others.\n\n**Can two threads in the same process communicate? Yes, easily,** because they share memory. They read and write shared variables or data structures, and need **synchronisation** to avoid race conditions: mutexes or locks, semaphores, condition variables, and higher-level tools such as thread-safe queues. In Java this includes `synchronized`, `wait()/notify()`, `volatile`, `java.util.concurrent` and `BlockingQueue`; a producer-consumer queue is the typical pattern.\n\n**Can threads of two different processes communicate? Yes, but only through IPC,** because address spaces are separate, so the threads cannot touch each other's variables directly. IPC mechanisms:\n- **Pipes and named pipes (FIFOs):** byte streams, simple.\n- **Message queues:** structured messages managed by the OS.\n- **Shared memory:** a region mapped into both processes; fastest, but you must synchronise it (for example semaphores).\n- **Sockets:** work across machines as well, used by network services.\n- **Signals** for simple notifications, and **files** for infrequent exchange.\nTrade-off: shared memory is fast but needs careful locking; message passing is safer and simpler to reason about but involves copying and kernel calls.\n\n**Multiprocessing versus multithreading:** multithreading shares memory, so it is lighter and communication is cheap, but bugs such as races, deadlocks and memory corruption are hard to reproduce. Multiprocessing gives isolation and fault tolerance, and is **generally easier to debug** because processes do not interfere through shared memory, though it costs more memory and IPC. (In Python the GIL also makes processes the way to use multiple cores for CPU-bound work.)",
+ "followUps": [
+  "What is a race condition, and how do mutexes and semaphores prevent it?",
+  "What is a deadlock and how can you avoid it?",
+  "What is the difference between user-level and kernel-level threads?",
+  "What happens to memory and file descriptors when a process calls fork()?"
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "qid": "f98ed0722c",
+ "question": "In a Technical Interview for a Software Developer role at Tower Research, the candidate was asked: **implement a throttler (rate limiter) for web requests.**\n\nDesign and implement a component that limits how many requests a client can make in a time window, rejecting or delaying requests beyond the limit. Discuss the algorithm, its trade-offs, and how it works when the service runs on many servers.",
+ "lookingFor": [
+  "Can you clarify requirements: per user or per IP, limit, burst, reject or delay?",
+  "Do you know the standard algorithms and their trade-offs?",
+  "Can you write a correct, thread-safe core implementation?",
+  "Can you extend it to a distributed setting?",
+  "Do you consider memory, accuracy, and failure behaviour?"
+ ],
+ "answer": "**Requirements to ask.** Per what key (user, API key, IP)? What limit (for example 100 requests per minute)? Is burstiness allowed? Reject (HTTP 429 with `Retry-After`) or queue? Single server or distributed?\n\n**Algorithms.**\n\n- **Fixed window counter**: count per window. Simple and cheap, but allows a burst of up to 2x the limit at window boundaries.\n- **Sliding window log**: keep timestamps of recent requests; exact, but O(limit) memory per key.\n- **Sliding window counter**: weight the previous and current window counts; approximate, small memory.\n- **Token bucket**: a bucket holds up to `capacity` tokens refilled at `rate` per second; each request consumes one. Allows bursts up to capacity while enforcing the average rate. Most common in practice.\n- **Leaky bucket**: requests drain at a fixed rate; smooths traffic.\n\n**Token bucket core.**\n\n    class TokenBucket:\n        def __init__(self, capacity, rate):\n            self.capacity, self.rate = capacity, rate\n            self.tokens, self.last = capacity, time.monotonic()\n            self.lock = threading.Lock()\n\n        def allow(self):\n            with self.lock:\n                now = time.monotonic()\n                self.tokens = min(self.capacity,\n                                  self.tokens + (now - self.last) * self.rate)\n                self.last = now\n                if self.tokens >= 1:\n                    self.tokens -= 1\n                    return True\n                return False\n\nKeep a map from key to bucket (evict idle ones). Refill lazily on each call rather than with a timer thread.\n\n**Distributed version.** Store counters in a shared store such as Redis and make the check-and-update atomic (a Lua script or atomic `INCR` with `EXPIRE`) to avoid races. Alternatives: rate-limit at the API gateway or load balancer, or split the global limit across nodes. Trade-off: strict global accuracy costs latency and a central dependency; local limits are fast but approximate.\n\n**Details.** Use monotonic time, decide fail-open versus fail-closed if the store is down, return rate-limit headers, and test boundaries.",
+ "followUps": [
+  "What is the boundary burst problem of a fixed window counter?",
+  "How would you make it atomic across multiple servers?",
+  "Should the limiter fail open or fail closed if Redis is down?",
+  "How would you rate-limit by both user and IP?",
+  "How would you avoid unbounded memory growth from many keys?"
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "qid": "187a54e650",
+ "question": "LinkedIn Senior Software Engineer phone screen (Infrastructure team): after discussing past projects, the interviewer asked:\n\n- **How does the garbage collector work, and how does it know which object to delete?**\n- **Describe a case where an object has no references but the garbage collector still does not delete it.**\n- **Explain the ACID properties of a database.**\n\nA coding question (Find Leaves of Binary Tree) followed.",
+ "lookingFor": [
+  "Accurate model of reachability-based garbage collection",
+  "Understanding of edge cases: finalizers, timing, non-memory resources",
+  "Precise knowledge of ACID, not just the acronym",
+  "Ability to give concrete examples for each property",
+  "Depth appropriate for a senior engineer"
+ ],
+ "answer": "**How garbage collection works (Java/JVM view).** The collector does not delete based on reference counting; it finds objects that are **unreachable** from the **GC roots** (local variables on thread stacks, static fields, JNI references, active threads). It marks everything reachable by traversing references, then reclaims the rest. Collectors are usually **generational**: most objects die young, so the young generation is collected often (copying survivors, cheap), and surviving objects are promoted to the old generation, collected less often. Modern collectors (G1, ZGC, Shenandoah) do much of this concurrently to reduce pauses; compaction avoids fragmentation.\n\n**Object has no references but is not collected.** Be careful with the wording: collection is not immediate, and several cases fit.\n- The collector simply has not run yet; unreachable objects wait until a collection of their generation.\n- The object has a **finalizer** (`finalize`): it is queued for finalization and survives at least one extra cycle (finalizers are deprecated).\n- It is reachable only through a **weak or soft/phantom reference**: weak references are cleared at the next cycle; soft ones when memory is short.\n- Objects in the old generation may not be examined until a major collection.\n- Non-memory resources (files, sockets) held by the object are not released by GC; use `try-with-resources`.\n- The reverse case is a classic leak: objects that are *still referenced* (static maps, listeners, `ThreadLocal`s) are not collected though no longer needed. Say this explicitly.\n\n**ACID**\n- **Atomicity:** a transaction is all or nothing (undo logs, rollback). A transfer debit without the credit never persists.\n- **Consistency:** a transaction moves the database from one valid state to another, respecting constraints and invariants.\n- **Isolation:** concurrent transactions do not see each other's partial work; levels (read committed, repeatable read, serializable) trade anomalies against concurrency (locks or MVCC).\n- **Durability:** once committed, data survives crashes (write-ahead log flushed to disk).\n\nGive one example, such as a bank transfer, and mention what breaks without each property.",
+ "followUps": [
+  "What is the difference between minor and major GC, and why generational collection works?",
+  "How can a memory leak happen in a language with garbage collection?",
+  "What anomalies occur at read committed isolation but not at serializable?",
+  "How does a write-ahead log provide durability and atomicity?",
+  "What does a distributed transaction add to ACID?"
+ ]
+}

@@ -1,0 +1,48 @@
+{
+ "pid": "goldman-sachs-count-row-and-column-extremes-in-a-matrix",
+ "title": "Count Row and Column Extremes in a Matrix",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an `r × c` matrix of integers. Look at every row and every column of the matrix.\n\n- First check for ties: if **any** row or column has its minimum value appearing more than once, or its maximum value appearing more than once, the answer is `-1`. (A row or column with a single element has one minimum and one maximum, which is that element, so it never causes a tie. A row or column of two or more equal elements is a tie.)\n- Otherwise, count the **distinct values** in the matrix that are the minimum or the maximum of at least one row or at least one column. A value that qualifies several times, or that appears at several positions, is counted once.\n\nPrint the count, or `-1` if a tie exists.",
+ "input_format": "The first line contains `r` and `c`.\nEach of the next `r` lines contains `c` integers: one row of the matrix.",
+ "output_format": "Print a single integer: the number of distinct row/column extreme values, or `-1` if any row or column has a tied minimum or tied maximum.",
+ "constraints": [
+  "1 ≤ r, c and r · c ≤ 1.5·10^5",
+  "-10^9 ≤ matrix[i][j] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3 3\n1 2 3\n4 5 6\n7 8 9",
+   "output": "8",
+   "explanation": "Row minimums are 1, 4, 7 and row maximums are 3, 6, 9. Column minimums are 1, 2, 3 and column maximums are 7, 8, 9. The distinct values are {1, 2, 3, 4, 6, 7, 8, 9}; the value 5 is never an extreme, so the answer is 8."
+  },
+  {
+   "input": "2 3\n4 4 1\n2 6 9",
+   "output": "-1",
+   "explanation": "In the first row the maximum value 4 appears twice, so the answer is -1."
+  },
+  {
+   "input": "1 1\n7",
+   "output": "1",
+   "explanation": "The only element is both the minimum and maximum of its row and column, with no tie, so it counts once."
+  }
+ ],
+ "complexity": {
+  "time": "O(r · c)",
+  "space": "O(r · c)"
+ },
+ "hints": [
+  "Treat rows and columns the same way: for each line compute its minimum and maximum and how many times each occurs.",
+  "As soon as any line has a repeated minimum or repeated maximum, you can stop and print -1.",
+  "Put every row/column minimum and maximum into a set; its size is the answer."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    a = [list(map(int, data[2 + i * c:2 + (i + 1) * c])) for i in range(r)]\n    found = set()\n    for line in list(a) + [list(col) for col in zip(*a)]:\n        lo, hi = min(line), max(line)\n        if line.count(lo) > 1 or line.count(hi) > 1:\n            print(-1)\n            return\n        found.add(lo)\n        found.add(hi)\n    print(len(found))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\na = [[int(data[2 + i * c + j]) for j in range(c)] for i in range(r)]\nlines = []\nfor i in range(r):\n    lines.append([a[i][j] for j in range(c)])\nfor j in range(c):\n    lines.append([a[i][j] for i in range(r)])\nfound = set()\nbad = False\nfor line in lines:\n    mins = [v for v in line if all(v <= w for w in line)]\n    maxs = [v for v in line if all(v >= w for w in line)]\n    if len(mins) > 1 or len(maxs) > 1:\n        bad = True\n    found.update(mins)\n    found.update(maxs)\nprint(-1 if bad else len(found))\n",
+ "generator": "def fmt(a):\n    return '%d %d\\n' % (len(a), len(a[0])) + '\\n'.join(' '.join(map(str, row)) for row in a)\n\ndef distinct(rng, r, c, lo=-10**9, hi=10**9):\n    vals = rng.sample(range(lo, hi + 1), r * c)\n    return [vals[i * c:(i + 1) * c] for i in range(r)]\n\ndef gen(rng):\n    tests = [\n        fmt([[7]]),\n        fmt([[3, 5]]),\n        fmt([[4], [4]]),\n        fmt([[1, 2, 3], [4, 5, 6], [7, 8, 9]]),\n        fmt([[4, 4, 1], [2, 6, 9]]),\n        fmt([[0, 0], [0, 0]]),\n        fmt([[-5, 3, 3], [8, 0, 1], [2, 9, -7]]),\n    ]\n    for _ in range(25):\n        r = rng.randint(1, 5)\n        c = rng.randint(1, 5)\n        mode = rng.randint(0, 2)\n        if mode == 0:\n            a = distinct(rng, r, c, -50, 50)\n        elif mode == 1:\n            a = distinct(rng, r, c, 1, r * c + 6)\n            # introduce one or two duplicate values, possibly harmless\n            for _ in range(2):\n                i, j = rng.randrange(r), rng.randrange(c)\n                a[i][j] = a[rng.randrange(r)][rng.randrange(c)]\n        else:\n            a = [[rng.randint(-3, 3) for _ in range(c)] for _ in range(r)]\n        tests.append(fmt(a))\n    tests.append(fmt(distinct(rng, 387, 387)))\n    tests.append(fmt(distinct(rng, 1, 150000)))\n    tests.append(fmt(distinct(rng, 150000, 1)))\n    b = distinct(rng, 300, 500)\n    tests.append(fmt(b))\n    # same big matrix with a tied maximum in one row\n    b2 = [row[:] for row in b]\n    b2[17][3] = b2[17][400] = 10**9\n    tests.append(fmt(b2))\n    # many repeated non-extreme values, extremes unique: extremes of each row/col are distinct\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_extremes(matrix: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    matrix = [[int(data[2 + i * c + j]) for j in range(c)] for i in range(r)]\n    print(count_extremes(matrix))\n\n\nmain()\n",
+  "javascript": "function countExtremes(matrix) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst r = t[0], c = t[1]\nconst matrix = []\nfor (let i = 0; i < r; i++) {\n  matrix.push(t.slice(2 + i * c, 2 + (i + 1) * c))\n}\nconsole.log(countExtremes(matrix))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint countExtremes(vector<vector<long long>>& matrix) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<vector<long long>> matrix(r, vector<long long>(c));\n    for (int i = 0; i < r; i++)\n        for (int j = 0; j < c; j++) cin >> matrix[i][j];\n    cout << countExtremes(matrix) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int countExtremes(long[][] matrix) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int r = (int) in.nval;\n        in.nextToken();\n        int c = (int) in.nval;\n        long[][] matrix = new long[r][c];\n        for (int i = 0; i < r; i++) {\n            for (int j = 0; j < c; j++) {\n                in.nextToken();\n                matrix[i][j] = (long) in.nval;\n            }\n        }\n        System.out.println(countExtremes(matrix));\n    }\n}\n"
+ }
+}

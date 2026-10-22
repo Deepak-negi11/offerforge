@@ -1,0 +1,44 @@
+{
+ "pid": "meesho-maximize-stock-profit-within-savings",
+ "title": "Maximize Stock Profit within Savings",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given `n` stocks. Stock `i` can be bought today for `current[i]` and is expected to be worth `future[i]` later. You have `savings` units of money to spend today, and each stock can be bought **at most once**.\n\nThe profit of buying stock `i` is `future[i] - current[i]` (it may be negative). If you buy a set of stocks, your total profit is the sum of their individual profits, and the total of their `current` prices must not exceed `savings`.\n\nChoose the set of stocks to buy so that the total profit is as large as possible, and print that profit. Buying nothing is allowed, so the answer is never negative.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` integers `current[0..n-1]`.\nThe third line contains `n` integers `future[0..n-1]`.\nThe fourth line contains an integer `savings`.",
+ "output_format": "Print a single integer: the maximum total profit.",
+ "constraints": [
+  "1 ≤ n ≤ 500",
+  "1 ≤ current[i], future[i] ≤ 2000",
+  "1 ≤ savings ≤ 2000"
+ ],
+ "examples": [
+  {
+   "input": "4\n3 5 2 6\n7 6 5 4\n8",
+   "output": "7",
+   "explanation": "The profits are 4, 1, 3 and -2. Buying stocks 0 and 2 costs 3 + 2 = 5 (within the 8 available) and earns 4 + 3 = 7. Adding stock 1 would cost 10, which is too much, and stock 3 loses money, so 7 is the best."
+  },
+  {
+   "input": "3\n5 4 4\n11 8 8\n8",
+   "output": "8",
+   "explanation": "Stock 0 has the largest single profit (6) but costs 5, leaving only 3, so nothing else fits. Stocks 1 and 2 together cost 8 and earn 4 + 4 = 8, which is better."
+  }
+ ],
+ "complexity": {
+  "time": "O(n * savings)",
+  "space": "O(savings)"
+ },
+ "hints": [
+  "This is a 0/1 knapsack: each stock is either bought or not. Which stocks are even worth considering?",
+  "Let dp[w] be the best profit achievable with a total cost of at most w. Process stocks one at a time and decide how dp changes when stock i is added.",
+  "Iterate w from savings down to current[i], so each stock is used at most once: dp[w] = max(dp[w], dp[w - current[i]] + profit[i])."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    cur = [int(x) for x in data[1:1 + n]]\n    fut = [int(x) for x in data[1 + n:1 + 2 * n]]\n    s = int(data[1 + 2 * n])\n    dp = [0] * (s + 1)\n    for c, f in zip(cur, fut):\n        p = f - c\n        if p <= 0 or c > s:\n            continue\n        for w in range(s, c - 1, -1):\n            v = dp[w - c] + p\n            if v > dp[w]:\n                dp[w] = v\n    print(dp[s])\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\ncur = [int(x) for x in data[1:1 + n]]\nfut = [int(x) for x in data[1 + n:1 + 2 * n]]\ns = int(data[1 + 2 * n])\nbest = 0\nfor mask in range(1 << n):\n    cost = 0\n    profit = 0\n    for i in range(n):\n        if mask >> i & 1:\n            cost += cur[i]\n            profit += fut[i] - cur[i]\n    if cost <= s and profit > best:\n        best = profit\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(cur, fut, s):\n        return f\"{len(cur)}\\n{' '.join(map(str, cur))}\\n{' '.join(map(str, fut))}\\n{s}\"\n    tests = [\n        fmt([5], [9], 5),\n        fmt([5], [9], 4),\n        fmt([4, 4], [2, 3], 10),\n        fmt([3, 5, 2, 6], [7, 6, 5, 4], 8),\n        fmt([5, 4, 4], [11, 8, 8], 8),\n        fmt([1, 1, 1, 1], [2, 2, 2, 2], 3),\n        fmt([2000, 1999], [2000, 2000], 2000),\n    ]\n    for _ in range(14):\n        n = rng.randint(1, 10)\n        cur = [rng.randint(1, 10) for _ in range(n)]\n        fut = [rng.randint(1, 16) for _ in range(n)]\n        tests.append(fmt(cur, fut, rng.randint(1, 30)))\n    for _ in range(3):\n        n = rng.randint(8, 12)\n        cur = [rng.randint(1, 30) for _ in range(n)]\n        fut = [rng.randint(1, 50) for _ in range(n)]\n        tests.append(fmt(cur, fut, rng.randint(20, 100)))\n    n = 500\n    cur = [rng.randint(1, 400) for _ in range(n)]\n    fut = [min(2000, c + rng.randint(-100, 300)) if c + 300 > 0 else 1 for c in cur]\n    fut = [max(1, f) for f in fut]\n    tests.append(fmt(cur, fut, 2000))\n    cur = [rng.randint(1, 2000) for _ in range(n)]\n    fut = [rng.randint(1, 2000) for _ in range(n)]\n    tests.append(fmt(cur, fut, 2000))\n    cur = [rng.randint(5, 40) for _ in range(n)]\n    fut = [c + rng.randint(1, 60) if c + 60 <= 2000 else c for c in cur]\n    tests.append(fmt(cur, fut, 2000))\n    cur = [rng.randint(1, 3) for _ in range(n)]\n    fut = [c + rng.randint(0, 5) for c in cur]\n    tests.append(fmt(cur, fut, 2000))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_profit(current: List[int], future: List[int], savings: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    current = [int(x) for x in data[1:1 + n]]\n    future = [int(x) for x in data[1 + n:1 + 2 * n]]\n    savings = int(data[1 + 2 * n])\n    print(max_profit(current, future, savings))\n\n\nmain()\n",
+  "javascript": "function maxProfit(current, future, savings) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst current = t.slice(1, 1 + n)\nconst future = t.slice(1 + n, 1 + 2 * n)\nconst savings = t[1 + 2 * n]\nconsole.log(maxProfit(current, future, savings))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxProfit(vector<int>& current, vector<int>& future, int savings) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> current(n), future(n);\n    for (int i = 0; i < n; i++) cin >> current[i];\n    for (int i = 0; i < n; i++) cin >> future[i];\n    int savings;\n    cin >> savings;\n    cout << maxProfit(current, future, savings) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxProfit(int[] current, int[] future, int savings) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] current = new int[n], future = new int[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); current[i] = (int) in.nval; }\n        for (int i = 0; i < n; i++) { in.nextToken(); future[i] = (int) in.nval; }\n        in.nextToken();\n        int savings = (int) in.nval;\n        System.out.println(maxProfit(current, future, savings));\n    }\n}\n"
+ }
+}

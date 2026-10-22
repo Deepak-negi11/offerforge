@@ -1,0 +1,18 @@
+{
+ "qid": "07a1d00f0b",
+ "question": "Microsoft SDE 2 (L62), Low Level Design round (about 1.5 hours). **Design the low-level model for a board game similar to Sudoku. Implement all the classes and interfaces, and write working code that fills all the cells.** The candidate wrote all classes and fully working fill code.",
+ "lookingFor": [
+  "A clean class model separating board, rules, solver and game flow.",
+  "Correct Sudoku validity rules (row, column, 3x3 box).",
+  "A working backtracking fill algorithm and its complexity.",
+  "Extensibility: board sizes, difficulty, other validators.",
+  "Code quality and testability."
+ ],
+ "answer": "**Clarify.** Standard 9x9 grid with 3x3 boxes; is the task to generate a full valid board, solve a puzzle, or both? Support input validation and moves by a player.\n\n**Classes.**\n- `Cell` (row, col, value, `fixed` flag).\n- `Board` (n, boxSize, `Cell[][]`; `get`, `set`, `isEmpty`, `copy`).\n- `Rule` / `Validator` interface: `isValid(board, row, col, value)`; implementations `RowRule`, `ColumnRule`, `BoxRule`. The board or game holds a list of rules, so variants (diagonal sudoku) just add a rule.\n- `Solver` interface with `BacktrackingSolver`; `Generator` that fills a board then removes cells by difficulty.\n- `Game` (current board, original puzzle, move validation, `isComplete`), `Move` (row, col, value) if undo is needed.\n\n**Fill algorithm (backtracking).**\n1. Find the next empty cell (scan row-major).\n2. For each candidate 1..n (shuffle for random boards): if every rule accepts it, place it and recurse.\n3. If the recursion fails, reset the cell and try the next value; if none works, return false.\n4. If no empty cell remains, the board is solved.\nOptimisations: keep bitmasks for each row, column and box so validity is O(1); pick the empty cell with the fewest candidates (MRV heuristic). Worst case is exponential, but in practice standard puzzles solve quickly.\n\n**Uniqueness.** To make a puzzle with one solution, remove a cell and count solutions (stop at 2); restore if more than one.\n\n**Design points.** Separate rules from data (Open/Closed), keep the solver independent of the UI, make `Board` copyable for tests, and use dependency injection of rules and solver. Test with known solved/unsolved boards and invalid ones.\n\n**Complexity.** Validity O(n) per check naive, O(1) with masks; search worst-case O(n^(n^2)) in theory.",
+ "followUps": [
+  "How would you ensure a generated puzzle has a unique solution?",
+  "How would you extend the design for 16x16 boards or killer sudoku?",
+  "How would you add undo and redo?",
+  "How can bitmasks speed up the validity check?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "beda79c15e",
+ "question": "Zoho complex coding round (about 3 hours): **design a call taxi booking application.** There are 6 points, A to F, each 15 km apart. Customers book a taxi from one point to another and the program must allocate the **nearest free taxi**, breaking ties by the taxi with the **lower earnings**. It must calculate the fare and the drop time using the given travel time and fare rules, **reject the booking if no taxi is free**, handle multiple customer bookings, and display each taxi's trips and total earnings.\n\nThe exact fare and time constants vary by paper; ask for or state them explicitly rather than assuming.",
+ "lookingFor": [
+  "Translating a loosely worded spec into clear entities and rules, and stating assumptions.",
+  "Correct availability logic that depends on the pickup time, not just a boolean flag.",
+  "Deterministic tie-breaking (distance, then earnings, then maybe taxi id).",
+  "OOP design: Taxi, Booking, Customer, TaxiService with separated fare logic.",
+  "Handling many bookings and printing taxi details accurately."
+ ],
+ "answer": "**Clarify first.** Confirm: the fare formula (typically a minimum charge for a first block of km plus a per-km rate), travel time per km or per hop, the booking input (customer id, pickup, drop, pickup time), and whether a taxi is free when its previous drop time is at or before the new pickup time.\n\n**Entities.**\n- `Taxi`: id, current point, `freeAt` time, total earnings, list of `Trip` records.\n- `Trip`: booking id, customer, from, to, pickup time, drop time, fare.\n- `BookingService`: holds the taxis, allocation and fare strategies.\n\n**Distance.** Index points A..F as 0..5, so distance = `abs(p1 - p2) * 15` km.\n\n**Allocation algorithm.**\n1. For a booking at time `t` from point `p`, consider taxis whose `freeAt <= t`. A taxi's location for this purpose is its last drop point.\n2. Pick the one with minimum `abs(taxi.point - p)`.\n3. Break ties by the lowest `earnings` (and then lowest id so the result is deterministic).\n4. If no taxi qualifies, print a rejection and change nothing.\n5. Otherwise compute `fare = f(km)`, `dropTime = t + travelTime(km)`, update the taxi's point, `freeAt`, earnings and trip list.\n\nThis is a greedy choice, O(T) per booking for T taxis, which is fine for a handful of taxis; for many taxis use an ordered structure by position.\n\n**Design points.** Put the fare rule behind a `FareCalculator` interface so the extension in a later round (night charges, surge) does not touch the allocator. Keep time as an integer to avoid float comparisons.\n\n**Output.** Per taxi print id, then each trip's booking id, customer, from, to, pickup, drop, fare and finally total earnings.\n\n**Pitfalls.** Treating a taxi as free forever after one trip, ignoring its pickup distance from the customer, mutating state before rejection, and non-deterministic ties.",
+ "followUps": [
+  "How would you handle a taxi that has to travel to the pickup point before it can start the trip?",
+  "How would you change the design to support surge pricing or different car types?",
+  "How would this scale to thousands of taxis on a map instead of 6 points?",
+  "How would you make allocation safe for concurrent bookings?"
+ ]
+}

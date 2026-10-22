@@ -1,0 +1,18 @@
+{
+ "qid": "2f17a88524",
+ "question": "At Texas Instruments, in a second technical round for an experienced engineer role, the interviewer asked: **How is a negative integer stored in an `int`? How is a floating-point number represented in a `float`?**",
+ "lookingFor": [
+  "Do you know two's complement and why hardware uses it?",
+  "Can you encode and decode a small example by hand?",
+  "Do you know the IEEE 754 single-precision layout (sign, exponent, mantissa)?",
+  "Do you understand precision limits and special values?",
+  "Can you relate representation to bugs (overflow, comparing floats)?"
+ ],
+ "answer": "**Negative integers: two's complement**\nFor an n-bit `int`, a negative number -x is stored as 2^n - x. To negate a value, **invert all bits and add 1**.\n\nExample with 8 bits, -5:\n- 5 = `0000 0101`\n- invert = `1111 1010`\n- add 1 = `1111 1011` (0xFB)\n\nThe most significant bit acts as the sign (1 = negative). The range for n bits is -2^(n-1) to 2^(n-1) - 1, so a 32-bit `int` covers -2,147,483,648 to 2,147,483,647. There is one more negative value than positive, and negating the minimum value overflows.\n\nWhy hardware uses it: addition and subtraction use the same adder with no special sign handling, and there is a single representation of zero.\n\n**Floats: IEEE 754 single precision (32 bits)**\nLayout: 1 sign bit, 8 exponent bits, 23 fraction (mantissa) bits.\n\n`value = (-1)^sign x 1.fraction x 2^(exponent - 127)`\n\nThe exponent is stored with a bias of 127, and the leading 1 of the mantissa is implicit for normal numbers.\n\nExample, 5.75: binary 101.11 = 1.0111 x 2^2. Exponent = 2 + 127 = 129 = `10000001`. Fraction = `0111 0000...`. Sign = 0. Bits: `0 10000001 01110000000000000000000` = **0x40B80000**.\n\nSpecial cases:\n- exponent all zeros: zero and *subnormal* numbers,\n- exponent all ones with zero fraction: infinity,\n- exponent all ones with non-zero fraction: NaN.\n\n**Consequences**\n- Most decimals such as 0.1 cannot be represented exactly, so compare floats with a tolerance and never test `0.1 + 0.2 == 0.3`.\n- A float has about 7 significant decimal digits; integers above 2^24 cannot all be represented exactly.\n- `double` uses 1 + 11 + 52 bits with bias 1023.",
+ "followUps": [
+  "What is the bit pattern of -1 in a 32-bit int, and what do you get when you convert it to unsigned?",
+  "How would you check whether a number is negative using bit operations?",
+  "Why does adding a very small float to a very large float not change the large one?",
+  "What is the difference between signed overflow and unsigned overflow in C?"
+ ]
+}

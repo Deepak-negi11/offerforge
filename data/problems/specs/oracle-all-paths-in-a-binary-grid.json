@@ -1,0 +1,49 @@
+{
+ "pid": "oracle-all-paths-in-a-binary-grid",
+ "title": "All Paths in a Binary Grid",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a grid with `r` rows and `c` columns whose cells contain `0` or `1`. You start at the top-left cell and want to reach the bottom-right cell. In each step you may move **one cell right** or **one cell down**, and every cell you stand on (including the start and the end) must contain `1`.\n\nList **all** such paths. Describe each path by its sequence of moves, written as a string of `R` (right) and `D` (down) characters; a path has exactly `r + c - 2` moves. Print the paths in **lexicographic order** of these strings, where `D` comes before `R`.\n\nIf the start or the end cell is `0`, or no valid path exists, there are no paths.",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains `c` integers (each `0` or `1`) separated by spaces.",
+ "output_format": "On the first line print the number of valid paths `k`. Then print the `k` move strings, one per line, in lexicographic order (`D` before `R`).",
+ "constraints": [
+  "1 ≤ r, c ≤ 10",
+  "2 ≤ r · c (the grid has at least two cells)",
+  "Every cell is `0` or `1`; the number of valid paths is at most 48620"
+ ],
+ "examples": [
+  {
+   "input": "3 3\n1 1 1\n1 0 1\n1 1 1",
+   "output": "2\nDDRR\nRRDD",
+   "explanation": "The centre cell is blocked, so the path must hug the border: down, down, right, right or right, right, down, down. `DDRR` sorts before `RRDD` because `D` < `R`."
+  },
+  {
+   "input": "2 3\n1 1 0\n0 1 1",
+   "output": "1\nRDR",
+   "explanation": "From (0,0) the only open neighbour is (0,1). Below it is (1,1), and then (1,2) is the goal, giving R, D, R."
+  },
+  {
+   "input": "2 2\n1 0\n0 1",
+   "output": "0",
+   "explanation": "Both cells next to the start are blocked, so there is no valid path and only the count 0 is printed."
+  }
+ ],
+ "complexity": {
+  "time": "O(r · c + k · (r + c))",
+  "space": "O(r · c + r + c)"
+ },
+ "hints": [
+  "A plain backtracking search that tries 'down' then 'right' at every cell already lists the paths in the required order.",
+  "Dead ends make plain backtracking waste time. Precompute, from the bottom-right corner, which cells can still reach the goal using only right and down moves through 1-cells.",
+  "During the search only step into cells that can still reach the goal, and append moves to a shared list so each finished path costs O(r + c)."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    g = [[int(data[2 + i * c + j]) for j in range(c)] for i in range(r)]\n    ok = [[False] * (c + 1) for _ in range(r + 1)]\n    for i in range(r - 1, -1, -1):\n        for j in range(c - 1, -1, -1):\n            if g[i][j] == 0:\n                continue\n            if i == r - 1 and j == c - 1:\n                ok[i][j] = True\n            else:\n                ok[i][j] = ok[i + 1][j] or ok[i][j + 1]\n    res = []\n    if ok[0][0]:\n        path = []\n        def dfs(i, j):\n            if i == r - 1 and j == c - 1:\n                res.append(''.join(path))\n                return\n            if i + 1 < r and ok[i + 1][j]:\n                path.append('D')\n                dfs(i + 1, j)\n                path.pop()\n            if j + 1 < c and ok[i][j + 1]:\n                path.append('R')\n                dfs(i, j + 1)\n                path.pop()\n        dfs(0, 0)\n    print(len(res))\n    if res:\n        sys.stdout.write('\\n'.join(res) + '\\n')\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import combinations\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\ng = [[int(data[2 + i * c + j]) for j in range(c)] for i in range(r)]\nsteps = r + c - 2\nres = []\nfor downs in combinations(range(steps), r - 1):\n    ds = set(downs)\n    i = j = 0\n    good = g[0][0] == 1\n    mv = []\n    for k in range(steps):\n        if k in ds:\n            i += 1\n            mv.append('D')\n        else:\n            j += 1\n            mv.append('R')\n        if g[i][j] == 0:\n            good = False\n            break\n    if good:\n        res.append(''.join(mv))\nres.sort()\nprint(len(res))\nfor p in res:\n    print(p)\n",
+ "generator": "def gen(rng):\n    def fmt(g):\n        return f'{len(g)} {len(g[0])}\\n' + '\\n'.join(' '.join(map(str, row)) for row in g)\n    tests = [\n        fmt([[1, 1]]), fmt([[1], [1]]), fmt([[1, 0]]), fmt([[0, 1]]), fmt([[1], [0]]),\n        fmt([[1, 1, 1], [1, 0, 1], [1, 1, 1]]), fmt([[1, 1, 0], [0, 1, 1]]), fmt([[1, 0], [0, 1]]),\n        fmt([[1, 1], [1, 1]]), fmt([[1, 1, 1], [1, 1, 1], [1, 1, 1]]), fmt([[0, 1], [1, 1]]),\n    ]\n    for _ in range(40):\n        r, c = rng.randint(1, 6), rng.randint(1, 6)\n        if r * c < 2:\n            continue\n        pr = rng.choice([0.0, 0.1, 0.25, 0.4])\n        g = [[0 if rng.random() < pr else 1 for _ in range(c)] for _ in range(r)]\n        g[0][0] = 1\n        g[r - 1][c - 1] = 1\n        tests.append(fmt(g))\n    tests.append(fmt([[1] * 10 for _ in range(10)]))\n    g = [[0 if rng.random() < 0.08 else 1 for _ in range(10)] for _ in range(10)]\n    g[0][0] = g[9][9] = 1\n    tests.append(fmt(g))\n    tests.append(fmt([[1] * 10 for _ in range(9)]))\n    tests.append(fmt([[1] * 10]))\n    tests.append(fmt([[1] for _ in range(10)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef all_paths(grid: List[List[int]]) -> List[str]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    grid = [[int(data[2 + i * c + j]) for j in range(c)] for i in range(r)]\n    paths = all_paths(grid)\n    print(len(paths))\n    for p in paths:\n        print(p)\n\n\nmain()\n",
+  "javascript": "function allPaths(grid) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst r = t[0], c = t[1]\nconst grid = []\nfor (let i = 0; i < r; i++) grid.push(t.slice(2 + i * c, 2 + (i + 1) * c))\nconst paths = allPaths(grid)\nconst out = [String(paths.length)]\nfor (const p of paths) out.push(p)\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<string> allPaths(vector<vector<int>>& grid) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<vector<int>> grid(r, vector<int>(c));\n    for (int i = 0; i < r; i++)\n        for (int j = 0; j < c; j++) cin >> grid[i][j];\n    vector<string> paths = allPaths(grid);\n    cout << paths.size() << '\\n';\n    for (const string& p : paths) cout << p << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<String> allPaths(int[][] grid) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int r = (int) in.nval;\n        in.nextToken();\n        int c = (int) in.nval;\n        int[][] grid = new int[r][c];\n        for (int i = 0; i < r; i++)\n            for (int j = 0; j < c; j++) {\n                in.nextToken();\n                grid[i][j] = (int) in.nval;\n            }\n        List<String> paths = allPaths(grid);\n        StringBuilder sb = new StringBuilder();\n        sb.append(paths.size()).append('\\n');\n        for (String p : paths) sb.append(p).append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

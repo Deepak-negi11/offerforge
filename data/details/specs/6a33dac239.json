@@ -1,0 +1,19 @@
+{
+ "qid": "6a33dac239",
+ "question": "In a PhonePe Software Engineer technical round, the interviewer went through the candidate's internship work (a Grafana dashboard fed by Prometheus metrics) and asked:\n\n- **How did you avoid race conditions when sending data to the Prometheus server?**\n- **What is GraphQL and why is it used?**\n- **What is the format of HTTP requests and responses, and what are the common HTTP status codes?**",
+ "lookingFor": [
+  "Do you understand what a race condition is and which synchronization tool fits which situation?",
+  "Do you understand how Prometheus collects metrics (pull model, metric types) and how client libraries handle concurrency?",
+  "Can you explain GraphQL's benefits and trade-offs against REST?",
+  "Do you know the structure of HTTP messages and the status code families?",
+  "Can you connect these concepts to your own project work?"
+ ],
+ "answer": "**Race conditions with metrics.** A race condition happens when multiple threads access shared state and the outcome depends on timing, for example two threads doing `counter = counter + 1`, which is a read-modify-write, so one update can be lost. Ways to avoid it:\n- Use thread-safe primitives: atomic operations (`AtomicLong`), locks (`synchronized`, `ReentrantLock`), or concurrent collections.\n- Use the official Prometheus client library, whose `Counter`, `Gauge` and `Histogram` are thread-safe, instead of hand-written counters.\n- Avoid shared mutable state: give each worker its own data and merge it, or send updates through a queue to a single writer.\nNote that Prometheus normally **pulls** (scrapes) an endpoint such as `/metrics`, so the app exposes metrics and the server collects them; pushing goes through a Pushgateway for short-lived jobs. If you pushed from several jobs, give each its own label set so they do not overwrite one another. In your answer, name the exact mechanism you used in your project and why.\n\n**GraphQL.** A query language and runtime for APIs where the client specifies exactly the fields it needs in one request, to a single endpoint. It addresses **over-fetching** (REST returns fields you do not need) and **under-fetching** (needing several REST calls to assemble a screen). It has a strongly typed schema, supports queries, mutations and subscriptions, and is helpful for varied clients such as mobile and web. Trade-offs: caching is harder than with REST/HTTP URLs, deeply nested queries can be expensive (need depth limits and cost analysis), the N+1 query problem (solved with batching like DataLoader), and more server complexity.\n\n**HTTP message format.**\n- *Request:* a start line (`GET /users/1 HTTP/1.1`), headers (`Host`, `Authorization`, `Content-Type`), a blank line, and an optional body.\n- *Response:* a status line (`HTTP/1.1 200 OK`), headers (`Content-Type`, `Cache-Control`), a blank line and an optional body.\n\n**Status code families.** 1xx informational, 2xx success (200 OK, 201 Created, 204 No Content), 3xx redirection (301, 302, 304), 4xx client error (400, 401, 403, 404, 429), 5xx server error (500, 502, 503, 504).",
+ "followUps": [
+  "What is the difference between a mutex and an atomic variable?",
+  "Why does Prometheus use a pull model, and when would you use a Pushgateway?",
+  "What is the N+1 problem in GraphQL and how do you fix it?",
+  "When would you choose REST over GraphQL?",
+  "What is the difference between 401 and 403, and between 502 and 504?"
+ ]
+}

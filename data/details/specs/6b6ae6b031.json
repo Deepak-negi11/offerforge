@@ -1,0 +1,18 @@
+{
+ "qid": "6b6ae6b031",
+ "question": "IBM ISDL Linux Kernel Developer interview (experienced candidate), round 1 on systems programming. Questions asked:\n\n- What is the `volatile` keyword used for in C?\n- Name some compiler optimizations.\n- Difference between a mutex and a spinlock?\n- What are synchronization primitives?\n- RISC vs CISC architecture?\n\nThe same round included virtual memory, system call and linking questions, plus coding problems such as valid parentheses.",
+ "lookingFor": [
+  "Low-level correctness: what volatile does and does not guarantee.",
+  "Understanding of how compilers and CPUs reorder or cache memory accesses.",
+  "When to choose sleeping locks versus busy-waiting locks, especially in kernel code.",
+  "Familiarity with the set of synchronization tools.",
+  "Basic computer architecture knowledge."
+ ],
+ "answer": "**`volatile` in C**\n\n`volatile` tells the compiler that a variable may change outside the program's visible control flow (a memory-mapped hardware register, a variable changed by a signal handler or interrupt handler, shared with another context). The compiler must not cache it in a register or remove or reorder reads and writes to it relative to other volatile accesses. Typical use: polling a device status register.\n\n**What volatile is not:** it does not make operations atomic and does not provide memory barriers between threads. For threads, use atomics, locks or barriers. In the Linux kernel, `READ_ONCE`, `WRITE_ONCE` and barriers are preferred over volatile.\n\n**Compiler optimizations (examples):** constant folding, dead code elimination, common subexpression elimination, inlining, loop unrolling, loop-invariant code motion, strength reduction, register allocation, instruction scheduling, tail-call optimisation. Optimizations assume no other agent changes memory, which is why volatile and atomics exist.\n\n**Mutex vs spinlock**\n\n- **Mutex:** if the lock is taken, the thread **sleeps** and is woken when released. Good when the critical section may be long or may block. The context-switch cost is paid only when contended. It cannot be used where sleeping is not allowed (interrupt context).\n- **Spinlock:** the thread **busy-waits** in a loop on an atomic flag. No context switch, so it is cheap for very short critical sections on multiprocessors, and is usable in interrupt context (usually with interrupts disabled locally). It wastes CPU if held long, and on a single CPU spinning is pointless. Holding it must never involve sleeping.\n\n**Synchronization primitives:** atomic operations (test-and-set, compare-and-swap), mutexes, spinlocks, semaphores, condition variables, read-write locks, barriers, and RCU in Linux.\n\n**RISC vs CISC**\n\nRISC (ARM, RISC-V, POWER) has a small set of simple, fixed-length instructions, load/store memory access, many registers, and easy pipelining. CISC (x86) has many complex, variable-length instructions that may operate directly on memory, giving denser code. Modern x86 CPUs decode CISC instructions into RISC-like micro-operations internally, so the practical gap is smaller than the textbook one.",
+ "followUps": [
+  "Why is volatile not enough for thread synchronization?",
+  "When would you use a semaphore instead of a mutex?",
+  "What is priority inversion and how is it mitigated?",
+  "What is a memory barrier and why is it needed?"
+ ]
+}

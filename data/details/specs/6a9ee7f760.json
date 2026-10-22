@@ -1,0 +1,17 @@
+{
+ "qid": "6a9ee7f760",
+ "question": "Reported in an NVIDIA Software Engineer New Grad technical interview (low-level design): evaluate a **ternary expression tree** using OOP concepts such as inheritance and polymorphism. Separately, the interviewer also asked to **design a timer**. The report gives no input format, so assume expressions like `a ? b : c` where each node is a value, an operator or another ternary.",
+ "lookingFor": [
+  "Modelling the tree with an abstract node and polymorphic evaluate()",
+  "Lazy evaluation of only the chosen branch",
+  "Open-closed design: adding node types without touching the evaluator",
+  "A clean, thread-aware timer design with clear API and complexity"
+ ],
+ "answer": "**Ternary expression tree.**\n\nDefine an abstract base class and let each node evaluate itself, so there is no `switch` on node type:\n\n```cpp\nstruct Expr { virtual ~Expr() = default; virtual int eval() const = 0; };\nstruct Num : Expr { int v; explicit Num(int v):v(v){} int eval() const override { return v; } };\nstruct Bin : Expr {                      // e.g. +, -, <, ==\n    char op; std::unique_ptr<Expr> l, r; /* ctor omitted */\n    int eval() const override { int a=l->eval(), b=r->eval();\n        switch(op){case '+':return a+b; case '<':return a<b; /*...*/} return 0; } };\nstruct Ternary : Expr {\n    std::unique_ptr<Expr> cond, yes, no;\n    int eval() const override { return cond->eval() ? yes->eval() : no->eval(); }\n};\n```\n\nPoints: polymorphism through virtual `eval`; `Ternary` evaluates only the chosen branch (short-circuit, important when a branch has side effects or divides by zero); virtual destructor and smart pointers for ownership; adding a new node type is a new subclass (open-closed). Alternatives: visitor pattern when many operations (print, evaluate, optimise) apply to the same tree. Complexity: O(n) time for n nodes, O(h) stack depth for tree height h, which could overflow for degenerate chains. If parsing is needed, a recursive-descent parser handles right-associativity of `?:`.\n\n**Design a timer.** Requirements: `schedule(delay, callback) -> id`, `cancel(id)`, optional repeating. Core: a min-heap (priority queue) keyed by expiry time, a worker thread that sleeps on a condition variable until the earliest deadline (or until a new earlier task arrives), runs due callbacks, and a map for cancellation (lazy deletion flag). Use a monotonic clock. Insert O(log n), fire O(log n). Decisions: run callbacks on the timer thread or a thread pool (long callbacks delay others), thread safety with one mutex, and shutdown handling. For huge timer counts, a hashed timing wheel gives O(1) insert and tick.",
+ "followUps": [
+  "How would you add variables and an evaluation context to the tree?",
+  "Visitor pattern vs virtual methods: when would you choose each?",
+  "How would your timer handle a callback that throws or runs very long?",
+  "What is a hierarchical timing wheel and when is it better than a heap?"
+ ]
+}

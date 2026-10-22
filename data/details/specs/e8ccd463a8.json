@@ -1,0 +1,19 @@
+{
+ "qid": "e8ccd463a8",
+ "question": "Flipkart SDE-2 system design round: **design a flash-sale system** that runs for about **15 minutes** under massive traffic, **avoiding both overselling and underselling** inventory.",
+ "lookingFor": [
+  "Handling extreme, bursty read and write traffic.",
+  "Correct inventory handling under concurrency (no oversell or underutilised stock).",
+  "Protection of backend services (queues, rate limits, bot control).",
+  "Use of caching and asynchronous processing.",
+  "Failure handling, such as payment failures and inventory release."
+ ],
+ "answer": "**Requirements and assumptions.** A limited stock (say 10,000 units) goes on sale at a fixed time; millions of users hit it within seconds; the sale lasts 15 minutes. Must not oversell (stock below zero) or undersell (units stuck in abandoned carts or lost on failures). Fairness, plus keeping the rest of the platform alive.\n\n**Shape of the load.** Reads (product page, stock status) vastly outnumber writes, and only a tiny fraction of requests can succeed. So reject early and cheaply.\n\n**Architecture.**\n1. **Pre-sale:** serve the product page as static content through a CDN; pre-warm caches; load the stock count into Redis; scale instances ahead.\n2. **Edge protection:** CDN/WAF, per-user and per-IP rate limiting, CAPTCHA or proof-of-work and account checks against bots; a **virtual waiting room** or queue to admit users at a rate the backend can handle.\n3. **Inventory gate:** an atomic decrement in Redis (`DECR` or a Lua script that checks and decrements). A success returns a **reservation** with a TTL (for example 5-10 minutes); a failure means sold out, and the \"sold out\" flag is cached so most users get an instant answer.\n4. **Order creation:** push successful reservations onto a queue (Kafka) and create orders asynchronously, with idempotency keys to avoid duplicates and one unit per user if required.\n5. **Payment:** on success, convert the reservation to a sale; on failure or expiry, **return the unit to stock** (increment), which avoids underselling.\n6. **Source of truth:** the database holds final inventory; reconcile Redis against it with periodic and end-of-sale jobs, using a conditional update (`WHERE stock >= 1`).\n\n**Oversell vs undersell.** Atomic decrement prevents oversell; reservation expiry and compensating increments prevent undersell. Handle Redis failure (replica promotion, fall back to database with a lock) and avoid a single hot key by splitting stock into buckets.\n\n**Observability.** Track queue depth, error rate and stock drift.",
+ "followUps": [
+  "How do you prevent a single hot Redis key from becoming a bottleneck?",
+  "What happens if Redis crashes in the middle of the sale?",
+  "How would you stop bots without hurting real users?",
+  "How do you handle users who reserve and never pay?",
+  "Why use a queue between reservation and order creation?"
+ ]
+}

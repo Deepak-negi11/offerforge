@@ -1,0 +1,18 @@
+{
+ "qid": "fae42a68dd",
+ "question": "Atlassian system-design round (Principal / Senior). **Design a service where users pick a favourite colour and share it with friends.** The interviewer began with a deliberately low scale, then added requirements step by step:\n\n- how a selected colour is shared with a friend;\n- which database to use to store colours;\n- what observability metrics you would track;\n- how to scale to millions of users;\n- how database upgrades happen (for example, new columns), and how VM upgrades happen.",
+ "lookingFor": [
+  "Starts simple and evolves the design as requirements grow, rather than over-engineering.",
+  "Sensible data model and database choice with reasons.",
+  "Operational maturity: metrics, alerts, safe schema migrations and rolling upgrades.",
+  "Scaling levers: caching, read replicas, partitioning, hot-key awareness.",
+  "Clear APIs and handling of the sharing/privacy semantics."
+ ],
+ "answer": "**Start small.** Requirements: set my colour, read my colour, see friends' colours. Non-goals for now: real-time updates. Initial scale: a few thousand users, so one app server and one relational database are enough.\n\n**API and entities.** `PUT /me/color {color}`, `GET /users/{id}/color`, `GET /me/friends/colors`, `POST /me/friends/{id}` (and accept/remove). Tables: `users(id, ...)`, `user_color(user_id PK, color, updated_at)` (store a palette id or an RGB integer, not free text), `friendships(user_id, friend_id)` indexed both ways. Sharing can mean \"friends can see it\" (read via the graph) or a share link/token; authorisation is checked on each read.\n\n**Database choice.** Start with a relational DB (PostgreSQL/MySQL): small data, simple relations, transactions for friend requests, and easy migrations. A key-value store becomes attractive at very large scale because colour reads are by user id, but it is not needed on day one.\n\n**Observability.** Request rate, error rate and latency percentiles per endpoint (RED); saturation: CPU, memory, DB connections, replication lag, queue depth; cache hit ratio; a business metric such as colours set per minute; structured logs with request ids, tracing, and alerts on SLO burn.\n\n**Scaling to millions.**\n- Stateless app servers behind a load balancer, autoscaled.\n- Cache colour reads (Redis, short TTL or invalidate on write); a friend list read is a multi-get.\n- Read replicas for reads; later shard by `user_id`.\n- Colours change rarely and reads dominate, so optimise reads; protect hot users with caching.\n- Optionally push updates (WebSockets or polling) instead of repeated reads.\n\n**Schema upgrades.** Use expand and contract: add a nullable column, deploy code that writes both, backfill in batches, switch reads, then drop the old column. Avoid long table locks, and keep every step backward compatible and reversible.\n\n**VM upgrades.** Immutable images, rolling or blue-green deploys behind the load balancer with health checks and connection draining, a canary first, and a quick rollback path. Keep servers stateless so any VM can be replaced.",
+ "followUps": [
+  "How would the design change if friends must see updates in real time?",
+  "How do you do a zero-downtime column rename?",
+  "When would you move from SQL to a NoSQL store, and what would you give up?",
+  "What alerts would page you at 3 a.m. for this service?"
+ ]
+}

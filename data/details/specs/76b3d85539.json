@@ -1,0 +1,17 @@
+{
+ "qid": "76b3d85539",
+ "question": "Atlassian Karat screen (system design scenario). An application had a bug and you ended up with many failed requests. You have a database that stores **all request IDs**, and large log files from about **500 production servers** that log the IDs of the **successful** requests. How would you find the IDs that are missing, that is, the failed requests?",
+ "lookingFor": [
+  "Recognising this as a set difference at scale.",
+  "Choosing approaches by data size: in-memory set, external sort, partitioning, or Bloom filter.",
+  "Parallelism and map-reduce style thinking.",
+  "Discussing correctness, such as false positives and duplicates."
+ ],
+ "answer": "**Problem.** Failed = AllIDs minus SuccessIDs. If everything fits in memory this is trivial; the interview is about what to do when it does not.\n\n**Step 0: clarify.** How many IDs (millions or billions)? Are IDs fixed-size, e.g. 64-bit integers or UUIDs? Are logs on each server or in central storage? Can the database be queried by range or time? Duplicates across logs are possible (retries).\n\n**Small case.** Load success IDs from the logs into a hash set, scan the database and output every ID not in the set. Time O(N), memory O(successful IDs).\n\n**Large case: partition and process in parallel.**\n1. Scan every log file in parallel (one worker per server or per file chunk) and extract IDs.\n2. Partition IDs by hash: `bucket = hash(id) mod P`, writing each bucket to its own file or partition. Do the same for the database export, using the same hash function.\n3. For each bucket, which now fits in memory, load the success IDs into a set (or sort both sides), then scan the database IDs of the same bucket and emit those not present. Buckets are independent, so they run in parallel; this is effectively a map-reduce anti-join.\n\n**If IDs are numeric and dense:** use a bitmap of size `maxID` bits (1 billion IDs is about 125 MB). Set a bit per successful ID, then scan the bitmap for zeros within the database's range. Very fast and compact.\n\n**Alternative: external sort.** Sort each stream, then do a merge walk of two sorted streams to find IDs only in the database list.\n\n**Bloom filter.** A Bloom filter of success IDs is memory-light but gives false positives: a failed ID may be reported as successful. That would hide real failures, so use it only as a first pass or verify, since it is the wrong direction of error for this problem.\n\n**Operational points.** Restrict by time window and query the database in ranges; deduplicate IDs; confirm the bug window; verify counts (all = success + failed).",
+ "followUps": [
+  "Why is a Bloom filter risky here, and how could you fix it?",
+  "How would you do this if IDs are random UUIDs rather than integers?",
+  "How would you run this continuously instead of one-off?",
+  "How do you validate that the result is complete?"
+ ]
+}

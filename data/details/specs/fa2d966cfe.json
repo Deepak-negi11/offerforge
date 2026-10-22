@@ -1,0 +1,19 @@
+{
+ "qid": "fa2d966cfe",
+ "question": "Razorpay SDE-1 low-level design round (90 minutes): design a photo-sharing app with six features plus a bonus feature. The discussion focused on design patterns such as MVC and Singleton. The exact feature list was not recorded, so expect typical photo-sharing operations: users, uploading photos, following, a feed, likes and comments, and a bonus such as tagging, albums or search. Clarify the list with the interviewer and code a working, extensible solution.",
+ "lookingFor": [
+  "A sensible domain model for users, photos, relationships and interactions",
+  "Appropriate use of patterns (and knowing when Singleton is a smell)",
+  "Layered architecture such as MVC with service and repository separation",
+  "Prioritising the core features and delivering them working",
+  "Explaining design choices clearly under follow-up"
+ ],
+ "answer": "**Clarify and prioritise.** Write the six features down with the interviewer. A reasonable set: register user, upload photo (with caption and tags), follow and unfollow, view feed, like and unlike, comment. Bonus candidates: albums, tag search, notifications or privacy settings. Say what is out of scope (real image storage, auth).\n\n**Entities.**\n- `User{id, name, followers, following}`; `Photo{id, ownerId, url, caption, tags, createdAt}`; `Like{userId, photoId}`; `Comment{id, photoId, userId, text, createdAt}`; optionally `Album{id, name, photoIds}`.\n\n**Layers (MVC-style).**\n- Model: the entities above.\n- Controller (or API facade): parses requests such as `upload(userId, url, caption)` and delegates.\n- Services: `UserService`, `PhotoService`, `FeedService`, `InteractionService`. Business rules live here.\n- Repositories behind interfaces, with in-memory implementations (`Map` based), so storage can be swapped.\n\n**Data structures.** `photosByUser`, `following` and `followers` sets, `likes: Map<photoId, Set<userId>>` (a set prevents double likes and gives an O(1) count), `commentsByPhoto`, `photosByTag` for tag search. The feed merges the followed users' photo lists by time, with pagination.\n\n**Patterns, used where they fit.**\n- Strategy: feed ordering (chronological vs popular), or storage (local vs cloud).\n- Observer: notify the owner when a photo is liked or commented on.\n- Factory: creating different media types.\n- Repository and Dependency Injection for testability.\n- Singleton: acceptable for a single in-memory store or configuration, but be ready to explain its downsides (hidden global state, harder tests) and that constructor injection of one shared instance is usually better.\n\n**Quality checks.** Validate ownership (only the owner can delete a photo), idempotent like, cascade deletes of comments, and thread-safe collections.\n\n**Tests.** Upload and fetch, feed after follow, duplicate like ignored, comment count, tag search.",
+ "followUps": [
+  "Why is Singleton often discouraged, and what would you use instead?",
+  "How would you add notifications without coupling services (Observer or events)?",
+  "How would you store images and metadata in a real system?",
+  "How would the design change for privacy settings such as private accounts?",
+  "How would you paginate the feed and keep it efficient for users with many follows?"
+ ]
+}

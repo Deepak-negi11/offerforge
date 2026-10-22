@@ -1,0 +1,18 @@
+{
+ "qid": "a6ab3d501e",
+ "question": "Flipkart SDE-1, machine-coding round: **implement Splitwise (an expense-sharing application) in an object-oriented language**. No further detail was reported, so assume the standard feature set: users, groups, adding expenses split equally, by exact amounts or by percentage, and showing who owes whom.",
+ "lookingFor": [
+  "Clean OOP modelling of users, expenses and splits.",
+  "Correct balance arithmetic, including rounding.",
+  "Use of the strategy pattern for split types.",
+  "Debt simplification and validation of inputs.",
+  "Running, demoable code with clear structure."
+ ],
+ "answer": "**Requirements to confirm:** add users; add an expense paid by one user, shared among participants with EQUAL, EXACT or PERCENT splits; show balances for one user or for everyone; optional groups and debt simplification.\n\n**Entities.**\n\n- `User(id, name, email)`.\n- `Expense(id, paidBy, amount, splits[], description)`, an abstract `Split(user, amount)` with `EqualSplit`, `ExactSplit`, `PercentSplit`.\n- A strategy interface `SplitStrategy.validateAndCompute(totalAmount, participants, values) -> List<Split>`, so a new split type is a new class (open/closed principle).\n- `BalanceSheet`: `Map<userId, Map<userId, Double>>` where `balance[a][b] > 0` means b owes a.\n- `ExpenseService`/`Splitwise` facade exposing `addExpense(...)`, `showBalances()`, `showBalances(userId)`.\n\n**Flow.** `addExpense` validates (EXACT amounts sum to the total, PERCENT sums to 100), computes each participant's share, then for every participant other than the payer updates the balance sheet: `balance[payer][p] += share`, `balance[p][payer] -= share`. Printing iterates the map and shows lines such as \"User2 owes User1: 250.00\", skipping zero balances.\n\n**Details that matter.**\n\n- Money: use `BigDecimal` or integer paise; handle equal split remainders (for example 100 / 3 gives 33.34, 33.33, 33.33) by assigning leftover paise to some participants.\n- Thread safety: synchronise updates per balance sheet or use concurrent maps for concurrent expenses.\n- Debt simplification: compute each user's net balance, then repeatedly match the largest creditor with the largest debtor using two heaps. This minimises transactions in a greedy way (the exact minimum is NP-hard).\n- Make it extensible: persistence behind a repository interface, notifications as observers.\n\nWrite a driver with sample commands and expected output so the interviewer can run it. Add a few unit tests for splits and balances.",
+ "followUps": [
+  "How would you handle rounding when an amount does not divide evenly?",
+  "How would you implement debt simplification and what is its complexity?",
+  "How would you add groups and settle-up payments?",
+  "How would you make balance updates safe under concurrent requests?"
+ ]
+}

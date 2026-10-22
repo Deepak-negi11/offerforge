@@ -1,0 +1,18 @@
+{
+ "qid": "24d5f093ba",
+ "question": "Microsoft L65 round 3: **design a payment gateway like Razorpay**.\n\nReported coverage: the flow **app to gateway to bank**, **OTP handling, the 3DS flow, callback and webhook handling**; reliability and safety through **idempotency keys, retry mechanisms, handling bank timeouts and double-debit protection**; system concerns including **DDoS protection, fraud detection, rate limiting and observability**; plus integration across app, gateway and bank APIs, and localization.",
+ "lookingFor": [
+  "Understanding of the payment lifecycle and states.",
+  "Idempotency and exactly-once effects despite retries and timeouts.",
+  "Handling uncertain outcomes with reconciliation.",
+  "Security, compliance and fraud awareness.",
+  "Operational thinking: observability, rate limits, failure modes."
+ ],
+ "answer": "**Requirements.** Merchants create payments; customers pay by card/UPI/netbanking; the gateway talks to banks and card networks; merchants receive reliable status updates. Non-functional: correctness above all (no double debit, no lost payment), high availability, low latency, security (PCI-DSS style), auditability.\n\n**Flow.**\n1. Merchant backend calls `POST /payments` (amount, currency, order id) with an **Idempotency-Key**; the gateway creates a payment in state CREATED and returns a payment id and checkout token.\n2. The customer enters details on the hosted checkout (card data never touches the merchant's servers; tokenize it).\n3. The gateway routes to the bank/acquirer, which may require **3DS or OTP** (redirect to the issuer's page, return with the result).\n4. The bank responds; the payment moves to AUTHORIZED/CAPTURED or FAILED.\n5. The gateway sends a signed **webhook** to the merchant and also lets it poll `GET /payments/{id}`.\n\n**State machine.** CREATED, PENDING, AUTHORIZED, CAPTURED, FAILED, REFUNDED. Persist every transition in a transactional DB with an append-only ledger/event log.\n\n**Idempotency and double debit.** Store the idempotency key with a unique constraint plus the response; a repeated request returns the same result. Use a unique bank reference per attempt. Retries use backoff and are only safe because of these keys.\n\n**Bank timeouts.** A timeout means the outcome is *unknown*; never assume failure. Mark the payment PENDING, then resolve through a **status-check/inquiry API**, bank callbacks, and a daily **reconciliation** against settlement files, and auto-refund if debited but unconfirmed.\n\n**Webhooks.** At-least-once delivery with exponential retries, HMAC signatures, and merchant-side dedupe by event id.\n\n**Protection and operations.** Rate limiting per merchant/IP; a WAF/CDN for DDoS; a rules plus ML fraud engine scoring each attempt (velocity, device, amount); encrypted secrets and card vault; distributed tracing, metrics on success rate per bank, alerts on spikes in pending payments. Add bank routing with failover to a second acquirer.\n\n**Mistakes to avoid:** treating timeouts as failures, non-idempotent retries, and holding card data unprotected.",
+ "followUps": [
+  "What do you do when the bank times out after debiting the customer?",
+  "How exactly does your idempotency key implementation work?",
+  "How do you design webhook retries and ensure merchants don't process duplicates?",
+  "How would you route between multiple banks?"
+ ]
+}

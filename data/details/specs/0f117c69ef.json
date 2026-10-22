@@ -1,0 +1,19 @@
+{
+ "qid": "0f117c69ef",
+ "question": "High level design question in the hiring manager round (in person) for an MTS role with experience. After resume questions and drawing the HLD of the current project, the candidate was asked a separate HLD problem: **design a system for renting out a ground/venue** to organisations such as schools, societies and event organisers, where the venue can be booked through **different rental packages**. The discussion focused on identifying core entities, designing the database schema, defining the APIs and modelling the relationships between components.",
+ "lookingFor": [
+  "Can you extract entities and relationships from an open-ended business problem?",
+  "Can you design a schema that supports flexible pricing and packages?",
+  "Do you handle booking conflicts and concurrency correctly?",
+  "Do you design clean REST APIs?",
+  "Do you clarify requirements before designing?"
+ ],
+ "answer": "**Clarify.** One venue or many? Who books (schools, societies, organisers)? Package types: hourly, half day, full day, weekly or monthly for recurring events, with add-ons (sound, chairs, cleaning)? Online payment, deposit and cancellation rules? Approval by staff or instant booking? Assume multiple venues, moderate scale, where **correctness of bookings** matters far more than throughput.\n\n**Entities.**\n\n- `venue(id, name, location, capacity)`.\n- `customer(id, name, type: SCHOOL | SOCIETY | ORGANISER, contact)`.\n- `rental_package(id, venue_id, name, billing_unit, base_price, min_duration, rules)` and `package_price_rule` for customer-type discounts or peak pricing.\n- `addon(id, name, price)`, `booking_addon`.\n- `booking(id, venue_id, customer_id, package_id, start_time, end_time, status: PENDING | CONFIRMED | CANCELLED | COMPLETED, total_price)`.\n- `payment(id, booking_id, amount, status, provider_ref)`.\n\nRelationships: venue 1-N packages; customer 1-N bookings; booking N-1 package; booking N-N add-ons.\n\n**APIs.**\n\n- `GET /venues/{id}/availability?from=&to=`\n- `GET /venues/{id}/packages`\n- `POST /bookings` (venue, package, time range, add-ons), returns the price quote and a `PENDING` booking\n- `POST /bookings/{id}/pay`, `POST /bookings/{id}/cancel`, `GET /bookings?customerId=`\n\n**Avoiding double booking.** Two overlapping bookings for one venue must not both be confirmed. Options: a transaction that checks for overlap (`start < :end AND end > :start`) with a row lock on the venue (`SELECT ... FOR UPDATE`), or a database exclusion constraint on the time range where the database supports it. Use a short-lived `PENDING` hold with an expiry while payment completes.\n\n**Pricing.** Keep the pricing rules in data (packages and rules), and snapshot the computed price into the booking so later price changes do not alter it. Strategy pattern for price calculation in code.\n\n**Scale and extras.** Index `(venue_id, start_time, end_time)`; cache availability briefly; send notifications through a queue; handle time zones; recurring bookings by generating instances.",
+ "followUps": [
+  "How would you stop two users booking the same slot at the same moment?",
+  "How would you model a recurring weekly booking?",
+  "How would you handle cancellations and refunds under different packages?",
+  "How would you add a new package type without a code change?",
+  "How would you index the booking table for availability queries?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "43d8a6600d",
+ "question": "Apple, Senior/Staff Software Engineer (Infra), first phone round, verbal (no shared editor). **Design a peer-to-peer network that crawls websites** without a central coordinator. The interviewer wanted P2P-first thinking: how nodes discover each other, how the crawl space is partitioned without a coordinator, and how nodes going offline mid-crawl are handled. Follow-ups pushed on **deduplication at scale** and on what happens if the **same URL is assigned to two peers during a network partition**. The candidate proposed consistent hashing for URL assignment with gossip-based failure detection.",
+ "lookingFor": [
+  "Thinking decentralised from the start rather than defaulting to a coordinator and worker queue.",
+  "Concrete mechanisms: membership and discovery, partitioning, failure detection.",
+  "Handling failures and partitions, with reasoning about duplicates and consistency.",
+  "Practical crawler concerns: politeness, robots.txt, frontier management, dedup.",
+  "Clear verbal communication of trade-offs."
+ ],
+ "answer": "**Goals.** Crawl a large set of sites with no master: each peer owns part of the URL space, discovers links, and hands newly found URLs to their owners. Scale to thousands of nodes joining and leaving.\n\n**Node discovery and membership.** New nodes contact a few seed/bootstrap peers, then learn membership via **gossip** (periodically exchange membership lists with random peers; SWIM-style protocols add indirect probes to reduce false failure reports). Each node keeps an eventually consistent view of the ring.\n\n**Partitioning the crawl space.** Use **consistent hashing** with virtual nodes. Hash the URL's *host* (not the full URL) so one peer owns a whole site, which makes politeness (rate limiting per host, robots.txt caching) local. A peer crawling a page extracts links and forwards each to the owner of that host. Frontier (queue of URLs to visit) is local to the owner, prioritised by depth, freshness and host rate limits.\n\n**Deduplication.** Each owner keeps a visited set for its hosts: a Bloom filter for fast membership plus a persistent store of canonicalised URLs (normalise case, fragments, tracking parameters). Content-level dedup uses hashes (or simhash for near duplicates) of page bodies. Because ownership is by host, dedup is mostly local with no global coordination.\n\n**Node failure mid-crawl.** Failure detection by gossip marks a node suspect and then dead; its hash ranges pass to the next nodes on the ring. To avoid losing work, replicate each node's frontier state and checkpoints to its successor(s) periodically; the successor resumes from the last checkpoint, accepting some repeated fetches (crawling is idempotent).\n\n**Same URL assigned to two peers during a partition.** Accept that it may be crawled twice: the work is idempotent and wasted effort is bounded. When the partition heals, ring views converge, and duplicate results are merged using URL and content hashes (last-writer-wins by fetch time). If strict single-fetch were required, you would need a consensus group per range, which costs availability.\n\n**Trade-offs.** Hot hosts (huge sites) overload one owner, so subdivide with a second hash on the path for those. Ring changes cause some handoff traffic.",
+ "followUps": [
+  "How do you handle a very large site that overloads the single peer that owns it?",
+  "How would you detect and avoid crawler traps such as infinite calendars?",
+  "How do you tune the gossip protocol to avoid false failure detection?",
+  "When would you actually prefer a centralised coordinator?"
+ ]
+}

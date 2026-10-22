@@ -1,0 +1,18 @@
+{
+ "qid": "b5b988679c",
+ "question": "MakeMyTrip SDE-II / SSE frontend round 1, JavaScript output prediction. Part 1: predict the console output of code that mixes `console.log`, `setTimeout` (0, 10 and 100 ms), a promise with `.then`, and an `async` function awaited from another `async` function. Part 2: two async functions, one awaiting two timers (3 s and 6 s) **sequentially** and one starting both first and awaiting after, and compare execution times. Part 3: a closure question with `maker(100)` and an `add` function whose result changes after `obj.val` is mutated.\n\nAnother MMT frontend round asked to implement **Promise.all-like behaviour (promiseAllSync) without async/await** on an array of promises, returning results in order.",
+ "lookingFor": [
+  "Accurate mental model of the event loop, microtasks and macrotasks.",
+  "Understanding of sequential versus parallel awaits and their cost.",
+  "Closures and object reference semantics.",
+  "Ability to implement promise utilities from first principles.",
+  "Explaining reasoning step by step."
+ ],
+ "answer": "**Event loop rules.** Synchronous code runs first on the call stack. Then **all microtasks** (promise callbacks, `await` continuations) run. Then one **macrotask** (timer callback) at a time, with microtasks drained between each. Timers fire in order of their delay.\n\n**Part 1 (reported snippet).** Synchronous pass: `A`, `D`, `E` (the promise executor runs synchronously), `G`, then `callAsyncFunc()` runs and calls `asyncFunc()`, which logs `I` synchronously. Microtasks: `F` was queued first, then the continuation after `await asyncFunc()` which logs `J`. Timers: `B` (0 ms), `H` (10 ms), `C` (100 ms).\n**Output:** `A D E G I F J B H C`.\n\n**Part 2.** `exampleAsyncFunctionOne` awaits the 3 s promise, then **creates** the 6 s one, so it takes about **9 s**. `exampleAsyncFunctionTwo` starts both timers immediately, so the awaits overlap and total is about **6 s**. Both return the two result strings in order; times are printed as roughly 9000 and 6000 ms. Lesson: use `Promise.all` or start promises before awaiting when tasks are independent.\n\n**Part 3.** `add({val:100})` returns `obj1.val + 100 = 200`. `obj` and `obj1` are the **same object reference** and `add` closes over `obj1`, so after `obj.val = -100` the second call returns `0`.\n\n**promiseAllSync without async/await.**\n```js\nfunction promiseAllSync(promises) {\n  return new Promise((resolve, reject) => {\n    const results = new Array(promises.length);\n    let done = 0;\n    if (!promises.length) return resolve(results);\n    promises.forEach((p, i) => {\n      Promise.resolve(p).then(v => {\n        results[i] = v;\n        if (++done === promises.length) resolve(results);\n      }, reject);\n    });\n  });\n}\n```\nIt preserves order using the index, rejects on the first failure, and handles an empty array. For **sequential** resolution, chain with `reduce`: `promises.reduce((acc, p) => acc.then(r => p.then(v => [...r, v])), Promise.resolve([]))`. Note a promise already started runs regardless; true sequential execution needs functions returning promises.",
+ "followUps": [
+  "What changes if one promise rejects in your Promise.all implementation?",
+  "What is the difference between Promise.all, allSettled, race and any?",
+  "Where do `process.nextTick` and `queueMicrotask` fit?",
+  "How would you run N tasks with a concurrency limit of 3?"
+ ]
+}

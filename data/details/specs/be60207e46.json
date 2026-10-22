@@ -1,0 +1,18 @@
+{
+ "qid": "be60207e46",
+ "question": "SQL question from a Texas Instruments on-campus Software Developer interview: given tables `Student(id, name)` and `Course(id, marks, s_id)` where `s_id` references `Student.id`, **find the names of students whose marks across subjects exceed 870** (each subject carries 100 marks, as reported). The wording in the source was \"more than 870 marks in all subject\", so the intended meaning is the total across all subjects.",
+ "lookingFor": [
+  "Can you join and aggregate with `GROUP BY` and `HAVING`?",
+  "Do you know the difference between `WHERE` and `HAVING`?",
+  "Do you group by the key (id) and not just the name?",
+  "Do you clarify the ambiguous requirement?",
+  "Do you consider students with no rows and duplicate names?"
+ ],
+ "answer": "**Clarify first**\n\"More than 870 marks in all subjects\" is ambiguous. With 100 marks per subject, 870 only makes sense as a **total** (at least 9 subjects). I would confirm that the condition is *sum of marks > 870*, and mention the alternative (every subject above some threshold) at the end.\n\n**Query**\n```sql\nSELECT s.name\nFROM Student s\nJOIN Course c ON c.s_id = s.id\nGROUP BY s.id, s.name\nHAVING SUM(c.marks) > 870;\n```\n\n**How it works**\n1. `JOIN` links every course row to its student through `s_id`.\n2. `GROUP BY s.id, s.name` makes one group per student. Grouping by `id` (not only `name`) matters because two students can share a name; including `name` keeps the query valid in databases that require selected columns in the group.\n3. `SUM(c.marks)` totals the marks inside each group.\n4. `HAVING` filters groups **after** aggregation. `WHERE` cannot be used here because it runs before grouping and cannot reference aggregates.\n\n**Edge cases**\n- An inner join drops students with no course rows. That is fine here, as their total cannot exceed 870.\n- `NULL` marks are ignored by `SUM`.\n- If the total is expected to be exactly over a fraction of the maximum, compute the percentage instead: `SUM(c.marks) * 100.0 / (COUNT(*) * 100) > 87`.\n\n**Alternative: subquery**\n```sql\nSELECT name FROM Student\nWHERE id IN (SELECT s_id FROM Course GROUP BY s_id HAVING SUM(marks) > 870);\n```\nThis avoids grouping in the outer query and reads naturally.\n\n**If the meaning were per subject**\nUse `HAVING MIN(c.marks) > <threshold>` so that every subject is above the threshold.\n\nAn index on `Course(s_id)` speeds up the join and the grouping.",
+ "followUps": [
+  "What is the difference between WHERE and HAVING?",
+  "How would you also return each student's total and rank them?",
+  "How would you return students who have no course records?",
+  "What index would you create to make this query fast on millions of rows?"
+ ]
+}

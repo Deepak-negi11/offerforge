@@ -1,0 +1,43 @@
+{
+ "pid": "samsung-hidden-benchmark-value",
+ "title": "Hidden Benchmark Value",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given two arrays `A` and `B` of positive integers. You may choose any integer value `D` with `1 ≤ D ≤ 10^8`. Each element of the two arrays is turned into a **benchmark result** by comparing it with `D`:\n\n- an element **greater than** `D` scores `2`;\n- an element **less than or equal to** `D` scores `1`.\n\nLet `scoreA(D)` be the sum of the results of all elements of `A`, and `scoreB(D)` the sum of the results of all elements of `B`. The quantity to maximise is the **signed** difference `scoreA(D) - scoreB(D)` (it is not an absolute value, so it can be negative).\n\nFor example, for `A = [6, 7, 9, 1, 2]`, `B = [4, 6, 2]` and `D = 3`, the results of `A` are `[2, 2, 2, 1, 1]` (sum 8) and those of `B` are `[2, 2, 1]` (sum 5), so the difference is `3`. A better value of `D` exists.\n\nPrint the **smallest** `D` that gives the maximum difference, together with that maximum difference.\n\n**Follow-up:** the original assessment did not allow library sorting, so a sorting routine had to be written by hand.",
+ "input_format": "The first line contains two integers `n` and `m`, the lengths of `A` and `B`.\nThe second line contains the `n` integers of `A`.\nThe third line contains the `m` integers of `B`.",
+ "output_format": "Print two integers separated by a space: the smallest `D` that maximises the difference, and the maximum difference.",
+ "constraints": [
+  "2 ≤ n, m ≤ 10^5",
+  "1 ≤ A[i], B[i] ≤ 10^8"
+ ],
+ "examples": [
+  {
+   "input": "5 3\n6 7 9 1 2\n4 6 2",
+   "output": "4 4",
+   "explanation": "For D = 4 the results of A are [2, 2, 2, 1, 1] (sum 8) and those of B are [1, 2, 1] (sum 4), a difference of 4. Smaller values of D give at most 3, and larger values of D reach 4 again (for example D = 5) but never more."
+  },
+  {
+   "input": "2 3\n5 5\n5 5 5",
+   "output": "5 -1",
+   "explanation": "All elements are equal to 5. For D below 5 every element scores 2, giving 4 - 6 = -2. For D = 5 or more every element scores 1 (equal to D counts as less than or equal), giving 2 - 3 = -1. The best difference is -1, first reached at D = 5."
+  }
+ ],
+ "complexity": {
+  "time": "O((n + m) log(n + m))",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "The score of an element depends only on whether it is greater than D, so the difference only changes when D crosses an element value. Only D = 1 and the element values themselves need to be tried.",
+  "Write the difference as (n - m) + (number of elements of A greater than D) - (number of elements of B greater than D).",
+  "Sort both arrays and either binary search the counts for every candidate D, or sweep D upward over the merged sorted values while updating the two counts."
+ ],
+ "reference": "import sys\nfrom bisect import bisect_right\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    A = sorted(int(x) for x in data[2:2 + n])\n    B = sorted(int(x) for x in data[2 + n:2 + n + m])\n    cands = sorted(set(A) | set(B) | {1})\n    best, bestd = None, None\n    for d in cands:\n        # elements greater than d score 2, the others score 1\n        ga = n - bisect_right(A, d)\n        gb = m - bisect_right(B, d)\n        diff = (n + ga) - (m + gb)\n        if best is None or diff > best:\n            best, bestd = diff, d\n    print(bestd, best)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nA = [int(x) for x in data[2:2 + n]]\nB = [int(x) for x in data[2 + n:2 + n + m]]\nbest, bestd = None, None\nfor d in range(1, max(A + B) + 1):\n    sa = sum(2 if x > d else 1 for x in A)\n    sb = sum(2 if x > d else 1 for x in B)\n    if best is None or sa - sb > best:\n        best, bestd = sa - sb, d\nprint(bestd, best)\n",
+ "generator": "def gen(rng):\n    def fmt(A, B):\n        return f\"{len(A)} {len(B)}\\n\" + ' '.join(map(str, A)) + '\\n' + ' '.join(map(str, B))\n    tests = [\n        fmt([6, 7, 9, 1, 2], [4, 6, 2]),\n        fmt([1, 1], [1, 1]),\n        fmt([5, 5], [5, 5, 5]),\n        fmt([1, 2], [3, 4]),\n        fmt([3, 4], [1, 2]),\n        fmt([10, 10, 10], [1, 1]),\n        fmt([1, 1, 1], [10, 10]),\n        fmt([2, 9], [9, 2]),\n    ]\n    for _ in range(14):\n        hi = rng.choice([5, 10, 30])\n        n = rng.randint(2, 8)\n        m = rng.randint(2, 8)\n        tests.append(fmt([rng.randint(1, hi) for _ in range(n)], [rng.randint(1, hi) for _ in range(m)]))\n    for _ in range(3):\n        n = rng.randint(30, 60)\n        m = rng.randint(30, 60)\n        tests.append(fmt([rng.randint(1, 10**8) for _ in range(n)], [rng.randint(1, 10**8) for _ in range(m)]))\n    N = 10**5\n    tests.append(fmt([rng.randint(1, 10**8) for _ in range(N)], [rng.randint(1, 10**8) for _ in range(N)]))\n    tests.append(fmt([rng.randint(5 * 10**7, 10**8) for _ in range(N)], [rng.randint(1, 6 * 10**7) for _ in range(N)]))\n    tests.append(fmt([rng.randint(1, 1000) for _ in range(N)], [rng.randint(1, 1000) for _ in range(N)]))\n    tests.append(fmt([10**8] * N, [10**8] * N))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef best_benchmark(a: List[int], b: List[int]) -> Tuple[int, int]:\n    # Write your solution here\n    return (1, 0)\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    b = [int(x) for x in data[2 + n:2 + n + m]]\n    d, diff = best_benchmark(a, b)\n    print(d, diff)\n\n\nmain()\n",
+  "javascript": "function bestBenchmark(a, b) {\n  // Write your solution here\n  return [1, 0]\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst a = t.slice(2, 2 + n)\nconst b = t.slice(2 + n, 2 + n + m)\nconst res = bestBenchmark(a, b)\nconsole.log(res[0] + ' ' + res[1])\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\npair<long long, long long> bestBenchmark(vector<long long>& a, vector<long long>& b) {\n    // Write your solution here\n    return {1, 0};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<long long> a(n), b(m);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    for (int i = 0; i < m; i++) cin >> b[i];\n    pair<long long, long long> res = bestBenchmark(a, b);\n    cout << res.first << \" \" << res.second << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] bestBenchmark(long[] a, long[] b) {\n        // Write your solution here\n        return new long[]{1, 0};\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        long[] a = new long[n], b = new long[m];\n        for (int i = 0; i < n; i++) { in.nextToken(); a[i] = (long) in.nval; }\n        for (int i = 0; i < m; i++) { in.nextToken(); b[i] = (long) in.nval; }\n        long[] res = bestBenchmark(a, b);\n        System.out.println(res[0] + \" \" + res[1]);\n    }\n}\n"
+ }
+}

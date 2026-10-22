@@ -1,0 +1,18 @@
+{
+ "qid": "9f786d4a98",
+ "question": "Intuit Software Engineer 1 technical round 1 (two senior engineers, off-campus FTE). After discussing projects, the OOP and OS questions were: **runtime polymorphism, analysing given code and predicting its output, why the `virtual` keyword exists, scope resolution, types of polymorphism**, and **virtual memory and thrashing**. The exact code snippets were not reported.",
+ "lookingFor": [
+  "Solid grasp of virtual dispatch, overriding and name hiding in C++.",
+  "Ability to trace code and predict output, including slicing and static versus dynamic binding.",
+  "Distinction between compile-time and run-time polymorphism.",
+  "Virtual memory, paging and the cause of thrashing.",
+  "Clear explanation backed by small examples."
+ ],
+ "answer": "**Types of polymorphism.**\n- *Compile-time (static):* function and operator overloading, templates. Resolved by the compiler.\n- *Run-time (dynamic):* virtual functions; the function called depends on the object's actual type.\n\n**Why `virtual` exists.** Without it, a call through a base pointer is bound statically by the pointer's type. With `virtual`, the call goes through the object's vptr to the vtable and reaches the most-derived override.\n\n    struct A { virtual void f() { cout << \"A\"; } void g() { cout << \"A\"; } };\n    struct B : A { void f() override { cout << \"B\"; } void g() { cout << \"B\"; } };\n    A* p = new B;\n    p->f();   // B  (virtual, dynamic binding)\n    p->g();   // A  (non-virtual, static binding on A*)\n    A a = *p; a.f();  // A  (object slicing)\n\n**Predicting output: checklist.** Is the function virtual? Is the call through a pointer/reference or an object (slicing)? Is it called in a constructor or destructor (there the dynamic type is the class being constructed, so no derived override)? Default arguments are bound statically. Does a derived function with the same name hide base overloads?\n\n**Scope resolution (`::`).** Names a scope explicitly: `A::f()` calls A's version even if overridden (`p->A::f()` bypasses virtual dispatch); also `::x` for a global, `std::cout`, and defining members outside the class (`void B::f() {}`).\n\n**Virtual memory.** Gives each process a large private address space, mapped to physical frames through page tables; pages not in RAM are fetched on a page fault. Benefits: isolation, programs larger than RAM, simple allocation, sharing.\n\n**Thrashing.** When the combined working sets of processes exceed physical memory, the system keeps page-faulting, evicting pages it needs again immediately; CPU time goes to paging I/O and utilisation collapses. Causes: too high a degree of multiprogramming and poor locality. Remedies: reduce the number of running processes, add RAM, use working-set or page-fault-frequency control, better replacement and locality.\n\nTie the two halves together if asked: vtables live in ordinary memory, so they too are subject to paging.",
+ "followUps": [
+  "What does the vtable look like for a class with two virtual functions?",
+  "What happens if you call a virtual function from a constructor?",
+  "How does the working-set model prevent thrashing?",
+  "What is the difference between overriding, overloading and hiding?"
+ ]
+}

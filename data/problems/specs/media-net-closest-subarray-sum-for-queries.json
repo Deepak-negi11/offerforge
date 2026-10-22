@@ -1,0 +1,45 @@
+{
+ "pid": "media-net-closest-subarray-sum-for-queries",
+ "title": "Closest Subarray Sum for Queries",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `a` of `n` integers (which may be negative, zero or positive) and `m` queries. Each query is a single integer `x`.\n\nFor each query, consider every **non-empty contiguous subarray** of `a` and look at its sum. Among all of them, find the one whose sum is closest to `x`, that is, the one that minimises `|sum - x|`.\n\nSeveral subarrays may be equally close, so to keep the answer unique, print only the **minimum possible absolute difference** `|sum - x|` for each query (not the subarray itself).\n\nQueries are independent of each other.\n\n**Follow-up:** the interviewer first asked the single-query version (one `x`), and then extended it to many queries. Think about what can be shared between queries.",
+ "input_format": "The first line contains two integers `n` and `m`.\nThe second line contains `n` integers `a[0] ... a[n-1]`.\nEach of the next `m` lines contains one integer, a query `x`.",
+ "output_format": "Print `m` lines. Line `i` is the minimum value of `|sum - x|` over all non-empty subarrays for the `i`-th query.",
+ "constraints": [
+  "1 ≤ n ≤ 1200",
+  "1 ≤ m ≤ 10^5",
+  "-10^9 ≤ a[i] ≤ 10^9",
+  "-10^12 ≤ x ≤ 10^12"
+ ],
+ "examples": [
+  {
+   "input": "4 3\n3 -2 5 1\n10\n0\n-100",
+   "output": "3\n1\n98",
+   "explanation": "The subarray sums are 3, 1, 6, 7, -2, 3, 4, 5, 6, 1 (as ranges: [3], [3,-2], [3,-2,5], [3,-2,5,1], [-2], [-2,5], [-2,5,1], [5], [5,1], [1]). For 10 the closest sum is 7 (difference 3). For 0 the closest are 1 and -2 (difference 1 and 2), so 1. For -100 the closest is -2 (difference 98)."
+  },
+  {
+   "input": "3 4\n-5 -5 -5\n-10\n-12\n7\n-15",
+   "output": "0\n2\n12\n0",
+   "explanation": "The only subarray sums are -5, -10 and -15. Query -10 is hit exactly (0); -12 is 2 away from -10; 7 is 12 away from -5; -15 is hit exactly."
+  }
+ ],
+ "complexity": {
+  "time": "O(n^2 log n + m log n)",
+  "space": "O(n^2)"
+ },
+ "hints": [
+  "With prefix sums `P`, the sum of the subarray `(i, j]` is `P[j] - P[i]` with `i < j`. There are only `n(n+1)/2` subarray sums in total.",
+  "Handling every query by scanning (or by an ordered set over prefix sums) costs at least `O(n)` per query, which is too slow for `10^5` queries. The subarray sums do not depend on the query, so compute them once.",
+  "Sort all subarray sums. For a query `x`, binary search for the insertion point; the closest sum is one of the two neighbours of that position."
+ ],
+ "reference": "import sys\nfrom bisect import bisect_left\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    a = [int(v) for v in data[2:2 + n]]\n    P = [0]\n    for v in a:\n        P.append(P[-1] + v)\n    sums = []\n    for i in range(n):\n        base = P[i]\n        sums += [p - base for p in P[i + 1:]]\n    sums.sort()\n    L = len(sums)\n    out = []\n    for k in range(m):\n        x = int(data[2 + n + k])\n        pos = bisect_left(sums, x)\n        best = None\n        if pos < L:\n            best = sums[pos] - x\n        if pos > 0:\n            d = x - sums[pos - 1]\n            if best is None or d < best:\n                best = d\n        out.append(best)\n    print('\\n'.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\na = [int(v) for v in data[2:2 + n]]\nout = []\nfor k in range(m):\n    x = int(data[2 + n + k])\n    best = None\n    for i in range(n):\n        s = 0\n        for j in range(i, n):\n            s += a[j]\n            d = abs(s - x)\n            if best is None or d < best:\n                best = d\n    out.append(best)\nprint('\\n'.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def fmt(a, qs):\n        return f\"{len(a)} {len(qs)}\\n\" + ' '.join(map(str, a)) + '\\n' + '\\n'.join(map(str, qs))\n    tests = [fmt([5], [5]), fmt([5], [0]), fmt([-5], [3]), fmt([0], [0, 1, -1]), fmt([1, 1, 1], [100, -100, 2]), fmt([-5, -5, -5], [-10, -12, 7, -15]), fmt([10 ** 9, -10 ** 9], [0, 10 ** 12, -10 ** 12]), fmt([10 ** 9] * 3, [-10 ** 12, 10 ** 12, 2 * 10 ** 9 + 7])]\n    for _ in range(30):\n        n = rng.randint(1, 12)\n        lim = rng.choice([3, 10, 100, 10 ** 9])\n        a = [rng.randint(-lim, lim) for _ in range(n)]\n        if rng.random() < 0.3:\n            a = [abs(v) for v in a]\n        qs = [rng.randint(-lim * n, lim * n) for _ in range(rng.randint(1, 6))]\n        tests.append(fmt(a, qs))\n    for _ in range(6):\n        n = rng.randint(100, 300)\n        a = [rng.randint(-1000, 1000) for _ in range(n)]\n        qs = [rng.randint(-10 ** 5, 10 ** 5) for _ in range(rng.randint(100, 500))]\n        tests.append(fmt(a, qs))\n    N, M = 1200, 10 ** 5\n    a = [rng.randint(-10 ** 9, 10 ** 9) for _ in range(N)]\n    tests.append(fmt(a, [rng.randint(-10 ** 12, 10 ** 12) for _ in range(M)]))\n    a = [rng.randint(-10 ** 9, 10 ** 9) for _ in range(N)]\n    tests.append(fmt(a, [rng.randint(-3 * 10 ** 10, 3 * 10 ** 10) for _ in range(M)]))\n    a = [rng.randint(1, 10 ** 9) for _ in range(N)]\n    tests.append(fmt(a, [rng.randint(0, 10 ** 12) for _ in range(M)]))\n    a = [rng.randint(-1000, 1000) for _ in range(N)]\n    tests.append(fmt(a, [rng.randint(-10 ** 6, 10 ** 6) for _ in range(M)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef closest_differences(a: List[int], queries: List[int]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    a = [int(v) for v in data[2:2 + n]]\n    queries = [int(v) for v in data[2 + n:2 + n + m]]\n    print('\\n'.join(map(str, closest_differences(a, queries))))\n\n\nmain()\n",
+  "javascript": "function closestDifferences(a, queries) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst a = t.slice(2, 2 + n)\nconst queries = t.slice(2 + n, 2 + n + m)\nconsole.log(closestDifferences(a, queries).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> closestDifferences(vector<long long>& a, vector<long long>& queries) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<long long> a(n), queries(m);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    for (int i = 0; i < m; i++) cin >> queries[i];\n    vector<long long> res = closestDifferences(a, queries);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] closestDifferences(long[] a, long[] queries) {\n        // Write your solution here\n        return new long[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        long[] a = new long[n], queries = new long[m];\n        for (int i = 0; i < n; i++) { in.nextToken(); a[i] = (long) in.nval; }\n        for (int i = 0; i < m; i++) { in.nextToken(); queries[i] = (long) in.nval; }\n        long[] res = closestDifferences(a, queries);\n        StringBuilder sb = new StringBuilder();\n        for (long v : res) sb.append(v).append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

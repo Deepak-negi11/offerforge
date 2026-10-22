@@ -1,0 +1,18 @@
+{
+ "qid": "8717a57207",
+ "question": "Nutanix SRE intern, Technical Interview 2. **The site nutanix.com opens on one computer in a network but not on another computer in the same network, while other sites work on the second computer. How do you troubleshoot?** The candidate tried flushing the DNS cache without success, then questioned the interviewer, who revealed that a security patch had been run before the problem started. The cause was that the patch had changed `/etc/hosts` to point nutanix.com to a wrong IP address.",
+ "lookingFor": [
+  "Isolating the variable: the problem is specific to one host and one site.",
+  "Asking what changed recently, which is a core SRE habit.",
+  "Methodical use of DNS and connectivity tools to compare working and broken machines.",
+  "Knowledge of name-resolution order, including the hosts file.",
+  "Not stopping at the first fix that did not work."
+ ],
+ "answer": "**Reason from the facts.** Same network and other sites work on the broken machine, so link, gateway, DHCP and general DNS are fine. The fault is host-local and specific to this name, which points to local name resolution, a per-host proxy or firewall rule, or a bad cached or static entry.\n\n**Method: compare working and broken machines.**\n1. Ask what changed: updates, patches, new software, VPN or proxy settings. This is often the fastest route.\n2. Resolve the name on both machines: `nslookup nutanix.com` or `dig nutanix.com` and compare IPs. If they differ, the broken one is resolving wrongly. Also ask a specific DNS server, e.g. `dig @8.8.8.8 nutanix.com`, to see the true answer.\n3. Test by IP: `ping` or `curl -v --resolve` / `curl http://<correct-ip>`. If the IP works but the name does not, it is a resolution problem.\n4. Check local resolution sources in order: the browser cache, OS DNS cache (flush it), then `/etc/hosts` (Windows: `C:\\Windows\\System32\\drivers\\etc\\hosts`), then the DNS server from `/etc/resolv.conf`. `getent hosts nutanix.com` shows what the system resolver actually returns.\n5. Rule out proxy settings, browser extensions, local firewall or security software rules, and HTTPS certificate errors.\n\n**In this case.** Flushing the cache did not help because the answer came from a static entry that overrides DNS. Inspecting the hosts file showed `nutanix.com` pointing at a wrong IP. Removing the entry restored access.\n\n**Takeaways.** Static overrides beat DNS; check them early. Ask what changed. Verify the fix by resolving again and loading the site, and consider why the patch edited the file (a security tool may block domains deliberately, so confirm before reverting).",
+ "followUps": [
+  "What is the order in which Linux resolves a hostname?",
+  "How would you find which process or package modified the hosts file?",
+  "What if the hosts file is clean but the IP resolved is still wrong?",
+  "How would you roll this fix out to many affected machines?"
+ ]
+}

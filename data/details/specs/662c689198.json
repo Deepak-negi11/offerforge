@@ -1,0 +1,18 @@
+{
+ "qid": "662c689198",
+ "question": "Apple Java Backend Engineer, System Design round (Hyderabad, L4 SDE-2). **Scenario: you are the network lead for 'Women Who Code' and need to circulate a form that carries a subscription fee. The form is accessed by billions of people. Design a robust system to handle wide-scale usage.**",
+ "lookingFor": [
+  "Handling extreme read traffic with caching and CDNs.",
+  "Separating the static form from the transactional payment path.",
+  "Payment correctness: idempotency, reconciliation, no double charge.",
+  "Resilience under load: rate limiting, queues, graceful degradation.",
+  "Stating scale assumptions realistically."
+ ],
+ "answer": "**Clarify and scope.** Billions of people can access the form, but far fewer will pay. Assume a form view is read-only and static, while submit-and-pay is the write path. Say your assumption, for example: 1 billion views over a week with a conversion of well under 1 percent, with peaks after an announcement. Requirements: always-available form, correct payments with no double charges, data not lost, fraud and bot resistance.\n\n**Split into two paths.**\n1. **Read path (the form).** Serve the form as static content from a **CDN**, with edge caching and a multi-region origin behind it. The page contains no per-user data, so it scales almost for free. Localise at the edge, and keep JavaScript small.\n2. **Write path (submission and payment).** Needs correctness, so protect it:\n   - API gateway with **rate limiting**, bot protection (CAPTCHA) and authentication or email verification.\n   - **Stateless** application servers behind a load balancer, autoscaled.\n   - Hand off payment to a payment provider (hosted checkout), so card data never touches your servers.\n   - Write submissions to a **message queue** first to absorb spikes; workers consume and store them in a database. The user gets an acknowledgement and a confirmation by email once payment is verified.\n\n**Payment correctness.** Use an **idempotency key** per submission so retries do not double charge; confirm payment through the provider's **webhook** (signed, verified, idempotent) rather than trusting the browser redirect; run a **reconciliation job** comparing provider records with yours; model states: CREATED, PENDING, PAID, FAILED.\n\n**Data.** A relational database for subscriptions and payments (transactions matter), sharded by user id or region if needed, with replicas; a cache for read lookups; backups and multi-region replication.\n\n**Failure and degradation.** If the backend is overloaded, the static form still loads and submissions queue or show a \"try again\" message; use circuit breakers on the payment provider, retries with backoff and jitter, and a waiting room for extreme spikes.\n\n**Observability.** Track error rate, queue depth, payment success rate and latency, with alerts.",
+ "followUps": [
+  "How do you stop a user being charged twice if they click pay twice?",
+  "What happens if the payment provider is down?",
+  "How would you protect against bots and spam submissions?",
+  "How would you change the design for a free form with no payment?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "a054fd4a5a",
+ "question": "Adobe MTS-2 Full-stack interview, round 1 (DSA plus LLD, experienced). **Design and code a file system supporting two queries:** (1) **add** a file path string if it does not already exist, and (2) **check** whether a given path exists. Reported tags: Trie, Low Level Design.",
+ "lookingFor": [
+  "Choosing a trie keyed by path segments, not characters.",
+  "Clarifying requirements: parents must exist? files versus folders? duplicates? delimiters?",
+  "Clean class design and a working implementation.",
+  "Time and space complexity.",
+  "Extensibility: delete, list, metadata, concurrency."
+ ],
+ "answer": "**Clarify first.** Ask: does `add(\"/a/b/c\")` require `/a/b` to exist, or should it create missing folders? Is a path both a file and a folder? Are paths normalised (no trailing slash)? Assume paths start with `/`, are split by `/`, and that `add` returns false if the path exists already. Mention the alternative so the interviewer can pick.\n\n**Design:** a **trie where each node is one path segment** (not one character). A hash map from segment name to child gives O(1) per segment and handles any names.\n\n```python\nclass Node:\n    def __init__(self):\n        self.children = {}      # segment -> Node\n        self.is_end = False     # a path was explicitly added here\n\nclass FileSystem:\n    def __init__(self):\n        self.root = Node()\n\n    def add(self, path):\n        cur = self.root\n        for seg in path.strip(\"/\").split(\"/\"):\n            if seg not in cur.children:\n                cur.children[seg] = Node()\n            cur = cur.children[seg]\n        if cur.is_end:\n            return False        # already existed\n        cur.is_end = True\n        return True\n\n    def exists(self, path):\n        cur = self.root\n        for seg in path.strip(\"/\").split(\"/\"):\n            cur = cur.children.get(seg)\n            if cur is None:\n                return False\n        return cur.is_end\n```\n\n**Complexity:** both operations are O(L) in the number of segments (or O(path length) with hashing), and space is O(total segments across paths), with shared prefixes stored once. A plain set of strings gives O(path length) lookups too, but cannot support prefix operations such as \"list a directory\" or \"delete a subtree\" efficiently; the trie can.\n\n**Design choices to discuss:**\n- If parents must exist, check each segment during `add` and fail otherwise (the LeetCode \"Design File System\" variant).\n- `is_end` separates \"this path was added\" from \"this is only a prefix of another path\".\n- Extensions: `delete` (remove the subtree), `ls` (iterate children), per-node metadata (size, timestamps, value), and thread safety with a read-write lock or per-node locks.",
+ "followUps": [
+  "How would you support delete and list-directory?",
+  "What changes if a path can be both a file and a folder?",
+  "How would you make it thread-safe?",
+  "How would you store it on disk or distribute it across machines?"
+ ]
+}

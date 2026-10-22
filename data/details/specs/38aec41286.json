@@ -1,0 +1,18 @@
+{
+ "qid": "38aec41286",
+ "question": "PhonePe system design round (Software Engineer, backend, 4+ years, 1 hour): design a **search autocomplete** feature. The candidate was expected to use a **trie** and wrote an entire working solution, then discussed **scalability**, handling different scenarios, and **optimisation of memory and time complexity**.",
+ "lookingFor": [
+  "Can you implement and explain a trie-based prefix search with ranking?",
+  "Do you analyse time and space complexity and know how to optimise them?",
+  "Can you scale beyond one machine: sharding, caching, offline index building?",
+  "Do you handle ranking by popularity, freshness and personalisation?",
+  "Do you consider latency, typos, updates, and failure scenarios?"
+ ],
+ "answer": "**Requirements:** as the user types a prefix, return the top k (say 5-10) suggestions, ranked by popularity; response within ~100 ms; suggestions update as search behaviour changes. Assume 10M daily users and a high read rate, writes are batched.\n\n**Core data structure: a trie.** Each node has `children` (a map or array) and an `isEnd` flag with a frequency. Naive lookup: walk the prefix (O(L)), then DFS the subtree to collect the words and sort them, which is too slow for short prefixes with huge subtrees. **Optimisation:** store the **top-k suggestions at each node** (k word references with scores). A query is O(L) to walk the prefix and O(k) to return. Insert/update costs O(L * k) to refresh the lists along the path. Memory is the price: space grows by k entries per node.\n\n**Memory optimisations:** compress the trie into a **radix/compressed trie** (merge single-child chains), store words once in an array and keep ids in nodes, cap depth (only index prefixes up to about 20 chars), prune rare queries, and use compact child storage.\n\n**Building and updating:**\n- Log search queries to a stream; aggregate counts offline (daily or hourly batch, or stream processing) into `(query, frequency)`.\n- Rebuild the trie from the aggregates and swap it in atomically (blue/green), rather than updating a live trie on each keystroke. Add a small recent-trends layer for fresh queries.\n\n**Scaling:**\n- Serve from memory; replicate trie servers for reads.\n- **Shard** by first character(s) of the prefix (watch for skew; use a data-driven split by prefix frequency).\n- Cache popular prefixes (Redis or CDN/edge, plus browser caching); short TTL.\n- Client side: debounce keystrokes and cancel stale requests.\n\n**Edge cases:** typos (edit distance or fuzzy matching as a second stage), personalisation merged with global results, filtering offensive terms, multilingual input, empty prefix (show trending), and very long input.\n\n**Failure:** if the autocomplete service is down, the search box still works without suggestions; degrade gracefully.",
+ "followUps": [
+  "How does storing top-k at each node change the time and space complexity?",
+  "How do you update suggestions when a query suddenly trends?",
+  "How would you shard the trie, and how do you avoid hot shards?",
+  "How would you support typo tolerance?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "e8ad0df457",
+ "question": "Goldman Sachs Associate (experienced), system design round. After a discussion of recent work, the candidate was asked to **design a Pastebin-style service**, covering **functional and non-functional requirements, core entities, API design and the high-level architecture.** No source passage was available for this item, so the details below follow the reported summary only.",
+ "lookingFor": [
+  "Gathering and prioritising functional and non-functional requirements.",
+  "Defining entities and a clean API.",
+  "Choosing storage sensibly (metadata vs large text content).",
+  "Handling scale, expiry, caching and abuse."
+ ],
+ "answer": "**Requirements.** Functional: create a paste (text, optional title, language, expiry, visibility), get a paste by a short URL, optionally delete or edit it, optional custom alias. Non-functional: high availability, fast reads, durable storage, unguessable links for private pastes, and a maximum paste size (say 1 MB). Assume 1M new pastes per day and a 10:1 read:write ratio, so about 12 writes/s and 120 reads/s on average, with peaks several times higher.\n\n**Estimates:** 1M pastes per day at an average 10 KB gives about 10 GB per day, around 3.6 TB per year. Metadata is tiny in comparison, so the content dominates storage.\n\n**Entities:** `Paste` (id/key, contentRef, userId, createdAt, expiresAt, visibility, language, size), `User` (optional).\n\n**API:** `POST /pastes {content, expiresIn, visibility}` returns `{key, url}`; `GET /pastes/{key}` returns content; `DELETE /pastes/{key}`. Apply authentication for delete, and rate limiting on create.\n\n**Architecture:**\n- Clients, then a load balancer, then stateless app servers.\n- **Key generation:** a pre-generated pool of unique random keys from a key generation service (or base62 of a distributed ID), so there is no collision check on the write path. A 7-8 character key is sufficient.\n- **Storage split:** paste *content* in object storage (S3-like), *metadata* in a database (relational, or a key-value store for scale), referenced by key. Large text stays out of the database.\n- **Cache:** an in-memory cache (Redis) for hot pastes, with a CDN for public ones. Pastes are immutable, so cache invalidation is simple.\n- **Expiry:** store `expiresAt`; check on read, and run a background cleanup job (or TTL) to delete expired metadata and objects.\n\n**Trade-offs and bottlenecks:** reads dominate, so cache aggressively; shard metadata by key; replicate for availability; use asynchronous writes of analytics. **Abuse:** limit size and rate, scan for malware or secrets, support reports and takedowns, and use unguessable keys for private pastes.",
+ "followUps": [
+  "How would you generate unique keys without a collision check?",
+  "Why store the paste content in object storage instead of the database?",
+  "How would you implement expiry and cleanup at scale?",
+  "How would you support editing, versioning or syntax highlighting?",
+  "How would you protect against abuse and spam?"
+ ]
+}

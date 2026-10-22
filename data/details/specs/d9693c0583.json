@@ -1,0 +1,19 @@
+{
+ "qid": "d9693c0583",
+ "question": "Dream11 SDE-2 system design round. Design Dream11's **team creation service**: a user builds a fantasy team by choosing players from the squads of a match, subject to constraints (for example a fixed number of players, role limits, credit/budget limits and a maximum from one real team). Interviewers asked about **CRUD operations in the API**, the **database schema**, **scalability** and **disaster recovery**. Exact constraint rules were not specified, so define reasonable ones.",
+ "lookingFor": [
+  "Clear requirements and validation rules for team composition.",
+  "API design and the correct handling of edits before the lock time.",
+  "Schema design for players, matches, teams and contests.",
+  "Handling peak load right before match start.",
+  "Disaster recovery thinking: RPO and RTO, multi-region, backups."
+ ],
+ "answer": "**Requirements.** Users create, view, edit and clone teams for an upcoming match; choose 11 players from the two squads; satisfy constraints (e.g. total credits at most 100, min/max players per role, at most N from one team, captain and vice-captain). Teams become read-only at the match **lock time**. Non-functional: heavy spike before lock time, no lost teams, low latency, consistent view for a user.\n\n**APIs.**\n- `GET /matches/{id}/squad` returns players with role, credits, and team (highly cacheable).\n- `POST /matches/{id}/teams` with player ids, captain, vice-captain; idempotency key.\n- `GET /teams/{id}`, `GET /users/me/teams?matchId=`.\n- `PUT /teams/{id}` allowed only before lock time; `DELETE` optional.\n\n**Validation (server side, never trust the client).** Check player belongs to the match squad, count, role limits, credits, duplicates, lock time. Keep the rule set in a config per sport/match type so rules are data, not code.\n\n**Data model.** `matches(id, start_time, lock_time, ...)`, `players(id, name, role, credits)`, `match_players(match_id, player_id, real_team)`, `teams(id, user_id, match_id, captain_id, vice_id, version, created_at)`, `team_players(team_id, player_id)`. Index on `(user_id, match_id)`. Since team data is write-heavy and keyed by user and match, partition/shard by `user_id` (or match_id plus user hash). Store the player list also as a compact array/JSON on the team row to make reads a single lookup.\n\n**Scale.** Squad data is read-heavy: cache in Redis and a CDN. Writes spike before lock: stateless services behind a load balancer, write to a sharded database, and queue downstream work (contest joins, notifications) asynchronously. Use rate limiting per user and a limit on teams per user per match.\n\n**Disaster recovery.** Define RPO/RTO. Synchronous or semi-synchronous replication within a region, asynchronous cross-region replica, regular backups with point-in-time recovery, infrastructure as code, and regular failover drills. Accept that the in-flight write may need a client retry; idempotency keys make that safe.",
+ "followUps": [
+  "How do you guarantee no team can be edited after the lock time under clock skew?",
+  "How would you store and query a million teams for one match for scoring?",
+  "How do you prevent duplicate teams from a retried request?",
+  "What would you cache, and how do you invalidate it when a squad changes (a late replacement)?",
+  "What are your RPO and RTO targets and how would you test them?"
+ ]
+}

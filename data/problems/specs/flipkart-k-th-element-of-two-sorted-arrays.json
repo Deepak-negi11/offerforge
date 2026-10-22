@@ -1,0 +1,50 @@
+{
+ "pid": "flipkart-k-th-element-of-two-sorted-arrays",
+ "title": "K-th Element of Two Sorted Arrays",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given two arrays `a` (length `m`) and `b` (length `n`), each sorted in non-decreasing order, and an integer `k`. Imagine merging both arrays into one sorted sequence of `m + n` values, **keeping duplicates**. Return the `k`-th smallest value of that merged sequence (1-indexed, so `k = 1` is the minimum).\n\nThe interviewer expects a solution that does not merge the arrays: it should run in `O(log(min(m, n)))` time by binary searching on how many elements are taken from the shorter array. (The input itself still has to be read in `O(m + n)`; the complexity below refers to the search.)",
+ "input_format": "The first line contains three integers `m`, `n` and `k`.\nThe second line contains `m` integers: the elements of `a` in non-decreasing order.\nThe third line contains `n` integers: the elements of `b` in non-decreasing order.",
+ "output_format": "Print a single integer: the `k`-th smallest element of the merged sequence.",
+ "constraints": [
+  "1 ≤ m, n ≤ 10^5",
+  "1 ≤ k ≤ m + n",
+  "-10^9 ≤ a[i], b[j] ≤ 10^9",
+  "Both arrays are sorted in non-decreasing order"
+ ],
+ "examples": [
+  {
+   "input": "3 4 4\n1 4 9\n2 3 5 8",
+   "output": "4",
+   "explanation": "The merged sequence is `1 2 3 4 5 8 9`; its 4th element is 4."
+  },
+  {
+   "input": "2 3 3\n5 5\n5 5 7",
+   "output": "5",
+   "explanation": "The merged sequence is `5 5 5 5 7`. Duplicates count separately, so the 3rd smallest value is 5."
+  },
+  {
+   "input": "1 1 2\n10\n-3",
+   "output": "10",
+   "explanation": "The merged sequence is `-3 10`; the 2nd element is 10."
+  }
+ ],
+ "complexity": {
+  "time": "O(log(min(m, n)))",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Merging takes O(m + n). Instead, ask: how many of the k smallest elements come from `a`? Call it `i`; then `k - i` come from `b`.",
+  "A split `i` is correct when `a[i-1] ≤ b[k-i]` and `b[k-i-1] ≤ a[i]` (treat out-of-range neighbours as -∞ / +∞). Binary search `i` over `[max(0, k-n), min(k, m)]`.",
+  "If `a[i-1] > b[k-i]` you took too many from `a`, so move left; otherwise move right. The answer is `max(a[i-1], b[k-i-1])`. Search on the shorter array."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    m, n, k = int(data[0]), int(data[1]), int(data[2])\n    a = [int(x) for x in data[3:3 + m]]\n    b = [int(x) for x in data[3 + m:3 + m + n]]\n    if m > n:\n        a, b, m, n = b, a, n, m\n    INF = float('inf')\n    lo, hi = max(0, k - n), min(k, m)\n    while lo <= hi:\n        i = (lo + hi) // 2\n        j = k - i\n        al = a[i - 1] if i > 0 else -INF\n        ar = a[i] if i < m else INF\n        bl = b[j - 1] if j > 0 else -INF\n        br = b[j] if j < n else INF\n        if al <= br and bl <= ar:\n            print(max(al, bl))\n            return\n        if al > br:\n            hi = i - 1\n        else:\n            lo = i + 1\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nm, n, k = int(data[0]), int(data[1]), int(data[2])\nvals = [int(x) for x in data[3:3 + m + n]]\nvals.sort()\nprint(vals[k - 1])\n",
+ "generator": "def gen(rng):\n    def fmt(a, b, k):\n        return '%d %d %d\\n%s\\n%s' % (len(a), len(b), k, ' '.join(map(str, a)), ' '.join(map(str, b)))\n    tests = [fmt([1, 4, 9], [2, 3, 5, 8], 4), fmt([5, 5], [5, 5, 7], 3), fmt([10], [-3], 2), fmt([10], [-3], 1),\n             fmt([1, 2, 3], [4, 5, 6], 4), fmt([4, 5, 6], [1, 2, 3], 3), fmt([7], [7], 2),\n             fmt([1, 1, 1], [1, 1, 1], 6), fmt([-10**9, 10**9], [-10**9, 10**9], 3),\n             fmt([1], [2, 3, 4, 5, 6, 7], 1), fmt([1], [2, 3, 4, 5, 6, 7], 7)]\n    for m, n in ((1, 2), (2, 2), (3, 5), (5, 3), (4, 4), (1, 9), (8, 2), (10, 10), (6, 11), (12, 1)):\n        for _ in range(2):\n            hi = rng.choice([5, 30, 1000])\n            a = sorted(rng.randint(-hi, hi) for _ in range(m))\n            b = sorted(rng.randint(-hi, hi) for _ in range(n))\n            tests.append(fmt(a, b, rng.randint(1, m + n)))\n    N = 100000\n    lim = 10**9\n    a = sorted(rng.randint(-lim, lim) for _ in range(N))\n    b = sorted(rng.randint(-lim, lim) for _ in range(N))\n    tests.append(fmt(a, b, N))\n    tests.append(fmt(a, b, 2 * N))\n    a = sorted(rng.randint(-lim, lim) for _ in range(50000))\n    b = sorted(rng.randint(-lim, lim) for _ in range(50000))\n    tests.append(fmt(a, b, rng.randint(1, 100000)))\n    a = sorted(rng.randint(0, 50) for _ in range(50000))\n    b = sorted(rng.randint(0, 50) for _ in range(50000))\n    tests.append(fmt(a, b, rng.randint(1, 100000)))\n    a = sorted(rng.randint(-lim, lim) for _ in range(60000))\n    b = sorted(rng.randint(-lim, lim) for _ in range(1))\n    tests.append(fmt(a, b, 30001))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef kth_element(a: List[int], b: List[int], k: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    m, n, k = int(data[0]), int(data[1]), int(data[2])\n    a = [int(x) for x in data[3:3 + m]]\n    b = [int(x) for x in data[3 + m:3 + m + n]]\n    print(kth_element(a, b, k))\n\n\nmain()\n",
+  "javascript": "function kthElement(a, b, k) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst m = t[0], n = t[1], k = t[2]\nconst a = t.slice(3, 3 + m)\nconst b = t.slice(3 + m, 3 + m + n)\nconsole.log(kthElement(a, b, k))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long kthElement(vector<long long>& a, vector<long long>& b, long long k) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int m, n;\n    long long k;\n    cin >> m >> n >> k;\n    vector<long long> a(m), b(n);\n    for (int i = 0; i < m; i++) cin >> a[i];\n    for (int i = 0; i < n; i++) cin >> b[i];\n    cout << kthElement(a, b, k) << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long kthElement(long[] a, long[] b, int k) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int m = (int) in.nval;\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        long[] a = new long[m], b = new long[n];\n        for (int i = 0; i < m; i++) {\n            in.nextToken();\n            a[i] = (long) in.nval;\n        }\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            b[i] = (long) in.nval;\n        }\n        System.out.println(kthElement(a, b, k));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,19 @@
+{
+ "qid": "286e828274",
+ "question": "Intel on-campus technical interview (software engineer role). One of the reported questions: **what are a cache and a TLB, and how do they relate to virtual memory?** The same round also covered resume projects, C/C++ memory allocation and OS topics, so expect follow-ups that connect hardware and OS.",
+ "lookingFor": [
+  "Clear picture of the memory hierarchy and why it exists (locality).",
+  "Understanding of virtual-to-physical address translation and page tables.",
+  "Ability to connect the TLB (translation cache) and the data cache as two different caches.",
+  "Awareness of hits, misses and their cost.",
+  "Comfort moving between computer architecture and operating systems."
+ ],
+ "answer": "**Cache.** A small, fast memory (SRAM) between the CPU and main memory (DRAM). It keeps recently or nearby-used data because programs show **temporal locality** (reuse soon) and **spatial locality** (use neighbours). Data moves in fixed-size **cache lines** (commonly 64 bytes). A **hit** is served in a few cycles; a **miss** goes to the next level (L2, L3, then DRAM), costing tens to hundreds of cycles. Key design choices: line size, associativity (direct-mapped, set-associative, fully associative), replacement policy (LRU approximations), and write policy (write-through vs write-back).\n\n**Virtual memory.** Each process sees its own contiguous virtual address space. The OS keeps a **page table** mapping virtual pages to physical frames, and the **MMU** hardware translates every address. A page not in RAM triggers a **page fault**, which the OS handles by loading the page from disk (or killing the process on an invalid access).\n\n**TLB (Translation Lookaside Buffer).** A small cache inside the MMU that stores recent virtual-page to physical-frame translations. Without it, every memory access would first need extra memory reads to walk the (possibly multi-level) page table. Flow of a load:\n1. CPU issues a virtual address, split into page number and offset.\n2. TLB lookup by page number. **TLB hit**: physical frame obtained immediately. **TLB miss**: hardware (or the OS on some architectures) walks the page table and fills the TLB entry.\n3. If the page table says the page is absent, a **page fault** occurs.\n4. The physical address is then used to probe the data cache, then memory.\n\n**Relationship.** The TLB caches *translations*; the data/instruction caches cache *contents*. Both exploit locality. Caches can be indexed by virtual or physical address (VIPT is common: index with the page-offset bits while the TLB lookup runs in parallel). On a context switch the TLB must be flushed or its entries tagged with an address-space ID (ASID), which is one reason context switches are costly. Huge pages reduce TLB misses by covering more memory per entry.\n\nEffective access time is roughly: hit rate x fast time + miss rate x miss penalty, which is why even a small miss rate matters.",
+ "followUps": [
+  "How does a TLB miss differ from a page fault?",
+  "What happens to the TLB on a context switch, and how do ASIDs help?",
+  "Direct-mapped versus set-associative cache: trade-offs?",
+  "Write-through versus write-back caches?",
+  "Why do huge pages help some workloads?"
+ ]
+}

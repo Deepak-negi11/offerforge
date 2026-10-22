@@ -1,0 +1,19 @@
+{
+ "qid": "f87a51c58e",
+ "question": "Uber Freight (SWE III) high-level design round. **Design a distributed URL shortener.** Reported discussion areas: shorten and redirect APIs, generating unique short URLs and IDs, database selection, caching, handling high read traffic, database partitioning/sharding, collision handling, expiration of shortened URLs, fault tolerance and availability, and scaling horizontally.",
+ "lookingFor": [
+  "Requirements, capacity estimates and API design.",
+  "Unique, collision-free ID generation at scale.",
+  "Read-heavy optimisation with caching.",
+  "Sharding and replication choices.",
+  "Expiry and fault-tolerance details."
+ ],
+ "answer": "**Requirements and scale.** Create a short link for a long URL (optional custom alias and expiry), redirect fast, high availability. Assume 100M new URLs per month (about 40 writes/s) and a 100:1 read ratio (about 4,000 redirects/s average, much higher at peak). With 7 base62 characters you get 62^7, about 3.5 trillion codes, which is plenty.\n\n**API**\n- `POST /shorten {url, alias?, expiresAt?}` returns the short code.\n- `GET /{code}` returns a 301/302 redirect. Use 302 if you need accurate analytics or expiry control, since 301 may be cached by browsers.\n\n**Code generation options**\n1. **Hash** the URL (MD5/SHA) and take 7 chars: simple, but collisions occur and need a check-and-retry.\n2. **Counter/ID + base62**: a unique 64-bit id from a service (Snowflake-style or pre-allocated ranges per app server) encoded in base62. No collisions, and codes are guessable unless you scramble the id.\n3. **Pre-generated key service**: a service hands out unused random keys from a key database; each server takes a batch.\n\nI would pick range-allocated counters with a reversible shuffle for unpredictability. For custom aliases, enforce uniqueness via a unique index and return a conflict on duplicates.\n\n**Data model.** `urls(code PK, long_url, user_id, created_at, expires_at)`. Access is a pure key-value lookup, so a KV/wide-column store (DynamoDB or Cassandra-like) or a sharded SQL table works; shard by `code` using consistent hashing.\n\n**Read path.** Browser/CDN, then app, then Redis cache (LRU, popular codes), then DB. A Bloom filter can reject unknown codes cheaply. Redirects are idempotent and cache well.\n\n**Expiry.** Check `expires_at` at read time; a background job deletes or archives expired rows and can recycle codes after a quiet period.\n\n**Fault tolerance.** Replicate each shard across zones, run stateless app servers behind a load balancer, and have the ID service tolerate a failed node by using disjoint ranges. Write analytics events asynchronously through a queue so they never block redirects.",
+ "followUps": [
+  "How do you avoid collisions if you hash the long URL?",
+  "301 vs 302: which do you use and why?",
+  "How would you shard the data and what happens when you add a shard?",
+  "How would you stop attackers from enumerating all short codes?",
+  "How do you generate unique IDs across many servers without a single point of failure?"
+ ]
+}

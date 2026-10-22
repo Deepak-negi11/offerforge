@@ -1,0 +1,19 @@
+{
+ "qid": "85c23e966f",
+ "question": "Uber SDE-2 (L4) system design round (HLD / bar raiser). **Design a stock price tracking and notification system.** Users subscribe to tickers and are notified when the price moves by more than a delta (for example 5%) compared with the price an hour, a minute or a week ago. The system ingests prices from exchanges. Reported focus areas: where to store historic prices, how to keep comparing the current price with past windows, how to shard when ticks are unevenly distributed (a very active stock vs a small one), and how to avoid sending duplicate notifications for the same alert.",
+ "lookingFor": [
+  "Stating requirements and scale before drawing boxes.",
+  "Stream-processing design for sliding-window comparisons.",
+  "Handling hot partitions and skewed keys.",
+  "Idempotent, de-duplicated notification delivery.",
+  "Storage choices for time-series data and trade-off reasoning."
+ ],
+ "answer": "**Requirements.** Functional: subscribe/unsubscribe `(user, ticker, window, threshold)`; notify when `|price_now - price_window_ago| / price_window_ago > threshold`. Non-functional: low alert latency (seconds), high ingest throughput, at-most-once visible notification per alert, durable subscriptions. Assume thousands of tickers, millions of ticks per second at peak, millions of subscriptions.\n\n**API.** `POST /subscriptions`, `DELETE /subscriptions/{id}`, `GET /subscriptions`; an internal ingest feed from exchanges.\n\n**High-level flow**\n1. Ingest gateways normalise exchange feeds and write ticks to a log (Kafka-like) partitioned by ticker.\n2. Stream processors (one consumer per partition) keep per-ticker window state.\n3. When a ticker's price crosses a subscriber's threshold, emit an alert event.\n4. A notification service fans out via push/SMS/email.\n\n**Window comparison.** Keep a bounded structure per ticker: for a minute or hour window, a monotonic deque or a ring buffer of per-second/minute snapshots (store only the reference price at the window start, not every tick). For the week window, query a time-series store (or downsampled candles) for the price at `now - 7d`. Group subscriptions by `(ticker, window)` and sort by threshold, so each tick checks only the thresholds near the move instead of every user.\n\n**Hot tickers.** Hash partitioning gives skew for popular symbols. Give hot tickers their own dedicated partitions, or split work: ingest and window logic stay on one partition, while the fan-out of matched subscribers is spread over many workers keyed by user id.\n\n**No duplicates.** Alert id = `(subscription, window_start_bucket, direction)`. Store it in a fast store with an atomic `SET NX` and TTL (or a unique constraint) before sending, and use idempotent keys with downstream providers. Also add a cooldown or re-arm rule, otherwise a price hovering near the threshold fires repeatedly.\n\n**Storage.** Subscriptions in a sharded relational/KV store; ticks in a time-series store with retention and downsampling.\n\n**Failure modes:** consumer restart (rebuild window state from the log or checkpoints), late and out-of-order ticks, and exchange outage.",
+ "followUps": [
+  "How do you avoid sending the same alert twice if a consumer crashes mid-processing?",
+  "How would you scale when one ticker has 100x the traffic of others?",
+  "How would you evaluate the week-ago price cheaply?",
+  "How do you prevent notification storms around the threshold?",
+  "What changes if users define custom thresholds per stock in the millions?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "a3a15414c4",
+ "question": "In an AMD technical interview for an experienced Software Engineer, EDA Tools role, the candidate was asked:\n\n**How would you efficiently fetch or search a very large log file?**\n\nThe round also covered **Jenkins and its plugins**, given the candidate's DevOps experience. No source passage was available.",
+ "lookingFor": [
+  "Practical command-line and OS-level knowledge for large files (streaming, not loading into memory)",
+  "Awareness of I/O: sequential reads, memory mapping, indexing, parallelism",
+  "Use of structure: time-based rotation and binary search on timestamps",
+  "Knowledge of centralised logging for repeated queries at scale",
+  "Jenkins basics: pipelines, plugins, agents, and how to use them sensibly"
+ ],
+ "answer": "**Principle:** never load the whole file into memory. Stream it, narrow it with structure, and index it if you will query it repeatedly.\n\n**One-off searches (command line)**\n- `grep -n 'ERROR' app.log` (or `rg`, which is often faster) streams the file in constant memory. Use `-F` for fixed strings and `-m` to stop early; `zgrep` for compressed rotated logs.\n- `tail -f` / `tail -n 1000` for live and recent data; `less +F` to follow; `sed -n 'START,ENDp'` to extract a line range.\n- If lines are timestamped, **binary search by time** with `look` or a small script that seeks into the file, instead of scanning from the start.\n- Parallelise by splitting the file into chunks (`split`, or byte ranges with `dd`/`pread`) and searching each on a separate core; memory-map large files with `mmap` in code.\n- Pipe to `awk`, `cut`, `sort | uniq -c` for quick aggregation.\n\n**Make the data easier to search**\n- Rotate and compress logs by size or time (`logrotate`) so each file is smaller and you can pick a time window by file name.\n- Use structured logs (JSON with fields: timestamp, level, request id) so searches filter on fields.\n- For repeated or cross-machine queries, ship logs to a centralised system (for example the ELK stack, Loki, Splunk) which builds an inverted index; search by request id or time range.\n\n**Trade-offs:** command-line tools need no setup but scan linearly (O(n)); indexed systems answer quickly but cost storage, ingestion pipeline and operations.\n\n**Jenkins and plugins**\n- Jenkins is an automation server for CI/CD, with jobs defined as Pipelines (`Jenkinsfile`, declarative or scripted) running on agents.\n- Plugins add capabilities: Git or SCM integration, Pipeline, Credentials Binding, Docker, JUnit and test reports, notification plugins (email, Slack), and Blue Ocean for visualisation.\n- Good practice: keep plugins updated and minimal (security and compatibility), store pipelines in source control, use credentials stores and never print secrets in logs, and archive build artifacts and logs.",
+ "followUps": [
+  "What if the log is 50 GB and you need to find the 100 most common error messages?",
+  "How would you find the log lines for a single request across ten services?",
+  "How have you used Jenkins pipelines, and how do you secure credentials in them?",
+  "What is the difference between a declarative and a scripted pipeline?"
+ ]
+}

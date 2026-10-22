@@ -1,0 +1,18 @@
+{
+ "qid": "d53cd8cc34",
+ "question": "Apple, Senior Software Engineer (Java/Spring Boot), round 2 with many Kafka questions. Scenario: **a producer keeps producing messages but the consumer is down. Messages keep accumulating, and the Kafka brokers have finite memory and storage. What can you do to mitigate this?** The same round included designing a rate limiter, with the sliding-window algorithm implemented using Redis.",
+ "lookingFor": [
+  "Understanding that Kafka stores messages on disk with retention, not unlimited memory.",
+  "Awareness of the data-loss risk once retention expires.",
+  "Mitigations on the consumer, broker and producer sides.",
+  "Monitoring and alerting on consumer lag.",
+  "Knowing trade-offs: cost versus durability, backpressure versus dropping data."
+ ],
+ "answer": "**First, clarify the mechanism.** Kafka does not keep messages in broker memory. It appends them to log segments on disk and deletes old data by retention (`retention.ms` and `retention.bytes`, per topic), or by compaction for keyed topics. So the risks are: (1) **disk fills up**, (2) **messages expire** before the consumer returns, which is silent data loss, and (3) a long backlog that is slow to drain.\n\n**Detect early.** Monitor consumer group **lag**, broker disk usage and the oldest unconsumed offset versus retention. Alert when lag grows steadily or disk crosses a threshold.\n\n**Mitigate on the consumer side.**\n- Restore the consumer quickly: auto-restart, health checks, multiple instances.\n- Add consumers up to the partition count, and tune `max.poll.records` and processing speed to drain faster.\n- Make processing idempotent so the backlog can be replayed safely; send poison messages to a dead-letter topic instead of blocking the partition.\n\n**Mitigate on the broker side.**\n- Size retention against worst-case downtime and message rate.\n- Add disk, add brokers, or use tiered storage; compress messages (`compression.type`) and expire non-critical topics sooner.\n- Use compaction when only the latest value per key matters.\n- Quotas protect other topics from a runaway producer.\n\n**Mitigate on the producer side.**\n- Apply **backpressure**: producers have a bounded `buffer.memory` and block (`max.block.ms`) or fail when brokers are slow or full; decide whether to throttle, shed low-priority load, or buffer elsewhere.\n- Use an outbox pattern if events must not be lost while Kafka is unavailable.\n\n**Operationally:** runbook for scaling consumers, increasing retention temporarily, and replaying from a chosen offset after recovery. Replication (`replication.factor`, `min.insync.replicas`) protects against broker loss, but not against retention expiry.",
+ "followUps": [
+  "What happens to a consumer group when its consumers are down longer than the retention time?",
+  "How do you handle a poison message that always fails?",
+  "What is consumer lag and how do you measure it?",
+  "How would you replay messages after fixing a consumer bug?"
+ ]
+}

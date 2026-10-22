@@ -1,0 +1,18 @@
+{
+ "qid": "b5fcf36c82",
+ "question": "Arcesium online assessment for a Principal Engineer role (HackerRank, 2 hours). It was effectively a low-level design task judged by hidden tests (4 test cases; the candidate passed 3 of 4). The problem: build an **expression evaluator**. Your program must download JSON from an external source, parse it, and evaluate a given expression for each item in the JSON, then produce the results.",
+ "lookingFor": [
+  "Clean decomposition: fetching, parsing, expression handling and output as separate components.",
+  "Ability to build a correct expression parser/evaluator (precedence, parentheses, variables).",
+  "Robustness: bad network responses, malformed JSON, missing fields, divide by zero.",
+  "Extensibility: adding new operators or functions without rewriting the evaluator.",
+  "Careful reading of the spec, since hidden tests check edge cases."
+ ],
+ "answer": "**Clarify first** (the task is graded by hidden tests, so spec details matter): the expression grammar (operators, unary minus, parentheses, functions?), how fields of each JSON item are referenced (for example `price * qty`), the output format, and what to do on errors (skip the item, emit an error marker, or fail).\n\n**Structure** (low-level design):\n- `DataSource` interface with an `HttpDataSource` implementation (timeouts, status checks, retries) so tests can plug in a fake source.\n- `JsonParser` step that turns the payload into a list of items (maps of name to value). Validate shape and types.\n- `Tokenizer` turns the expression string into tokens (numbers, identifiers, operators, parentheses).\n- `Parser` builds an AST. Use the shunting-yard algorithm or recursive descent with precedence levels: `+ -` below `* /` below unary minus and parentheses.\n- `Node` types: `Number`, `Variable`, `BinaryOp`, `UnaryOp`. Each has `evaluate(context)`. Operators live in a registry (map from symbol to function and precedence), so adding `%` or `^` is a one-line change (Open/Closed principle).\n- `Evaluator` parses the expression **once**, then evaluates the AST against each item. This is the key efficiency point: do not re-parse per item.\n\n**Edge cases to handle:** whitespace, negative numbers, unknown variable, non-numeric field, division by zero, empty array, nested JSON paths if specified, and floating-point vs integer output formatting.\n\n**Testing strategy:** unit-test the tokenizer, parser and evaluator separately with a fake `DataSource`; add precedence and associativity cases (`2-3-4`, `2*3+4`, `-(1+2)`).\n\n**Time management for a 2-hour OA:** get an end-to-end happy path passing in the first 30 to 40 minutes, then harden edge cases. Passing 3 of 4 tests often means one hidden edge case (formatting, error handling or a grammar corner) was missed, so re-read the statement before submitting.",
+ "followUps": [
+  "Why parse once and evaluate many times? What does it change in complexity?",
+  "How would you add function calls such as `max(a, b)` to the grammar?",
+  "How would you handle very large JSON payloads that do not fit in memory?",
+  "How would you make the evaluator safe if expressions come from untrusted users?"
+ ]
+}

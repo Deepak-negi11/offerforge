@@ -1,0 +1,48 @@
+{
+ "pid": "goldman-sachs-compress-repeated-prefixes-with-stars",
+ "title": "Compress Repeated Prefixes With Stars",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "Compress a string by replacing every repetition of the part you have already read with a single `*`.\n\nScan the string `s` from left to right with an index `i`, starting at `i = 1` (the first character is always copied unchanged). Let the **prefix** be `s[0..i-1]`, all characters before the current index, which has length `i`. At the current index:\n\n- If at least `i` characters remain and the next `i` characters, `s[i..2i-1]`, are exactly equal to the prefix, append `*` to the result and jump ahead by `i` positions (so the new index is `2i` and the prefix has doubled).\n- Otherwise append the character `s[i]` to the result and move ahead by one position.\n\nStop when the index reaches the end of the string. Return the compressed string.\n\nFor example `abcabcd` becomes `abc*d`: the second `abc` repeats the prefix `abc`, so it is replaced by one star. And `aaaa` becomes `a**`: the second `a` repeats the prefix `a` (star), and then the last two characters `aa` repeat the prefix `aa` (star).\n\nThe prefix is always taken from the original string, and a repetition must fit completely inside the string: in `xyzxyzxyzw` the first repeat of `xyz` is replaced, but the remaining `xyzw` is shorter than the prefix `xyzxyz`, so it is copied as it is.",
+ "input_format": "A single line containing the string `s`.",
+ "output_format": "Print the compressed string.",
+ "constraints": [
+  "1 ≤ |s| ≤ 3·10^5",
+  "s consists of lowercase English letters"
+ ],
+ "examples": [
+  {
+   "input": "abcabcd",
+   "output": "abc*d",
+   "explanation": "At i = 3 the next three characters are `abc`, equal to the prefix `abc`, so a star is written and the index jumps to 6. At i = 6 only one character remains, which is shorter than the prefix, so `d` is copied."
+  },
+  {
+   "input": "aaaa",
+   "output": "a**",
+   "explanation": "At i = 1 the next 1 character `a` matches the prefix `a`: star, jump to 2. At i = 2 the next 2 characters `aa` match the prefix `aa`: star, jump to 4. The string ends."
+  },
+  {
+   "input": "xyzxyzxyzw",
+   "output": "xyz*xyzw",
+   "explanation": "At i = 3 the block `xyz` repeats the prefix: star, jump to 6. At i = 6 the prefix has length 6 but only 4 characters remain, so no match is possible and `x`, `y`, `z`, `w` are copied one by one."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Checking s[i..2i-1] == s[0..i-1] by direct comparison can cost O(i) per index, which adds up to O(n^2) on strings such as aaaa…ab… Is there a way to know how far each suffix matches the prefix?",
+  "The Z-function (or the prefix-function) gives, for every position i, the length of the longest common prefix of s and s[i..]. A block repeats the prefix exactly when z[i] >= i.",
+  "Compute the Z-array once, then walk with the index i: if z[i] >= i write * and add i, otherwise copy s[i] and add 1."
+ ],
+ "reference": "import sys\n\ndef main():\n    s = sys.stdin.read().split()[0]\n    n = len(s)\n    z = [0] * n\n    l = r = 0\n    for i in range(1, n):\n        k = 0\n        if i < r:\n            k = min(r - i, z[i - l])\n        while i + k < n and s[k] == s[i + k]:\n            k += 1\n        z[i] = k\n        if i + k > r:\n            l, r = i, i + k\n    out = [s[0]]\n    i = 1\n    while i < n:\n        if z[i] >= i:\n            out.append('*')\n            i += i\n        else:\n            out.append(s[i])\n            i += 1\n    print(''.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ns = sys.stdin.read().split()[0]\nn = len(s)\nout = [s[0]]\ni = 1\nwhile i < n:\n    if i + i <= n and s[i:2 * i] == s[:i]:\n        out.append('*')\n        i += i\n    else:\n        out.append(s[i])\n        i += 1\nprint(''.join(out))\n",
+ "generator": "def gen(rng):\n    tests = ['a', 'ab', 'aa', 'aaa', 'aaaa', 'abab', 'abcabcd', 'xyzxyzxyzw', 'abababab', 'abcdef', 'aabaab', 'aaaaaaaaaaaaaaaa']\n    for n in (3, 5, 8, 12, 20, 30):\n        for k in (2, 3):\n            alpha = 'abcdefghijklmnopqrstuvwxyz'[:k]\n            tests.append(''.join(rng.choice(alpha) for _ in range(n)))\n    for _ in range(6):\n        base = ''.join(rng.choice('ab') for _ in range(rng.randint(1, 5)))\n        t = base * rng.randint(2, 6)\n        tests.append(t + ''.join(rng.choice('abc') for _ in range(rng.randint(0, 4))))\n    # large cases\n    n = 3 * 10**5\n    tests.append('a' * n)\n    p = n // 4\n    tests.append('a' * p + 'b' + 'a' * (n - p - 1))\n    tests.append(''.join(rng.choice('abcdefghijklmnopqrstuvwxyz') for _ in range(n)))\n    tests.append('ab' * (n // 2))\n    block = ''.join(rng.choice('abc') for _ in range(1000))\n    tests.append((block * (n // 1000 + 1))[:n])\n    tests.append(''.join(rng.choice('ab') for _ in range(n)))\n    half = ''.join(rng.choice('abcd') for _ in range(n // 2))\n    tests.append(half + half)\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef compress(s: str) -> str:\n    # Write your solution here\n    return ''\n\n\ndef main():\n    s = sys.stdin.read().split()[0]\n    print(compress(s))\n\n\nmain()\n",
+  "javascript": "function compress(s) {\n  // Write your solution here\n  return ''\n}\n\nconst s = input.trim()\nconsole.log(compress(s))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring compress(const string& s) {\n    // Write your solution here\n    return \"\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s;\n    cin >> s;\n    cout << compress(s) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String compress(String s) {\n        // Write your solution here\n        return \"\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String s = br.readLine().trim();\n        System.out.println(compress(s));\n    }\n}\n"
+ }
+}

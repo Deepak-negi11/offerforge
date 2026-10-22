@@ -1,0 +1,45 @@
+{
+ "pid": "juspay-rainwater-puddles-with-dsu",
+ "title": "Rainwater Puddles",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "Rain falls on a rectangular field of `r` rows and `c` columns, one drop at a time. Every cell starts dry. When a drop lands on a cell, that cell becomes **wet**. Dropping on a cell that is already wet changes nothing.\n\nA **puddle** is a maximal group of wet cells connected through shared edges (up, down, left, right); diagonal neighbours are not connected. As cells become wet, new puddles appear and existing puddles grow and merge.\n\nYou are given the `k` drops in the order they fall, as 0-indexed `(row, column)` pairs. After each drop, report how many puddles exist.\n\nThe interviewer first expects a straightforward BFS/DFS that recounts the puddles after every drop, and then asks for the extended version that handles each drop incrementally with union-find (disjoint set union), since the BFS approach is too slow when `k` is large.\n\n**Follow-up:** How would you also report the size of the largest puddle after each drop?",
+ "input_format": "The first line contains three integers `r`, `c` and `k`. Each of the next `k` lines contains two integers `x` and `y`: the row and column where the drop lands.",
+ "output_format": "Print `k` space-separated integers on one line: the number of puddles after each drop, in order.",
+ "constraints": [
+  "1 ≤ r, c ≤ 1000",
+  "1 ≤ k ≤ 10^5",
+  "0 ≤ x < r, 0 ≤ y < c",
+  "The same cell may receive several drops"
+ ],
+ "examples": [
+  {
+   "input": "3 3 5\n0 0\n2 2\n1 1\n0 1\n1 2",
+   "output": "1 2 3 2 1",
+   "explanation": "After the first three drops the wet cells (0,0), (2,2), (1,1) touch only diagonally, so there are 3 puddles. The drop at (0,1) joins (0,0) and (1,1), giving 2 puddles. The drop at (1,2) touches (1,1) and (2,2), merging everything into 1 puddle."
+  },
+  {
+   "input": "1 4 5\n0 0\n0 2\n0 0\n0 3\n0 1",
+   "output": "1 2 2 2 1",
+   "explanation": "The third drop repeats cell (0,0) and changes nothing. After (0,3) the cells (0,2) and (0,3) form one puddle, so there are still 2. Dropping on (0,1) connects the two puddles."
+  }
+ ],
+ "complexity": {
+  "time": "O(k * α(r*c)) plus O(r*c) to initialise the union-find",
+  "space": "O(r*c)"
+ },
+ "hints": [
+  "Recounting all puddles after every drop costs O(k * r * c). Think about what a single new wet cell can change: it creates one new puddle and may merge up to four existing ones.",
+  "Keep a union-find over cells. When a cell becomes wet, count one more puddle, then union it with each wet neighbour; every union that actually joins two different sets reduces the count by one.",
+  "Skip a drop on a cell that is already wet, otherwise you would count a puddle twice."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c, k = int(data[0]), int(data[1]), int(data[2])\n    parent = list(range(r * c))\n    wet = bytearray(r * c)\n    def find(x):\n        while parent[x] != x:\n            parent[x] = parent[parent[x]]\n            x = parent[x]\n        return x\n    count = 0\n    out = []\n    p = 3\n    for _ in range(k):\n        x, y = int(data[p]), int(data[p + 1])\n        p += 2\n        u = x * c + y\n        if not wet[u]:\n            wet[u] = 1\n            count += 1\n            for v, ok in ((u - c, x > 0), (u + c, x < r - 1), (u - 1, y > 0), (u + 1, y < c - 1)):\n                if ok and wet[v]:\n                    a, b = find(u), find(v)\n                    if a != b:\n                        parent[a] = b\n                        count -= 1\n        out.append(count)\n    print(' '.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c, k = int(data[0]), int(data[1]), int(data[2])\nwet = set()\nout = []\nfor i in range(k):\n    x, y = int(data[3 + 2 * i]), int(data[4 + 2 * i])\n    wet.add((x, y))\n    seen = set()\n    comps = 0\n    for cell in wet:\n        if cell in seen:\n            continue\n        comps += 1\n        seen.add(cell)\n        st = [cell]\n        while st:\n            a, b = st.pop()\n            for nb in ((a + 1, b), (a - 1, b), (a, b + 1), (a, b - 1)):\n                if nb in wet and nb not in seen:\n                    seen.add(nb)\n                    st.append(nb)\n    out.append(comps)\nprint(' '.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def fmt(r, c, drops):\n        return f'{r} {c} {len(drops)}\\n' + '\\n'.join(f'{x} {y}' for x, y in drops)\n    tests = [fmt(1, 1, [(0, 0)]), fmt(1, 1, [(0, 0), (0, 0)]), fmt(1, 5, [(0, 0), (0, 2), (0, 4), (0, 1), (0, 3)]),\n             fmt(3, 3, [(0, 0), (1, 1), (2, 2), (0, 1), (1, 0), (1, 2), (2, 1)]),\n             fmt(2, 2, [(0, 0), (1, 1), (0, 1)]), fmt(4, 1, [(3, 0), (0, 0), (2, 0), (1, 0)])]\n    for _ in range(14):\n        r = rng.randint(1, 6)\n        c = rng.randint(1, 6)\n        k = rng.randint(1, 20)\n        tests.append(fmt(r, c, [(rng.randrange(r), rng.randrange(c)) for _ in range(k)]))\n    tests.append(fmt(1000, 1000, [(rng.randrange(1000), rng.randrange(1000)) for _ in range(100000)]))\n    tests.append(fmt(300, 300, [(rng.randrange(300), rng.randrange(300)) for _ in range(100000)]))\n    cells = [(i, j) for i in range(1000) for j in range(100)]\n    rng.shuffle(cells)\n    tests.append(fmt(1000, 100, cells[:100000]))\n    tests.append(fmt(1000, 1000, [((i // 2) * 2 % 1000, (i * 7) % 1000) for i in range(100000)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef puddle_counts(r: int, c: int, drops: List[Tuple[int, int]]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c, k = int(data[0]), int(data[1]), int(data[2])\n    drops = [(int(data[3 + 2 * i]), int(data[4 + 2 * i])) for i in range(k)]\n    print(' '.join(map(str, puddle_counts(r, c, drops))))\n\n\nmain()\n",
+  "javascript": "function puddleCounts(r, c, drops) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst r = t[0], c = t[1], k = t[2]\nconst drops = []\nfor (let i = 0; i < k; i++) drops.push([t[3 + 2 * i], t[4 + 2 * i]])\nconsole.log(puddleCounts(r, c, drops).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> puddleCounts(int r, int c, vector<pair<int, int>>& drops) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c, k;\n    cin >> r >> c >> k;\n    vector<pair<int, int>> drops(k);\n    for (int i = 0; i < k; i++) cin >> drops[i].first >> drops[i].second;\n    vector<int> res = puddleCounts(r, c, drops);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] puddleCounts(int r, int c, int[][] drops) {\n        // Write your solution here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int r = (int) in.nval;\n        in.nextToken();\n        int c = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        int[][] drops = new int[k][2];\n        for (int i = 0; i < k; i++) {\n            in.nextToken(); drops[i][0] = (int) in.nval;\n            in.nextToken(); drops[i][1] = (int) in.nval;\n        }\n        int[] res = puddleCounts(r, c, drops);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

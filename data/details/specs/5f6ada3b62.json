@@ -1,0 +1,18 @@
+{
+ "qid": "5f6ada3b62",
+ "question": "Razorpay Senior Software Engineer, machine coding round (running code expected). **Build an in-memory search engine for a tech blog's content.** It must be possible to: create a dataset; insert and delete documents (each is just a piece of text); search a dataset for documents containing all words of a query (and search by tags); and order the results (for example by word frequency or dates). The interviewer then asked about **inverted indexes** and prefix/suffix trees. Feedback from one rejected attempt: the optimal approach was found quickly, but **the code was not modular or extensible and lacked validations and edge-case handling**. This is reported as a frequently asked question at Razorpay.",
+ "lookingFor": [
+  "Knowing an inverted index and using it instead of scanning every document.",
+  "Modular, extensible design: interfaces for tokenising, ranking, storage and sorting.",
+  "Input validation, edge cases and clear error handling.",
+  "Correct delete handling (index consistency).",
+  "Working, tested code and ability to discuss prefix/suffix trees for pattern search."
+ ],
+ "answer": "**Clarify first.** Is a \"pattern\" a word or a substring? Case sensitivity, tokenisation rules, are tags separate metadata, what do ordering options mean (term frequency, insertion date), duplicates, multiple datasets.\n\n**Design.**\n- `SearchEngine` (facade): `createDataset`, `insert(dataset, doc)`, `delete(dataset, docId)`, `search(dataset, query, SortStrategy)`.\n- `Dataset`: owns a `Map<docId, Document>` and an `InvertedIndex`.\n- `Document(id, text, tags, createdAt)`.\n- `Tokenizer` interface (lowercase, split on non-alphanumerics, optionally remove stop words): swap it without touching the index.\n- `SortStrategy` interface: `ByFrequency`, `ByDate`, extendable.\n- Custom exceptions for unknown dataset or document and for empty queries.\n\n**Inverted index.** `Map<token, Map<docId, count>>` (the postings with term frequency). Tags can use the same structure under a separate `tagIndex: Map<tag, Set<docId>>`.\n\n**Operations.**\n- **Insert:** tokenise, update postings and store `docId -> tokens` so you can remove it later. O(L).\n- **Delete:** use the stored tokens to remove the doc from each posting list; remove empty entries. This avoids a full scan.\n- **Search all words (AND):** tokenise the query, fetch the posting set for each word, **intersect starting from the smallest set**. Cost is about the sum of the smallest postings, not the corpus size. OR search is a union. Filter by tags with the tag index.\n- **Order:** compute the score per result (sum of term counts, or date) and sort with the strategy: O(r log r).\n\n**Substring or prefix search.** An inverted index handles whole words. For prefix queries, store tokens in a **trie** (prefix tree) pointing to posting lists; for arbitrary substrings use n-grams or a suffix tree/array, at higher memory cost. State this trade-off even if you only implement words.\n\n**Concurrency.** Mention a read-write lock per dataset, or a concurrent map, if asked.\n\n**What graders watch for.** Separate classes with single responsibilities, interfaces for extension points, validations (null/empty input, duplicate id, missing dataset) and a runnable demo with edge cases (delete then search, repeated words, empty result).",
+ "followUps": [
+  "How would you rank results better than raw frequency (e.g. TF-IDF)?",
+  "How would you support phrase search and prefix search?",
+  "How do you keep the index consistent when a document is deleted or updated?",
+  "How would you shard this index across machines?"
+ ]
+}

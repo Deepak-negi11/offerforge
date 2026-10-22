@@ -1,0 +1,50 @@
+{
+ "pid": "maximum-number-of-removable-characters",
+ "title": "Maximum Number of Removable Characters",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A search engine is being trained on an algorithm for searching similar words. You are given two words, `source` and `target`, and an array `order` that is a permutation of the integers `1` to `n`, where `n` is the length of `source`.\n\nCharacters are removed from `source` one by one. In step `j` (for `j = 1, 2, ...`) the character at position `order[j]` is removed. Positions are **1-indexed** and refer to the **original** string: removing a character leaves the other characters at their original positions.\n\nThe string `target` is said to be **searchable** in `source` if it appears as a subsequence of the characters that have not been removed. A subsequence is formed by deleting some (possibly none) characters without changing the order of the rest, so `ace` is a subsequence of `abcde` but `aec` is not.\n\nIt is guaranteed that `target` is a subsequence of `source` before any removal. Find the maximum number of removals that can be performed by following `order` such that `target` is still searchable after the last removal.",
+ "input_format": "The first line contains the string `source`.\nThe second line contains the string `target`.\nThe third line contains `n` space-separated integers, the permutation `order`, where `n` is the length of `source`.",
+ "output_format": "Print a single integer: the maximum number of removals.",
+ "constraints": [
+  "1 ≤ |target| ≤ |source| = n ≤ 10^5",
+  "`source` and `target` consist of lowercase English letters",
+  "`order` is a permutation of 1..n",
+  "`target` is a subsequence of `source`"
+ ],
+ "examples": [
+  {
+   "input": "abbabaa\nbb\n7 1 2 5 4 3 6",
+   "output": "3",
+   "explanation": "Remove position 7: `abbaba-` still contains `bb`. Remove position 1: `-bbaba-` still contains `bb`. Remove position 2: `--baba-` still has `b` at positions 3 and 5. Removing position 5 next leaves a single `b`, so `bb` is no longer a subsequence. The maximum is 3 removals."
+  },
+  {
+   "input": "abc\nabc\n2 1 3",
+   "output": "0",
+   "explanation": "`target` equals `source`, so removing any character destroys it."
+  },
+  {
+   "input": "aaaa\na\n1 2 3 4",
+   "output": "3",
+   "explanation": "After removing positions 1, 2 and 3 a single `a` remains, which is still enough. A fourth removal would delete the last `a`."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Once the target stops being a subsequence it never becomes one again, since removing more characters only makes it harder. So the answer is a threshold.",
+  "That monotonic behaviour means you can binary search on the number of removals k.",
+  "To test a given k, mark the first k positions of `order` as removed and check with two pointers whether `target` is a subsequence of what is left in O(n)."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    s, t = data[0], data[1]\n    n = len(s)\n    order = data[2:2 + n]\n    when = [0] * n\n    for step in range(n):\n        when[int(order[step]) - 1] = step\n    m = len(t)\n\n    def ok(k):\n        j = 0\n        for i in range(n):\n            if when[i] >= k and s[i] == t[j]:\n                j += 1\n                if j == m:\n                    return True\n        return False\n\n    lo, hi = 0, n\n    while lo < hi:\n        mid = (lo + hi + 1) // 2\n        if ok(mid):\n            lo = mid\n        else:\n            hi = mid - 1\n    print(lo)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\ns, t = data[0], data[1]\nn = len(s)\norder = [int(x) - 1 for x in data[2:2 + n]]\n\ndef is_subseq(a, b):\n    it = iter(b)\n    return all(ch in it for ch in a)\n\nremoved = set()\ncount = 0\nfor p in order:\n    removed.add(p)\n    rest = ''.join(s[i] for i in range(n) if i not in removed)\n    if is_subseq(t, rest):\n        count += 1\n    else:\n        break\nprint(count)\n",
+ "generator": "def gen(rng):\n    def fmt(s, t, order):\n        return s + '\\n' + t + '\\n' + ' '.join(map(str, order))\n\n    def rs(n, alpha):\n        return ''.join(rng.choice(alpha) for _ in range(n))\n\n    def subseq(s, m):\n        idx = sorted(rng.sample(range(len(s)), m))\n        return ''.join(s[i] for i in idx)\n\n    def perm(n):\n        o = list(range(1, n + 1))\n        rng.shuffle(o)\n        return o\n\n    tests = [\n        fmt('a', 'a', [1]),\n        fmt('ab', 'a', [1, 2]),\n        fmt('ab', 'a', [2, 1]),\n        fmt('abbabaa', 'bb', [7, 1, 2, 5, 4, 3, 6]),\n        fmt('abc', 'abc', [2, 1, 3]),\n        fmt('aaaa', 'a', [1, 2, 3, 4]),\n        fmt('abcde', 'ace', [2, 4, 1, 3, 5]),\n    ]\n    for _ in range(40):\n        n = rng.randint(1, 14)\n        alpha = rng.choice(['ab', 'abc', 'a'])\n        s = rs(n, alpha)\n        m = rng.randint(1, n)\n        t = subseq(s, m)\n        tests.append(fmt(s, t, perm(n)))\n    N = 100000\n    s = rs(N, 'ab')\n    tests.append(fmt(s, subseq(s, 500), perm(N)))\n    tests.append(fmt(s, subseq(s, 30000), perm(N)))\n    s = 'a' * N\n    tests.append(fmt(s, 'a' * 50000, perm(N)))\n    s = rs(N, 'abcdefghijklmnopqrstuvwxyz')\n    tests.append(fmt(s, subseq(s, 5), perm(N)))\n    o = list(range(1, N + 1))\n    s = rs(N, 'ab')\n    tests.append(fmt(s, subseq(s, 1000), o))\n    tests.append(fmt(s, s, perm(N)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef maximum_removals(source: str, target: str, order: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    source, target = data[0], data[1]\n    n = len(source)\n    order = [int(x) for x in data[2:2 + n]]\n    print(maximum_removals(source, target, order))\n\n\nmain()\n",
+  "javascript": "function maximumRemovals(source, target, order) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst source = t[0]\nconst target = t[1]\nconst order = t.slice(2, 2 + source.length).map(Number)\nconsole.log(maximumRemovals(source, target, order))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint maximumRemovals(string& source, string& target, vector<int>& order) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string source, target;\n    cin >> source >> target;\n    int n = source.size();\n    vector<int> order(n);\n    for (int i = 0; i < n; i++) cin >> order[i];\n    cout << maximumRemovals(source, target, order) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int maximumRemovals(String source, String target, int[] order) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        String source = st.nextToken();\n        String target = st.nextToken();\n        int n = source.length();\n        int[] order = new int[n];\n        for (int i = 0; i < n; i++) order[i] = Integer.parseInt(st.nextToken());\n        System.out.println(maximumRemovals(source, target, order));\n    }\n}\n"
+ }
+}

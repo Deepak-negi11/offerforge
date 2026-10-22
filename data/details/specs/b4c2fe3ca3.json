@@ -1,0 +1,19 @@
+{
+ "qid": "b4c2fe3ca3",
+ "question": "Design an auto-correct system. In the reported answer, the candidate's first approach stored all correct words sorted by length and, for an input word, fetched only words whose length lies within a threshold and scored them with edit distance. The second approach built a prefix trie and a suffix trie, walked both as far as the input word could go, ran a BFS from that node to find nearby words, and picked the word with the lowest edit distance.",
+ "lookingFor": [
+  "Can you define the problem (candidates, scoring, ranking) and scope the dictionary size and latency?",
+  "Do you know edit (Levenshtein) distance and why computing it against every word is too slow?",
+  "Can you use tries, BK-trees or edit-based candidate generation to prune the search?",
+  "Do you improve ranking with word frequency and context, and handle updates?",
+  "Is the class design clean (dictionary, candidate generator, ranker)?"
+ ],
+ "answer": "**Requirements.** Given a possibly misspelled word, return the best correction(s) in a few milliseconds from a dictionary of about 100k-1M words. Quality = candidates close in edit distance, ranked by how likely they are.\n\n**Pipeline:** `Normalizer` then `CandidateGenerator` then `Ranker`.\n\n**Edit distance.** Levenshtein distance is the minimum number of insertions, deletions and substitutions to turn one word into another, computed by DP in O(m x n):\n```python\ndef edit_distance(a, b):\n    prev = list(range(len(b) + 1))\n    for i, ca in enumerate(a, 1):\n        cur = [i]\n        for j, cb in enumerate(b, 1):\n            cur.append(min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + (ca != cb)))\n        prev = cur\n    return prev[-1]\n```\nDoing this against every dictionary word is far too slow, so generate fewer candidates.\n\n**Candidate generation options:**\n1. **Length window (the first approach):** only compare words whose length differs by at most the threshold. Simple, but still scans many words.\n2. **Generate edits (Norvig style):** from the input, build all strings within edit distance 1 (deletes, transposes, replaces, inserts; about 54n + 25 strings for length n), and keep those in a hash set of the dictionary. Distance 2 repeats the step on the results. It is fast for 1 and workable for 2.\n3. **Trie with DP row:** walk the dictionary trie while keeping a DP row of edit distances for the path; prune a branch when the row minimum exceeds the maximum allowed distance. This shares prefix computation and prunes whole subtrees.\n4. **BK-tree:** a metric tree where each child edge is the distance to its parent; searching with threshold d only visits children whose edge lies in `[dist - d, dist + d]`.\n5. **SymSpell:** precompute deletions for dictionary words; very fast lookup at the cost of memory.\n\n**Ranking.** Sort by smaller edit distance, then **word frequency** (a unigram probability), keyboard proximity of substituted letters, and, when context exists, an n-gram or language model (\"their\" vs \"there\").\n\n**Other points:** user dictionary and learning from accepted corrections; do not correct proper nouns or very short words aggressively; keep the trie in memory; update incrementally.",
+ "followUps": [
+  "Why is comparing the input with every dictionary word too slow?",
+  "How does a BK-tree prune the search?",
+  "How would you use word frequency or context in ranking?",
+  "How would you support multiple languages or user-added words?",
+  "What is the time complexity of the edit distance DP, and can it be optimised?"
+ ]
+}

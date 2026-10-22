@@ -1,0 +1,17 @@
+{
+ "qid": "a7d58e16d6",
+ "question": "In a Salesforce AMTS Technical Interview 2, the candidate was asked to write a SQL query that **joins the Employee and Department tables and counts the number of employees in each department**. Assume `Employee(id, name, dept_id)` and `Department(id, name)`.",
+ "lookingFor": [
+  "Do you know JOIN types and when each matters (INNER vs LEFT)?",
+  "Do you use GROUP BY correctly and select only grouped or aggregated columns?",
+  "Do you handle departments with no employees and count the right column?",
+  "Can you explain WHERE vs HAVING and extend the query?"
+ ],
+ "answer": "Assume:\n\n- `Employee(id, name, dept_id)`\n- `Department(id, name)`\n\n**Query (include departments with zero employees):**\n\n```sql\nSELECT d.id, d.name AS department, COUNT(e.id) AS employee_count\nFROM Department d\nLEFT JOIN Employee e ON e.dept_id = d.id\nGROUP BY d.id, d.name\nORDER BY employee_count DESC;\n```\n\n**Explanation**\n- `LEFT JOIN` keeps every department, even one with no matching employees. Those get a row with NULL employee columns.\n- `GROUP BY d.id, d.name` makes one output row per department.\n- `COUNT(e.id)` counts non-NULL employee ids, so an empty department correctly shows 0. `COUNT(*)` would wrongly give 1 for an empty department because the joined row still exists.\n- Grouping by the primary key plus name keeps it valid in strict SQL modes and handles two departments with the same name.\n\n**If you only want departments that have employees**, use `INNER JOIN` instead; empty departments disappear.\n\n**Variations**\n- Only departments with more than 5 employees: add `HAVING COUNT(e.id) > 5`. `WHERE` filters rows before grouping, `HAVING` filters groups after aggregation.\n- Employees with no department: use `RIGHT JOIN` or `FULL OUTER JOIN` (where supported), or query `Employee` with `LEFT JOIN Department` and `GROUP BY d.name`.\n- Largest department: `ORDER BY employee_count DESC LIMIT 1`, or use a window function `RANK()` to include ties.\n\n**Performance:** an index on `Employee.dept_id` helps the join and grouping.",
+ "followUps": [
+  "Why does COUNT(*) give a wrong answer with a LEFT JOIN here?",
+  "What is the difference between WHERE and HAVING?",
+  "How would you find the department with the highest number of employees, including ties?",
+  "How would you list departments with no employees only?"
+ ]
+}

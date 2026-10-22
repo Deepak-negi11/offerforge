@@ -1,0 +1,18 @@
+{
+ "qid": "51de989ce0",
+ "question": "Write a SQL query to find the 5th largest (highest) value in a table, for example the 5th highest salary. Reported from the second round of a Salesforce SDE intern interview, where it came after a coding question.",
+ "lookingFor": [
+  "Do you clarify how duplicates should be treated (5th row vs 5th distinct value)?",
+  "Do you know more than one approach: LIMIT/OFFSET, window functions, correlated subquery?",
+  "Do you handle the case where fewer than five values exist?",
+  "Can you explain what the query does and its performance?"
+ ],
+ "answer": "**Clarify first.** If salaries are `100, 100, 90, 80, 70, 60`, is the 5th highest `70` (distinct values) or `90`? Usually \"5th highest salary\" means the 5th **distinct** value. I will assume a table `Employee(id, salary)`.\n\n**1. `DENSE_RANK` (works in most modern databases):**\n\n```sql\nSELECT DISTINCT salary\nFROM (\n  SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk\n  FROM Employee\n) t\nWHERE rnk = 5;\n```\n`DENSE_RANK` gives equal salaries the same rank with no gaps, so rank 5 is the 5th distinct value. `RANK` would leave gaps and `ROW_NUMBER` would count duplicates separately.\n\n**2. `LIMIT` / `OFFSET` (MySQL, PostgreSQL):**\n\n```sql\nSELECT DISTINCT salary\nFROM Employee\nORDER BY salary DESC\nLIMIT 1 OFFSET 4;\n```\nSort distinct salaries in descending order, skip the first 4 and take 1. If there are fewer than 5 distinct values it returns no rows. To return `NULL` instead, wrap it: `SELECT (SELECT DISTINCT salary FROM Employee ORDER BY salary DESC LIMIT 1 OFFSET 4) AS fifth_highest;`\n\n**3. Correlated subquery (no window functions, any database):**\n\n```sql\nSELECT DISTINCT e1.salary\nFROM Employee e1\nWHERE 4 = (SELECT COUNT(DISTINCT e2.salary)\n           FROM Employee e2\n           WHERE e2.salary > e1.salary);\n```\nA salary is the 5th highest if exactly 4 distinct salaries are greater than it. It is easy to generalise to N but can be O(n^2) without an index.\n\n**SQL Server:** `SELECT TOP 1 salary FROM (SELECT DISTINCT TOP 5 salary FROM Employee ORDER BY salary DESC) t ORDER BY salary ASC;` or `OFFSET 4 ROWS FETCH NEXT 1 ROWS ONLY`.\n\n**Performance:** an index on `salary` lets the database read in order and stop early for approach 2; the window function sorts everything (O(n log n)). Per-group version: add `PARTITION BY department_id` in the window.",
+ "followUps": [
+  "How does the answer change if duplicate salaries should be counted separately?",
+  "What is the difference between RANK, DENSE_RANK and ROW_NUMBER?",
+  "How would you find the 5th highest salary in each department?",
+  "How would an index change the performance of these queries?",
+  "What should the query return if there are fewer than 5 salaries?"
+ ]
+}

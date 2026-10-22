@@ -1,0 +1,17 @@
+{
+ "qid": "ac95a0db4b",
+ "question": "Before the DSA problems in a Blinkit SDE-1 Backend Round 1, the interviewer (an SDE-3) asked about CS fundamentals and backend internals:\n\n- **Stack and memory:** what is stored on the stack, and what happens internally when a function is called?\n- **Map internals:** how does a Map/HashMap work internally, how are keys stored and retrieved, and what happens on collisions?\n- **Database indexing:** how does indexing work internally, which data structure is generally used, and how does an index improve query performance?",
+ "lookingFor": [
+  "Do you understand the call stack and stack frames?",
+  "Can you explain a hash table including collisions and resizing?",
+  "Do you know that database indexes are usually B+ trees and why?",
+  "Can you explain mechanisms rather than only definitions?"
+ ],
+ "answer": "**Stack and function calls.** The call stack holds one **stack frame** per active function call: the return address, passed arguments (some in registers), saved registers, local variables, and padding. On a call, the CPU pushes the return address, the callee sets up its frame (adjusting the stack pointer), runs, and on return the frame is popped and execution resumes at the saved address. Stack memory is fast, automatically managed and limited in size, so very deep recursion causes a **stack overflow**. Heap memory holds objects with a longer lifetime and is managed explicitly or by a garbage collector.\n\n**HashMap internals.**\n- A hash function turns the key into an integer; `index = hash % capacity` (or a bit mask) picks a **bucket**. `get` computes the same index and compares keys with `equals`.\n- **Collisions** (different keys, same bucket) are handled by **chaining** (a linked list per bucket; Java 8 converts long chains into balanced trees) or **open addressing** (probe for the next free slot: linear, quadratic, double hashing).\n- When the **load factor** (entries / buckets) passes a threshold (for example 0.75), the table **resizes**, usually doubling capacity and rehashing keys, which is O(n) but amortised O(1) per insert.\n- Average O(1) for get and put; worst case O(n) (or O(log n) with tree buckets). Keys need consistent `hashCode` and `equals`, and should be immutable.\n\n**Database indexing.** An index is a separate sorted structure that maps column values to row locations so the database avoids scanning the entire table.\n- Most relational databases use a **B+ tree**: a wide, shallow, balanced tree where internal nodes hold keys for navigation and leaves hold keys with row pointers (or the rows themselves in a clustered index), linked in order. Lookups take O(log n) with only a few disk reads, and the linked leaves make range queries and sorted scans efficient.\n- Hash indexes give O(1) equality lookups but no range queries.\n- Trade-off: reads speed up; writes slow down and storage grows, since the index must be updated on every change.",
+ "followUps": [
+  "Why do B+ trees suit databases better than binary search trees?",
+  "What happens to a HashMap when keys have a bad hashCode?",
+  "What is the difference between stack and heap memory?",
+  "What is a clustered index?"
+ ]
+}

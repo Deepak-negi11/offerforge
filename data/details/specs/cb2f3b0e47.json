@@ -1,0 +1,18 @@
+{
+ "qid": "cb2f3b0e47",
+ "question": "Amazon SDE-1 low-level design: **code a pizza ordering system** with a **base, size and toppings**. Then extend it to also sell **beverages**, and finally support **discounts and coupons**. The exercise tests how your design copes with each added requirement.",
+ "lookingFor": [
+  "Incremental design that survives changing requirements.",
+  "Use of appropriate patterns such as Decorator, Strategy, Factory or Builder.",
+  "Separating pricing logic from the item model.",
+  "Clean, working code with a small driver.",
+  "Trade-offs between simplicity and flexibility."
+ ],
+ "answer": "**Clarify.** Fixed menu or custom pizzas? Do size and base change the price? Is there a max number of toppings? Can an order contain several items? Are coupons percentage, flat or free-item, and can they stack?\n\n**Step 1: Pizza.** Model with an `enum Size`, `enum Base`, and a `Topping` with a price. Two reasonable approaches:\n- Builder: `new Pizza.Builder().base(THIN).size(LARGE).addTopping(CHEESE).build()`, price computed from a price table.\n- Decorator: `Pizza` interface with `cost()`; `CheeseTopping(Pizza p)` returns `p.cost() + 30`. Great for arbitrary combos, slightly harder to inspect toppings.\nPick one and say why. Builder is simpler to print and validate.\n\n**Step 2: Beverages.** Introduce a common `MenuItem` interface (`name()`, `price()`); `Pizza` and `Beverage` both implement it. An `Order` holds `List<OrderItem>` with quantities and computes `subtotal()`. Nothing in `Order` needs to know the item type.\n\n**Step 3: Discounts.** Create a `DiscountStrategy` interface: `double apply(Order order)` (returns the discount amount). Implementations: `PercentageDiscount`, `FlatDiscount`, `BuyOneGetOne`, with rules like a minimum order value or an expiry date in a `Coupon` class (`code`, `strategy`, `isValid(order)`). `PricingService.finalPrice(order, coupon)` validates and applies it, never letting the total go below 0.\n\n**Other pieces.** A `Menu`/`PriceCatalog` so prices are not hard-coded, a `OrderService` to create and track status (`CREATED`, `PAID`, `PREPARING`, `DELIVERED`), and money handled in `BigDecimal` or integer paise rather than `double`.\n\n**Why this holds up.** Each new requirement added a class (a new `MenuItem`, a new `DiscountStrategy`) rather than editing a growing `if` ladder.\n\n**Mistakes to avoid.** A giant `Pizza` class with boolean flags per topping, mixing discount logic into `Order`, and floating-point currency.",
+ "followUps": [
+  "How would you apply multiple coupons and decide the order of application?",
+  "How would you support combo deals such as pizza plus drink?",
+  "How would you change prices without redeploying code?",
+  "How would you add order status notifications?"
+ ]
+}

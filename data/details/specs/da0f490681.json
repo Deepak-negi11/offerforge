@@ -1,0 +1,19 @@
+{
+ "qid": "da0f490681",
+ "question": "Databricks software engineer system design round: **design a simplified real-time messaging platform**, explaining the architecture, scalability considerations and trade-offs. (The same loop included a take-home exercise and a live deep dive on past projects, API design, CI/CD and Git branching strategy.)",
+ "lookingFor": [
+  "Scoping a chat system and listing functional and non-functional requirements.",
+  "Real-time delivery mechanism and connection management.",
+  "Message storage, ordering and delivery guarantees.",
+  "Scaling and fault tolerance.",
+  "Explicit trade-off discussion."
+ ],
+ "answer": "**Requirements.** Functional: one-to-one and group chat, send and receive in real time, message history, delivery and read status, offline delivery. Non-functional: low latency (sub-second), high availability, per-conversation ordering, durability of messages. Assume, say, 10 million daily users, tens of thousands of messages per second at peak, and groups up to a few hundred members.\n\n**High-level architecture.**\n- **Clients** keep a persistent connection (WebSocket, with long polling as a fallback) to a **gateway/connection service**. Gateways are stateless apart from the open sockets; a **presence/session registry** (for example Redis) maps user id to the gateway holding the connection.\n- **Chat service** receives a message over the connection or API, validates it, assigns a message id and per-conversation sequence number, persists it, and publishes it to a **message broker** (Kafka or similar, partitioned by conversation id to keep ordering).\n- **Delivery workers** consume messages, look up recipients' gateways, and push; if a recipient is offline, store for later and trigger a **push notification**.\n- **Storage:** a wide-column or key-value store (such as Cassandra or DynamoDB as examples) partitioned by conversation id and clustered by message sequence for efficient history reads; relational DB for users and group metadata; object storage for media.\n\n**Key design choices.**\n- **Delivery semantics:** at-least-once with client acknowledgements and deduplication by message id gives effectively-once for users.\n- **Ordering:** guarantee order within a conversation (single partition or sequencer), not globally.\n- **Fan-out for groups:** fan-out on write for small groups; for very large groups read-on-demand or hybrid.\n- **Scaling:** add gateways behind a load balancer (connections are the bottleneck, so size by concurrent sockets), shard storage and broker partitions, and replicate across zones.\n- **Failure handling:** clients reconnect and request messages since their last sequence number; gateways rebuild the registry from reconnections.\n\nMention security (TLS, authentication, rate limiting) and monitoring (delivery latency, queue lag).",
+ "followUps": [
+  "How do you guarantee message ordering in a conversation?",
+  "What happens when a user is offline or the gateway crashes?",
+  "How would you handle a group with a million members?",
+  "How would you implement read receipts and typing indicators cheaply?",
+  "How would you do end-to-end encryption and what does it complicate?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "727aa1d420",
+ "question": "Design a **logical memory unit** (a page cache): the CPU requests a page by `pageId`. If the page exists in the logical memory, return it; otherwise **fetch it from physical memory**. The unit must **maintain all page entries** and support queries for the **most recent** or the **k most recent** entries of a particular page. Then explain **how to make it thread-safe**.\n\nThe reported solution used a hash map keyed by `pageId` and a linked list per page storing the entries; the candidate wrote working code and ran test cases, and was asked concurrency follow-ups.",
+ "lookingFor": [
+  "Choosing data structures that make the queries cheap",
+  "Clean separation of the cache from the physical memory source",
+  "Thread-safety design with sensible lock granularity",
+  "Handling concurrent misses without duplicate loads",
+  "Testing and extension thinking (eviction, memory limits)"
+ ],
+ "answer": "**Clarify.** What is an entry (an access record or write with a timestamp)? Is there a capacity or eviction rule (the prompt says keep all entries, so assume unbounded but mention eviction)? Is fetch from physical memory slow and failure-prone?\n\n**Model.**\n- `PhysicalMemory` interface: `Page load(pageId)`.\n- `Entry` (value, timestamp or sequence number).\n- `Page` holds an ordered list of entries. Use a doubly linked list with the newest at the head (or a deque with append at the tail), so `getMostRecent()` is O(1) and `getKRecent(k)` is O(k).\n- `LogicalMemory` holds `Map<pageId, Page>` and a reference to `PhysicalMemory`.\n\n```\ngetPage(id):\n    page = map.get(id)\n    if page == null:\n        page = physical.load(id)\n        map.put(id, page)\n    return page\naddEntry(id, e): getPage(id).append(e)\ngetMostRecent(id): getPage(id).head\ngetKRecent(id, k): walk k nodes from the head\n```\n\n**Complexity.** Lookup O(1) average, append O(1), recent query O(1) and O(k).\n\n**Thread safety.**\n1. A single global lock is correct but serialises everything. Prefer finer granularity.\n2. Use a `ConcurrentHashMap` for the page map, and `computeIfAbsent(id, load)` so concurrent misses for the same page trigger exactly one physical load while other pages proceed in parallel. (Avoid slow loads under a global lock.)\n3. Each `Page` has its own `ReentrantReadWriteLock`: appends take the write lock, recent-entry queries take the read lock, so readers run concurrently.\n4. Return immutable snapshots (copy the k entries) so callers never see the list while it mutates.\n5. Keep a monotonically increasing atomic sequence number for ordering.\n\n**Failure handling.** If `load` throws, do not cache a failed result, and let the exception propagate.\n\n**Extensions.** LRU eviction of pages with a capacity, write-back for dirty pages, and bounding entries per page.",
+ "followUps": [
+  "How do you prevent two threads from loading the same missing page twice?",
+  "How would you add LRU eviction of pages without breaking thread safety?",
+  "Why use a read-write lock per page rather than one lock overall?",
+  "How would you test this for race conditions?"
+ ]
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "c0cb4600e1",
+ "question": "Reported in an NVIDIA Sr. Software Engineer interview, two C questions:\n\n1. Predict the output for pointers declared as `int * const` and as `int const *` that are incremented in a loop.\n2. What does an infinite `malloc(100)` loop print, when does it stop, and is virtual or physical memory allocated?\n\nThe exact code was not reported, so the answer states the rules and a typical shape of the code.",
+ "lookingFor": [
+  "Reading const-qualified pointer declarations correctly, right to left",
+  "Knowing what compiles and what is rejected",
+  "Understanding virtual memory, overcommit and lazy page allocation",
+  "Honesty about platform-dependent behaviour"
+ ],
+ "answer": "**Part 1: const pointers.** Read declarations right to left.\n\n- `int * const p`: *const pointer to int*. The pointee can be modified (`*p = 5`), but `p` cannot be changed, so `p++` is a **compile error**.\n- `int const *p` (same as `const int *p`): *pointer to const int*. `p++` is fine (it moves to the next element), but `*p = 5` or `(*p)++` is a compile error.\n- `const int * const p`: neither can change.\n\nSo a loop such as `for (...) { printf(\"%d \", *p); p++; }` prints the array elements for `int const *p`, and does not compile for `int * const p`; a loop doing `(*p)++` does the opposite. If the code mutated the const object anyway through a cast, behaviour is undefined. Say what compiles before predicting output.\n\n**Part 2: infinite `malloc(100)`.**\n\n```c\nint n = 0;\nwhile (malloc(100)) n++;   // never freed\nprintf(\"%d\n\", n);\n```\n\nIt prints the count only if the loop stops, and it stops when `malloc` returns `NULL`. That depends on the platform:\n\n- Each call consumes more than 100 bytes: allocator headers and rounding (glibc rounds 100 bytes to a 112-byte chunk).\n- `malloc` allocates **virtual** address space. Physical pages are assigned lazily on first touch (demand paging), and untouched memory costs no RAM. On Linux with overcommit, `malloc` often succeeds far beyond RAM, and a loop that never writes to the memory runs until virtual address space or an overcommit or `RLIMIT_AS` limit is hit, which can take very long on 64-bit.\n- If the program writes to the blocks (even the allocator's own headers touch pages), physical memory fills, swap is used, and the OOM killer terminates the process: there may be no output at all.\n- On 32-bit systems it stops at roughly the 2 to 3 GB user address space limit; `ulimit -v` makes it stop earlier with `NULL`.\n\nMention fixes: check for `NULL`, free what you allocate, and use `valgrind` or sanitizers.",
+ "followUps": [
+  "What are overcommit modes on Linux (vm.overcommit_memory)?",
+  "What is the difference between a page fault being minor and major?",
+  "How would you make malloc fail deterministically in a test?",
+  "What does the OOM killer consider when choosing a victim?"
+ ]
+}

@@ -1,0 +1,50 @@
+{
+ "pid": "regular-expression-matching",
+ "title": "Regular Expression Matching",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "Implement a tiny regular-expression matcher. You are given a text `s` and a pattern `p`. The pattern supports two special characters:\n\n- `.` matches **any single** character.\n- `*` matches **zero or more** copies of the character immediately before it. That preceding character is either a lowercase letter or `.` (so `.*` matches any string, including the empty one).\n\nThe match must cover the **entire** text `s`, not just a part of it. Print `true` if the whole of `s` matches `p`, otherwise `false`.\n\nIt is guaranteed that `*` never appears as the first character of `p` and never directly follows another `*`.\n\n**Follow-up:** a 2026 Zoho online assessment reportedly used `+` (one or more of the preceding character) together with `*` instead of the `.`/`*` pair. After solving this version, think about how you would adapt your transition for `+`.",
+ "input_format": "The first line contains the text `s`.\nThe second line contains the pattern `p`.",
+ "output_format": "Print `true` if `p` matches the entire string `s`, otherwise print `false`.",
+ "constraints": [
+  "1 ≤ |s| ≤ 1000",
+  "1 ≤ |p| ≤ 1000",
+  "s consists of lowercase English letters",
+  "p consists of lowercase English letters, `.` and `*`; every `*` follows a letter or `.`"
+ ],
+ "examples": [
+  {
+   "input": "zzzy\nz*.y*",
+   "explanation": "`z*` takes the first three `z`. Then `.` matches the final `y`, and `y*` matches zero characters. Everything is consumed, so the answer is true.",
+   "output": "true"
+  },
+  {
+   "input": "cabd\nc.*bb*",
+   "explanation": "`c` matches `c`. `.*` must stop before a `b`, which can only be at index 2. `b` matches it and `b*` matches nothing, but the final `d` is left unmatched. No other split works, so the answer is false.",
+   "output": "false"
+  },
+  {
+   "input": "k\n.*",
+   "explanation": "`.*` can match any string, including the single character `k`.",
+   "output": "true"
+  }
+ ],
+ "complexity": {
+  "time": "O(|s| · |p|)",
+  "space": "O(|p|)"
+ },
+ "hints": [
+  "Try a recursive definition on the first characters of `s` and `p`. The tricky case is when the next pattern character is `*`: you can either skip the `x*` pair entirely or consume one matching character of `s` and stay on the same pair.",
+  "Plain recursion repeats the same (position in s, position in p) subproblems exponentially often on patterns like `a*a*a*b`. Memoize it, or build a table `dp[i][j]` = does `s[:i]` match `p[:j]`.",
+  "Initialise `dp[0][j]` for patterns that can match the empty string (`a*b*`). For `p[j-1] == '*'`: `dp[i][j] = dp[i][j-2]` (zero copies) or, if `p[j-2]` matches `s[i-1]`, `dp[i-1][j]`. Only the previous row is needed."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    s, p = data[0], data[1]\n    n, m = len(s), len(p)\n    prev = [False] * (m + 1)\n    prev[0] = True\n    for j in range(2, m + 1):\n        if p[j - 1] == '*':\n            prev[j] = prev[j - 2]\n    for i in range(1, n + 1):\n        cur = [False] * (m + 1)\n        ch = s[i - 1]\n        for j in range(1, m + 1):\n            pc = p[j - 1]\n            if pc == '*':\n                q = p[j - 2]\n                cur[j] = cur[j - 2] or ((q == '.' or q == ch) and prev[j])\n            else:\n                cur[j] = (pc == '.' or pc == ch) and prev[j - 1]\n        prev = cur\n    print('true' if prev[m] else 'false')\n\nmain()\n",
+ "brute": "import sys, re\n\ndata = sys.stdin.read().split()\ns, p = data[0], data[1]\nprint('true' if re.fullmatch(p, s) else 'false')\n",
+ "generator": "def gen(rng):\n    def rand_pat(k, alpha):\n        out = []\n        for _ in range(k):\n            c = rng.choice(alpha + '.')\n            out.append(c)\n            if rng.random() < 0.4:\n                out.append('*')\n        return ''.join(out)\n    def sample_from(p, alpha):\n        out = []\n        i = 0\n        while i < len(p):\n            c = p[i]\n            star = i + 1 < len(p) and p[i + 1] == '*'\n            ch = rng.choice(alpha) if c == '.' else c\n            if star:\n                out.append(ch * rng.randint(0, 3))\n                i += 2\n            else:\n                out.append(ch)\n                i += 1\n        return ''.join(out)\n    tests = [('a', 'a'), ('a', '.'), ('a', 'b'), ('aa', 'a'), ('aa', 'a*'), ('ab', '.*'), ('abc', '.*c'), ('abc', '.*d'),\n             ('a', 'ab*'), ('b', 'a*b'), ('aaa', 'a*a'), ('aaa', 'ab*a*c*a'), ('ab', '.*c'), ('xy', 'x*y*z*.')]\n    for _ in range(26):\n        alpha = rng.choice(['a', 'ab', 'abc'])\n        p = rand_pat(rng.randint(1, 6), alpha)\n        if rng.random() < 0.6:\n            s = sample_from(p, alpha)\n            if not s:\n                s = rng.choice(alpha)\n            if rng.random() < 0.3:\n                k = rng.randint(0, len(s) - 1)\n                s = s[:k] + rng.choice(alpha) + s[k + 1:]\n        else:\n            s = ''.join(rng.choice(alpha) for _ in range(rng.randint(1, 8)))\n        tests.append((s, p))\n    tests.append(('a' * 1000, 'a*' * 400 + 'b'))\n    tests.append(('a' * 1000, 'a*' * 499 + 'a'))\n    tests.append(('a' * 999 + 'b', 'a*' * 400 + '.*b'))\n    tests.append(('ab' * 500, '.*'))\n    tests.append(('ab' * 500, '.*' + 'b*' * 200 + 'c'))\n    s = ''.join(rng.choice('ab') for _ in range(1000))\n    p = ''.join(('.' if rng.random() < 0.3 else c) for c in s)\n    tests.append((s, p))\n    s = ''.join(rng.choice('abc') for _ in range(320))\n    p = ''\n    for c in s:\n        r = rng.random()\n        if r < 0.2:\n            p += '.'\n        elif r < 0.5:\n            p += c + '*'\n        else:\n            p += c\n        if rng.random() < 0.1:\n            p += 'z*'\n    tests.append((s, p[:1000] if p[999:1000] != '*' else p[:999]))\n    return [a + '\\n' + b for a, b in tests]\n",
+ "starters": {
+  "python": "import sys\n\n\ndef is_match(s: str, p: str) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    s, p = data[0], data[1]\n    print('true' if is_match(s, p) else 'false')\n\n\nmain()\n",
+  "javascript": "function isMatch(s, p) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconsole.log(isMatch(t[0], t[1]) ? 'true' : 'false')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool isMatch(string s, string p) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s, p;\n    cin >> s >> p;\n    cout << (isMatch(s, p) ? \"true\" : \"false\") << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean isMatch(String s, String p) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String s = br.readLine().trim();\n        String p = br.readLine().trim();\n        System.out.println(isMatch(s, p) ? \"true\" : \"false\");\n    }\n}\n"
+ }
+}

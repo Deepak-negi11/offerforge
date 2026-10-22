@@ -1,0 +1,49 @@
+{
+ "pid": "flipkart-dish-preparation-dependencies",
+ "title": "Dish Preparation Dependencies",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A kitchen has to prepare `n` items numbered `0` to `n - 1`: raw ingredients and intermediate preparations that are combined into a dish. You are given `m` dependencies. Each dependency is a pair `x y`, meaning item `x` cannot be prepared until item `y` has already been prepared.\n\nAn item that appears in no dependency as the first value can be prepared at any time. Once an item has been prepared it stays available, so it can be a prerequisite of any number of other items.\n\nDecide whether it is possible to prepare **all** `n` items one after another in some order that respects every dependency. Print `true` if it is possible and `false` otherwise.\n\nDependencies may be repeated, and a dependency may even name the same item twice (`x x`), which can never be satisfied.",
+ "input_format": "The first line contains two integers `n` and `m`.\nEach of the next `m` lines contains two integers `x` and `y`: item `x` requires item `y` to be prepared first.",
+ "output_format": "Print `true` if all items can be prepared, otherwise `false`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ m ≤ 10^5",
+  "0 ≤ x, y < n"
+ ],
+ "examples": [
+  {
+   "input": "4 3\n0 1\n0 2\n3 0",
+   "output": "true",
+   "explanation": "Item 0 needs items 1 and 2, and item 3 needs item 0. Preparing them in the order 1, 2, 0, 3 satisfies every dependency."
+  },
+  {
+   "input": "5 4\n1 0\n2 1\n3 2\n1 3",
+   "output": "false",
+   "explanation": "Item 1 needs 0 and 3, item 3 needs 2, and item 2 needs 1. So 1 waits for 3, 3 waits for 2 and 2 waits for 1: a circular dependency. Items 0 and 4 are fine, but not all items can be prepared."
+  },
+  {
+   "input": "2 1\n1 1",
+   "output": "false",
+   "explanation": "Item 1 would have to be prepared before itself."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Treat each item as a node and each dependency as a directed edge from the required item to the item that needs it.",
+  "All items can be prepared exactly when this graph has no directed cycle.",
+  "Repeatedly prepare an item whose remaining requirement count is zero (Kahn's algorithm). If you manage to prepare all n items there is no cycle; otherwise some items are stuck in a cycle."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    adj = [[] for _ in range(n)]\n    indeg = [0] * n\n    for i in range(m):\n        x = int(data[2 + 2 * i])\n        y = int(data[3 + 2 * i])\n        adj[y].append(x)\n        indeg[x] += 1\n    stack = [i for i in range(n) if indeg[i] == 0]\n    done = 0\n    while stack:\n        u = stack.pop()\n        done += 1\n        for v in adj[u]:\n            indeg[v] -= 1\n            if indeg[v] == 0:\n                stack.append(v)\n    print('true' if done == n else 'false')\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import permutations\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\ndeps = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(m)]\nok = False\nfor perm in permutations(range(n)):\n    pos = {v: i for i, v in enumerate(perm)}\n    if all(pos[y] < pos[x] for x, y in deps):\n        ok = True\n        break\nprint('true' if ok else 'false')\n",
+ "generator": "def gen(rng):\n    def fmt(n, es):\n        return f\"{n} {len(es)}\\n\" + \"\\n\".join(f\"{x} {y}\" for x, y in es)\n\n    def dag(n, m, relabel=True):\n        order = list(range(n))\n        rng.shuffle(order)\n        es = []\n        for _ in range(m):\n            a, b = rng.sample(range(n), 2) if n > 1 else (0, 0)\n            if a == b:\n                continue\n            if a < b:\n                a, b = b, a\n            es.append((order[a], order[b]))\n        return es\n\n    tests = [fmt(1, []), fmt(1, [(0, 0)]), fmt(2, [(0, 1), (1, 0)]), fmt(3, [(0, 1), (0, 1), (0, 1)]), fmt(4, [])]\n    for n in (2, 3, 4, 5, 6, 7):\n        for _ in range(3):\n            tests.append(fmt(n, dag(n, rng.randint(0, 8))))\n        for _ in range(3):\n            es = dag(n, rng.randint(0, 6))\n            es.append((rng.randrange(n), rng.randrange(n)))\n            tests.append(fmt(n, es))\n        for _ in range(2):\n            es = [(rng.randrange(n), rng.randrange(n)) for _ in range(rng.randint(1, 7))]\n            tests.append(fmt(n, es))\n    N = 100000\n    perm = list(range(N))\n    rng.shuffle(perm)\n    chain = [(perm[i], perm[i - 1]) for i in range(1, N)]\n    tests.append(fmt(N, chain))\n    bad = chain + [(perm[0], perm[N - 1])]\n    tests.append(fmt(N, bad))\n    tests.append(fmt(N, dag(N, 100000)))\n    es = dag(N, 99999)\n    es.append((perm[5], perm[N - 5]))\n    es.append((perm[N - 5], perm[5]))\n    tests.append(fmt(N, es[:100000]))\n    tests.append(fmt(50000, dag(50000, 100000)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef can_prepare(n: int, deps: List[List[int]]) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    deps = [[int(data[2 + 2 * i]), int(data[3 + 2 * i])] for i in range(m)]\n    print('true' if can_prepare(n, deps) else 'false')\n\n\nmain()\n",
+  "javascript": "function canPrepare(n, deps) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst deps = []\nfor (let i = 0; i < m; i++) deps.push([t[2 + 2 * i], t[3 + 2 * i]])\nconsole.log(canPrepare(n, deps) ? 'true' : 'false')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool canPrepare(int n, vector<pair<int, int>>& deps) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<pair<int, int>> deps(m);\n    for (int i = 0; i < m; i++) cin >> deps[i].first >> deps[i].second;\n    cout << (canPrepare(n, deps) ? \"true\" : \"false\") << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean canPrepare(int n, int[][] deps) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] deps = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); deps[i][0] = (int) in.nval;\n            in.nextToken(); deps[i][1] = (int) in.nval;\n        }\n        System.out.println(canPrepare(n, deps) ? \"true\" : \"false\");\n    }\n}\n"
+ }
+}

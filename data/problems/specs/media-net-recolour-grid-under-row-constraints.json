@@ -1,0 +1,43 @@
+{
+ "pid": "media-net-recolour-grid-under-row-constraints",
+ "title": "Recolour Grid Under Row Constraints",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given an `n × m` grid of coloured balls. There are `26` distinct colours, written as the capital letters `A` to `Z`, and an unlimited supply of balls of every colour is available.\n\nA coach wants to **replace** some balls with balls of other colours (balls are never moved or rearranged, only swapped for a ball from the pool) so that both of the following hold:\n\n- **Row rule:** every row contains **at most two** distinct colours.\n- **Adjacency rule:** no two adjacent balls have the same colour, horizontally (left-right) or vertically (top-bottom).\n\nFind the **minimum number of replacements** needed. A replacement changes one ball to a ball of a different colour; balls that already satisfy the rules may stay as they are. A valid answer always exists.",
+ "input_format": "The first line contains two integers `n` and `m`.\nEach of the next `n` lines contains a string of `m` capital letters: one row of the grid.",
+ "output_format": "Print a single integer: the minimum number of replacements.",
+ "constraints": [
+  "1 ≤ n, m ≤ 100",
+  "Every character of the grid is a capital letter `A` to `Z`"
+ ],
+ "examples": [
+  {
+   "input": "3 4\nRRRR\nBBBB\nWWWW",
+   "output": "6",
+   "explanation": "One optimal final grid is RBRB / BRBR / RWRW. Rows must alternate two colours, and vertically adjacent rows must differ in every column. Each row keeps only two of its four balls, so 2 + 2 + 2 = 6 balls change."
+  },
+  {
+   "input": "3 3\nRBR\nRBR\nWWW",
+   "output": "4",
+   "explanation": "One optimal final grid is RBR / BRB / WBW. The first row is already valid and stays. The second row must differ from the first in every column, so RBR becomes BRB (3 replacements). The third row WWW becomes WBW (1 replacement), which differs from BRB in every column. Total 3 + 1 = 4."
+  }
+ ],
+ "complexity": {
+  "time": "O(n · m + n · 26²)",
+  "space": "O(26²)"
+ },
+ "hints": [
+  "Within a row, no two neighbours may match and only two colours are allowed, so each row must alternate two different colours a, b, a, b, ... (for m = 1 a single colour). A row is described by an ordered pair (a, b).",
+  "Count, for each row, how many balls sit at even and at odd positions per colour. The cost of turning a row into the pattern (a, b) is then a simple formula using those counts.",
+  "Run a DP over rows with state (a, b). Two adjacent rows (a, b) and (c, d) are compatible when a ≠ c and b ≠ d. Evaluating all 26^4 transitions per row is too slow for n = 100, so precompute, for each state, the best previous state with a different first colour and a different second colour using the two smallest values."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    rows = data[2:2 + n]\n    INF = 10 ** 9\n    ev = (m + 1) // 2\n    od = m // 2\n    prev = None\n    for r in rows:\n        ce = [0] * 26\n        co = [0] * 26\n        for j, ch in enumerate(r):\n            if j % 2 == 0:\n                ce[ord(ch) - 65] += 1\n            else:\n                co[ord(ch) - 65] += 1\n        if prev is None:\n            M = [[0] * 26 for _ in range(26)]\n        else:\n            R = [[INF] * 26 for _ in range(26)]\n            for a in range(26):\n                row = prev[a]\n                m1 = m2 = INF\n                i1 = -1\n                for b in range(26):\n                    v = row[b]\n                    if v < m1:\n                        m2 = m1\n                        m1 = v\n                        i1 = b\n                    elif v < m2:\n                        m2 = v\n                for b in range(26):\n                    R[a][b] = m2 if b == i1 else m1\n            M = [[INF] * 26 for _ in range(26)]\n            for b in range(26):\n                m1 = m2 = INF\n                i1 = -1\n                for a in range(26):\n                    v = R[a][b]\n                    if v < m1:\n                        m2 = m1\n                        m1 = v\n                        i1 = a\n                    elif v < m2:\n                        m2 = v\n                for a in range(26):\n                    M[a][b] = m2 if a == i1 else m1\n        cur = [[INF] * 26 for _ in range(26)]\n        for a in range(26):\n            for b in range(26):\n                if a != b:\n                    cost = (ev - ce[a]) + (od - co[b])\n                    cur[a][b] = min(INF, cost + M[a][b])\n        prev = cur\n    print(min(min(row) for row in prev))\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import product\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nrows = data[2:2 + n]\npal = sorted(set(''.join(rows)))\nfor c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':\n    if len(pal) >= 7:\n        break\n    if c not in pal:\n        pal.append(c)\nvalid = []\nfor t in product(pal, repeat=m):\n    if len(set(t)) <= 2 and all(t[j] != t[j + 1] for j in range(m - 1)):\n        valid.append(t)\ndp = {t: sum(1 for x, y in zip(t, rows[0]) if x != y) for t in valid}\nfor r in rows[1:]:\n    nd = {}\n    for t in valid:\n        c = sum(1 for x, y in zip(t, r) if x != y)\n        best = min(v for p, v in dp.items() if all(x != y for x, y in zip(p, t)))\n        nd[t] = best + c\n    dp = nd\nprint(min(dp.values()))\n",
+ "generator": "def gen(rng):\n    def fmt(g):\n        return str(len(g)) + ' ' + str(len(g[0])) + '\\n' + '\\n'.join(g)\n    def rnd(n, m, letters):\n        return [''.join(rng.choice(letters) for _ in range(m)) for _ in range(n)]\n    tests = [fmt(['RRRR', 'BBBB', 'WWWW']), fmt(['RBR', 'RBR', 'WWW']), fmt(['A']), fmt(['A', 'A', 'A']),\n             fmt(['AAAAA']), fmt(['ABABAB', 'BABABA']), fmt(['AB', 'AB', 'AB']), fmt(['ABC', 'ABC'])]\n    for _ in range(40):\n        n = rng.randint(1, 5)\n        m = rng.randint(1, 6)\n        tests.append(fmt(rnd(n, m, rng.choice(['AB', 'ABC', 'ABCD']))))\n    tests.append(fmt(rnd(30, 30, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ')))\n    tests.append(fmt(rnd(25, 40, 'ABC')))\n    tests.append(fmt(rnd(100, 100, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ')))\n    tests.append(fmt(['A' * 100] * 100))\n    tests.append(fmt(rnd(100, 100, 'AB')))\n    tests.append(fmt([('AB' * 50) if i % 2 == 0 else ('BA' * 50) for i in range(100)]))\n    tests.append(fmt(rnd(100, 1, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ')))\n    tests.append(fmt(rnd(1, 100, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ')))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_replacements(grid: List[str]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    grid = data[2:2 + n]\n    print(min_replacements(grid))\n\n\nmain()\n",
+  "javascript": "function minReplacements(grid) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = Number(t[0])\nconst m = Number(t[1])\nconst grid = t.slice(2, 2 + n)\nconsole.log(String(minReplacements(grid)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minReplacements(vector<string>& grid) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<string> grid(n);\n    for (int i = 0; i < n; i++) cin >> grid[i];\n    cout << minReplacements(grid) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minReplacements(String[] grid) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int n = Integer.parseInt(st.nextToken());\n        int m = Integer.parseInt(st.nextToken());\n        String[] grid = new String[n];\n        for (int i = 0; i < n; i++) grid[i] = br.readLine().trim();\n        System.out.println(minReplacements(grid));\n    }\n}\n"
+ }
+}

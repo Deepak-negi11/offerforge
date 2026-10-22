@@ -1,0 +1,18 @@
+{
+ "qid": "74f3e8115f",
+ "question": "Databricks software engineering intern interview with two stages. **Coding:** implement methods for a **LazyArray** and **write tests** (the Glassdoor listing says 'implement two methods for a lazy array'; the exact methods were not reported). **Algorithms:** a problem solved with a set (in C++) where the interviewer then asked how else it could be solved with other data structures such as an array or a heap, and to **analyse the runtime** of each alternative.",
+ "lookingFor": [
+  "Understanding lazy evaluation and deferring work until needed.",
+  "Class design with clean methods, plus unit tests.",
+  "Knowing several data structures and their operation costs.",
+  "Comparing alternatives with correct complexity analysis.",
+  "Flexibility when asked to re-solve a problem differently."
+ ],
+ "answer": "**LazyArray idea.** A wrapper around an array that records transformations such as `map(f)` (and possibly `filter`) without applying them immediately. Values are computed only when requested (`get(i)`, `indexOf(v)`, `toList()`), and optionally cached. Because the methods were not reported, ask what each should do and what complexity is expected.\n\n**Typical design.**\n- Store the base array and a list of pending functions (a pipeline).\n- `map(f)` appends `f` to the pipeline and returns the same or a new LazyArray in O(1).\n- `get(i)` applies the pipeline to `base[i]` only: O(p) for p pending functions, independent of array length. Cache the result in a per-index slot if repeated reads are likely.\n- A search such as `indexOf(target)` walks the array from the start, applying the pipeline element by element and **stops at the first match**, so it never transforms the rest. This is the main benefit of laziness. (If `filter` is supported, indices shift, so compute on demand and be careful.)\n- Decide whether functions must be pure; caching assumes they are.\n\n**Tests.** Empty array; map called several times and chained in the right order; confirm the function is not called until needed (use a counter); early stop in search; out-of-range index; repeated `get` uses the cache.\n\n**Set versus alternatives.** If the algorithm needs to maintain unique, ordered items with insert, delete and lookup, a balanced-tree set (C++ `std::set`) gives O(log n) for each. A hash set gives average O(1) but no order. A sorted array supports binary search in O(log n) but insertion is O(n). A heap gives O(log n) insert and O(1) peek of min or max, but arbitrary lookup and deletion are O(n) (unless lazily deleted). Explain which operations the problem needs and pick accordingly, noting memory and constant factors.",
+ "followUps": [
+  "When does laziness hurt rather than help?",
+  "How would you cache computed values safely?",
+  "Why might a heap be a worse fit than a set for this problem?",
+  "How would you test that a function is not called prematurely?"
+ ]
+}

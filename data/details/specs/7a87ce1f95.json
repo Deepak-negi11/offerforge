@@ -1,0 +1,18 @@
+{
+ "qid": "7a87ce1f95",
+ "question": "Machine coding round at PhonePe (SDE-1, 2 years of experience): design a document manager. A document is a page with only text.\n\nMandatory: user registration and login; create, update and delete a document; get the latest active version; keep a history of changes and **revert to a previous version**. Only the user who created the document can edit, revert or delete it, but **anyone can view** it. Suggested functions: `createUser`, `loginUser`, `getDocument`, `createDocument`, `updateDocument` (creates a new version) and `revertToVersion`.\n\nIf time permits: sharing edit access between multiple users, private access (only permitted people can view), and state management (DRAFT and PUBLISHED).",
+ "lookingFor": [
+  "Can you design a version history model and define what revert means (new version vs pointer move)?",
+  "Do you enforce authorization cleanly (author-only writes) and keep it extensible for sharing and private docs?",
+  "Do you use patterns such as State for DRAFT/PUBLISHED and keep services separated from entities?",
+  "Do you handle edge cases: deleted documents, invalid versions, unauthenticated users?",
+  "Can you extend the design during the review without rewriting it?"
+ ],
+ "answer": "**Clarify:** is delete soft or hard, does revert create a new version (recommended) or remove later ones, and how is login done (in-memory id/password, hash the password rather than store plain text).\n\n**Entities:**\n- `User(id, name, passwordHash)`.\n- `Document(id, ownerId, state, List<Version> versions, currentVersionNo, deleted)`.\n- `Version(versionNo, content, createdAt, createdBy)`. Versions are immutable.\n\n**Services:**\n- `UserService.register/login` returning a session token or user id.\n- `DocumentService`: `create(userId, content)` makes version 1. `update(userId, docId, content)` appends version n+1. `get(docId)` returns the current version to anyone. `revertToVersion(userId, docId, n)` **appends a new version whose content is copied from version n**, so history is never rewritten and the revert itself is auditable. `delete(userId, docId)` marks deleted.\n- Every write calls `AccessPolicy.canEdit(user, doc)`.\n\n**Access design (the extension point):** put permission checks behind an `AccessPolicy` interface. Today `OwnerOnlyPolicy` (edit) and `PublicViewPolicy` (view). Later, `ACL`-based policy with `editors` and `viewers` sets gives shared edit and private docs without changing the service.\n\n**State:** `DocumentState { DRAFT, PUBLISHED }` with allowed transitions; the State pattern is optional but makes rules like \"only published documents are visible to others\" explicit. Draft documents are viewable only by the owner.\n\n**Storage:** in-memory `Map<docId, Document>`. Storing full content per version is simple; mention storing diffs as a space optimisation with the cost of slower reads.\n\n**Concurrency:** two concurrent updates to the same document should not produce duplicate version numbers. Synchronise per document, or use optimistic checks (`expectedVersion`).\n\n**Mistakes to avoid:** mutating old versions, checking permissions in the controller only, and storing plain passwords.",
+ "followUps": [
+  "Why does revert create a new version instead of deleting later ones?",
+  "How would you store versions space-efficiently (diffs, snapshots every N versions)?",
+  "How would you handle two users editing the same document at once?",
+  "How would you add comments or collaborative real-time editing later?"
+ ]
+}

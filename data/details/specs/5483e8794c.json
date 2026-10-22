@@ -1,0 +1,19 @@
+{
+ "qid": "5483e8794c",
+ "question": "Flipkart SDE-3 design and architecture round: **design a music streaming service like Spotify**. This was one of the rounds after a machine-coding round and its evaluation, and a data-structures round.",
+ "lookingFor": [
+  "Scoping a very large product into core capabilities.",
+  "Streaming architecture: storage, encoding, CDN.",
+  "Choosing data stores per access pattern and designing caching.",
+  "Scale, availability and cost reasoning expected at SDE-3 level.",
+  "Recommendation or search as a deep-dive area."
+ ],
+ "answer": "**Scope.** Core: search and browse, stream tracks, playlists, library (likes), recently played, free vs premium. Optional deep dives: recommendations, offline downloads, podcasts. Assume about 100 million daily users, 50 million tracks, a read-heavy workload, and streaming that starts in under 2 seconds.\n\n**Back-of-envelope.** If 30 million users are streaming concurrently at about 128 kbps, that is roughly 3.8 Tbps of egress, so a CDN is non-negotiable; metadata traffic is small by comparison.\n\n**Components.**\n- **Ingestion pipeline**: labels upload audio; workers transcode into several bitrates and chunk into segments (HLS/DASH-like) in object storage.\n- **Catalogue/metadata service**: artists, albums, tracks, backed by a relational or document database with heavy caching.\n- **Streaming/Playback service**: authenticates, checks entitlement (free vs premium), returns a signed manifest or URL; audio is served by a **CDN** with edge caching (popular tracks are highly cacheable). Players prefetch the next track.\n- **User service and library**: playlists and likes in a database partitioned by user.\n- **Play-event pipeline**: clients send events to Kafka; consumers compute play counts, royalties and recommendation features.\n- **Search**: inverted index (Elasticsearch/OpenSearch) with autocomplete.\n- **Recommendation**: offline batch (collaborative filtering, embeddings) plus online re-ranking, results cached per user.\n\n**Data stores.** Relational for catalogue and billing; Cassandra/DynamoDB for user-scale high-write data (play history, library); Redis for hot metadata and sessions; object storage for audio.\n\n**Trade-offs.** CDN cost versus origin load, cache long-tail tracks less aggressively, eventual consistency for counts, DRM and licensing region limits, and multi-region deployment for availability.\n\n**Resilience.** Degrade gracefully (serve cached metadata when recommendations fail), and replicate databases across zones.",
+ "followUps": [
+  "How do you keep playback start time low worldwide?",
+  "How would you design the recommendation pipeline (offline versus online)?",
+  "How do you count plays accurately for royalties at massive scale?",
+  "How would you implement offline downloads with licence control?",
+  "How do you handle a new album release causing a sudden spike?"
+ ]
+}

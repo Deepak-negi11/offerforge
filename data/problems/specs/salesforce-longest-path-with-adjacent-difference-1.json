@@ -1,0 +1,48 @@
+{
+ "pid": "salesforce-longest-path-with-adjacent-difference-1",
+ "title": "Longest Path With Adjacent Difference 1",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a grid of integers with `r` rows and `c` columns. A traveller starts in the **top-left** cell and may repeatedly move to the cell immediately to the **right** or immediately **below** the current one. A move is allowed only if the value in the destination cell differs from the value in the current cell by **exactly 1** (one more or one less). The traveller may stop at any cell.\n\nThe length of a path is the number of cells it visits, including the starting cell. Print the maximum possible length of such a path.",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains `c` integers: one row of the grid.",
+ "output_format": "Print one integer: the maximum number of cells on a valid path that starts at the top-left cell.",
+ "constraints": [
+  "1 ≤ r, c ≤ 600",
+  "0 ≤ grid[i][j] ≤ 99"
+ ],
+ "examples": [
+  {
+   "input": "3 3\n3 4 5\n4 9 6\n5 6 7",
+   "output": "5",
+   "explanation": "From 3 the traveller can go right to 4, then right to 5, then down to 6, then down to 7, visiting 5 cells. Going down first (3, 4, 5, 6, 7) gives the same length. The centre cell 9 is never reachable because no neighbour differs from it by 1. The maximum is 5."
+  },
+  {
+   "input": "2 3\n1 3 4\n5 2 3",
+   "output": "1",
+   "explanation": "From 1 the right neighbour is 3 and the cell below is 5; both differ from 1 by 2, so no move is possible. The path has only the starting cell, length 1."
+  },
+  {
+   "input": "3 4\n1 2 1 2\n2 1 2 1\n1 2 1 2",
+   "output": "6",
+   "explanation": "Every step between adjacent cells changes the value by exactly 1, so any right/down path is valid. The longest one visits r + c - 1 = 6 cells."
+  }
+ ],
+ "complexity": {
+  "time": "O(r · c)",
+  "space": "O(r · c)"
+ },
+ "hints": [
+  "The path can only move right or down, so a cell's best path length depends only on the cell above it and the cell to its left. Try a DP over the grid in row-major order.",
+  "Let `dp[i][j]` be the longest valid path from the top-left that ends at `(i, j)`, or 0 if the cell cannot be reached. A predecessor only counts if it is reachable and its value differs from `grid[i][j]` by exactly 1.",
+  "`dp[i][j] = 1 + max` over valid predecessors. The answer is the maximum `dp` value over all cells, not just the bottom-right one, because the traveller may stop anywhere."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    g = [list(map(int, data[2 + i * c: 2 + (i + 1) * c])) for i in range(r)]\n    dp = [[0] * c for _ in range(r)]\n    dp[0][0] = 1\n    best = 1\n    for i in range(r):\n        row = g[i]\n        cur = dp[i]\n        prev = dp[i - 1] if i else None\n        prow = g[i - 1] if i else None\n        for j in range(c):\n            if i == 0 and j == 0:\n                continue\n            v = row[j]\n            b = 0\n            if i and prev[j] and abs(prow[j] - v) == 1:\n                b = prev[j]\n            if j and cur[j - 1] and abs(row[j - 1] - v) == 1 and cur[j - 1] > b:\n                b = cur[j - 1]\n            if b:\n                cur[j] = b + 1\n                if b + 1 > best:\n                    best = b + 1\n    print(best)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\ng = [list(map(int, data[2 + i * c: 2 + (i + 1) * c])) for i in range(r)]\n\ndef go(i, j):\n    best = 1\n    for di, dj in ((0, 1), (1, 0)):\n        ni, nj = i + di, j + dj\n        if ni < r and nj < c and abs(g[ni][nj] - g[i][j]) == 1:\n            best = max(best, 1 + go(ni, nj))\n    return best\n\nprint(go(0, 0))\n",
+ "generator": "def gen(rng):\n    def fmt(g):\n        return f\"{len(g)} {len(g[0])}\\n\" + '\\n'.join(' '.join(map(str, row)) for row in g)\n\n    def tri(x, hi):\n        p = 2 * hi\n        x %= p\n        return x if x <= hi else p - x\n\n    tests = [fmt([[5]]), fmt([[1, 2, 3]]), fmt([[1], [2], [3]]), fmt([[1, 3], [2, 4]]),\n             fmt([[0, 1], [1, 0]]), fmt([[2, 2], [2, 2]]), fmt([[3, 4, 5], [4, 9, 6], [5, 6, 7]]),\n             fmt([[1, 2, 1, 2], [2, 1, 2, 1], [1, 2, 1, 2]])]\n    for _ in range(45):\n        r = rng.randint(1, 7)\n        c = rng.randint(1, 7)\n        hi = rng.choice([1, 2, 3])\n        tests.append(fmt([[rng.randint(0, hi) for _ in range(c)] for _ in range(r)]))\n    for _ in range(10):\n        r = rng.randint(2, 8)\n        c = rng.randint(2, 8)\n        g = [[0] * c for _ in range(r)]\n        for i in range(r):\n            for j in range(c):\n                if i == 0 and j == 0:\n                    g[i][j] = 4\n                elif rng.random() < 0.8:\n                    if i > 0 and (j == 0 or rng.random() < 0.5):\n                        base = g[i - 1][j]\n                    else:\n                        base = g[i][j - 1]\n                    g[i][j] = max(0, base + rng.choice([-1, 1]))\n                else:\n                    g[i][j] = rng.randint(0, 8)\n        tests.append(fmt(g))\n    R = C = 600\n    tests.append(fmt([[(i + j) % 2 for j in range(C)] for i in range(R)]))\n    tests.append(fmt([[tri(i + j, 49) for j in range(C)] for i in range(R)]))\n    g = [[0] * C for _ in range(R)]\n    for i in range(R):\n        for j in range(C):\n            if i == 0 and j == 0:\n                g[i][j] = 50\n            elif rng.random() < 0.9:\n                if i > 0 and (j == 0 or rng.random() < 0.5):\n                    base = g[i - 1][j]\n                else:\n                    base = g[i][j - 1]\n                g[i][j] = min(99, max(0, base + rng.choice([-1, 1])))\n            else:\n                g[i][j] = rng.randint(0, 99)\n    tests.append(fmt(g))\n    tests.append(fmt([[rng.randint(0, 2) for _ in range(C)] for _ in range(R)]))\n    tests.append(fmt([[tri(j, 49) for j in range(600)]]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef longest_path(grid: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    grid = [[int(data[2 + i * c + j]) for j in range(c)] for i in range(r)]\n    print(longest_path(grid))\n\n\nmain()\n",
+  "javascript": "function longestPath(grid) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst r = t[0], c = t[1]\nconst grid = []\nfor (let i = 0; i < r; i++) {\n  grid.push(t.slice(2 + i * c, 2 + (i + 1) * c))\n}\nconsole.log(longestPath(grid))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint longestPath(vector<vector<int>>& grid) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<vector<int>> grid(r, vector<int>(c));\n    for (int i = 0; i < r; i++)\n        for (int j = 0; j < c; j++) cin >> grid[i][j];\n    cout << longestPath(grid) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int longestPath(int[][] grid) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int r = (int) in.nval;\n        in.nextToken();\n        int c = (int) in.nval;\n        int[][] grid = new int[r][c];\n        for (int i = 0; i < r; i++) {\n            for (int j = 0; j < c; j++) {\n                in.nextToken();\n                grid[i][j] = (int) in.nval;\n            }\n        }\n        System.out.println(longestPath(grid));\n    }\n}\n"
+ }
+}

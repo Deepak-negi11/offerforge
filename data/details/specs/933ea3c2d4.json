@@ -1,0 +1,18 @@
+{
+ "qid": "933ea3c2d4",
+ "question": "In the third technical round for a Software Engineer 3 (SDE-3) role at PayPal, the candidate was asked three things:\n\n1. **Evaluate a postfix expression** given as a string such as `\" 3 6 + 5 *\"`, which should produce `45` (that is, `(3 + 6) * 5`). The candidate used a stack.\n2. Discuss the **advantages and disadvantages of microservices**.\n3. Do a **low-level design (LLD) of an e-commerce site like Flipkart**.",
+ "lookingFor": [
+  "Can you implement postfix evaluation with a stack, handling operand order and bad input?",
+  "Can you weigh microservices honestly, including operational costs, not just benefits?",
+  "Can you model an e-commerce domain with clear classes and responsibilities?",
+  "Do you apply design patterns where they help, such as Strategy, State and Observer?",
+  "Do you consider inventory concurrency and extensibility?"
+ ],
+ "answer": "**1. Postfix evaluation.** Scan tokens left to right. Push numbers. On an operator, pop `b` then `a` (the second pop is the left operand), compute `a op b`, push the result. At the end the stack holds one value.\n\n```java\nint eval(String expr) {\n    Deque<Integer> st = new ArrayDeque<>();\n    for (String t : expr.trim().split(\"\\s+\")) {\n        if (t.matches(\"-?\\d+\")) st.push(Integer.parseInt(t));\n        else {\n            int b = st.pop(), a = st.pop();\n            st.push(switch (t) { case \"+\" -> a + b; case \"-\" -> a - b;\n                                 case \"*\" -> a * b; case \"/\" -> a / b;\n                                 default -> throw new IllegalArgumentException(t); });\n        }\n    }\n    return st.pop();\n}\n```\nO(n) time and space. Mention division by zero, malformed input (stack underflow, leftover operands) and operand order for `-` and `/`.\n\n**2. Microservices.** Pros: independent deployment and scaling per service, team autonomy, fault isolation, technology freedom. Cons: network latency and partial failure, distributed transactions and eventual consistency, harder debugging and observability, more infrastructure (service discovery, gateways, CI/CD), data duplication, and versioning of contracts. Say a monolith is often the right start and you split along clear domain boundaries.\n\n**3. Flipkart-style LLD.** Clarify scope (browse, cart, order, pay, track). Entities: `User`, `Product`, `Category`, `Seller`, `Inventory`, `Cart`, `CartItem`, `Order`, `OrderItem`, `Payment`, `Address`. Services: `CatalogService` (search and filter), `CartService`, `InventoryService`, `OrderService`, `PaymentService`, `NotificationService`.\n\nPatterns: **Strategy** for payment methods and pricing or discount rules, **State** for the order lifecycle (`CREATED -> PAID -> SHIPPED -> DELIVERED`, with `CANCELLED`), **Observer** for notifications, **Factory** for payment processors. Key concern: **inventory reservation**. Decrement stock atomically (conditional update `WHERE stock >= qty` or a lock per SKU) at checkout, and release on payment failure or timeout. Keep prices as decimals and snapshot the price on the order item.",
+ "followUps": [
+  "How would you handle division and negative numbers or unary minus in the expression?",
+  "How do you handle a distributed transaction across order and payment services?",
+  "How would you prevent overselling during a flash sale?",
+  "How would you design search and filtering in the catalog?"
+ ]
+}

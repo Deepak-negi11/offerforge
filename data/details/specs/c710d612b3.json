@@ -1,0 +1,18 @@
+{
+ "qid": "c710d612b3",
+ "question": "Apple, Java Backend Engineer (L4 / SDE 2, Hyderabad), round 2 multithreading question, \"Countdown Timer\": **given a file containing a time value in H:M:S format, implement a countdown timer from that value down to 00:00:00.** The file may contain only hours, only minutes, or only seconds. The timer must display in `HH:MM:SS` format and update every second. The reported statement does not say how a lone value is marked as H, M or S, so ask the interviewer; the answer below assumes labelled input such as `2h`, `90m`, `45s` or a colon form like `1:05:30`.",
+ "lookingFor": [
+  "Clarifying ambiguous input and defining the format before coding.",
+  "Correct parsing and conversion to total seconds, plus HH:MM:SS formatting.",
+  "A sound way to schedule once per second without drift or busy waiting.",
+  "Thread-safety and clean shutdown.",
+  "Handling edge cases: empty file, zero, invalid input, overflow past 99 hours."
+ ],
+ "answer": "**Clarify.** How does the file mark a lone value as hours, minutes or seconds (suffix such as `h`, `m`, `s`, or padded `H:M:S` with missing parts)? Are values larger than 59 allowed (like 90 minutes)? What happens at zero: print `00:00:00` and stop? Is pause or cancel needed?\n\n**Design.**\n1. Parse the file into **total seconds**: `total = h*3600 + m*60 + s`. All later logic uses one number, which removes carry and borrow bugs.\n2. Format with integer math: `h = t / 3600`, `m = (t % 3600) / 60`, `s = t % 60`, printed with `String.format(\"%02d:%02d:%02d\", h, m, s)`.\n3. Schedule once per second with a `ScheduledExecutorService`; `scheduleAtFixedRate` keeps the cadence from drifting, unlike repeated `Thread.sleep(1000)` where processing time accumulates.\n\n    ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();\n    AtomicLong remaining = new AtomicLong(total);\n    ses.scheduleAtFixedRate(() -> {\n        long t = remaining.getAndDecrement();\n        System.out.println(format(t));\n        if (t <= 0) ses.shutdown();\n    }, 0, 1, TimeUnit.SECONDS);\n\nThe first tick prints the starting value, and the tick that prints `00:00:00` shuts the scheduler down.\n\n**Why threads at all?** The timer ticks on its own thread so the main thread (UI, other work, a cancel command) is not blocked. If only one thread touches the counter, a plain `long` is enough; the atomic is useful if another thread can pause, reset or read it. Use `volatile` or an atomic for any flag shared across threads.\n\n**Drift-proof variant:** store `deadline = System.nanoTime() + total * 1_000_000_000L` and compute remaining seconds from the clock on each tick, so late ticks do not slow the countdown. Use `nanoTime` (monotonic), not wall-clock time.\n\n**Edge cases:** empty or malformed file (clear error), negative values, a value like 90 minutes (normalised by the formula), very large totals, and interrupting cleanly with `shutdownNow()`.",
+ "followUps": [
+  "Why is scheduleAtFixedRate better than a loop with Thread.sleep(1000)?",
+  "How would you add pause and resume?",
+  "What happens if the task throws an exception inside a scheduled executor?",
+  "How would you run many independent countdowns efficiently?"
+ ]
+}

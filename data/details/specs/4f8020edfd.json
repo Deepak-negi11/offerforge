@@ -1,0 +1,19 @@
+{
+ "qid": "4f8020edfd",
+ "question": "MakeMyTrip SSE-2 / SDE-2 backend first technical round. After DSA problems, the interviewer asked: **How would you ensure that a double payment does not happen when the payment request is made twice?** (retries or duplicate submits). The same loop also asked **what a Record is in Java** and **what an interceptor in Spring is and why we need it**. A separate report from the same company mentions Java, Kafka, multithreading and idempotency questions in the final round.",
+ "lookingFor": [
+  "Understanding of idempotency and retry safety in payment flows.",
+  "Concrete mechanisms: idempotency keys, unique constraints, state machines.",
+  "Awareness of concurrency and distributed failure modes.",
+  "Knowledge of Java records and Spring interceptors as supporting tools.",
+  "Ability to reason about timeouts and unknown outcomes."
+ ],
+ "answer": "**Why it happens.** Clients retry on timeouts, users double-click, load balancers or gateways retry, and message queues deliver at least once. The server may have processed the first request even if the client never saw the response. So the server must make the operation **idempotent**: repeating it has the same effect as doing it once.\n\n**Core design: idempotency key.**\n1. The client generates a unique key (a UUID, or the order id plus attempt scope) and sends it in a header such as `Idempotency-Key` for every retry of the same logical payment.\n2. The server stores `(key, request hash, status, response)` in a table with a **unique constraint on the key**.\n3. On a request: insert the key atomically. If the insert succeeds, process the payment. If it fails with a duplicate, return the stored result, or a 'processing' status if the first attempt is still running. If the same key arrives with a different payload, reject it.\n4. Store the result in the same transaction as the payment record where possible, and expire keys after a retention window (for example 24 hours).\n\n**Supporting layers**\n- **Database constraints:** a unique constraint on `(order_id, payment_purpose)` or similar prevents two successful charges for one order.\n- **State machine:** payment goes `CREATED -> PENDING -> SUCCESS/FAILED`; transitions use compare-and-set (for example `UPDATE ... WHERE status='CREATED'`) so only one worker wins.\n- **Locking:** a distributed lock (such as Redis) can reduce concurrent duplicates, but should not be the only guard because locks can expire.\n- **Downstream calls:** pass the same idempotency reference to the payment gateway, and on timeout **query the gateway status** before retrying instead of blindly charging again.\n- **Reconciliation:** a periodic job compares internal records with gateway settlement and refunds duplicates.\n- **Frontend:** disable the submit button and show progress.\n\n**Java and Spring pieces.** A Java **record** is a concise immutable data carrier (auto-generated constructor, accessors, equals, hashCode, toString), useful for request DTOs. A Spring **HandlerInterceptor** runs before and after controllers, so it is a natural place to read the idempotency header, check the key store and short-circuit duplicates, plus logging and auth.",
+ "followUps": [
+  "What if the server crashes after charging but before saving the result?",
+  "How long should idempotency keys be retained and why?",
+  "How does this differ for a Kafka consumer that may receive a message twice?",
+  "Why is a distributed lock alone not enough?",
+  "How do you handle a gateway timeout where you do not know if the charge succeeded?"
+ ]
+}

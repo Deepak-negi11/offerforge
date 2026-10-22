@@ -1,0 +1,49 @@
+{
+ "pid": "asteroid-collision",
+ "title": "Asteroid Collision (Ball Variant)",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A row of `n` balls is placed on a line, from left to right in the order of their indices `0` to `n - 1`. Every ball has a **direction** and a **strength**:\n\n- the direction is `+1` (the ball moves to the right) or `-1` (the ball moves to the left);\n- the strength is a positive integer.\n\nAll balls move at the same speed, so two balls moving in the same direction never meet. A collision happens only when a ball moving right (`+1`) has a ball moving left (`-1`) as its next neighbour on its right (every ball between them has already been destroyed). The two balls run into each other, and then:\n\n- the ball with the **greater strength** survives and keeps its direction and strength (the other one is destroyed);\n- if both strengths are **equal**, both balls are destroyed.\n\nA survivor keeps moving and can collide again with the next ball it meets. This continues until no more collisions are possible, that is, until no ball moving right has a ball moving left anywhere to its right.\n\nPrint the **indices** of the balls that remain, in increasing order. If no ball remains, print `-1`.\n\nThe final set of survivors does not depend on the order in which you resolve simultaneous collisions. This is the classic asteroid-collision problem, dressed as a ball scenario, and it is usually solved with a stack. Look carefully at the equal-strength case and at a survivor that keeps hitting several balls in a row.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains two integers `direction[i]` (either `1` or `-1`) and `strength[i]`.",
+ "output_format": "Print the indices of the surviving balls in increasing order, separated by spaces, or `-1` if every ball is destroyed.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "direction[i] is either 1 or -1",
+  "1 ≤ strength[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "5\n1 5\n1 3\n-1 4\n-1 2\n1 7",
+   "output": "0 4",
+   "explanation": "Ball 2 (left-moving, strength 4) hits ball 1 (strength 3) and destroys it, then hits ball 0 (strength 5) and is destroyed. Ball 3 (strength 2) also runs into ball 0 and is destroyed. Ball 4 moves right with nothing ahead of it, so balls 0 and 4 survive."
+  },
+  {
+   "input": "4\n1 4\n-1 4\n-1 1\n1 2",
+   "output": "2 3",
+   "explanation": "Balls 0 and 1 have equal strength, so both are destroyed. Ball 2 moves left and there is nothing to its left any more, and ball 3 moves right, so both survive."
+  },
+  {
+   "input": "2\n1 3\n-1 3",
+   "output": "-1",
+   "explanation": "The two balls collide with equal strength and both are destroyed, so nothing is left."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Only a right-moving ball followed by a left-moving ball can collide. Process the balls from left to right and remember the ones that are still alive.",
+  "Keep a stack of survivors. A new right-moving ball is simply pushed. A new left-moving ball fights the right-moving balls on top of the stack one after another.",
+  "While the incoming left-moving ball meets a weaker right-moving ball on top of the stack, pop it and continue. Stop when it loses, when it ties (pop the top and discard the incoming ball too), or when the top is not a right-moving ball."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    d = [int(data[1 + 2 * i]) for i in range(n)]\n    w = [int(data[2 + 2 * i]) for i in range(n)]\n    stack = []\n    for i in range(n):\n        alive = True\n        if d[i] == -1:\n            while stack and d[stack[-1]] == 1:\n                top = stack[-1]\n                if w[top] < w[i]:\n                    stack.pop()\n                elif w[top] == w[i]:\n                    stack.pop()\n                    alive = False\n                    break\n                else:\n                    alive = False\n                    break\n        if alive:\n            stack.append(i)\n    print(' '.join(map(str, stack)) if stack else -1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nballs = [(i, int(data[1 + 2 * i]), int(data[2 + 2 * i])) for i in range(n)]\nchanged = True\nwhile changed:\n    changed = False\n    for j in range(len(balls) - 1):\n        a, b = balls[j], balls[j + 1]\n        if a[1] == 1 and b[1] == -1:\n            if a[2] > b[2]:\n                balls = balls[:j + 1] + balls[j + 2:]\n            elif a[2] < b[2]:\n                balls = balls[:j] + balls[j + 1:]\n            else:\n                balls = balls[:j] + balls[j + 2:]\n            changed = True\n            break\nprint(' '.join(str(b[0]) for b in balls) if balls else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(bs):\n        return str(len(bs)) + '\\n' + '\\n'.join(f'{d} {w}' for d, w in bs)\n\n    tests = [fmt([(1, 5)]), fmt([(-1, 5)]), fmt([(1, 3), (-1, 3)]), fmt([(-1, 2), (1, 2)]),\n             fmt([(1, 5), (1, 3), (-1, 4), (-1, 2), (1, 7)]), fmt([(1, 2), (1, 2), (-1, 2), (-1, 2)]),\n             fmt([(-1, 1), (-1, 2), (1, 3), (1, 4)])]\n    for n, wmax in ((3, 3), (5, 4), (8, 5), (12, 6), (20, 8), (30, 10)):\n        for _ in range(2):\n            tests.append(fmt([(rng.choice((1, -1)), rng.randint(1, wmax)) for _ in range(n)]))\n    N = 100000\n    tests.append(fmt([(rng.choice((1, -1)), rng.randint(1, 10**9)) for _ in range(N)]))\n    tests.append(fmt([(1, rng.randint(1, 10**9)) for _ in range(N // 2)] + [(-1, rng.randint(1, 10**9)) for _ in range(N // 2)]))\n    tests.append(fmt([(1, i + 1) for i in range(N // 2)] + [(-1, N // 2 - i) for i in range(N // 2)]))\n    tests.append(fmt([(1 if i % 2 == 0 else -1, 10**9) for i in range(N)]))\n    tests.append(fmt([(-1, rng.randint(1, 10**9)) for _ in range(N // 2)] + [(1, rng.randint(1, 10**9)) for _ in range(N // 2)]))\n    tests.append(fmt([(1 if rng.random() < 0.8 else -1, rng.randint(1, 1000)) for _ in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef surviving_balls(direction: List[int], strength: List[int]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    direction = [int(data[1 + 2 * i]) for i in range(n)]\n    strength = [int(data[2 + 2 * i]) for i in range(n)]\n    res = surviving_balls(direction, strength)\n    print(' '.join(map(str, res)) if res else -1)\n\n\nmain()\n",
+  "javascript": "function survivingBalls(direction, strength) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst direction = [], strength = []\nfor (let i = 0; i < n; i++) {\n  direction.push(t[1 + 2 * i])\n  strength.push(t[2 + 2 * i])\n}\nconst res = survivingBalls(direction, strength)\nconsole.log(res.length ? res.join(' ') : '-1')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> survivingBalls(vector<int>& direction, vector<long long>& strength) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> direction(n);\n    vector<long long> strength(n);\n    for (int i = 0; i < n; i++) cin >> direction[i] >> strength[i];\n    vector<int> res = survivingBalls(direction, strength);\n    if (res.empty()) {\n        cout << -1 << '\\n';\n    } else {\n        for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] survivingBalls(int[] direction, long[] strength) {\n        // Write your solution here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] direction = new int[n];\n        long[] strength = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); direction[i] = (int) in.nval;\n            in.nextToken(); strength[i] = (long) in.nval;\n        }\n        int[] res = survivingBalls(direction, strength);\n        StringBuilder sb = new StringBuilder();\n        if (res.length == 0) sb.append(-1).append(\"\\n\");\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

@@ -1,0 +1,16 @@
+{
+ "qid": "ca019efa02",
+ "question": "Infosys Specialist Programmer (L2/L3) SQL question: **build a `full_name` column from first, middle and last names, where the middle name or the last name may be NULL.** The reported item gave no more detail, so a table such as `person(first_name, middle_name, last_name)` is assumed and the output should not contain stray spaces or become NULL when a part is missing.",
+ "lookingFor": [
+  "Understanding NULL semantics: any expression involving NULL propagates NULL.",
+  "Knowing `COALESCE` and `CONCAT_WS`, and their dialect differences.",
+  "Care about output formatting (no double spaces)."
+ ],
+ "answer": "**The problem.** In standard SQL and in MySQL, `first_name || ' ' || middle_name || ' ' || last_name` (or `CONCAT(...)` in MySQL) returns **NULL** if any part is NULL. We want the missing part and its separator to be skipped.\n\n**MySQL, simplest:** `CONCAT_WS` skips NULL arguments (but not empty strings):\n\n```sql\nSELECT CONCAT_WS(' ', first_name, middle_name, last_name) AS full_name\nFROM person;\n```\n\n**Portable version using `COALESCE`** (works in PostgreSQL, Oracle and others; use `||`, or `+` in SQL Server):\n\n```sql\nSELECT first_name\n       || COALESCE(' ' || middle_name, '')\n       || COALESCE(' ' || last_name, '') AS full_name\nFROM person;\n```\n\nThe trick: `' ' || middle_name` is NULL when the middle name is NULL, and `COALESCE` turns it into an empty string, so neither the name nor its leading space is added. This assumes `first_name` is not NULL.\n\n**Alternative with `CASE`:**\n\n```sql\nSELECT first_name\n  || CASE WHEN middle_name IS NOT NULL THEN ' ' || middle_name ELSE '' END\n  || CASE WHEN last_name IS NOT NULL THEN ' ' || last_name ELSE '' END AS full_name\nFROM person;\n```\n\n**Edge cases to mention**\n- Empty strings: if blanks are stored as `''`, wrap with `NULLIF(middle_name, '')` so they are treated as missing.\n- Dialect differences: SQL Server's `CONCAT` treats NULL as an empty string, MySQL's `CONCAT` returns NULL, and Oracle treats empty string as NULL. Use `CONCAT_WS` in MySQL, SQL Server 2017+ and PostgreSQL.\n- Trailing or leading spaces in data: apply `TRIM`.\n\n**Tip:** ask which database is in use, and say aloud that `NULL || anything` is NULL.",
+ "followUps": [
+  "What does COALESCE do and how is it different from IFNULL or ISNULL?",
+  "How would you handle first_name also being NULL?",
+  "Why does CONCAT return NULL in MySQL but not in SQL Server?",
+  "How would you format the name as 'Last, First M.'?"
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "qid": "590c50f8d3",
+ "question": "Hiring manager round for an SDE-1 (Android) role at Swiggy, reported as very hard. It included a **previous project discussion**, a **hard problem on dependency injection for a multi-module app** (the candidate solved about 70% of it), and in-depth questions on **dependencies, multi-module setups and coroutines**. The exact problem statement was not reported.",
+ "lookingFor": [
+  "Understanding of why dependency injection exists and how it enables testing and modularity.",
+  "Ability to design dependency boundaries across Gradle modules without cyclic dependencies.",
+  "Knowledge of how Hilt/Dagger components and scopes work.",
+  "Coroutine fundamentals: scopes, dispatchers, structured concurrency, cancellation.",
+  "Clear reasoning under a hard, loosely specified problem."
+ ],
+ "answer": "**What the question is likely about.** A multi-module Android app (for example `app`, `feature-cart`, `feature-search`, `core-network`, `core-data`) where features need shared services without depending on each other. The reported problem statement is vague, so answer by showing the design principles.\n\n**Core idea.** Depend on abstractions, and supply implementations from a place that can see both.\n- Put **interfaces** (for example `CartRepository`) in a lightweight API module. Feature modules depend on the API module only.\n- Put **implementations** in an implementation module, which depends on the API and core modules.\n- The **`app` module** is the composition root: it sees everything and wires the graph. Feature modules never depend on one another, which avoids cycles and speeds up incremental builds.\n\n**With Hilt/Dagger.**\n- `@Module` + `@InstallIn(SingletonComponent::class)` provides app-wide objects (OkHttp, Retrofit, database). Use `@Binds` for interface-to-implementation bindings, `@Provides` for third-party classes.\n- Scopes control lifetime: `@Singleton`, `@ViewModelScoped`, `@ActivityRetainedScoped`. Do not scope everything as singleton; that holds memory and hides ownership.\n- For features that must not know the app's concrete classes, expose a small entry-point interface (`@EntryPoint`) or let each feature contribute bindings through multibindings (`@IntoSet`, `@IntoMap`).\n- Constructor injection is preferred over field injection because dependencies are explicit and easy to fake in unit tests.\n\n**Pitfalls to mention.** Circular dependencies, leaking an Activity context into a singleton, one giant module that defeats modularisation, and slow annotation processing (use KSP where supported).\n\n**Coroutines link.** Inject dispatchers (`@IoDispatcher`) instead of hard-coding `Dispatchers.IO`, so tests can replace them. Tie work to `viewModelScope` or `lifecycleScope` for structured concurrency and automatic cancellation; use `supervisorScope` when one child failing must not cancel siblings; never swallow `CancellationException`.\n\n**Testing.** Provide fakes through the same interfaces, and test each feature module in isolation.",
+ "followUps": [
+  "What is the difference between `@Binds` and `@Provides`?",
+  "How do you avoid a cyclic dependency between two feature modules that need each other's data?",
+  "Why inject a CoroutineDispatcher instead of using Dispatchers.IO directly?",
+  "What happens to child coroutines when a parent scope is cancelled or a child throws?",
+  "How does modularisation affect build time?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "5159a01acc",
+ "question": "**Low-level design and implementation of an HR system like Workday**, covering most of its main functionality, in a technical round for an SDE winter intern. The code had to **run**: the interviewer asked to execute it and then to debug a crash. The candidate chose C++ and struggled with pointers and structs; the interviewer said Java would have been a better choice for a design-heavy round.\n\nScope the system yourself with the interviewer, build the core flows first, and keep the code runnable at every step.",
+ "lookingFor": [
+  "Scoping an open-ended problem into core entities and use cases",
+  "Object-oriented modelling and appropriate design patterns",
+  "Producing working, runnable code incrementally",
+  "Choosing a language you can write safely and quickly",
+  "Debugging calmly and testing as you go"
+ ],
+ "answer": "**Step 1: clarify and scope (5 minutes).** Propose a minimal set and confirm: employee records, org structure (departments, managers), leave management with approval, payroll or salary records, and possibly hiring. Ask which two or three flows must run end to end.\n\n**Step 2: entities.**\n- `Employee` (id, name, role/position, department, manager, salary details, leave balance).\n- `Department`, `Position`.\n- `LeaveRequest` (employee, type, dates, status, approver).\n- `PayrollRecord` or `Payslip` (period, gross, deductions, net).\n- Optional: `Candidate`/`JobOpening` for recruitment.\n\n**Step 3: services (keep entities thin).** `EmployeeService` (add, update, transfer, terminate, org tree queries), `LeaveService` (apply, approve, reject, check balance), `PayrollService` (generate payslip using a `SalaryCalculator`). Use in-memory repositories with interfaces (`EmployeeRepository`) so storage is swappable.\n\n**Step 4: patterns, used where they pay off.**\n- **State pattern** (or an enum with allowed transitions) for `LeaveRequest`: PENDING to APPROVED or REJECTED or CANCELLED.\n- **Strategy** for leave policies and tax or deduction rules.\n- **Observer** to notify managers and employees on events.\n- **Composite** for the reporting hierarchy if you need subtree queries.\n\n**Rules to enforce.** Cannot approve your own leave; leave balance cannot go negative; a manager approves only direct reports; overlapping leave is rejected.\n\n**Step 5: runnable demo.** A `main` that creates a department, employees and a manager, applies and approves leave, generates a payslip and prints results. Write the demo early and run it after each class.\n\n**Language choice.** Pick the language where you write safe, fluent code quickly. Java gives garbage collection, interfaces and rich collections, which avoids the pointer and memory bugs that crashed the C++ attempt.\n\n**Debugging.** When it fails, read the stack trace, reproduce with the smallest case, and verify assumptions with prints.",
+ "followUps": [
+  "How would you add role-based access so HR can see salaries but managers cannot?",
+  "How would you model a manager hierarchy and find all reports of a manager?",
+  "How would you make leave approval thread-safe?",
+  "How would you persist this to a database?"
+ ]
+}

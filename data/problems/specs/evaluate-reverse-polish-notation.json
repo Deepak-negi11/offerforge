@@ -1,0 +1,50 @@
+{
+ "pid": "evaluate-reverse-polish-notation",
+ "title": "Evaluate Reverse Polish Notation",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "An arithmetic expression is written in **postfix** (reverse Polish) notation as a sequence of `n` tokens. Each token is either an integer (possibly negative) or one of the four operators `+`, `-`, `*`, `/`.\n\nTo evaluate it, read the tokens from left to right. An integer is remembered; an operator takes the two most recently remembered values `a` (earlier) and `b` (later), computes `a op b`, and remembers the result in their place. For example, `6 2 /` means `6 / 2`, and `8 3 -` means `8 - 3`.\n\nInteger division **truncates toward zero** (so `7 / 2 = 3` and `-7 / 2 = -3`).\n\nThe expression is guaranteed to be valid: it never divides by zero, and exactly one value is left at the end. Print that value.",
+ "input_format": "The first line contains the integer `n`, the number of tokens.\nThe second line contains the `n` tokens separated by single spaces.",
+ "output_format": "Print one integer: the value of the expression.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "Every integer token has absolute value at most 10^9",
+  "Every intermediate result has absolute value at most 10^9",
+  "Division by zero never occurs"
+ ],
+ "examples": [
+  {
+   "input": "5\n7 2 - 3 *",
+   "output": "15",
+   "explanation": "7 2 - gives 5, then 5 3 * gives 15."
+  },
+  {
+   "input": "9\n-9 2 / 4 3 - * 1 +",
+   "output": "-3",
+   "explanation": "-9 / 2 truncates toward zero to -4; 4 - 3 = 1; -4 * 1 = -4; -4 + 1 = -3."
+  },
+  {
+   "input": "1\n-42",
+   "output": "-42",
+   "explanation": "A single number is its own value."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "An operator always applies to the two values produced most recently. Which data structure gives you the most recent items first?",
+  "Push integers on a stack; on an operator, pop the right operand first, then the left one, and push the result.",
+  "Take care with division: the language's own `/` or `//` may round toward negative infinity or produce a float. Truncate toward zero explicitly. Also tell the token `-` apart from a negative number like `-5`."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    st = []\n    for t in data[1:1 + n]:\n        if t in ('+', '-', '*', '/'):\n            b = st.pop()\n            a = st.pop()\n            if t == '+':\n                st.append(a + b)\n            elif t == '-':\n                st.append(a - b)\n            elif t == '*':\n                st.append(a * b)\n            else:\n                q = abs(a) // abs(b)\n                st.append(q if (a < 0) == (b < 0) else -q)\n        else:\n            st.append(int(t))\n    print(st[0])\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\ntoks = data[1:1 + n]\n\ndef parse(i):\n    # evaluate the sub-expression whose last token is toks[i]; return (value, index before its first token)\n    t = toks[i]\n    if t not in ('+', '-', '*', '/'):\n        return int(t), i - 1\n    b, j = parse(i - 1)\n    a, j = parse(j)\n    if t == '+':\n        return a + b, j\n    if t == '-':\n        return a - b, j\n    if t == '*':\n        return a * b, j\n    q = abs(a) // abs(b)\n    return (q if (a < 0) == (b < 0) else -q), j\n\nprint(parse(n - 1)[0])\n",
+ "generator": "def gen(rng):\n    LIM = 10 ** 9\n    def tdiv(a, b):\n        q = abs(a) // abs(b)\n        return q if (a < 0) == (b < 0) else -q\n    def build(m, vmax, push_p):\n        toks, st, pushed = [], [], 0\n        while pushed < m or len(st) > 1:\n            if len(st) >= 2 and (pushed == m or rng.random() > push_p):\n                b = st.pop()\n                a = st.pop()\n                ops = ['+', '-', '*']\n                if b != 0:\n                    ops.append('/')\n                rng.shuffle(ops)\n                for op in ops:\n                    if op == '+':\n                        r = a + b\n                    elif op == '-':\n                        r = a - b\n                    elif op == '*':\n                        r = a * b\n                    else:\n                        r = tdiv(a, b)\n                    if abs(r) <= LIM:\n                        break\n                toks.append(op)\n                st.append(r)\n            else:\n                v = rng.randint(-vmax, vmax)\n                toks.append(str(v))\n                st.append(v)\n                pushed += 1\n        return str(len(toks)) + '\\n' + ' '.join(toks)\n    tests = ['1\\n0', '1\\n-5', '1\\n1000000000', '3\\n6 -4 /', '3\\n-7 2 /', '3\\n7 -2 /', '3\\n0 5 -', '5\\n-1000000000 1000000000 + 3 *']\n    for m in (2, 3, 3, 4, 5, 6, 8, 10):\n        for vm in (5, 30):\n            tests.append(build(m, vm, 0.55))\n    tests.append(build(40, 10 ** 9, 0.5))\n    tests.append(build(2000, 9, 0.5))\n    tests.append(build(20000, 10 ** 9, 0.5))\n    tests.append(build(50000, 12, 0.97))\n    tests.append(build(50000, 1000, 0.03))\n    tests.append(build(50000, 10 ** 9, 0.5))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef eval_rpn(tokens: List[str]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    tokens = data[1:1 + n]\n    print(eval_rpn(tokens))\n\n\nmain()\n",
+  "javascript": "function evalRPN(tokens) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = Number(t[0])\nconst tokens = t.slice(1, 1 + n)\nconsole.log(String(evalRPN(tokens)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long evalRPN(vector<string>& tokens) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<string> tokens(n);\n    for (int i = 0; i < n; i++) cin >> tokens[i];\n    cout << evalRPN(tokens) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long evalRPN(String[] tokens) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder sb = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) sb.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(sb.toString());\n        int n = Integer.parseInt(st.nextToken());\n        String[] tokens = new String[n];\n        for (int i = 0; i < n; i++) tokens[i] = st.nextToken();\n        System.out.println(evalRPN(tokens));\n    }\n}\n"
+ }
+}

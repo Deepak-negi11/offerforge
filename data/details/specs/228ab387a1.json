@@ -1,0 +1,18 @@
+{
+ "qid": "228ab387a1",
+ "question": "Reported from a Meesho on-campus loop (July 2025) for a software developer role. After an online assessment (DSU with binary search, a sieve variant, a hard string-subset problem), a top-k problem solved with a priority queue and a shopping-cart design round on HackerRank, the final round asked about **relational versus non-relational databases**, **multithreading**, and an open design question: **how would you scale a YouTube chat app?**\n\nThe report does not give more detail on the chat requirements, so assume YouTube Live Chat: viewers of a live stream send short messages that all other viewers of the same stream see within a second or two.",
+ "lookingFor": [
+  "Scoping an open question: requirements, scale numbers and what to optimise",
+  "Understanding of real-time delivery (WebSockets, pub/sub, fan-out)",
+  "Database choice reasoning for write-heavy, time-ordered data",
+  "Awareness of concurrency issues and hot-partition problems",
+  "Ability to discuss trade-offs such as latency, ordering and cost"
+ ],
+ "answer": "**Clarify and size it.** Functional: send message, receive messages for a stream in near real time, scroll back recent history, moderation (spam, blocked words). Non-functional: low latency (about 1-2 seconds), high availability, eventual consistency is acceptable. Assume a popular stream has 1M concurrent viewers and 5,000 messages per second. The challenge is **fan-out**: one message must reach up to a million connections, so total deliveries can reach billions per second without sampling.\n\n**Architecture.**\n- *Connection layer*: clients keep a WebSocket (or server-sent events/long polling as fallback) to a **gateway** tier. Gateways are stateless apart from the connection, so you can add more behind a load balancer.\n- *Chat service* validates, rate-limits and moderates messages, then publishes to a **pub/sub system** (Kafka, Redis pub/sub) keyed by stream id.\n- Each gateway subscribes to the streams its connected viewers watch and pushes messages to them. This avoids sending per-user messages through the broker.\n- *Storage*: a write-optimised store partitioned by stream id and ordered by time (Cassandra or a similar wide-column store, or Kafka plus a time-series store) for recent history, with a TTL. Relational data (users, channels, bans) stays in a relational database.\n\n**Relational vs non-relational.** Relational databases give ACID transactions, joins and a fixed schema, good for accounts and payments. Non-relational stores (key-value, document, wide-column) trade some consistency or query flexibility for horizontal scale and flexible schemas, which suits append-heavy chat messages. Say it depends on access patterns.\n\n**Scaling issues and mitigations.**\n- *Hot streams*: shard a single huge stream's audience across many gateways; each gateway receives one copy of every message. For huge streams, **sample or batch** (show a subset, send batches every 500 ms) because nobody can read 5,000 messages a second.\n- *Ordering*: per-stream sequence numbers from the partition; small reordering is acceptable.\n- *Multithreading*: gateways use event loops or thread pools; shared structures (the subscriber map) need thread-safe collections, and slow clients must not block others, so use per-connection bounded queues and drop for laggards.\n- *Reliability*: reconnect with a last-seen id to backfill; autoscale and monitor lag.",
+ "followUps": [
+  "How do you handle a stream with 5 million concurrent viewers?",
+  "WebSockets versus long polling versus server-sent events: which and why?",
+  "How would you implement spam and abuse prevention at this scale?",
+  "What is a race condition, and where could one occur in your gateway?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "ebe19d99ef",
+ "question": "Mastercard Java developer (experienced) interview, Java 8 questions. Reported items: explain Java 8 features and the functional interfaces; **write lambda expressions for `Function` and `Predicate`**; use streams to check whether a string is longer than a given length; and, given\n\n`class Resource { int id; String resourceName; List<Skill> skills; }`\n\n**use streams to count how many resources there are for each skill.** Also: predict the output of `String s1=\"abc\"; String s2=\"abc\"; System.out.println(\"s1 == s2 \" + s1 == s2);`",
+ "lookingFor": [
+  "Fluency with lambdas, functional interfaces and the Collectors API.",
+  "Can you flatten a nested collection and group with counting?",
+  "Do you notice operator precedence and string identity vs equality?",
+  "Do you handle details such as duplicate skills inside one resource?"
+ ],
+ "answer": "**Lambdas.**\n\n    Function<String, Integer> len = s -> s.length();\n    Predicate<String> longerThan5 = s -> s.length() > 5;\n    longerThan5.test(\"interview\");   // true\n\nCore functional interfaces: `Function<T,R>`, `Predicate<T>`, `Consumer<T>`, `Supplier<T>`, `UnaryOperator<T>`, `BinaryOperator<T>`. Primitive versions such as `IntPredicate`, `IntFunction` and `ToIntFunction` avoid boxing.\n\n**String longer than a length with streams.** A direct check is `s.length() > n`. With streams, for a list: `list.stream().filter(s -> s.length() > n).collect(Collectors.toList())`.\n\n**Count resources per skill.** Assume `Skill` has `getName()`.\n\n    Map<String, Long> countBySkill = resources.stream()\n        .flatMap(r -> r.getSkills().stream()\n                       .map(Skill::getName)\n                       .distinct())               // count a resource once per skill\n        .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));\n\nA simpler version, if a skill never repeats within a resource:\n\n    Map<String, Long> counts = resources.stream()\n        .flatMap(r -> r.getSkills().stream())\n        .collect(Collectors.groupingBy(Skill::getName, Collectors.counting()));\n\nExplanation: `flatMap` turns the stream of resources into a stream of skills; `groupingBy` buckets by skill; `counting()` counts per bucket. Time O(total skills). Handle null skill lists if the data may contain them.\n\n**Output of the `==` question.** `+` has higher precedence than `==`, so the expression is `(\"s1 == s2 \" + s1) == s2`. That compares the concatenated string `\"s1 == s2 abc\"` with `\"abc\"` by reference, giving `false`. The program prints just `false`, not the text. The intended `s1 == s2` would be `true` because both literals refer to the same pooled string; use `.equals()` to compare content, and `\"abc\" == new String(\"abc\")` is false.",
+ "followUps": [
+  "How do you list the resources that have a given skill?",
+  "What is the difference between map and flatMap?",
+  "Why should strings be compared with equals() rather than ==?",
+  "What does Collectors.toMap do on duplicate keys?",
+  "What is the difference between intermediate and terminal stream operations?"
+ ]
+}

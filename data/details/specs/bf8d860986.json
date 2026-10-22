@@ -1,0 +1,17 @@
+{
+ "qid": "bf8d860986",
+ "question": "Cognizant GenC technical interview (SQL): **list the types of joins, explain a self join, and explain the difference between an inner join and a left join** (also whether `LEFT JOIN` and `LEFT OUTER JOIN` differ). Candidates report that a self join was a question they could not answer, so it is worth preparing.",
+ "lookingFor": [
+  "Clear definitions of each join type and its result.",
+  "Ability to give a small example with tables and a query.",
+  "Understanding of NULL handling in outer joins.",
+  "Knowing a practical use for a self join."
+ ],
+ "answer": "Use two small tables: `employees(id, name, dept_id, manager_id)` and `departments(id, dept_name)`.\n\n**Types of joins**\n\n- **INNER JOIN:** only rows that match in both tables.\n- **LEFT (OUTER) JOIN:** all rows from the left table; matched rows from the right, and `NULL` where there is no match.\n- **RIGHT (OUTER) JOIN:** the mirror image: all rows from the right table.\n- **FULL (OUTER) JOIN:** all rows from both sides; `NULL` on the side with no match. (MySQL has no `FULL JOIN`; emulate with `LEFT JOIN ... UNION ... RIGHT JOIN`.)\n- **CROSS JOIN:** the Cartesian product, every row of one table with every row of the other (n x m rows).\n- **SELF JOIN:** a table joined with itself.\n\n```sql\n-- Inner: employees that have a department\nSELECT e.name, d.dept_name\nFROM employees e\nINNER JOIN departments d ON e.dept_id = d.id;\n\n-- Left: all employees, dept_name is NULL when there is no department\nSELECT e.name, d.dept_name\nFROM employees e\nLEFT JOIN departments d ON e.dept_id = d.id;\n```\n\n**Inner versus left:** the inner join drops employees with no matching department, while the left join keeps them with `NULL`. To find the unmatched rows, add `WHERE d.id IS NULL` to the left join (an anti-join).\n\n**`LEFT JOIN` versus `LEFT OUTER JOIN`:** no difference; `OUTER` is an optional keyword.\n\n**Self join.** It is not a different join type; it is any join where both sides are the same table, so you **must use aliases**. Typical use is a hierarchy such as employee and manager:\n\n```sql\nSELECT e.name AS employee, m.name AS manager\nFROM employees e\nLEFT JOIN employees m ON e.manager_id = m.id;\n```\n\nUsing `LEFT JOIN` keeps the top manager (who has no manager) in the result. Other uses: finding duplicate rows, comparing rows in the same table (for example employees earning more than their manager).\n\n**Tip:** when a filter on the right table is placed in `WHERE` instead of `ON`, a left join silently behaves like an inner join; put such conditions in `ON`.",
+ "followUps": [
+  "How would you find employees who earn more than their manager?",
+  "What is the difference between `ON` and `WHERE` in an outer join?",
+  "How would you emulate a FULL OUTER JOIN in MySQL?",
+  "What is the difference between a join and a subquery, and when would you use each?"
+ ]
+}

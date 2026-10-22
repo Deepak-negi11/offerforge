@@ -1,0 +1,18 @@
+{
+ "qid": "2b446215aa",
+ "question": "Intuit online assessment (Software Engineer 1), bash section: a **text-processing task that extracts numbers from text using regular expressions and then does arithmetic on them.** Other candidates reported a bash question about git. No exact input format was reported, so be ready for numbers (possibly with decimals or signs) embedded in lines of text.",
+ "lookingFor": [
+  "Comfort with grep, sed, awk and shell pipelines.",
+  "Correct regular expressions for integers and decimals.",
+  "Shell arithmetic and its limits (integers only).",
+  "Handling edge cases: no numbers, negative numbers, spaces and empty input.",
+  "Awareness of quoting and portability pitfalls."
+ ],
+ "answer": "**Core idea:** extract with `grep -oE`, then sum with `awk` (or integer arithmetic in the shell).\n\n    # sum all integers in a file or stdin\n    grep -oE '[0-9]+' input.txt | awk '{ s += $1 } END { print s+0 }'\n\n    # include optional minus sign and decimals\n    grep -oE -- '-?[0-9]+(\\.[0-9]+)?' input.txt | awk '{ s += $1 } END { print s+0 }'\n\n**Explanation**\n- `grep -o` prints only the matched parts, one per line; `-E` enables extended regex so `+`, `?` and groups work without escapes.\n- `[0-9]+` matches one or more digits. `-?` allows a sign and `(\\.[0-9]+)?` an optional fractional part. `--` stops option parsing so a pattern beginning with `-` is not read as a flag.\n- `awk` treats each line as a number and accumulates it; `END` prints the total. `s+0` makes the output `0` if there were no numbers, instead of an empty string.\n\n**Pure bash alternative (integers only)**\n\n    sum=0\n    while read -r n; do (( sum += n )); done < <(grep -oE '[0-9]+' input.txt)\n    echo \"$sum\"\n\nBash arithmetic is integer-only; use `awk` or `bc` for decimals. If the numbers might have leading zeros, `((  ))` treats `08` as an invalid octal, so strip zeros or use `10#$n`.\n\n**Using bash's own regex** (`[[ $str =~ ([0-9]+) ]]` with `BASH_REMATCH`) returns only the first match per call, so loop over the string or use grep/awk for all matches.\n\n**Edge cases to state:** empty input prints 0; a number embedded in a word such as `abc12def` is still matched unless you add word boundaries; `1,000` would be read as two numbers unless commas are handled; read from stdin when no file argument is given (`\"${1:-/dev/stdin}\"`).\n\n**Git-related bash questions** usually involve commands like `git log --oneline`, `git branch`, `git diff` or `git stash`; revise the common ones and combine them with pipes (for example count commits by author with `git shortlog -sn`).",
+ "followUps": [
+  "How would you sum only numbers on lines containing a given word?",
+  "What is the difference between grep -E and grep -P?",
+  "How do you handle numbers with a thousands separator or a currency sign?",
+  "How would you do floating-point arithmetic without awk?"
+ ]
+}

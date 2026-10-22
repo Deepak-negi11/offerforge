@@ -1,0 +1,18 @@
+{
+ "qid": "e740c18748",
+ "question": "Cisco system design / technical round (Software Engineer, Go and AWS role). The candidate was asked to **implement a simplified Kafka-like message queue in Go**. The discussion then moved to **how to deploy it on AWS**, covering a simple EC2 instance versus the more robust ECS, using S3, and using Terraform for automation. The candidate was also expected to be honest about which parts they knew conceptually and which they had built before.",
+ "lookingFor": [
+  "Understanding of the core ideas behind Kafka: topics, partitions, append-only logs, offsets, consumer groups.",
+  "Go concurrency skills: goroutines, channels, mutexes, safe shared state.",
+  "Ability to scope a design, state assumptions and pick a simple correct version first.",
+  "Cloud deployment judgement: EC2 vs containers, state and storage, infrastructure as code.",
+  "Honesty about experience level and clear reasoning about trade-offs."
+ ],
+ "answer": "**Clarify and scope.** Producers publish messages to named topics; consumers read them in order and track progress. Assume one broker first, then discuss replication and scale.\n\n**Core model**\n- A **topic** is split into **partitions**. A partition is an append-only log; each message gets a monotonically increasing **offset**. Ordering is guaranteed only within a partition; the producer picks a partition by hashing a key.\n- Consumers pull. A **consumer group** shares a topic: each partition is read by one consumer in the group, and the group stores a **committed offset** per partition. Replay is just reading from an older offset.\n\n**Go implementation sketch**\n\n```go\ntype Partition struct {\n    mu   sync.RWMutex\n    msgs [][]byte\n}\nfunc (p *Partition) Append(m []byte) int64 {\n    p.mu.Lock(); defer p.mu.Unlock()\n    p.msgs = append(p.msgs, m)\n    return int64(len(p.msgs) - 1)\n}\nfunc (p *Partition) Read(off int64, max int) [][]byte { /* RLock, slice copy */ }\n```\n\nA `Broker` holds `map[string][]*Partition`, exposes `Publish(topic, key, msg)` and `Fetch(topic, part, offset, max)` over HTTP or gRPC, and keeps `map[group+topic+part]offset` for commits. Use `sync.Cond` or a channel for long-polling consumers.\n\n**Durability.** Move from memory to segment files on disk (append, periodic `fsync`, an index from offset to file position), plus retention by size or age. For fault tolerance, replicate each partition to followers (leader/follower, acknowledge after N replicas).\n\n**AWS deployment**\n- **EC2:** simplest; you manage OS, patching and scaling. Good for a stateful broker with an attached EBS volume.\n- **ECS** (EC2 or Fargate launch type): containerised, health checks, rolling deploys, service discovery. Stateful brokers need persistent volumes, which is the awkward part; stateless producers and consumers fit ECS naturally.\n- **S3:** cheap long-term storage for archived log segments or backups, not for the hot path.\n- **Terraform:** declare VPC, security groups, instances or ECS services, IAM roles and S3 buckets as code, so environments are reproducible and reviewable.\n\nIn practice, managed options such as Amazon MSK exist; mention them as the production alternative.",
+ "followUps": [
+  "How do you guarantee ordering and avoid message loss on a broker crash?",
+  "What delivery semantics (at-most-once, at-least-once, exactly-once) does your queue offer?",
+  "How would you add consumer-group rebalancing when a consumer joins or dies?",
+  "Why is a stateful broker harder to run on ECS than a stateless API?"
+ ]
+}

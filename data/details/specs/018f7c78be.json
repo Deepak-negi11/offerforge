@@ -1,0 +1,18 @@
+{
+ "qid": "018f7c78be",
+ "question": "Qualcomm on-campus first technical round (about 45 minutes, interviewer from embedded systems), operating systems segment: **What is paging? Explain page table entries and page table size, what happens when the CPU requests a page and how the page table helps. Then spinlocks and process synchronisation, how semaphores work, deadlock, and the attributes of a PCB.**",
+ "lookingFor": [
+  "Clear mental model of virtual memory and address translation.",
+  "Ability to calculate page-table size.",
+  "Understanding synchronisation primitives and when each fits.",
+  "Deadlock conditions and process-state bookkeeping.",
+  "Linking OS concepts to low-level or embedded contexts."
+ ],
+ "answer": "**Paging.** Memory is split into fixed-size **pages** (virtual) and **frames** (physical), typically 4 KB. A process sees contiguous virtual addresses; the OS maps pages to any free frames. This removes external fragmentation (only a little internal fragmentation in the last page) and allows virtual memory.\n\n**Address translation.** A virtual address = (page number, offset). The MMU uses the **page table** to map the page number to a frame number; physical address = frame x page size + offset. A **page table entry (PTE)** holds the frame number plus bits: valid/present, read/write/execute permissions, user/supervisor, dirty, referenced.\n\n**Page-table size example.** 32-bit address space, 4 KB pages: offset 12 bits, page number 20 bits, so 2^20 entries; at 4 bytes per PTE that is 4 MB per process. Multi-level or inverted page tables reduce this, since most of the address space is unused.\n\n**When the CPU requests a page.** The TLB (a cache of translations) is checked first. On a hit the physical address is formed immediately. On a miss the page table is walked. If the PTE is valid, the TLB is updated. If not present, a **page fault** is raised: the OS finds the page on disk, picks a free or victim frame (replacement policy), loads the page, updates the PTE and restarts the instruction.\n\n**Spinlock vs semaphore.** A spinlock busy-waits in a loop on an atomic test-and-set; good for very short critical sections and in kernel/interrupt contexts, wasteful otherwise. A **semaphore** is a counter with atomic `wait` (P) and `signal` (V); a blocked process sleeps instead of spinning. Binary semaphores or mutexes give mutual exclusion; counting semaphores manage a pool of resources.\n\n**Deadlock.** Needs all four: mutual exclusion, hold and wait, no preemption, circular wait. Break one (for example a global lock order), or use avoidance (banker's algorithm) or detection and recovery.\n\n**PCB attributes.** Process ID, state, program counter, CPU registers, scheduling information (priority), memory-management info (page-table pointer), accounting info and I/O status (open files, devices).",
+ "followUps": [
+  "What is a TLB and what is its effective access time?",
+  "Why do multi-level page tables save memory?",
+  "When would you use a spinlock instead of a mutex?",
+  "What is thrashing?"
+ ]
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "9e40873933",
+ "question": "Dream11 SDE-2, onsite system design (after a monitoring-system design). The final question: **how would you implement a database from scratch using only EC2 instances?** The candidate discussed MongoDB and Cassandra style architecture: append-only files, SSTables, bloom filters, merging (compaction), indexing and replication, and struggled with search optimisation (Elasticsearch and inverted indexes).",
+ "lookingFor": [
+  "Understanding of storage engine internals.",
+  "Ability to reason about durability, replication and partitioning.",
+  "Knowing the trade-offs between LSM trees and B-trees.",
+  "Awareness of how full-text search differs (inverted index)."
+ ],
+ "answer": "**Clarify.** What workload: key-value, document, relational? Read- or write-heavy? Consistency needs and scale? Assume a distributed key-value/document store with a search feature.\n\n**Single-node storage engine (LSM-tree design)**\n1. **Write path:** append the write to a **write-ahead log** (sequential, durable), then insert into an in-memory sorted structure (memtable).\n2. **Flush:** when the memtable is full, write it to disk as an immutable, sorted **SSTable**.\n3. **Read path:** check the memtable, then SSTables from newest to oldest. A **bloom filter** per SSTable skips files that definitely lack the key; a sparse index plus block cache keeps reads cheap.\n4. **Compaction:** background merging of SSTables removes overwritten values and tombstones, and bounds read amplification. Trade-off: write amplification and I/O spikes.\nAlternative: a **B+ tree** engine, which is better for read-heavy and range workloads, with in-place updates and a WAL. LSM favours write throughput.\n\n**Distribution**\n- **Partitioning:** consistent hashing (with virtual nodes) or range partitioning across EC2 nodes.\n- **Replication:** N replicas per partition across availability zones. Either leader-based (Raft or Paxos for consensus and failover) or leaderless with quorums (R + W > N), plus hinted handoff and read repair.\n- **Cluster membership and failure detection:** gossip or a coordination service.\n- **Storage on EC2:** use EBS or local NVMe instance store (fast but ephemeral, so replication is essential), snapshots to S3 for backups.\n- **Rebalancing** when nodes join or leave.\n\n**Search.** Use a secondary structure: an **inverted index** mapping term to a sorted posting list of document ids, with tokenisation, stemming and ranking (TF-IDF or BM25). Build per-shard index segments (like Lucene), merged in the background, and scatter-gather queries across shards. Secondary indexes can be local (per partition) or global.\n\n**Also cover:** a query layer and API, checksums, monitoring, backups and upgrades.",
+ "followUps": [
+  "Why is an LSM tree good for writes and what does it cost on reads?",
+  "How does a bloom filter help and what are its error properties?",
+  "How would you choose between leader-based and leaderless replication?",
+  "How does an inverted index support a text search query?"
+ ]
+}

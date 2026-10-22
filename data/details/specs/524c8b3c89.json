@@ -1,0 +1,18 @@
+{
+ "qid": "524c8b3c89",
+ "question": "Tech Lead candidate, 3-hour machine coding round: design and build a system that automates web browsers without using any automation tool such as Selenium or Puppeteer. The system should expose APIs through which a client can drive the browser. (The reported source gives no further requirements, so scope and API surface are yours to define and justify.)",
+ "lookingFor": [
+  "Knowing how browsers are controlled underneath: a remote-debugging protocol rather than magic",
+  "Layered, extensible design (API, session manager, driver abstraction, protocol client)",
+  "Clear scoping of a minimal API within three hours and a plan to extend it",
+  "Reliability: waits, timeouts, crashes, session cleanup, concurrency",
+  "Testability and code quality, as it is a tech-lead level round"
+ ],
+ "answer": "**Clarify scope first.** Ask which browsers, which actions (navigate, click, type, read text, screenshot, run JS), single or multiple sessions, and whether it is a library or a service. Propose an MVP: Chrome, sessions, `navigate`, `click`, `type`, `getText`, `screenshot`.\n\n**How control works.** Chromium-based browsers can be started with `--remote-debugging-port` and then driven over the Chrome DevTools Protocol: a WebSocket carrying JSON messages like `{id, method, params}` with replies matched by `id` and events pushed asynchronously. Examples: `Page.navigate`, `Runtime.evaluate` (read the DOM or click via JS), `Input.dispatchMouseEvent` / `Input.dispatchKeyEvent`, `Page.captureScreenshot`. Writing a small CDP client yourself is exactly \"without Selenium or Puppeteer\".\n\n**Components.**\n- *API layer*: REST (`POST /sessions`, `POST /sessions/{id}/navigate`, `.../click`, `DELETE /sessions/{id}`) with validation and error mapping.\n- *Session manager*: creates a session, launches the browser with a temp profile and free port, tracks state, enforces idle timeouts and kills the process tree on delete.\n- *Driver interface*: `BrowserDriver` with `navigate`, `findElement`, `click`, `type`, `screenshot`; `ChromeDriver` implements it over CDP; other browsers plug in via another protocol.\n- *Protocol client*: WebSocket connection, request/response correlation with promises, event subscription, per-call timeouts.\n\n**Hard parts to call out.** Waiting for page load and element readiness (listen for `Page.loadEventFired`, poll with timeout rather than sleeping), stale element references (resolve selectors at action time), crashed browsers (detect socket close, mark session dead), and concurrent commands (serialise per session).\n\n**Time plan.** Process launcher and CDP client first (a vertical slice: start, navigate, screenshot), then the API, then error handling and tests with a fake driver. Mention what you would add next: auto-wait, multi-tab, a command queue, Firefox through its remote protocol.",
+ "followUps": [
+  "How does your design differ from the W3C WebDriver protocol?",
+  "How would you add auto-waiting so clients do not need explicit sleeps?",
+  "How would you scale this to hundreds of parallel sessions?",
+  "How do you test the driver without launching a real browser?"
+ ]
+}

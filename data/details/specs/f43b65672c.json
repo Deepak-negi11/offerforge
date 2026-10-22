@@ -1,0 +1,17 @@
+{
+ "qid": "f43b65672c",
+ "question": "Atlassian machine learning engineer (P40) coding round. Implement an algorithm that returns the **median item** of a list where the ordering of items is based on **multiple factors** (for example, compare by one attribute, break ties by another). The report does not give the exact attributes, so clarify the comparison rule and what 'median' means for even-sized lists.",
+ "lookingFor": [
+  "Translating multi-factor ordering into a clean comparator.",
+  "Choosing between sorting, quickselect and heap approaches with complexity.",
+  "Handling even length, ties and empty input.",
+  "Extending to streaming data."
+ ],
+ "answer": "**Clarify.**\n- What are the factors and their priority? (For example: score descending, then timestamp ascending, then id.) Is the ordering a strict total order once ties are broken?\n- Median of an even-length list: lower middle, upper middle, or both (average only makes sense for numbers)? For items, return the lower median unless told otherwise.\n- Empty list handling, and whether the list may be modified.\n\n**Model the order.** Define a key or comparator once, for example a tuple `(-score, timestamp, id)` in Python or a `Comparator.comparing(...).thenComparing(...)` chain in Java. The median is then the element at sorted index `(n - 1) // 2`. A total, consistent order is essential; an inconsistent comparator makes sorts and selection incorrect.\n\n**Approach 1: sort.** `sorted(items, key=key)[(n - 1) // 2]`. O(n log n) time, O(n) space, simple and correct. Good first answer.\n\n**Approach 2: quickselect.** Pick a pivot, partition by the comparator, and recurse only into the side containing index `k = (n - 1) // 2`. Average O(n), worst case O(n^2); use a random pivot or median-of-medians for worst-case O(n). Beware many equal keys: use three-way partitioning.\n\n**Approach 3: streaming (two heaps).** If items arrive over time, keep a max-heap for the lower half and a min-heap for the upper half using the same comparator, rebalancing so sizes differ by at most one. Insert is O(log n), median lookup O(1).\n\n**Edge cases.** n = 1, duplicates, all items tied on the first factor (second factor decides), None or missing values (define a rule, such as placing them last).\n\n**Testing.** Compare against the sort-based answer on random inputs.\n\n**ML context.** Be ready to say where this appears: for example median of items ranked by several metrics, robust aggregation, or percentile latency.",
+ "followUps": [
+  "How would you maintain the median under insertions and deletions?",
+  "What is the worst case for quickselect and how do you avoid it?",
+  "How would you handle ties if the factors are floating-point values?",
+  "How would you find a percentile such as p95 instead of the median?"
+ ]
+}

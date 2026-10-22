@@ -1,0 +1,49 @@
+{
+ "pid": "adobe-move-blue-balls-into-red-positions",
+ "title": "Move Blue Balls Into Red Positions",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "There is a row of `n` balls numbered `1` to `n` from left to right. Each ball is either red or blue, given by an array `b`: `b[i] = 1` means ball `i` is red and `b[i] = 0` means it is blue. The number of red balls is **at most half** of the balls: `2 * (number of red balls) ≤ n`.\n\nYour task is to swap blue balls into the positions initially occupied by red balls so that **no red ball remains in its original position**: when you are done, every position that was originally red holds a blue ball.\n\nA swap exchanges the balls at two positions `i` and `j` and costs `|i - j|` rupees. Swaps are executed one at a time (finish one swap before starting the next).\n\nFind the **minimum total cost** needed to move blue balls into all the initially red positions.",
+ "input_format": "The first line contains the integer `n`.\nThe second line contains `n` space-separated integers `b[1], ..., b[n]`, each `0` or `1`.",
+ "output_format": "Print a single integer: the minimum total cost.",
+ "constraints": [
+  "1 ≤ n ≤ 2000",
+  "b[i] ∈ {0, 1}",
+  "The number of ones is at most n / 2"
+ ],
+ "examples": [
+  {
+   "input": "5\n0 1 0 1 0",
+   "output": "2",
+   "explanation": "The red balls are at positions 2 and 4. Swap the red ball at 2 with the blue ball at 1 (cost 1) and the red ball at 4 with the blue ball at 3 (cost 1). Both original red positions now hold blue balls, total cost 2."
+  },
+  {
+   "input": "6\n1 1 1 0 0 0",
+   "output": "9",
+   "explanation": "Reds at 1, 2, 3 and blues at 4, 5, 6. Pairing them in order costs |1-4| + |2-5| + |3-6| = 9, and no pairing is cheaper."
+  },
+  {
+   "input": "7\n0 1 1 0 0 1 0",
+   "output": "3",
+   "explanation": "Reds at 2, 3, 6 and blues at 1, 4, 5, 7. Swap 2 with 1 (cost 1), 3 with 4 (cost 1) and 6 with 5 (cost 1). Total cost 3."
+  }
+ ],
+ "complexity": {
+  "time": "O(r * (n - r))",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Every swap that helps exchanges one red ball with one blue ball, and a red ball only needs to move once. The problem becomes: send every red ball to a distinct originally-blue position, minimising the total distance travelled.",
+  "On a line, an optimal matching never crosses: the i-th red ball (left to right) is sent to a blue position that is to the right of the one used for the (i-1)-th red ball.",
+  "Let `dp[i][j]` be the cheapest way to place the first `i` red balls using only the first `j` blue positions. Either blue `j` is unused, or it receives red `i` at cost `|R[i] - B[j]|`. Keep only two rows."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    b = [int(x) for x in data[1:1 + n]]\n    R = [i for i in range(n) if b[i] == 1]\n    B = [i for i in range(n) if b[i] == 0]\n    m = len(B)\n    INF = float('inf')\n    prev = [0] * (m + 1)\n    for ri in R:\n        cur = [INF] * (m + 1)\n        for j in range(1, m + 1):\n            v = prev[j - 1] + abs(ri - B[j - 1])\n            w = cur[j - 1]\n            cur[j] = v if v < w else w\n        prev = cur\n    print(prev[m])\n\nmain()\n",
+ "brute": "import sys\nimport heapq\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nb = tuple(int(x) for x in data[1:1 + n])\nred = [i for i in range(n) if b[i] == 1]\ndist = {b: 0}\nheap = [(0, b)]\nans = None\nwhile heap:\n    d, s = heapq.heappop(heap)\n    if dist.get(s, 1 << 60) < d:\n        continue\n    if all(s[i] == 0 for i in red):\n        ans = d\n        break\n    for i in range(n):\n        for j in range(i + 1, n):\n            if s[i] != s[j]:\n                t = list(s)\n                t[i], t[j] = t[j], t[i]\n                t = tuple(t)\n                nd = d + (j - i)\n                if nd < dist.get(t, 1 << 60):\n                    dist[t] = nd\n                    heapq.heappush(heap, (nd, t))\nprint(ans)\n",
+ "generator": "def gen(rng):\n    def fmt(b):\n        return str(len(b)) + '\\n' + ' '.join(map(str, b))\n    def rnd(n, r):\n        b = [0] * n\n        for i in rng.sample(range(n), r):\n            b[i] = 1\n        return b\n    tests = [fmt([0]), fmt([0, 0, 0]), fmt([1, 0]), fmt([0, 1]), fmt([1, 0, 1, 0]), fmt([1, 1, 0, 0]), fmt([0, 1, 1, 0, 0, 1, 0]), fmt([1, 0, 0, 0, 0, 1])]\n    for n in (3, 4, 5, 6, 7, 8, 9, 10, 11, 12):\n        for _ in range(2):\n            tests.append(fmt(rnd(n, rng.randint(0, n // 2))))\n    tests.append(fmt(rnd(12, 6)))\n    tests.append(fmt(rnd(300, 100)))\n    N = 2000\n    tests.append(fmt([1] * 1000 + [0] * 1000))\n    tests.append(fmt([0] * 1000 + [1] * 1000))\n    tests.append(fmt([1, 0] * 1000))\n    tests.append(fmt(rnd(N, 1000)))\n    tests.append(fmt(rnd(N, 400)))\n    tests.append(fmt([1] * 500 + [0] * 1000 + [1] * 500))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_cost(b: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    b = [int(x) for x in data[1:1 + n]]\n    print(min_cost(b))\n\n\nmain()\n",
+  "javascript": "function minCost(b) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst b = t.slice(1, 1 + n)\nconsole.log(String(minCost(b)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minCost(vector<int>& b) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> b(n);\n    for (int i = 0; i < n; i++) cin >> b[i];\n    cout << minCost(b) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minCost(int[] b) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] b = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            b[i] = (int) in.nval;\n        }\n        System.out.println(minCost(b));\n    }\n}\n"
+ }
+}

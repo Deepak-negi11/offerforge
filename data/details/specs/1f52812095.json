@@ -1,0 +1,19 @@
+{
+ "qid": "1f52812095",
+ "question": "LinkedIn Senior Software Engineer, round 5 (Software Design and Architecture). People regularly share articles on LinkedIn. **Design a system to maintain a Top-N leaderboard of the most-shared articles over rolling windows of 5 minutes, 1 hour and 24 hours.** The candidate was told afterwards that feedback was positive overall.",
+ "lookingFor": [
+  "Can you clarify N, accuracy needs, freshness and scale before designing?",
+  "Do you handle sliding windows efficiently rather than recomputing everything?",
+  "Do you choose a sound streaming architecture and partitioning strategy?",
+  "Do you weigh exact vs approximate counting and hot-key issues?",
+  "Do you cover serving, fault tolerance and late or duplicate events?"
+ ],
+ "answer": "**Requirements.** Input: a stream of share events `(article_id, user_id, timestamp)`. Output: for each window (5 min, 1 h, 24 h) the top N articles by share count, queryable with low latency, updated within seconds. Assume, for example, 50k shares per second at peak, N of 10 to 100, and that a few seconds of staleness is fine. Decide whether a user's repeated share counts once (deduplicate by `(article, user)`).\n\n**Ingestion.** Share service publishes events to a durable log (Kafka) partitioned by `article_id`, so all events for one article hit the same consumer and counts stay local.\n\n**Windowing.** Instead of storing every event per window, keep **time-bucketed counts**: for each article, counts per 1-minute bucket. A window count is the sum of its last 5, 60 or 1440 buckets. Maintain rolling totals incrementally: add the new bucket, subtract the expired one. Use a stream processor (Flink, Kafka Streams) with sliding or hopping windows (for example a 5-minute window sliding every 10 seconds) and keep state in a local store with checkpoints.\n\n**Top-N.** Each partition computes its local top-N per window (a min-heap of size N, or a sorted structure updated on change). A merge stage combines the partition lists. Correctness follows because the global top-N is within the union of each partition's top-N, since an article lives in exactly one partition. Publish results to a serving store such as Redis (a sorted set per window) or a cache, and have the read API fetch the cached list.\n\n**Trade-offs.**\n- Exact vs approximate: a count-min sketch plus heavy-hitter tracking cuts memory, at the cost of small overestimates. The number of distinct articles in 24 hours is probably manageable exactly.\n- Hot articles: a viral article makes one partition hot; pre-aggregate in the producers or a combiner stage, then add up.\n- Late and duplicate events: use event-time with a watermark and idempotent counting.\n\n**Scale and failure.** Add partitions, checkpoint state, replay from Kafka to recover, and fall back to the last published leaderboard if processing lags.",
+ "followUps": [
+  "How do you handle late-arriving or duplicate share events?",
+  "Why is the union of per-partition top-N enough for the global top-N?",
+  "When would you switch to a count-min sketch, and what error does it introduce?",
+  "How would you handle a single viral article that overloads one partition?",
+  "How would you add a per-country or per-industry leaderboard?"
+ ]
+}

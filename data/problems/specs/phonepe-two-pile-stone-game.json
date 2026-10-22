@@ -1,0 +1,43 @@
+{
+ "pid": "phonepe-two-pile-stone-game",
+ "title": "Two-Pile Stone Game",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "Two friends, `A` and `B`, play a game with two piles of stones that initially hold `X` and `Y` stones. `A` always moves first and the players then alternate.\n\nOn a move the current player:\n\n- chooses a positive integer `i`,\n- takes `2i` stones from one of the two piles (that pile must contain at least `2i` stones),\n- discards `i` of those stones, and\n- puts the remaining `i` stones onto the other pile.\n\nA player who cannot make a move loses. Both players play optimally.\n\nYou are given `t` games. For each game, print `A` if the first player wins and `B` if the second player wins.",
+ "input_format": "The first line contains an integer `t`.\nEach of the next `t` lines contains two integers `X` and `Y`: the starting pile sizes of one game.",
+ "output_format": "Print `t` lines, one per game: `A` or `B`.",
+ "constraints": [
+  "1 ≤ t ≤ 5·10^4",
+  "1 ≤ X, Y ≤ 10^18"
+ ],
+ "examples": [
+  {
+   "input": "2\n2 1\n4 8",
+   "output": "B\nA",
+   "explanation": "For (2, 1), A's only move is i = 1 on the first pile: take 2 stones, discard 1, add 1 to the other pile, giving (0, 2). B takes 2 from the second pile the same way, giving (1, 0), and A has no move, so B wins. For (4, 8), A takes 2 stones from the pile of 8 (i = 1), discards 1 and adds 1 to the other pile, giving (5, 6). The piles now differ by only 1, a position from which the player to move (B) loses, so A wins."
+  },
+  {
+   "input": "3\n7 6\n1 1\n9 2",
+   "output": "B\nB\nA",
+   "explanation": "(7, 6) and (1, 1) are positions where the piles differ by at most 1 and the first player loses. In (9, 2) the piles differ by 7 and the first player has a winning move."
+  }
+ ],
+ "complexity": {
+  "time": "O(t)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "With values up to 10^18 you cannot search the game tree. Compute the winner for every small (X, Y) by brute force and look at the pattern of the losing positions.",
+  "Watch the difference X - Y. A move that takes 2i stones from X and moves i of them to Y changes the difference by exactly 3i.",
+  "Show that if the piles differ by 0 or 1 every move leaves them differing by at least 2, and that if they differ by 2 or more there is always a move that brings the difference back to 0 or 1."
+ ],
+ "reference": "import sys\n\ndef main():\n    d = sys.stdin.read().split()\n    t = int(d[0])\n    out = []\n    for i in range(t):\n        x, y = int(d[1 + 2 * i]), int(d[2 + 2 * i])\n        out.append('A' if abs(x - y) >= 2 else 'B')\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\nfrom functools import lru_cache\n\nsys.setrecursionlimit(10000)\n\n@lru_cache(maxsize=None)\ndef win(x, y):\n    # True if the player to move wins\n    i = 1\n    while 2 * i <= max(x, y):\n        if 2 * i <= x and not win(x - 2 * i, y + i):\n            return True\n        if 2 * i <= y and not win(x + i, y - 2 * i):\n            return True\n        i += 1\n    return False\n\nd = sys.stdin.read().split()\nt = int(d[0])\nprint('\\n'.join('A' if win(int(d[1 + 2 * i]), int(d[2 + 2 * i])) else 'B' for i in range(t)))\n",
+ "generator": "def gen(rng):\n    def fmt(qs):\n        return str(len(qs)) + \"\\n\" + \"\\n\".join(f\"{a} {b}\" for a, b in qs)\n    N = 10 ** 18\n    def pad(qs):\n        # pad past 400 characters so the brute force is not run on huge values\n        qs = list(qs)\n        while len(fmt(qs)) <= 400:\n            qs.append((rng.randint(10 ** 17, N), rng.randint(10 ** 17, N)))\n        return fmt(qs)\n    tests = [\n        fmt([(2, 1)]),\n        fmt([(4, 8)]),\n        fmt([(1, 1)]),\n        fmt([(1, 2), (2, 1), (2, 2), (3, 1), (1, 3)]),\n        fmt([(a, b) for a in range(1, 8) for b in range(1, 8)]),\n        fmt([(7, 6), (1, 1), (9, 2)]),\n        pad([(N, N), (N, N - 1), (N - 1, N), (N, N - 2), (1, N), (N, 1)]),\n    ]\n    for _ in range(14):\n        tests.append(fmt([(rng.randint(1, 30), rng.randint(1, 30)) for _ in range(rng.randint(1, 30))]))\n    def big(size):\n        qs = []\n        for _ in range(size):\n            if rng.random() < 0.5:\n                x = rng.randint(1, N)\n                qs.append((x, min(N, max(1, x + rng.choice([-1, 0, 1])))))\n            elif rng.random() < 0.5:\n                x = rng.randint(1, N)\n                qs.append((x, min(N, max(1, x + rng.choice([-2, 2, -3, 3])))))\n            else:\n                qs.append((rng.randint(1, N), rng.randint(1, N)))\n        return qs\n    tests.append(fmt(big(50000)))\n    tests.append(fmt(big(30000)))\n    tests.append(fmt(big(2000)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef winner(x: int, y: int) -> str:\n    # Write your solution here\n    return 'A'\n\n\ndef main():\n    data = sys.stdin.read().split()\n    t = int(data[0])\n    out = []\n    for i in range(t):\n        out.append(winner(int(data[1 + 2 * i]), int(data[2 + 2 * i])))\n    print('\\n'.join(out))\n\n\nmain()\n",
+  "javascript": "function winner(x, y) {\n  // x and y are BigInt values (they can be as large as 10^18)\n  // Write your solution here\n  return 'A'\n}\n\nconst tok = input.split(/\\s+/).filter(Boolean)\nconst t = Number(tok[0])\nconst out = []\nfor (let i = 0; i < t; i++) out.push(winner(BigInt(tok[1 + 2 * i]), BigInt(tok[2 + 2 * i])))\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nchar winner(long long x, long long y) {\n    // Write your solution here\n    return 'A';\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int t;\n    cin >> t;\n    while (t--) {\n        long long x, y;\n        cin >> x >> y;\n        cout << winner(x, y) << \"\\n\";\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static char winner(long x, long y) {\n        // Write your solution here\n        return 'A';\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int t = Integer.parseInt(st.nextToken());\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < t; i++) {\n            long x = Long.parseLong(st.nextToken());\n            long y = Long.parseLong(st.nextToken());\n            sb.append(winner(x, y)).append('\\n');\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

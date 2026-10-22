@@ -1,0 +1,50 @@
+{
+ "pid": "microsoft-minimum-stones-for-balanced-neighbours",
+ "title": "Minimum Stones for Balanced Neighbours",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a **connected** undirected graph with `n` nodes numbered `0` to `n - 1`. Node `i` currently holds `stones[i]` stones.\n\nYou may only **add** stones to nodes; stones are never removed. Add stones so that for every edge `(u, v)` of the graph the numbers of stones on `u` and `v` differ by **at most one**. Among all ways to do this, use as few added stones in total as possible.\n\nPrint the minimum total number of stones that must be added.\n\nThe graph has no self-loops and no repeated edges.",
+ "input_format": "The first line contains two integers `n` and `m`: the number of nodes and edges.\nThe second line contains `n` integers `stones[0] ... stones[n - 1]`.\nEach of the next `m` lines contains two integers `u` and `v` (0-indexed), describing an edge between `u` and `v`.",
+ "output_format": "Print a single integer: the minimum total number of stones to add.",
+ "constraints": [
+  "1 ≤ n ≤ 5 · 10^4",
+  "n - 1 ≤ m ≤ 10^5",
+  "0 ≤ stones[i] ≤ 10^9",
+  "The graph is connected, with no self-loops or repeated edges"
+ ],
+ "examples": [
+  {
+   "input": "3 2\n5 0 0\n0 1\n1 2",
+   "output": "7",
+   "explanation": "Node 0 holds 5, so node 1 must end with at least 4, and then node 2 with at least 3. Adding 4 and 3 stones gives 5, 4, 3, which is balanced, and nothing smaller works."
+  },
+  {
+   "input": "4 4\n0 6 0 1\n0 1\n1 2\n2 3\n3 0",
+   "output": "13",
+   "explanation": "Node 1 holds 6, so nodes 0 and 2 need at least 5. Node 3 is adjacent to both and so needs at least 4. The final counts 5, 6, 5, 4 are balanced, and we add 5 + 0 + 5 + 3 = 13 stones."
+  },
+  {
+   "input": "3 2\n3 4 4\n0 1\n1 2",
+   "output": "0",
+   "explanation": "Every edge already joins nodes whose counts differ by at most one, so nothing is added."
+  }
+ ],
+ "complexity": {
+  "time": "O((n + m) log n)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Look at the node with the most stones. None of its neighbours may end with fewer than that count minus 1, and that requirement spreads outward.",
+  "After balancing, node v must hold at least stones[u] - dist(u, v) for every node u. Show that taking the maximum of these values over all u is both enough and the smallest valid result for v.",
+  "Compute that maximum for all nodes at once: process nodes from the largest current value down with a max-heap, lowering the value by one for each step to a neighbour, like Dijkstra running on values instead of distances."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    m = int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    adj = [[] for _ in range(n)]\n    pos = 2 + n\n    for _ in range(m):\n        u = int(data[pos])\n        v = int(data[pos + 1])\n        pos += 2\n        adj[u].append(v)\n        adj[v].append(u)\n    f = a[:]\n    heap = [(-x, i) for i, x in enumerate(a)]\n    heapq.heapify(heap)\n    while heap:\n        x, u = heapq.heappop(heap)\n        x = -x\n        if x != f[u]:\n            continue\n        for v in adj[u]:\n            if f[v] < x - 1:\n                f[v] = x - 1\n                heapq.heappush(heap, (-(x - 1), v))\n    print(sum(f) - sum(a))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nm = int(data[1])\na = [int(x) for x in data[2:2 + n]]\nedges = []\npos = 2 + n\nfor _ in range(m):\n    edges.append((int(data[pos]), int(data[pos + 1])))\n    pos += 2\nf = a[:]\nchanged = True\nwhile changed:\n    changed = False\n    for u, v in edges:\n        if f[u] < f[v] - 1:\n            f[u] = f[v] - 1\n            changed = True\n        if f[v] < f[u] - 1:\n            f[v] = f[u] - 1\n            changed = True\nprint(sum(f) - sum(a))\n",
+ "generator": "def gen(rng):\n    def fmt(n, vals, edges):\n        lines = [f'{n} {len(edges)}', ' '.join(map(str, vals))]\n        lines += [f'{u} {v}' for u, v in edges]\n        return '\\n'.join(lines)\n\n    def conn(n, extra, perm=True):\n        es = set()\n        for v in range(1, n):\n            es.add((rng.randrange(v), v))\n        want = len(es) + extra\n        tries = 0\n        while len(es) < want and tries < 20 * (extra + 1):\n            tries += 1\n            u = rng.randrange(n)\n            v = rng.randrange(n)\n            if u == v:\n                continue\n            if u > v:\n                u, v = v, u\n            es.add((u, v))\n        p = list(range(n))\n        if perm:\n            rng.shuffle(p)\n        es = [(p[u], p[v]) if rng.random() < 0.5 else (p[v], p[u]) for u, v in es]\n        rng.shuffle(es)\n        return es\n\n    tests = [fmt(1, [5], []), fmt(2, [0, 0], [(0, 1)]), fmt(2, [0, 9], [(1, 0)]),\n             fmt(3, [5, 0, 0], [(0, 1), (1, 2)]), fmt(4, [0, 6, 0, 1], [(0, 1), (1, 2), (2, 3), (3, 0)]),\n             fmt(3, [3, 4, 4], [(0, 1), (1, 2)])]\n    for n in (2, 3, 4, 5, 6, 8, 10, 12):\n        for _ in range(2):\n            vals = [rng.randint(0, 8) for _ in range(n)]\n            extra = rng.randint(0, n)\n            tests.append(fmt(n, vals, conn(n, extra)))\n    for n in (6, 9, 12):\n        vals = [0] * n\n        vals[rng.randrange(n)] = rng.randint(5, 30)\n        tests.append(fmt(n, vals, conn(n, 0)))\n    N = 50000\n    vals = [rng.randint(0, 5) for _ in range(N)]\n    for _ in range(20):\n        vals[rng.randrange(N)] = rng.randint(10**8, 10**9)\n    tests.append(fmt(N, vals, conn(N, 50001)))\n    vals = [0] * N\n    vals[0] = 10**9\n    tests.append(fmt(N, vals, [(i, i + 1) for i in range(N - 2, -1, -1)]))\n    vals = [rng.randint(0, 10**9) for _ in range(N)]\n    tests.append(fmt(N, vals, conn(N, 50001)))\n    vals = [0] * N\n    vals[N // 2] = 10**9\n    path = [(i + 1, i) for i in range(N - 2, -1, -1)]\n    tests.append(fmt(N, vals, path))\n    tests.append(fmt(N, [7] * N, [(0, i) for i in range(1, N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef min_stones(n: int, stones: List[int], edges: List[Tuple[int, int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    m = int(data[1])\n    stones = [int(x) for x in data[2:2 + n]]\n    edges = []\n    pos = 2 + n\n    for _ in range(m):\n        edges.append((int(data[pos]), int(data[pos + 1])))\n        pos += 2\n    print(min_stones(n, stones, edges))\n\n\nmain()\n",
+  "javascript": "function minStones(n, stones, edges) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst stones = t.slice(2, 2 + n)\nconst edges = []\nfor (let i = 0; i < m; i++) edges.push([t[2 + n + 2 * i], t[3 + n + 2 * i]])\nconsole.log(String(minStones(n, stones, edges)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minStones(int n, vector<long long>& stones, vector<pair<int, int>>& edges) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<long long> stones(n);\n    for (int i = 0; i < n; i++) cin >> stones[i];\n    vector<pair<int, int>> edges(m);\n    for (int i = 0; i < m; i++) cin >> edges[i].first >> edges[i].second;\n    cout << minStones(n, stones, edges) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minStones(int n, long[] stones, int[][] edges) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        long[] stones = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            stones[i] = (long) in.nval;\n        }\n        int[][] edges = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken();\n            edges[i][0] = (int) in.nval;\n            in.nextToken();\n            edges[i][1] = (int) in.nval;\n        }\n        System.out.println(minStones(n, stones, edges));\n    }\n}\n"
+ }
+}

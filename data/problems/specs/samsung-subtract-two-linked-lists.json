@@ -1,0 +1,49 @@
+{
+ "pid": "samsung-subtract-two-linked-lists",
+ "title": "Subtract Two Linked Lists",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "Two non-negative integers are stored in two singly linked lists, one decimal digit per node, with the **most significant digit first**. The lists may contain leading zeros, and the numbers can be far too long for a built-in integer type.\n\nSubtract the smaller number from the larger one (so the result is the absolute difference `|A − B|`, and you do not need to know which list is bigger beforehand) and output the result as a list of digits, most significant digit first, **without leading zeros**. If the two numbers are equal the result is the single digit `0`.\n\nThe lists are given as arrays of digits in head-to-tail order.",
+ "input_format": "The first line contains `n1`, the length of the first list. The second line contains its `n1` digits, separated by spaces.\nThe third line contains `n2`, the length of the second list. The fourth line contains its `n2` digits, separated by spaces.",
+ "output_format": "Print the digits of `|A − B|` separated by single spaces, most significant first, without leading zeros (print `0` if the difference is zero).",
+ "constraints": [
+  "1 ≤ n1, n2 ≤ 10^5",
+  "Each node holds a single digit from 0 to 9",
+  "The lists may start with zeros"
+ ],
+ "examples": [
+  {
+   "input": "3\n1 0 0\n2\n9 9",
+   "output": "1",
+   "explanation": "The lists represent 100 and 99. The difference is 1."
+  },
+  {
+   "input": "2\n5 2\n5\n0 0 7 1 3",
+   "output": "6 6 1",
+   "explanation": "The second list has leading zeros and represents 713. The first represents 52. The larger minus the smaller is 713 − 52 = 661."
+  },
+  {
+   "input": "2\n4 2\n2\n4 2",
+   "output": "0",
+   "explanation": "Both numbers are 42, so the difference is 0 and the output is the single digit 0."
+  }
+ ],
+ "complexity": {
+  "time": "O(n1 + n2)",
+  "space": "O(n1 + n2)"
+ },
+ "hints": [
+  "First strip leading zeros from both lists, then compare the numbers: the longer one is larger, and for equal lengths compare digit by digit from the front.",
+  "Subtract the smaller from the larger like on paper, starting from the least significant digit and carrying a borrow. Since the lists are singly linked you can reverse them, or store the digits in arrays and walk from the end.",
+  "After subtracting, remove leading zeros from the result but keep a single 0 if everything cancelled."
+ ],
+ "reference": "import sys\n\ndef main():\n    t = sys.stdin.read().split()\n    n1 = int(t[0])\n    a = [int(x) for x in t[1:1 + n1]]\n    n2 = int(t[1 + n1])\n    b = [int(x) for x in t[2 + n1:2 + n1 + n2]]\n    i = 0\n    while i < len(a) - 1 and a[i] == 0:\n        i += 1\n    a = a[i:]\n    i = 0\n    while i < len(b) - 1 and b[i] == 0:\n        i += 1\n    b = b[i:]\n    if (len(a), a) < (len(b), b):\n        a, b = b, a\n    res = []\n    borrow = 0\n    j = len(b) - 1\n    for i in range(len(a) - 1, -1, -1):\n        d = a[i] - borrow - (b[j] if j >= 0 else 0)\n        j -= 1\n        if d < 0:\n            d += 10\n            borrow = 1\n        else:\n            borrow = 0\n        res.append(d)\n    res.reverse()\n    i = 0\n    while i < len(res) - 1 and res[i] == 0:\n        i += 1\n    print(' '.join(map(str, res[i:])))\n\nmain()\n",
+ "brute": "import sys\n\nt = sys.stdin.read().split()\nn1 = int(t[0])\nx = int(''.join(t[1:1 + n1]))\nn2 = int(t[1 + n1])\ny = int(''.join(t[2 + n1:2 + n1 + n2]))\nprint(' '.join(str(abs(x - y))))\n",
+ "generator": "def gen(rng):\n    def fmt(a, b):\n        return f'{len(a)}\\n' + ' '.join(map(str, a)) + f'\\n{len(b)}\\n' + ' '.join(map(str, b))\n    def digs(n, lead_zero=False):\n        d = [rng.randint(0, 9) for _ in range(n)]\n        if not lead_zero and n > 1 and d[0] == 0:\n            d[0] = rng.randint(1, 9)\n        return d\n    tests = [\n        fmt([1, 0, 0], [9, 9]),\n        fmt([5, 2], [0, 0, 7, 1, 3]),\n        fmt([4, 2], [4, 2]),\n        fmt([0], [0]),\n        fmt([0], [7]),\n        fmt([1, 0, 0, 0, 0, 0], [1]),\n        fmt([9, 9, 9], [9, 9, 8]),\n        fmt([0, 0, 0], [0]),\n    ]\n    for _ in range(14):\n        na, nb = rng.randint(1, 12), rng.randint(1, 12)\n        tests.append(fmt(digs(na, True), digs(nb, True)))\n    for _ in range(4):\n        n = rng.randint(2, 10)\n        a = digs(n)\n        b = a[:]\n        b[rng.randrange(n)] = rng.randint(0, 9)\n        tests.append(fmt(a, b))\n    N = 100000\n    tests.append(fmt(digs(N), digs(N)))\n    tests.append(fmt([1] + [0] * (N - 1), [1] * 1))\n    tests.append(fmt(digs(N), digs(N - 1)))\n    tests.append(fmt([0] * 5 + digs(N - 5), digs(N - 5)))\n    a = digs(N)\n    tests.append(fmt(a, a))\n    tests.append(fmt([9] * N, [1] + [0] * (N - 1)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef subtract(a: List[int], b: List[int]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    t = sys.stdin.read().split()\n    n1 = int(t[0])\n    a = [int(x) for x in t[1:1 + n1]]\n    n2 = int(t[1 + n1])\n    b = [int(x) for x in t[2 + n1:2 + n1 + n2]]\n    print(' '.join(map(str, subtract(a, b))))\n\n\nmain()\n",
+  "javascript": "function subtract(a, b) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n1 = t[0]\nconst a = t.slice(1, 1 + n1)\nconst n2 = t[1 + n1]\nconst b = t.slice(2 + n1, 2 + n1 + n2)\nconsole.log(subtract(a, b).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> subtractLists(vector<int>& a, vector<int>& b) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n1, n2;\n    cin >> n1;\n    vector<int> a(n1);\n    for (int i = 0; i < n1; i++) cin >> a[i];\n    cin >> n2;\n    vector<int> b(n2);\n    for (int i = 0; i < n2; i++) cin >> b[i];\n    vector<int> res = subtractLists(a, b);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] subtract(int[] a, int[] b) {\n        // Write your solution here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n1 = (int) in.nval;\n        int[] a = new int[n1];\n        for (int i = 0; i < n1; i++) {\n            in.nextToken();\n            a[i] = (int) in.nval;\n        }\n        in.nextToken();\n        int n2 = (int) in.nval;\n        int[] b = new int[n2];\n        for (int i = 0; i < n2; i++) {\n            in.nextToken();\n            b[i] = (int) in.nval;\n        }\n        int[] res = subtract(a, b);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

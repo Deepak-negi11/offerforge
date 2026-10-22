@@ -1,0 +1,18 @@
+{
+ "qid": "545c29d697",
+ "question": "Mastercard Java developer (experienced) interview. Two methods are given:\n\n`void m1() { /* DB transaction logic */ m2(); /* more DB transaction logic */ }`\n\nIf something goes wrong in `m2()`, you want to **roll back only `m2()`'s database work, while `m1()`'s work is kept (saved)**. How would you do that? (The reported summary points to transaction propagation such as `REQUIRES_NEW`.)",
+ "lookingFor": [
+  "Do you understand transaction boundaries and propagation in Spring?",
+  "Do you know the proxy/self-invocation pitfall?",
+  "Do you know the difference between REQUIRES_NEW and NESTED (savepoints)?",
+  "Do you think about exception handling so the outer transaction is not marked rollback-only?"
+ ],
+ "answer": "**Idea.** Run `m2()` in its **own, separate transaction**, so its rollback does not affect the transaction of `m1()`. In Spring this is `@Transactional(propagation = Propagation.REQUIRES_NEW)`.\n\n    @Service\n    class OrderService {\n        private final AuditService audit;\n        OrderService(AuditService audit) { this.audit = audit; }\n\n        @Transactional\n        public void m1() {\n            // work A in transaction T1\n            try {\n                audit.m2();                    // runs in T2\n            } catch (Exception e) {\n                // log; T2 already rolled back, T1 continues\n            }\n            // work B in T1\n        }\n    }\n\n    @Service\n    class AuditService {\n        @Transactional(propagation = Propagation.REQUIRES_NEW)\n        public void m2() { /* work in T2 */ }\n    }\n\n**Why it works.** `REQUIRES_NEW` suspends the current transaction, opens a new connection and transaction, and commits or rolls it back on its own. If `m2()` throws, T2 rolls back.\n\n**Pitfalls to mention.**\n- **Self-invocation**: if `m2()` is in the same class and called as `this.m2()`, Spring's proxy is bypassed and the annotation is ignored. Put `m2()` in another bean (or inject the proxy).\n- **Catch the exception in `m1()`**. If it propagates, T1 will also roll back. Also, a `RuntimeException` crossing a `@Transactional` boundary marks the outer transaction rollback-only.\n- By default only unchecked exceptions trigger rollback; use `rollbackFor` for checked ones.\n- T2 cannot see T1's uncommitted data, and holds a second connection; with a small pool, this can cause pool exhaustion or deadlocks (T2 waiting on a row locked by T1).\n- **Alternative: `Propagation.NESTED`** uses a JDBC **savepoint** inside the same transaction: rolling back `m2()` returns to the savepoint while `m1()` continues. It needs a JDBC transaction manager that supports savepoints (not supported by plain JPA/Hibernate setups).\n- Without a framework, use JDBC `setSavepoint()` and `rollback(savepoint)`.",
+ "followUps": [
+  "What is the difference between REQUIRES_NEW and NESTED?",
+  "Why does calling a @Transactional method from the same class not start a transaction?",
+  "What is a rollback-only transaction and how does it happen?",
+  "What other propagation types exist (REQUIRED, SUPPORTS, MANDATORY)?",
+  "What risks does REQUIRES_NEW introduce with connection pools?"
+ ]
+}

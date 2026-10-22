@@ -1,0 +1,17 @@
+{
+ "qid": "b4c53b75b2",
+ "question": "Reported from a Paytm Senior Software Engineer (Backend) interview, January 2026. The questions covered **load balancers, auto-scaling and health-monitoring tools**, then **caching and cache eviction algorithms**. The interviewer also asked **why MySQL was chosen in your project**.",
+ "lookingFor": [
+  "Do you understand how load balancers distribute traffic and detect unhealthy servers?",
+  "Do you know common autoscaling signals and their limits?",
+  "Can you explain cache eviction policies and choose between them with reasoning?",
+  "Can you justify a database choice for your own project with data shape, consistency and scale arguments?"
+ ],
+ "answer": "**Load balancers.** They spread requests across servers to increase throughput and availability. Layer 4 (TCP) balancers are fast and protocol-agnostic; layer 7 (HTTP) balancers can route by path, header or cookie and terminate TLS. Algorithms: round robin, weighted round robin, least connections, least response time, and hash-based (IP or key hash, or consistent hashing for sticky routing and cache locality). **Health checks** (periodic HTTP/TCP probes) remove a failing instance from rotation and add it back when it recovers. Examples: NGINX, HAProxy, AWS ELB/ALB.\n\n**Autoscaling.** Add or remove instances based on a metric: CPU, memory, requests per instance, queue length, or a custom metric (for example Kubernetes HPA, AWS Auto Scaling groups). Set a minimum and maximum, a cooldown to avoid flapping, and scale on a target such as 60% CPU. Limits: new instances take time to start, so pre-scale for known spikes; the database does not scale with the app tier.\n\n**Health monitoring tools.** Metrics and dashboards (Prometheus and Grafana, Datadog, CloudWatch), logs (ELK/Loki), tracing (Jaeger, OpenTelemetry), and alerting on latency, error rate, traffic and saturation (the four golden signals), plus liveness and readiness probes.\n\n**Caching and eviction.** A cache stores hot data in fast memory (Redis, Memcached, local cache) to cut latency and database load. When full, an eviction policy chooses what to remove:\n- **LRU** (least recently used): good general default; implemented with a hash map plus doubly linked list for O(1) operations.\n- **LFU** (least frequently used): keeps popular items, but needs frequency tracking and can hold stale popular items.\n- **FIFO:** simple, ignores usage.\n- **TTL-based expiry** and **random** eviction also exist. Redis offers approximated LRU/LFU.\nWrite strategies: cache-aside, write-through, write-back. Watch invalidation, stampedes (many misses at once), and hit ratio.\n\n**Why MySQL.** Frame the answer from your project: relational data with clear relationships (users, orders), need for ACID transactions, mature tooling, strong secondary indexes and joins, and a scale that fits a single primary with read replicas. Mention the alternatives you considered (PostgreSQL, MongoDB) and when you would switch (very high write volume, flexible schema, or sharding needs). Do not claim MySQL suits everything.",
+ "followUps": [
+  "How would you implement an LRU cache with O(1) get and put?",
+  "What is a cache stampede and how do you prevent it?",
+  "How does consistent hashing help a cache cluster when a node is added?",
+  "What could make autoscaling react too slowly or flap?"
+ ]
+}

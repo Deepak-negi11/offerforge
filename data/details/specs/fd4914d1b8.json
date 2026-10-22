@@ -1,0 +1,18 @@
+{
+ "qid": "fd4914d1b8",
+ "question": "In the system design round for a Senior Software Engineer (IN4) role at Walmart, the question was to **design an e-commerce app that supports high scale and handles peak traffic surges during a flash sale**.\n\nTopics discussed: trade-offs in database choice (**SQL vs NoSQL**), **Elasticsearch for text search**, handling concurrency with **optimistic locking**, **how to reserve inventory**, and **preventing double ordering and double payment**.",
+ "lookingFor": [
+  "Can you design for a sudden traffic spike (10x to 100x) rather than average load?",
+  "Can you justify SQL vs NoSQL per data type?",
+  "Do you prevent overselling with correct concurrency control?",
+  "Do you ensure idempotency across ordering and payment?",
+  "Can you protect the system with caching, queues and rate limiting?"
+ ],
+ "answer": "**Requirements and scale.** Browse, search, add to cart, order, pay. Flash sale: limited stock (for example 10,000 units) and 1M users hitting at once, so tens of thousands of requests per second on a few hot products. Priorities: never oversell, never double-charge, stay up under load.\n\n**Absorb the spike.**\n- CDN and cache for static content and product pages; pre-warm hot keys.\n- API gateway with rate limiting and an optional **virtual waiting room** (queue) that admits users at a controlled rate.\n- Autoscale stateless services; isolate the flash-sale path from the normal catalog so a surge cannot take down everything.\n- Serve the stock count from a cache, approximate, and decide purchasability only at reservation.\n\n**Databases.**\n- **SQL** (PostgreSQL/MySQL) for orders, payments and inventory: need transactions, constraints, strong consistency.\n- **NoSQL** (key-value/document) for carts, sessions and catalog documents: scale-out reads and flexible schema.\n- **Elasticsearch** for full-text search, filters and ranking; fed asynchronously from the catalog via events, so slightly stale results are fine.\n\n**Inventory reservation.** Use an atomic decrement: `UPDATE inventory SET qty = qty - :n WHERE sku = :s AND qty >= :n` and check that one row changed. Alternatively **optimistic locking**: read `version`, update `WHERE version = :v`, retry on conflict; works at moderate contention, but on a single hot SKU retries pile up, so use an atomic counter in Redis (`DECR`, or a Lua script) as the first gate and reconcile to the database. A reservation has a **TTL** (about 10 minutes); if payment does not complete, a job releases it.\n\n**Double order and double payment.** Client sends an **idempotency key** per checkout; the order service stores it with a unique constraint and returns the existing result on retry. The payment call also carries an idempotency key; payment status is reconciled via webhooks. Disable the button and use the order state machine to reject repeated transitions.\n\n**Asynchrony.** After reservation, publish events through a message queue for payment confirmation, notifications and fulfilment, using the outbox pattern and a saga with compensation (release stock on failure).\n\n**Failure and trade-offs.** Degrade non-essential features (recommendations), shed load with 429s, and prefer rejecting a user over overselling.",
+ "followUps": [
+  "Why use an atomic conditional update instead of read-then-write for stock?",
+  "How does optimistic locking behave under very high contention on one row?",
+  "What happens if payment succeeds but the response is lost?",
+  "How would you shard inventory for a hot SKU?"
+ ]
+}

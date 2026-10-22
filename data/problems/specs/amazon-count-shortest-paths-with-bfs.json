@@ -1,0 +1,50 @@
+{
+ "pid": "amazon-count-shortest-paths-with-bfs",
+ "title": "Count Shortest Paths with BFS",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an undirected, unweighted graph with `n` vertices numbered `0` to `n - 1` and `m` edges, and two vertices `s` and `t`. The graph has no self-loops and no repeated edges.\n\nFind the length (number of edges) of the shortest path from `s` to `t`. As a follow-up, also count how many different shortest paths exist. Two paths are different if the sequences of vertices they visit differ.\n\nBecause the count can be huge, print it modulo `1000000007`. If `t` cannot be reached from `s`, print `-1 0`. If `s = t`, the shortest path has length `0` and there is exactly one such path.",
+ "input_format": "The first line contains two integers `n` and `m`.\nEach of the next `m` lines contains two integers `u` and `v`, an undirected edge.\nThe last line contains two integers `s` and `t`.",
+ "output_format": "Print two integers separated by a space: the shortest distance and the number of shortest paths modulo `1000000007`, or `-1 0` if `t` is unreachable.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ m ≤ 1.5 · 10^5",
+  "0 ≤ u, v, s, t < n",
+  "No self-loops and no repeated edges"
+ ],
+ "examples": [
+  {
+   "input": "4 4\n0 1\n0 2\n1 3\n2 3\n0 3",
+   "output": "2 2",
+   "explanation": "The shortest paths from 0 to 3 are 0-1-3 and 0-2-3, both of length 2."
+  },
+  {
+   "input": "4 2\n0 1\n2 3\n0 3",
+   "output": "-1 0",
+   "explanation": "Vertices 0 and 3 are in different components."
+  },
+  {
+   "input": "3 3\n0 1\n1 2\n0 2\n1 1",
+   "output": "0 1",
+   "explanation": "Source and target are the same vertex: the path of length 0 is the only shortest path."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "BFS from `s` gives the shortest distance to every vertex in an unweighted graph.",
+  "Keep `cnt[v]`, the number of shortest paths from `s` to `v`. The first time BFS reaches `v` set `cnt[v] = cnt[u]`.",
+  "If an edge `u -> v` leads to a vertex with `dist[v] == dist[u] + 1`, add `cnt[u]` to `cnt[v]` (mod 1000000007)."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    adj = [[] for _ in range(n)]\n    for i in range(m):\n        u = int(data[2 + 2 * i])\n        v = int(data[3 + 2 * i])\n        adj[u].append(v)\n        adj[v].append(u)\n    s = int(data[2 + 2 * m])\n    t = int(data[3 + 2 * m])\n    MOD = 10**9 + 7\n    dist = [-1] * n\n    cnt = [0] * n\n    dist[s] = 0\n    cnt[s] = 1\n    q = deque([s])\n    while q:\n        u = q.popleft()\n        du = dist[u] + 1\n        for v in adj[u]:\n            if dist[v] == -1:\n                dist[v] = du\n                cnt[v] = cnt[u]\n                q.append(v)\n            elif dist[v] == du:\n                cnt[v] = (cnt[v] + cnt[u]) % MOD\n    if dist[t] == -1:\n        print('-1 0')\n    else:\n        print(dist[t], cnt[t] % MOD)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nadj = [[] for _ in range(n)]\nfor i in range(m):\n    u = int(data[2 + 2 * i])\n    v = int(data[3 + 2 * i])\n    adj[u].append(v)\n    adj[v].append(u)\ns = int(data[2 + 2 * m])\nt = int(data[3 + 2 * m])\nbest = [None, 0]\nvisited = [False] * n\n\ndef dfs(u, d):\n    if u == t:\n        if best[0] is None or d < best[0]:\n            best[0] = d\n            best[1] = 1\n        elif d == best[0]:\n            best[1] += 1\n        return\n    visited[u] = True\n    for v in adj[u]:\n        if not visited[v]:\n            dfs(v, d + 1)\n    visited[u] = False\n\ndfs(s, 0)\nif best[0] is None:\n    print('-1 0')\nelse:\n    print(best[0], best[1] % (10**9 + 7))\n",
+ "generator": "def gen(rng):\n    def fmt(n, edges, s, t):\n        return f\"{n} {len(edges)}\\n\" + ''.join(f'{u} {v}\\n' for u, v in edges) + f\"{s} {t}\"\n\n    def rand_edges(n, m):\n        allp = n * (n - 1) // 2\n        m = min(m, allp)\n        es = set()\n        while len(es) < m:\n            u = rng.randrange(n)\n            v = rng.randrange(n)\n            if u == v:\n                continue\n            es.add((min(u, v), max(u, v)))\n        es = list(es)\n        rng.shuffle(es)\n        return es\n\n    tests = [fmt(1, [], 0, 0), fmt(2, [(0, 1)], 0, 1), fmt(2, [], 0, 1), fmt(4, [(0, 1), (0, 2), (1, 3), (2, 3)], 0, 3),\n             fmt(4, [(0, 1), (2, 3)], 0, 3), fmt(3, [(0, 1), (1, 2), (0, 2)], 0, 2)]\n    for _ in range(20):\n        n = rng.randint(2, 9)\n        m = rng.randint(1, 2 * n)\n        es = rand_edges(n, m)\n        tests.append(fmt(n, es, rng.randrange(n), rng.randrange(n)))\n    # width-2 diamond chain: huge path counts\n    L = 37000\n    N = 100000\n    perm = list(range(N))\n    rng.shuffle(perm)\n    es = []\n    es.append((0, 1)); es.append((0, 2))\n    for i in range(1, L):\n        a, b = 2 * i - 1, 2 * i\n        c, d = 2 * i + 1, 2 * i + 2\n        es += [(a, c), (a, d), (b, c), (b, d)]\n    last = 2 * L + 1\n    es.append((2 * L - 1, last)); es.append((2 * L, last))\n    es = [(perm[u], perm[v]) for u, v in es]\n    rng.shuffle(es)\n    tests.append(fmt(N, es, perm[0], perm[last]))\n    # long path\n    perm = list(range(N))\n    rng.shuffle(perm)\n    es = [(perm[i], perm[i + 1]) for i in range(N - 1)]\n    rng.shuffle(es)\n    tests.append(fmt(N, es, perm[0], perm[N - 1]))\n    # random sparse\n    es = rand_edges(N, 150000)\n    tests.append(fmt(N, es, rng.randrange(N), rng.randrange(N)))\n    # grid 250 x 250\n    R = 250\n    es = []\n    for r in range(R):\n        for c in range(R):\n            if c + 1 < R:\n                es.append((r * R + c, r * R + c + 1))\n            if r + 1 < R:\n                es.append((r * R + c, (r + 1) * R + c))\n    n = R * R\n    perm = list(range(n))\n    rng.shuffle(perm)\n    es = [(perm[u], perm[v]) for u, v in es]\n    rng.shuffle(es)\n    tests.append(fmt(n, es, perm[0], perm[n - 1]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_shortest(n: int, edges: List[List[int]], s: int, t: int) -> List[int]:\n    # Write your solution here\n    # Return [distance, number_of_shortest_paths mod 1000000007]; [-1, 0] if t is unreachable.\n    return [-1, 0]\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    edges = [[int(data[2 + 2 * i]), int(data[3 + 2 * i])] for i in range(m)]\n    s = int(data[2 + 2 * m])\n    t = int(data[3 + 2 * m])\n    print(' '.join(map(str, count_shortest(n, edges, s, t))))\n\n\nmain()\n",
+  "javascript": "function countShortest(n, edges, s, t) {\n  // Write your solution here\n  // Return [distance, numberOfShortestPaths mod 1000000007]; [-1, 0] if t is unreachable.\n  return [-1, 0]\n}\n\nconst x = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = x[0], m = x[1]\nconst edges = []\nfor (let i = 0; i < m; i++) edges.push([x[2 + 2 * i], x[3 + 2 * i]])\nconst s = x[2 + 2 * m], t = x[3 + 2 * m]\nconsole.log(countShortest(n, edges, s, t).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\npair<long long, long long> countShortest(int n, vector<pair<int, int>>& edges, int s, int t) {\n    // Write your solution here\n    // Return {distance, number of shortest paths mod 1000000007}; {-1, 0} if t is unreachable.\n    return {-1, 0};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<pair<int, int>> edges(m);\n    for (int i = 0; i < m; i++) cin >> edges[i].first >> edges[i].second;\n    int s, t;\n    cin >> s >> t;\n    auto res = countShortest(n, edges, s, t);\n    cout << res.first << \" \" << res.second << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] countShortest(int n, int[][] edges, int s, int t) {\n        // Write your solution here\n        // Return {distance, number of shortest paths mod 1000000007}; {-1, 0} if t is unreachable.\n        return new long[]{-1, 0};\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] edges = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); edges[i][0] = (int) in.nval;\n            in.nextToken(); edges[i][1] = (int) in.nval;\n        }\n        in.nextToken();\n        int s = (int) in.nval;\n        in.nextToken();\n        int t = (int) in.nval;\n        long[] res = countShortest(n, edges, s, t);\n        System.out.println(res[0] + \" \" + res[1]);\n    }\n}\n"
+ }
+}

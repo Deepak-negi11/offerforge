@@ -1,0 +1,19 @@
+{
+ "qid": "6603a885c4",
+ "question": "In an SDE-1 Razorpay LLD round the candidate had to implement an in-memory relational database in about an hour: create tables with a fixed schema (name, id, age), support multiple tables and multiple databases, insert, update and delete rows, and add an index on a specific field with an auto-incremented id.\n\nThe interviewer then asked follow-ups about the implementation of indexing and how a `SELECT` would run on an indexed field versus a non-indexed field.",
+ "lookingFor": [
+  "Understanding what an index is physically: a separate lookup structure over a column",
+  "Comparing a full scan with an index lookup and giving complexities",
+  "Keeping the index consistent on insert, update and delete",
+  "Trade-offs: write cost, memory and the choice of structure (hash vs ordered)",
+  "Ability to relate the toy design to how real databases work"
+ ],
+ "answer": "**How indexing is implemented in the in-memory DB.** Rows live in a primary store, for example `Map<rowId, Row>` or a list. An index on a column is an extra structure that maps a column value to the row ids having it.\n- Hash index: `Map<value, Set<rowId>>`. Exact-match lookup is O(1) on average, but it cannot answer range queries or ordered output.\n- Ordered index: a balanced tree (`TreeMap<value, Set<rowId>>`, like a B-tree or B+ tree in real databases). Lookup is O(log n), and it supports range queries (`age > 30`), `ORDER BY` and prefix scans.\nA non-unique column needs a set of row ids per value; a unique index maps to one id and rejects duplicates.\n\n**Keeping indexes consistent.**\n- Insert: add the row, then add `(value -> rowId)` to every index of the table.\n- Delete: remove the row and its entries from each index.\n- Update: if an indexed column changed, remove the old entry and add the new one, atomically with the row change.\n- Creating an index on an existing table: scan all rows once to build it.\nThe cost is extra memory and slower writes for every index.\n\n**SELECT on a non-indexed field.** Full table scan: read every row, test the predicate, return matches. O(n) per query, regardless of how many rows match.\n\n**SELECT on an indexed field.** The query planner (even a simple `if` that checks whether an index exists for the `WHERE` column) looks up the value in the index, gets the matching row ids, then fetches only those rows from the primary store: O(1) or O(log n) plus the number of matches. If the filter has several columns, use the most selective index and filter the rest in memory.\n\n**The auto-increment id.** Keep a per-table counter that only increases (never reuse ids after deletes); this is also the primary key, and a natural place for a unique index.\n\n**Real-database notes.** Indexes are not free: an index on a low-cardinality column (such as gender) helps little, and a planner may still choose a scan when a large share of rows matches. Composite indexes follow the leftmost-prefix rule.",
+ "followUps": [
+  "When would a full scan be faster than an index lookup?",
+  "How would you support range queries and ORDER BY on the indexed column?",
+  "How would you support a composite index on (name, age)?",
+  "How would you make inserts and index updates thread-safe or transactional?",
+  "How does a B+ tree differ from a hash index on disk?"
+ ]
+}

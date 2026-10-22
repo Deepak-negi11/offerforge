@@ -1,0 +1,19 @@
+{
+ "qid": "24f9682816",
+ "question": "System design round (1 hour, whiteboard, with another senior developer) for a Senior Backend Engineer role at Stripe: **Design an architecture for delivering webhooks to customers.**",
+ "lookingFor": [
+  "Can you scope requirements (delivery guarantees, scale, ordering) before designing?",
+  "Do you understand at-least-once delivery, retries and idempotency?",
+  "Can you isolate slow or failing customer endpoints from healthy ones?",
+  "Do you cover security (signing), observability and operations?",
+  "Can you reason about scaling and trade-offs?"
+ ],
+ "answer": "**Requirements and assumptions.** Customers register an HTTPS endpoint and subscribe to event types. When something happens (a payment succeeds), we POST a JSON event to each subscribed endpoint. Assume at-least-once delivery, retries over several days, per-customer isolation, and a scale of perhaps tens of thousands of events per second at peak (state your own number). Ordering is best-effort unless the interviewer wants it per object.\n\n**API and entities.**\n- `Endpoint(id, customer_id, url, secret, enabled_events, status)`\n- `Event(id, type, payload, created_at)`\n- `Delivery(id, event_id, endpoint_id, attempt, status, next_attempt_at, last_response_code)`\n- Endpoints to create and manage subscriptions, list events, and manually replay an event.\n\n**High-level flow.**\n1. The business service writes the event to the database in the same transaction as the state change (outbox pattern), so events are never lost.\n2. A fan-out worker reads the outbox, finds subscribed endpoints, and creates one delivery task per endpoint.\n3. Tasks go onto a durable queue (Kafka, SQS or similar), partitioned by endpoint or customer.\n4. Delivery workers POST the payload with a short timeout, sign it (HMAC with the endpoint secret and timestamp, sent in a header so receivers can verify and reject replays), and record the result.\n5. 2xx means success. Anything else schedules a retry with exponential backoff and jitter (for example over about 3 days), then marks the delivery failed and may disable the endpoint after sustained failure, notifying the customer.\n\n**Key trade-offs.**\n- **At-least-once and idempotency:** duplicates will happen, so include a stable event ID and tell customers to dedupe.\n- **Noisy neighbours:** one slow endpoint must not block others. Use per-endpoint concurrency limits, separate retry queues, and circuit breakers.\n- **Ordering:** strict ordering costs throughput; offer a sequence number or per-object partitioning only if needed.\n- **SSRF and security:** block internal IP ranges, allow only HTTPS, follow limited redirects.\n\n**Scaling and ops.** Scale workers horizontally on queue depth, shard the delivery table, keep an event log for replay, and expose a dashboard of delivery attempts, latency and failure rates with alerts.",
+ "followUps": [
+  "How do you guarantee an event is never lost between the database write and the queue?",
+  "A customer endpoint is down for 2 days. What happens to the queued events and to your system?",
+  "How would you let customers replay or fetch missed events?",
+  "How do you prevent SSRF attacks via customer-supplied URLs?",
+  "How would you support ordering guarantees per object?"
+ ]
+}

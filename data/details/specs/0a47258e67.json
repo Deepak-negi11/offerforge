@@ -1,0 +1,18 @@
+{
+ "qid": "0a47258e67",
+ "question": "PhonePe machine coding round (2 hours of coding, then a roughly 30-minute review): **design an online marketplace like Flipkart or Amazon** with **user login/authentication**, adding products to the catalog, adding items to a **cart**, **checkout** to place an order, and **order history**. It was buyer-side heavy and expected modular, structured, scalable working code. In the review, a follow-up asked: **how will you lock a quantity of 10 units of a product in inventory in a distributed environment?**",
+ "lookingFor": [
+  "Modular design with clear entities and service boundaries.",
+  "Appropriate design patterns without over-engineering.",
+  "Handling inventory correctness under concurrency.",
+  "Distributed-systems reasoning: locks, reservations, expiry.",
+  "Working code rather than a perfect design on paper."
+ ],
+ "answer": "**Entities.** `User`, `Product(id, name, price, sellerId)`, `Inventory(productId, available, reserved)`, `Cart` with `CartItem(productId, qty)`, `Order` with `OrderItem`, `OrderStatus` (CREATED, PAID, CANCELLED), and `Payment`.\n\n**Services.** `AuthService` (register/login; store hashed passwords and issue a session token), `CatalogService` (add/search products), `CartService`, `InventoryService`, `OrderService` (checkout and history), `PaymentService` (interface, mock implementation). Keep services behind interfaces; repositories can be in-memory maps for the exercise.\n\n**Checkout flow.** Validate the cart, reserve stock for every line, create the order, take payment; on success confirm (decrement stock), on failure or timeout release the reservation.\n\n**Patterns that fit.** Strategy (pricing/discount, payment method), Factory (payment processors), Observer (order events), Singleton only where genuinely needed. Do not force patterns.\n\n**Locking 10 units in a distributed environment.**\n- Avoid a read-then-write race. Do an atomic conditional update in the database:\n\n        UPDATE inventory SET available = available - 10, reserved = reserved + 10\n        WHERE product_id = ? AND available >= 10;\n\n  Rows affected = 1 means the reservation succeeded. Alternatively use row locks (`SELECT ... FOR UPDATE`) or optimistic versioning.\n- Make it a **reservation with expiry**: create a reservation record (order ID, qty, expiresAt). A background job or TTL releases unpaid holds after, say, 5-10 minutes. A candidate in the source suggested a Redis sorted set of timestamps with expiry for the same idea.\n- If the cache holds the stock, use a Lua script for atomic check-and-decrement, and reconcile with the DB.\n- Make operations idempotent with order/reservation IDs so retries do not double-reserve.\n\n**Trade-offs.** Pessimistic locks are simple but hurt throughput on hot products; conditional updates scale better; Redlock-style distributed locks add complexity and failure modes.",
+ "followUps": [
+  "What happens if payment succeeds but the reservation has already expired?",
+  "How would you avoid overselling during a flash sale?",
+  "How would you design order history so it stays fast for users with many orders?",
+  "How do you store passwords securely?"
+ ]
+}

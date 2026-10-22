@@ -1,0 +1,18 @@
+{
+ "qid": "ecdec16686",
+ "question": "In the low level design round for a Senior Engineer role in a Walmart hiring drive, the question was to **design a hospital management system**.\n\nThe round included drawing a **class diagram**, writing a **small implementation**, and a **discussion of the logic**. (The system design round in the same loop was Google Drive.) The report gives no more detail, so you should state your own scope, for example patients, doctors, appointments and billing, and confirm it with the interviewer before designing.",
+ "lookingFor": [
+  "Can you scope an open-ended domain and agree on requirements quickly?",
+  "Do you identify the right entities, relationships and responsibilities?",
+  "Can you write clean, working code for a core flow, not only a diagram?",
+  "Do you apply OOP principles and patterns where they fit, without over-engineering?",
+  "Can you reason about edge cases such as double-booking an appointment?"
+ ],
+ "answer": "**Clarify scope first.** Ask which flows matter: register patients, manage doctors and their schedules, book/cancel appointments, record visits and prescriptions, billing. Pick appointment booking as the main implemented flow.\n\n**Entities.**\n- `Person` (abstract) with `Patient` and `Doctor` subclasses (or composition with a `Role`).\n- `Doctor(specialization, schedule)`, `Patient(medicalHistory)`.\n- `Appointment(id, patient, doctor, timeSlot, status)`, with status as an enum: BOOKED, CANCELLED, COMPLETED.\n- `Prescription`, `Bill`, `Department`, `Room`/`Bed` if admissions are in scope.\n\n**Services.**\n- `AppointmentService.book(patientId, doctorId, slot)`, `cancel(id)`, `reschedule(id, slot)`.\n- `DoctorRepository`, `PatientRepository`, `AppointmentRepository` as interfaces, with in-memory implementations for the interview.\n- `BillingService` with a `PricingStrategy` (consultation fee, insurance discount).\n- `NotificationService` as an Observer for appointment events.\n\n**Core logic for booking.** Validate the slot belongs to the doctor's working hours, check no overlapping appointment exists for that doctor, then create the appointment. Make the check-and-insert atomic (a lock per doctor in memory, or a unique constraint on `(doctor_id, slot)` in a database), otherwise two patients can book the same slot concurrently.\n\n**Design choices to state.** Enums for status, interfaces for repositories so storage can change, Strategy for billing and slot-allocation rules, single-responsibility services, immutable value objects for time slots.\n\n**Edge cases.** Cancelling an already completed appointment, rescheduling to a taken slot, a doctor on leave, emergency override.\n\n**Extensions.** Role-based access (doctors see their patients only), audit logging, and handling of sensitive medical data.\n\nKeep the diagram small (6 to 8 classes), then code `book` and `cancel` fully and walk through a test case.",
+ "followUps": [
+  "How do you prevent two patients from booking the same slot at the same time?",
+  "How would you add inpatient admissions and bed allocation?",
+  "Where would you use inheritance versus composition for Doctor and Patient?",
+  "How would you protect patient data and control access?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "800c6524ed",
+ "question": "React machine-coding question in the online assessment (HackerRank, with DSA and JavaScript questions) for Swiggy SDE-1 Frontend. Build a **file explorer** component with these features:\n- Files and folders are shown differently.\n- The structure is **nested** (folders inside folders), rendered using recursion.\n- You can **add files** to a folder.\n- **Double-clicking a file converts it into a folder.**",
+ "lookingFor": [
+  "Can you model a recursive tree as data and render it with a recursive component?",
+  "Do you manage state immutably when updating a nested structure?",
+  "Can you handle events (double click, add) cleanly with stable keys?",
+  "Is your component structure and naming clean, with sensible edge cases handled?",
+  "Can you explain performance and extension ideas (collapse, delete, rename)?"
+ ],
+ "answer": "**Data model.** Use a tree of nodes with a unique id so updates are easy:\n\n```js\n{ id: 1, name: \"src\", isFolder: true, children: [\n    { id: 2, name: \"index.js\", isFolder: false, children: [] } ] }\n```\n\n**Components.**\n- `FileExplorer` holds the root in `useState` and exposes update handlers.\n- `Node({ node, onAdd, onConvert })` renders one item and, if `node.isFolder`, maps over `node.children` and renders `<Node key={child.id} .../>`. This is the recursion.\n- Show an icon or label that differs between files and folders. Optionally use `expanded` state per folder so it can be collapsed.\n\n**Updating nested state immutably.** Write a pure helper that walks the tree and returns a new tree:\n\n```js\nconst update = (node, id, fn) =>\n  node.id === id ? fn(node)\n  : { ...node, children: node.children.map(c => update(c, id, fn)) };\n```\n\n- **Add file:** `update(root, folderId, n => ({...n, children: [...n.children, newNode]}))`. Collect the name with a small input or `prompt`, and generate a unique id (counter or `crypto.randomUUID()`). Guard against empty names and, if required, duplicate names in the same folder.\n- **Convert on double click:** `onDoubleClick` calls `update(root, id, n => ({...n, isFolder: true, children: []}))` for a file node only. Use `stopPropagation` so a double click on a nested item does not also trigger the parent's handler.\n\n**Details that get marked:**\n- Stable `key` using the id, not the index.\n- Do not mutate state in place; React will not re-render correctly and nested mutations are bug-prone.\n- Folders and files visually distinct, nested items indented via padding or CSS, and an accessible structure (`role=\"tree\"` or buttons for actions).\n\n**Extensions to mention:** collapse and expand, delete and rename, `useReducer` for tree actions, normalising the tree into a map of id to node for O(1) updates, and memoising nodes with `React.memo` for large trees.",
+ "followUps": [
+  "How would you store the tree in a normalized map to make updates O(1)?",
+  "How would you add delete and rename with the same helper?",
+  "How would you prevent re-rendering the whole tree when one node changes?",
+  "What are the pros and cons of useReducer for this state?"
+ ]
+}

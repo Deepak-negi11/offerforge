@@ -1,0 +1,17 @@
+{
+ "qid": "7de85021d0",
+ "question": "MakeMyTrip SDE-1 on-campus technical round 2 (projects and CS fundamentals). The interviewer asked about **authentication versus authorization**, **why authentication is needed**, and the **ways it can be implemented: sessions and JWT tokens**. Database questions on indexing followed in the same round.",
+ "lookingFor": [
+  "Accurate distinction between authentication and authorization.",
+  "Understanding of how sessions and JWTs work and their trade-offs.",
+  "Security awareness: storage, expiry, revocation, HTTPS.",
+  "Ability to choose an approach for a given system."
+ ],
+ "answer": "**Authentication vs authorization.** *Authentication* answers \"who are you?\" (verifying identity: password, OTP, biometric, SSO). *Authorization* answers \"what are you allowed to do?\" (roles, permissions, resource ownership). Authentication comes first; for example, logging in proves you are Alice, then authorization decides whether Alice can view an admin page.\n\n**Why it is needed.** To protect user data, tie actions to accounts, enable personalisation, audit actions, and stop abuse. HTTP is stateless, so after login the server needs a way to recognise the user on later requests.\n\n**Session-based authentication.**\n1. The user sends credentials (over HTTPS); the server verifies the password hash (bcrypt or argon2).\n2. The server creates a session with a random ID, stores it server-side (memory, DB or Redis) with the user data, and sends the ID in a cookie (`HttpOnly`, `Secure`, `SameSite`).\n3. Each request carries the cookie; the server looks the session up.\n*Pros:* easy to revoke (delete the session), small cookie, server controls state. *Cons:* server-side storage and a lookup per request; scaling across servers needs a shared store or sticky sessions; CSRF protection is needed.\n\n**JWT (token-based).** After login, the server issues a signed **JSON Web Token** (header, payload with claims such as user id and expiry, signature). The client sends it in the `Authorization: Bearer` header (or a cookie). The server verifies the signature and expiry without a database lookup.\n*Pros:* stateless, scales easily across services, works well for mobile and APIs. *Cons:* hard to revoke before expiry (needs a blocklist or short expiry plus **refresh tokens**), tokens are signed not encrypted so never put secrets in the payload, and storing in localStorage exposes it to XSS.\n\n**Choosing.** Session cookies for a classic web app; JWT with short-lived access and refresh tokens for APIs and microservices. Always use HTTPS, hash passwords with a salt, set expiries, and validate on the server for every request.",
+ "followUps": [
+  "How would you log a user out or revoke a JWT before it expires?",
+  "Where should you store a JWT in the browser and what are the risks?",
+  "What is OAuth 2.0 and how does it differ from JWT?",
+  "How do you protect session cookies against CSRF and XSS?"
+ ]
+}

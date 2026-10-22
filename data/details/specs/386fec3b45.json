@@ -1,0 +1,19 @@
+{
+ "qid": "386fec3b45",
+ "question": "For a Zomato SWE-1 role, the Senior Engineering Manager round began with a system design question: **design an end-to-end payments system**. The reported areas were:\n\n- end-to-end payment flow orchestration;\n- chargeback handling and the dispute lifecycle (won or lost);\n- refunds: full, partial and proration;\n- audit and compliance requirements (India);\n- a high-level design of taxation and billing architecture.\n\nThe interviewer's feedback said the candidate handled the happy path well, but wanted more depth on non-happy paths such as failure handling, retries, cross-service consistency and database modelling for complex workflows.",
+ "lookingFor": [
+  "Can you design a payment flow that stays correct under failures, retries and duplicates?",
+  "Do you understand idempotency, state machines and reconciliation?",
+  "Do you know refunds, chargebacks and disputes as distinct lifecycles?",
+  "Do you model money and audit trails properly (ledger, immutability)?",
+  "Can you discuss compliance and tax at a high level without inventing details?"
+ ],
+ "answer": "**Requirements.** Accept payments (UPI, cards, wallets) through external gateways, tie them to orders, handle refunds and disputes, keep an audit trail, and produce correct invoices and tax data. Scale: thousands of payments per second at peak, with correctness above latency.\n\n**Core components**\n- **Payment service (orchestrator):** creates a payment intent, picks a gateway (routing and fallback), and drives a state machine: `CREATED -> PENDING -> SUCCESS / FAILED`. Every request carries an **idempotency key**, and the unique key prevents double charges.\n- **Gateway adapters** hide provider differences. Results arrive through **webhooks** (verify signature, deduplicate, process asynchronously) and a **reconciliation job** that compares our records with provider settlement files and fixes missing or mismatched states.\n- **Order-payment consistency:** do not call across services inside a database transaction. Use the **outbox pattern** (write the event with the state change, publish reliably) and a **saga** with compensating actions, for example refund when an order cannot be fulfilled.\n- **Ledger:** an append-only, double-entry record of money movement. Store amounts as integers in the smallest currency unit. Never update rows; add reversing entries.\n\n**Refunds.** Full and partial refunds are separate records linked to the payment, with a rule that the sum of refunds never exceeds the captured amount (enforced in the database). Proration spreads the refund over items, tax and fees proportionally.\n\n**Chargebacks and disputes.** A dispute has its own lifecycle: `OPENED -> EVIDENCE_SUBMITTED -> WON / LOST`. A lost dispute debits the merchant ledger; deadlines matter, so use timers and alerts.\n\n**Audit and compliance.** Keep immutable logs, access control and encryption. Do not store raw card data; rely on tokenisation through a PCI-compliant provider and check current RBI rules with your compliance team.\n\n**Tax and billing.** A billing service produces invoices from the order, with per-line tax breakdowns (GST rules vary by item and state), stored as a snapshot so later rate changes do not alter past invoices.\n\n**Failure handling.** Retries with backoff and jitter, timeouts, circuit breakers, dead-letter queues, and monitoring on stuck `PENDING` payments.",
+ "followUps": [
+  "How do you handle a gateway timeout where you do not know whether the charge succeeded?",
+  "How do you make a webhook handler idempotent?",
+  "How would you model a partial refund on an order with several items and taxes?",
+  "What is the outbox pattern and what problem does it solve?",
+  "How would you reconcile payments with the bank settlement?"
+ ]
+}

@@ -1,0 +1,47 @@
+{
+ "pid": "number-of-islands",
+ "title": "Number of Islands",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given a map of `r` rows and `c` columns. Each cell is `1` (land) or `0` (water).\n\nAn **island** is a maximal group of land cells that are connected through shared sides: two land cells belong to the same island if you can walk from one to the other moving only up, down, left or right over land cells. Cells that touch only at a corner are **not** connected.\n\nCount the islands on the map. (The same task appears in interviews phrased as counting groups of warships, or as counting connected regions of `1`s.)\n\nThe grid can be as large as 800 by 800 with a single island that winds through most of it, so a deeply recursive depth-first search may overflow the call stack. A breadth-first search or an explicit stack avoids that.",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains a string of exactly `c` characters, each `0` or `1`, with no spaces.",
+ "output_format": "Print a single integer: the number of islands.",
+ "constraints": [
+  "1 ≤ r, c ≤ 800"
+ ],
+ "examples": [
+  {
+   "input": "4 5\n11000\n11001\n00100\n00011",
+   "output": "4",
+   "explanation": "The islands are: the 2x2 block in the top-left corner; the single land cell at row 1, column 4; the single cell at row 2, column 2; and the pair at the bottom right. The cell at row 2, column 2 and the pair below it only touch diagonally, so they are separate."
+  },
+  {
+   "input": "3 3\n000\n000\n000",
+   "output": "0",
+   "explanation": "There is no land."
+  },
+  {
+   "input": "3 4\n1111\n1001\n1111",
+   "output": "1",
+   "explanation": "The land forms a ring around the water in the middle. It is one connected island."
+  }
+ ],
+ "complexity": {
+  "time": "O(r * c)",
+  "space": "O(r * c)"
+ },
+ "hints": [
+  "Scan the grid; each time you meet a land cell you have not visited, you have found a new island.",
+  "When you find a new island, flood it: visit every land cell connected to it and mark each as visited so it is never counted again.",
+  "Use BFS or an explicit stack instead of recursion if the grid may be large, and think about whether to mark cells in place or in a separate visited array."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    rows = data[2:2 + r]\n    W = c + 2\n    g = bytearray(W * (r + 2))\n    for i in range(r):\n        base = (i + 1) * W + 1\n        row = rows[i]\n        for j in range(c):\n            if row[j] == '1':\n                g[base + j] = 1\n    count = 0\n    for s in range(len(g)):\n        if g[s]:\n            count += 1\n            g[s] = 0\n            queue = [s]\n            while queue:\n                x = queue.pop()\n                for y in (x - 1, x + 1, x - W, x + W):\n                    if g[y]:\n                        g[y] = 0\n                        queue.append(y)\n    print(count)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\nrows = data[2:2 + r]\nparent = list(range(r * c))\n\ndef find(x):\n    while parent[x] != x:\n        parent[x] = parent[parent[x]]\n        x = parent[x]\n    return x\n\nfor i in range(r):\n    for j in range(c):\n        if rows[i][j] == '1':\n            if j + 1 < c and rows[i][j + 1] == '1':\n                parent[find(i * c + j)] = find(i * c + j + 1)\n            if i + 1 < r and rows[i + 1][j] == '1':\n                parent[find(i * c + j)] = find((i + 1) * c + j)\nroots = set()\nfor i in range(r):\n    for j in range(c):\n        if rows[i][j] == '1':\n            roots.add(find(i * c + j))\nprint(len(roots))\n",
+ "generator": "def gen(rng):\n    def fmt(rows):\n        return str(len(rows)) + ' ' + str(len(rows[0])) + '\\n' + '\\n'.join(rows)\n\n    def rand_grid(r, c, p):\n        return [''.join('1' if rng.random() < p else '0' for _ in range(c)) for _ in range(r)]\n\n    tests = [\n        fmt(['1']), fmt(['0']), fmt(['10', '01']), fmt(['11', '11']),\n        fmt(['11000', '11001', '00100', '00011']),\n        fmt(['1111', '1001', '1111']),\n        fmt(['101010']), fmt(['1', '0', '1', '1']),\n        fmt(['000', '000', '000']),\n        fmt(['010', '111', '010']),\n    ]\n    for (r, c) in [(2, 3), (3, 3), (4, 5), (5, 5), (6, 8), (8, 6), (7, 7), (1, 12), (12, 1), (9, 9)]:\n        for p in (0.35, 0.55):\n            tests.append(fmt(rand_grid(r, c, p)))\n    big_start = len(tests)\n    R = C = 800\n    snake = []\n    for i in range(R):\n        if i % 2 == 0:\n            snake.append('1' * C)\n        elif (i // 2) % 2 == 0:\n            snake.append('0' * (C - 1) + '1')\n        else:\n            snake.append('1' + '0' * (C - 1))\n    tests.append(fmt(snake))\n    tests.append(fmt(rand_grid(R, C, 0.5)))\n    tests.append(fmt([''.join('1' if (i + j) % 2 == 0 else '0' for j in range(C)) for i in range(R)]))\n    tests.append(fmt(['1' * 800]))\n    tests.append(fmt(['1'] * 800))\n    tests.append(fmt(rand_grid(200, 200, 0.6)))\n    return tests[:6] + tests[big_start:] + tests[6:big_start]\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef num_islands(grid: List[str]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    grid = data[2:2 + r]\n    print(num_islands(grid))\n\n\nmain()\n",
+  "javascript": "function numIslands(grid) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst r = Number(t[0]), c = Number(t[1])\nconst grid = t.slice(2, 2 + r)\nconsole.log(String(numIslands(grid)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint numIslands(vector<string>& grid) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<string> grid(r);\n    for (int i = 0; i < r; i++) cin >> grid[i];\n    cout << numIslands(grid) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int numIslands(String[] grid) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int r = Integer.parseInt(st.nextToken());\n        int c = Integer.parseInt(st.nextToken());\n        String[] grid = new String[r];\n        for (int i = 0; i < r; i++) grid[i] = br.readLine().trim();\n        System.out.println(numIslands(grid));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,19 @@
+{
+ "qid": "3f870e7e40",
+ "question": "In a third round for a Senior Applications Developer (IC3) role on Oracle Fusion, the interviewer described two tables, **Order and Lines**: one order can have many lines, and both tables have a **Status** column. The task: **update the order's status to Closed only if all of its lines are Closed, and do it efficiently**, with a SQL query or code. The candidate wrote code.",
+ "lookingFor": [
+  "Can you translate 'all lines are closed' into a correct set-based condition?",
+  "Do you avoid the row-by-row loop and N+1 queries?",
+  "Do you handle edge cases: NULL statuses, orders with no lines, already-closed orders?",
+  "Do you know which indexes make this efficient and how to limit work to affected orders?",
+  "Do you think about concurrency when lines change while the update runs?"
+ ],
+ "answer": "**Idea.** An order qualifies if there is **no** line that is not Closed. \"All\" is expressed as NOT EXISTS of a counter-example.\n\n```sql\nUPDATE orders o\nSET    o.status = 'Closed'\nWHERE  o.status <> 'Closed'\n  AND  EXISTS (SELECT 1 FROM lines l WHERE l.order_id = o.id)\n  AND  NOT EXISTS (\n         SELECT 1 FROM lines l\n         WHERE  l.order_id = o.id\n           AND (l.status <> 'Closed' OR l.status IS NULL)\n       );\n```\n\nReading it:\n- `o.status <> 'Closed'` skips orders that are already done, avoiding useless writes.\n- The first `EXISTS` ensures the order has at least one line. Without it, an order with **no lines** would be closed, because \"all of zero lines are closed\" is vacuously true. Decide with the business whether that is wanted.\n- `NOT EXISTS` finds any line that is open. Treating `NULL` as open is the safe choice, since `NULL <> 'Closed'` evaluates to unknown, not true.\n\nWhy a set-based statement: it is one round trip and the database does the work, instead of loading every order and counting its lines in application code (N+1 queries).\n\n**Alternative with GROUP BY**\n```sql\nUPDATE orders SET status = 'Closed'\nWHERE id IN (SELECT order_id FROM lines GROUP BY order_id\n             HAVING SUM(CASE WHEN status = 'Closed' THEN 0 ELSE 1 END) = 0);\n```\n\n**Efficiency**\n1. Index `lines(order_id, status)` so each check is an index probe, often without touching the table.\n2. Do not rescan the whole table each time. If this is triggered when a line closes, restrict to that order: `... WHERE o.id = :orderId AND NOT EXISTS (...)`.\n3. For millions of rows, process in id ranges and commit per batch.\n\n**Concurrency.** A line may be reopened while the update runs. Run the statement in one transaction and lock the order row first (`SELECT ... FOR UPDATE` or version column), or recheck in the same statement as above, which is atomic per order at the isolation level used.",
+ "followUps": [
+  "Why would an order with zero lines be closed by a naive query, and how do you prevent it?",
+  "How do you make this correct when two lines are closed by different transactions at once?",
+  "EXISTS versus IN versus a JOIN: which is faster here?",
+  "How would you do this with a database trigger and what are the downsides?",
+  "How would you write the same logic in application code with minimum queries?"
+ ]
+}

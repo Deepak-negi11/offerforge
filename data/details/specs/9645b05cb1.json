@@ -1,0 +1,18 @@
+{
+ "qid": "9645b05cb1",
+ "question": "MakeMyTrip SSE-2 Backend, design round. Your API receives **10,000 hits at any point in time**, and it depends on a **downstream API that accepts only 100 hits per hour**. The downstream API is a black box: you cannot scale it or change it, and it is someone else's responsibility. **How would you design your system?** The only hint given was to use advanced queues.",
+ "lookingFor": [
+  "Recognising a rate-mismatch problem and decoupling with a queue.",
+  "Back-pressure and what to tell the client (async API).",
+  "Rate-limited consumption with retries and idempotency.",
+  "Reducing downstream calls (caching, batching, deduplication).",
+  "Frank arithmetic about capacity and the backlog."
+ ],
+ "answer": "**Do the arithmetic first.** 100 calls per hour is under 2 per minute. If 10,000 requests arrive, even a perfect system needs about 100 hours to drain 10,000 *distinct* calls. So the design cannot pretend to answer synchronously, and the first step is to **reduce the number of real downstream calls** and **change the contract** with callers.\n\n**1. Make the API asynchronous.** Accept the request, validate it, store it, put a job on a durable queue, and return `202 Accepted` with a job id. The client polls `GET /jobs/{id}`, or receives a webhook/notification when done. This decouples intake (fast, scalable) from processing (slow, throttled).\n\n**2. Durable queue plus a throttled worker.** Use a persistent queue (Kafka, SQS, RabbitMQ). A worker consumes at a controlled rate using a **token bucket** or leaky bucket set slightly below 100/hour (leave headroom for retries). Keep the limiter state in shared storage (Redis) if several workers run, or run a single consumer per partition. On downstream errors use exponential backoff with jitter and a dead-letter queue.\n\n**3. Cut downstream traffic.**\n- **Cache** responses where the data is reusable, with a TTL.\n- **Deduplicate** identical requests (same key): one downstream call serves many waiting jobs (request coalescing).\n- **Batch** if the downstream supports it.\n- **Prioritise:** separate queues for urgent vs bulk work, so important ones are not stuck behind a backlog.\n\n**4. Back-pressure and protection.** Bound the queue and apply **admission control**: rate limit per client, reject or shed with `429`/`503` and `Retry-After` when the backlog exceeds what can be served within an acceptable time. Expose queue depth and estimated wait time.\n\n**5. Correctness.** Make processing idempotent (a job key) because at-least-once delivery will redeliver; persist job status transitions.\n\n**6. Business conversation.** If the demand truly exceeds the allowance, the real fix is to negotiate a higher quota with the downstream owner.\n\n**Avoid:** holding 10,000 open connections, retrying aggressively (which burns quota), and an in-memory queue that loses jobs on restart.",
+ "followUps": [
+  "How would you share one rate limit across several worker instances?",
+  "What do you tell the user when the estimated wait is many hours?",
+  "How would you handle a downstream outage using a circuit breaker?",
+  "How would you prioritise some requests over others in the queue?"
+ ]
+}

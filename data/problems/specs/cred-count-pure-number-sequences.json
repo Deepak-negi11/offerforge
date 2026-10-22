@@ -1,0 +1,47 @@
+{
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "input_format": "A single integer `d`.",
+ "output_format": "Print a single integer: the number of pure number sequences of length `d`, modulo `10^9 + 7`.",
+ "constraints": [
+  "1 ≤ d ≤ 5 · 10^4"
+ ],
+ "examples": [
+  {
+   "input": "1",
+   "output": "9",
+   "explanation": "With a single digit there is nothing earlier to rely on, so the sequences are `1`, `2`, ..., `9`; `0` cannot start a sequence."
+  },
+  {
+   "input": "2",
+   "output": "23",
+   "explanation": "Nine sequences end in `0` (`10`, `20`, ..., `90`). Eight repeat a digit from `2` to `9` (`22`, `33`, ..., `99`). Six more place a larger digit after one of its divisors: `24`, `26`, `28`, `36`, `39`, `48`. Total 9 + 8 + 6 = 23. Sequences such as `11` or `21` are not allowed."
+  },
+  {
+   "input": "3",
+   "output": "71",
+   "explanation": "Each of the 23 valid two-digit sequences can be extended by a `0` or by any digit that has an earlier divisor (other than 1) among the digits already placed. Counting these extensions over all 23 prefixes gives 71."
+  }
+ ],
+ "complexity": {
+  "time": "O(d · 2^8 · 10)",
+  "space": "O(2^8)"
+ },
+ "hints": [
+  "Whether a digit may be placed depends only on which digits have appeared before, not on their order or count. Only the digits 2 to 9 can ever act as the required divisor.",
+  "Track the set of digits from 2 to 9 seen so far as an 8-bit mask, and let `dp[mask]` count the sequences of the current length with that set. Placing a `0` or an already-seen digit keeps the mask; placing a new allowed digit adds its bit.",
+  "For each mask, precompute which digits are allowed after it, then run the DP for `d - 1` steps with every count taken modulo 10^9 + 7. Many masks are unreachable, so the real state count is small."
+ ],
+ "reference": "import sys\n\ndef main():\n    d = int(sys.stdin.read().split()[0])\n    MOD = 10**9 + 7\n    # bit (k - 2) of a mask is set once digit k (2..9) has been placed; 0 and 1 never matter later\n    def moves(mask):\n        res = {mask: 1}  # placing a 0 keeps the mask\n        for n in range(2, 10):\n            if any((mask >> (k - 2)) & 1 and n % k == 0 for k in range(2, n + 1)):\n                m2 = mask | (1 << (n - 2))\n                res[m2] = res.get(m2, 0) + 1\n        return list(res.items())\n    trans = {}\n    dp = {0: 1}  # first digit 1\n    for n in range(2, 10):\n        dp[1 << (n - 2)] = 1  # first digit n\n    for _ in range(d - 1):\n        nd = {}\n        for m, v in dp.items():\n            if m not in trans:\n                trans[m] = moves(m)\n            for m2, c in trans[m]:\n                nd[m2] = (nd.get(m2, 0) + v * c) % MOD\n        dp = nd\n    print(sum(dp.values()) % MOD)\n\nmain()\n",
+ "brute": "import sys\n\nd = int(sys.stdin.read().split()[0])\nMOD = 10**9 + 7\n\ndef ok(n, placed):\n    if n == 0:\n        return True\n    return any(k in placed for k in range(2, 10) if n % k == 0)\n\nif d <= 6:\n    total = 0\n    def rec(seq):\n        global total\n        if len(seq) == d:\n            total += 1\n            return\n        for n in range(10):\n            if n == 0 and not seq:\n                continue\n            if not seq or ok(n, set(seq)):\n                rec(seq + [n])\n    rec([])\n    print(total % MOD)\nelse:\n    dp = {}\n    for n in range(1, 10):\n        dp[frozenset([n])] = dp.get(frozenset([n]), 0) + 1\n    for _ in range(d - 1):\n        nd = {}\n        for placed, v in dp.items():\n            for n in range(10):\n                if ok(n, placed):\n                    key = placed | {n}\n                    nd[key] = (nd.get(key, 0) + v) % MOD\n        dp = nd\n    print(sum(dp.values()) % MOD)\n",
+ "generator": "def gen(rng):\n    tests = [str(d) for d in range(1, 15)]\n    for _ in range(8):\n        tests.append(str(rng.randint(15, 600)))\n    tests += ['50000', '49999', '40000', '32768']\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef count_sequences(d: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    d = int(sys.stdin.read().split()[0])\n    print(count_sequences(d))\n\n\nmain()\n",
+  "javascript": "function countSequences(d) {\n  // Write your solution here\n  return 0\n}\n\nconst d = parseInt(input.trim())\nconsole.log(String(countSequences(d)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countSequences(long long d) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    long long d;\n    cin >> d;\n    cout << countSequences(d) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countSequences(int d) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        int d = Integer.parseInt(br.readLine().trim());\n        System.out.println(countSequences(d));\n    }\n}\n"
+ },
+ "pid": "cred-count-pure-number-sequences",
+ "title": "Count 'Pure Number' Sequences",
+ "statement": "A general wants to know in how many ways his soldiers can win a war that lasts `d` days. The number of possible wins after `d` days equals the number of **pure number sequences** of length `d`.\n\nA pure number sequence is a sequence of `d` digits (each from `0` to `9`) in which every digit, when it is placed at some index `i`, satisfies one of these rules:\n\n- The **first** digit can be any of `1` to `9` (nothing has been placed before it, and a sequence cannot start with `0`).\n- A later digit `0` can always be placed.\n- A later non-zero digit `n` can be placed only if some **earlier** digit in the sequence is a divisor of `n` other than `1`. The digit `n` is a divisor of itself, so a digit can repeat (for example `22`), but `1` can never be placed again, because its only divisor is `1`.\n\nTwo sequences are different if they differ at any index. Return the number of pure number sequences of length `d`, modulo `10^9 + 7`.\n\nFor `d = 1` the answer is `9`, and for `d = 2` it is `23`."
+}

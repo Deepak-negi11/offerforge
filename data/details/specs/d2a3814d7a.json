@@ -1,0 +1,19 @@
+{
+ "qid": "d2a3814d7a",
+ "question": "In the LLD and HLD round of a Frontend SDE-2 interview at Swiggy, the candidate was asked to **design an authentication package covering login, signup, logout, offline storage and optimisations**.\n\nA second question on **real-time orders** followed but the candidate did not get to attempt it, since they could not implement the first one properly, and they were rejected for needing more system design practice.",
+ "lookingFor": [
+  "Can you design a reusable module with a clean public API?",
+  "Do you understand token handling, refresh and secure storage trade-offs?",
+  "Do you consider offline and multi-tab behaviour?",
+  "Do you handle failure, race conditions and expiry cleanly?",
+  "Do you consider performance and security optimisations?"
+ ],
+ "answer": "**Clarify.** Is it a framework-agnostic JS package used by several apps? Token type (JWT access and refresh tokens, or a session cookie)? Social login? OTP login (common in India)? Single or multiple accounts?\n\n**Public API.**\n```\nauth.signup(credentials) / auth.login(credentials) / auth.logout()\nauth.getUser() / auth.isAuthenticated()\nauth.getAccessToken()      // refreshes if needed\nauth.onAuthStateChange(cb) // returns unsubscribe\n```\nHide storage, networking and refresh logic behind it.\n\n**Internal structure.**\n- `AuthClient` (API calls), `TokenStore` (storage abstraction), `SessionManager` (state machine: `unauthenticated -> authenticating -> authenticated -> refreshing -> expired`), `HttpInterceptor` (attaches the token and handles 401).\n- Storage is injected so it can be swapped (memory, localStorage, IndexedDB, secure storage on mobile).\n\n**Token storage trade-offs.**\n- Access token in memory (safest against XSS theft, lost on reload).\n- Refresh token in an `HttpOnly`, `Secure`, `SameSite` cookie, so JavaScript cannot read it; on page load call a refresh endpoint to obtain a new access token.\n- `localStorage` persists across reloads and offline but is readable by any injected script. If used, minimise token lifetime and use a strict Content Security Policy.\n- Non-sensitive user profile can be cached in storage for instant UI render.\n\n**Refresh logic.** When a request gets 401 or the token is near expiry, do a single refresh; concurrent requests wait on the **same in-flight promise** (avoid a refresh stampede). If refresh fails, log out and notify listeners.\n\n**Offline storage.** Keep the cached user and a last-known auth state so the app opens offline in a read-only mode; queue actions or block those requiring a valid token; revalidate on reconnect (`online` event).\n\n**Multi-tab.** Use the `storage` event or `BroadcastChannel` so logging out in one tab logs out the others, and a token refreshed in one tab is shared.\n\n**Optimisations and security.** Lazy-load the auth UI, avoid blocking first paint on the auth check (show a skeleton), debounce submit buttons, validate input client-side but never trust it, rate-limit retries with backoff, CSRF protection if cookies are used, clear all state on logout.\n\n**Edge cases.** Clock skew affecting expiry checks, token revoked server-side, user changes password on another device.",
+ "followUps": [
+  "Where would you store the access token and why?",
+  "How do you avoid multiple simultaneous refresh requests?",
+  "How would you sync logout across browser tabs?",
+  "How does the design change for a React Native app?",
+  "How would you design the real-time orders feature (updates pushed to the client)?"
+ ]
+}

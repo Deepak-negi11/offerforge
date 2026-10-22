@@ -1,0 +1,49 @@
+{
+ "pid": "juspay-nearest-meeting-cell",
+ "title": "Nearest Meeting Cell",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a maze with `N` cells, named with the integers `0` to `N - 1`. A cell may have many entry points but **at most one exit**: the entries and exits are one-way doors, like valves.\n\nThe maze is described by an array `Edge` of `N` integers. `Edge[i]` is the cell that can be reached from cell `i` in one step, or `-1` if cell `i` has no exit. A cell may lead to itself, and the exits can form cycles.\n\nTwo cells `C1` and `C2` are given. Starting from a cell, you can only follow its exit again and again, so the cells reachable from `C1` are `C1` itself (after 0 steps), `Edge[C1]` (after 1 step), `Edge[Edge[C1]]` (after 2 steps) and so on, until you run out of exits. The same applies to `C2`.\n\nA **meeting cell** is a cell that can be reached from both `C1` and `C2`. Its cost is the number of steps from `C1` plus the number of steps from `C2`, each counted along the shortest way (the first time that cell appears on the walk). Print the meeting cell with the **smallest cost**. If several meeting cells have the same smallest cost, print the one with the **smallest cell number**. If there is no meeting cell, print `-1`.\n\nA cell counts as reachable from itself with 0 steps, so if `C1` is on the walk of `C2`, then `C1` is a candidate with cost equal to the steps `C2` needs to get there.",
+ "input_format": "The first line contains the integer `N`.\nThe second line contains `N` integers `Edge[0] ... Edge[N-1]`.\nThe third line contains two integers `C1` and `C2`.",
+ "output_format": "Print a single integer: the nearest meeting cell, or `-1` if the two cells have no common reachable cell.",
+ "constraints": [
+  "1 ≤ N ≤ 10^5",
+  "-1 ≤ Edge[i] ≤ N - 1",
+  "0 ≤ C1, C2 ≤ N - 1"
+ ],
+ "examples": [
+  {
+   "input": "23\n4 4 1 4 13 8 8 8 0 8 14 9 15 11 -1 10 15 22 22 22 22 22 21\n9 2",
+   "output": "4",
+   "explanation": "From cell 9 the walk is 9, 8, 0, 4, 13, 11 and then back to 9. From cell 2 the walk is 2, 1, 4, 13, 11, 9, 8, 0 and then back to 4. Cells 9 and 4 both have cost 5 (0 + 5 for cell 9, 3 + 2 for cell 4), which is the minimum, so the smaller cell number, 4, is printed."
+  },
+  {
+   "input": "5\n1 -1 3 -1 -1\n0 2",
+   "output": "-1",
+   "explanation": "The walk from cell 0 is 0, 1 and then it stops. The walk from cell 2 is 2, 3 and then it stops. The two walks share no cell, so the answer is -1."
+  },
+  {
+   "input": "4\n1 2 3 -1\n1 0",
+   "output": "1",
+   "explanation": "The walk from cell 1 is 1, 2, 3 and the walk from cell 0 is 0, 1, 2, 3. Cell 1 costs 0 + 1 = 1, cell 2 costs 1 + 2 = 3 and cell 3 costs 2 + 3 = 5. Cell 1 is the cheapest, even though it is the starting cell of the first walk."
+  }
+ ],
+ "complexity": {
+  "time": "O(N)",
+  "space": "O(N)"
+ },
+ "hints": [
+  "Each cell has at most one exit, so the cells reachable from `C1` form a single path that may end in a cycle. Walk along it and record the number of steps at which each cell is first seen.",
+  "Stop the walk when you reach a cell with no exit or a cell you have already recorded, otherwise a cycle makes it run forever. Do the same walk from `C2`.",
+  "Now look at every cell that has a distance in both records, compute the sum of the two distances, and keep the smallest sum, breaking ties by the smaller cell number."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    edge = [int(x) for x in data[1:1 + n]]\n    c1, c2 = int(data[1 + n]), int(data[2 + n])\n\n    def walk(s):\n        dist = [-1] * n\n        x, t = s, 0\n        while x != -1 and dist[x] == -1:\n            dist[x] = t\n            t += 1\n            x = edge[x]\n        return dist\n\n    d1, d2 = walk(c1), walk(c2)\n    best = None\n    for v in range(n):\n        if d1[v] >= 0 and d2[v] >= 0:\n            key = (d1[v] + d2[v], v)\n            if best is None or key < best:\n                best = key\n    print(best[1] if best else -1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nedge = [int(x) for x in data[1:1 + n]]\nc1, c2 = int(data[1 + n]), int(data[2 + n])\n\ndef steps(s, v):\n    x = s\n    for t in range(n + 1):\n        if x == v:\n            return t\n        if x == -1:\n            return -1\n        x = edge[x]\n    return -1\n\nbest_v, best_cost = -1, None\nfor v in range(n):\n    a, b = steps(c1, v), steps(c2, v)\n    if a >= 0 and b >= 0:\n        if best_cost is None or a + b < best_cost:\n            best_cost = a + b\n            best_v = v\nprint(best_v)\n",
+ "generator": "def gen(rng):\n    def fmt(e, a, b):\n        return str(len(e)) + '\\n' + ' '.join(map(str, e)) + f'\\n{a} {b}'\n\n    tests = [fmt([-1], 0, 0), fmt([0], 0, 0), fmt([1, 0], 0, 1), fmt([1, -1, 1], 0, 2), fmt([1, 2, 3, 4, -1], 0, 3),\n             fmt([1, 2, 0], 0, 2), fmt([1, -1, 3, -1], 0, 2), fmt([2, 2, 3, 4, 2], 0, 1)]\n    for n in (6, 10, 16, 25):\n        for mode in range(2):\n            if mode == 0:\n                e = [rng.randint(-1, n - 1) for _ in range(n)]\n            else:\n                e = [rng.randint(i + 1, n - 1) if i < n - 1 and rng.random() < 0.9 else -1 for i in range(n)]\n            tests.append(fmt(e, rng.randrange(n), rng.randrange(n)))\n    N = 100000\n    tests.append(fmt([i + 1 for i in range(N - 1)] + [-1], 0, N // 2))\n    tests.append(fmt([(i + 1) % N for i in range(N)], 3, N - 7))\n    tests.append(fmt([rng.randint(-1, N - 1) for _ in range(N)], rng.randrange(N), rng.randrange(N)))\n    tests.append(fmt([rng.randint(i + 1, min(N - 1, i + 3)) if i < N - 1 else -1 for i in range(N)], 0, 1))\n    half = N // 2\n    tests.append(fmt([(i + 1) % half for i in range(half)] + [half + (i + 1) % half for i in range(half)], 5, half + 5))\n    tests.append(fmt([i // 2 - 1 if i >= 2 else -1 for i in range(N)], N - 1, N - 2))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef nearest_meeting_cell(edge: List[int], c1: int, c2: int) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    edge = [int(x) for x in data[1:1 + n]]\n    c1, c2 = int(data[1 + n]), int(data[2 + n])\n    print(nearest_meeting_cell(edge, c1, c2))\n\n\nmain()\n",
+  "javascript": "function nearestMeetingCell(edge, c1, c2) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst edge = t.slice(1, 1 + n)\nconst c1 = t[1 + n], c2 = t[2 + n]\nconsole.log(String(nearestMeetingCell(edge, c1, c2)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint nearestMeetingCell(vector<int>& edge, int c1, int c2) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> edge(n);\n    for (int i = 0; i < n; i++) cin >> edge[i];\n    int c1, c2;\n    cin >> c1 >> c2;\n    cout << nearestMeetingCell(edge, c1, c2) << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int nearestMeetingCell(int[] edge, int c1, int c2) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] edge = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            edge[i] = (int) in.nval;\n        }\n        in.nextToken();\n        int c1 = (int) in.nval;\n        in.nextToken();\n        int c2 = (int) in.nval;\n        System.out.println(nearestMeetingCell(edge, c1, c2));\n    }\n}\n"
+ }
+}

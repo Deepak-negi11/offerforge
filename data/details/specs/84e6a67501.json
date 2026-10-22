@@ -1,0 +1,17 @@
+{
+ "qid": "84e6a67501",
+ "question": "In the first technical interview for a Zomato SDE role, the interviewer asked three CS fundamentals questions.\n\n1. **Inheritance chain:** write a chain of inheritance with constructors and destructors, and **guess the output** before running the program.\n2. **fork():** given code with **multiple `fork()` calls**, predict the output and the **number of processes** created.\n3. **Caching:** how does caching work at a low level?",
+ "lookingFor": [
+  "Do you know the order of constructor and destructor calls in C++ inheritance, including virtual destructors?",
+  "Can you reason about fork() as process duplication and count processes systematically?",
+  "Do you understand CPU caches: lines, locality, mapping and replacement?",
+  "Can you trace code mentally and explain your reasoning?"
+ ],
+ "answer": "**Constructors and destructors in a chain.** For `class A`, `class B : public A`, `class C : public B`, creating `C c;` prints construction in **base-to-derived** order: A, B, C. Destruction is the **reverse**: C, B, A. Each constructor first runs the base constructor, then initialises its own members (in declaration order), then runs its body. Key trap: when deleting through a base pointer (`A* p = new C; delete p;`) the base destructor must be `virtual`; otherwise only `~A` runs, which is undefined behaviour and leaks derived resources. Also, virtual calls inside a constructor or destructor do not reach the derived override.\n\n**Counting fork() processes.** `fork()` creates a child that continues from the next instruction with a copy of the parent's state, and returns 0 in the child and the child PID in the parent. Each independent `fork()` executed by every existing process **doubles** the count. So `n` sequential forks (with no conditions) give `2^n` processes in total, which means `2^n - 1` new ones. Example: `fork(); fork(); printf(\"x\");` prints `x` four times. With conditions such as `if (fork() == 0) fork();` or `fork() && fork()`, trace which processes execute each call (short-circuiting means only the parent evaluates the second `fork()`) by drawing a process tree. Remember that buffered `printf` output without a newline or a flush can be duplicated by the child.\n\n**How caching works at a low level (CPU cache).**\n- Memory is much slower than the CPU, so small fast caches (L1, L2, L3) hold recently used data, exploiting **temporal locality** (reused soon) and **spatial locality** (nearby addresses are used next).\n- Data moves in **cache lines** (typically 64 bytes). An address splits into tag, index and offset. The index picks a set, and the tag is compared to find a **hit**; otherwise it is a **miss** that fetches the line from the next level.\n- Mapping: direct-mapped, set-associative or fully associative. Replacement policy is typically LRU-like when a set is full.\n- Write policy: write-through or write-back (dirty bit); multi-core CPUs keep caches coherent with protocols such as MESI.\n- Practical effect: iterating a 2D array row by row is faster than column by column in row-major languages.",
+ "followUps": [
+  "What does the output look like for fork() && fork() || fork()?",
+  "What is a zombie or orphan process?",
+  "Why should a base class destructor be virtual?",
+  "What is false sharing?"
+ ]
+}

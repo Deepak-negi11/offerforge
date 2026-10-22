@@ -1,0 +1,18 @@
+{
+ "qid": "fe86b5f72c",
+ "question": "Meesho 6-month SDE intern machine coding round (about one hour, on a HackerEarth-style platform with provided test cases). Design and implement, using object-oriented programming in a language of your choice, a system to add products to a cart and apply coupons. A coupon must be validated on expiry, minimum purchase value and stock. The candidate reported getting only about 30 minutes to implement after discussing the problem, and lost points to an execution error.",
+ "lookingFor": [
+  "Splitting the problem into well-named classes with clear responsibilities.",
+  "Correct validation logic and edge cases (expiry boundaries, empty cart, out of stock).",
+  "Working, runnable code under time pressure rather than a perfect design.",
+  "Extensibility, e.g. adding a new coupon type without rewriting existing code.",
+  "Discipline: reading the test cases first and testing early."
+ ],
+ "answer": "**Time plan (60 minutes).** 5 minutes reading the statement and test cases, 5 minutes on the class design, 35 minutes coding, 10 minutes running and fixing. Get a thin end-to-end path passing first, then add validations. Most lost marks come from code that does not compile or run, so run early.\n\n**Entities.**\n- `Product(id, name, price)` and a stock map `Inventory` (productId to available quantity).\n- `CartItem(product, qty)` and `Cart` (items, `add`, `remove`, `subtotal`).\n- `Coupon` with `code`, `expiry`, `minPurchase`, and a discount rule.\n- `CouponService` (register and look up coupons, validate, apply) and a `CartService` as the entry point.\n\n**Design.** Keep the discount calculation behind an interface (Strategy pattern): `DiscountStrategy.calculate(subtotal)` with `FlatDiscount` and `PercentDiscount` (with an optional cap). Validation can be a list of small rules (`ExpiryRule`, `MinPurchaseRule`, `StockRule`) each returning pass or a reason string. Adding a new rule or coupon type then means adding a class, not editing a long if-else.\n\n**Flow.**\n1. `addToCart(productId, qty)`: reject if the product is unknown, qty is not positive, or requested qty exceeds stock (including what is already in the cart).\n2. `applyCoupon(cartId, code, now)`: fail if the code is unknown, `now` is after expiry, subtotal is below `minPurchase`, or any cart item exceeds stock. Otherwise return the discounted total.\n3. Total never goes below zero; round money consistently (use integers for paise or `BigDecimal`).\n\n**Edge cases to state.** Expiry exactly equal to now, applying a coupon twice, removing an item after applying a coupon (re-validate the minimum purchase), stock changing between add and checkout, empty cart.\n\n**Style.** Use clear exceptions or a result object with a reason, inject the clock (`now`) so expiry is testable, and avoid static global state. Write a small driver with two or three scenarios.\n\n**Mistakes to avoid.** Over-engineering with many patterns before basic cases pass, ignoring the provided test cases, and not handling the input format exactly.",
+ "followUps": [
+  "How would you add a coupon that applies only to a specific category?",
+  "How would you support stacking multiple coupons?",
+  "How would you make stock deduction safe with concurrent users?",
+  "How would you test the expiry logic?"
+ ]
+}

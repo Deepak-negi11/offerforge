@@ -1,0 +1,18 @@
+{
+ "qid": "2ee53a572e",
+ "question": "Bloomberg Software Engineer (fresher), system design round with a collaborative interviewer who asked whether the candidate had done system design before: **design an Amazon-like e-commerce website**, going through each service needed to meet the requirements.",
+ "lookingFor": [
+  "Decomposing a large product into services around requirements.",
+  "Data modelling and choice of database per service.",
+  "Handling consistency in checkout, inventory and payments.",
+  "Read-heavy scaling: caching, search, CDN.",
+  "Collaborative communication and willingness to iterate."
+ ],
+ "answer": "**1. Requirements.** Functional: browse and search products, product page, cart, checkout and payment, order history, seller listings (optional). Non-functional: high availability for browsing, strong correctness for orders and inventory, low latency for search. Assume 10 million daily users, a read-to-write ratio around 100 to 1, and 100 million products.\n\n**2. Services (the core of the answer).**\n- **User and auth service:** accounts, sessions, addresses.\n- **Catalog service:** product data; mostly read; store in a document or relational database and cache hot items.\n- **Search service:** an inverted-index engine (for example Elasticsearch) fed from catalog changes by a queue.\n- **Cart service:** per-user, short-lived; a key-value store such as Redis with persistence.\n- **Inventory service:** stock counts; needs atomic decrement or reservation.\n- **Order service:** creates orders with a state machine (created, paid, shipped, delivered, cancelled).\n- **Payment service:** integrates with a payment provider; idempotency keys to avoid double charges.\n- **Notification service:** email and SMS via a queue.\n- **Recommendation service** (optional, asynchronous).\n\n**3. Data model (sample).** `products(id, title, price, seller_id, ...)`, `inventory(product_id, available, reserved)`, `orders(id, user_id, status, total, created_at)`, `order_items(order_id, product_id, qty, price)`.\n\n**4. Checkout flow.** Validate cart, reserve inventory with a timeout, create the order as pending, call payment with an idempotency key, on success confirm the order and decrement stock, otherwise release the reservation. Use a saga with compensating actions rather than a distributed transaction.\n\n**5. Scaling.** CDN for images and static assets; read replicas and caching for catalog; shard orders by user id; queues between services; rate limiting and load balancers.\n\n**6. Trade-offs.** Eventual consistency is fine for search and catalog; use strong consistency for inventory and payments. Overselling risk during flash sales can be handled by reservation and per-item queues.",
+ "followUps": [
+  "How do you avoid overselling the last item during a flash sale?",
+  "How do you keep the search index in sync with the catalog?",
+  "What happens if payment succeeds but the order service crashes?",
+  "Which databases would you pick per service and why?"
+ ]
+}

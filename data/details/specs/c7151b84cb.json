@@ -1,0 +1,19 @@
+{
+ "qid": "c7151b84cb",
+ "question": "Oracle Health IC3 SDE (remote, USA), interview day round 1, a 45-minute design round with the hiring manager: **design a flash sale system**. (The other rounds that day were resume and behavioural discussions with coding questions, so expect to scope the problem yourself.)",
+ "lookingFor": [
+  "Can you identify the core problem: huge contention on limited stock for a short time?",
+  "Do you prevent overselling with correct atomic inventory updates?",
+  "Do you shield the backend from the spike (CDN, queueing, rate limiting, waiting room)?",
+  "Do you design for idempotent orders and payment failures?",
+  "Can you state consistency and fairness trade-offs clearly?"
+ ],
+ "answer": "**Requirements.** A sale starts at a fixed time with limited stock (for example 10,000 units) and a very large number of users hit it within seconds (for example 1M concurrent). Must: never oversell, stay available, be fair, and avoid double charging. Non-goals: perfect real-time stock display.\n\n**Core idea.** Absorb traffic at the edge, admit only a controlled number of requests to the stock-decrement path, and make that path atomic.\n\n**Components.**\n- **Static layer:** the product page and countdown served from a CDN. The client only enables the buy button at start time (using server time).\n- **Gateway:** rate limiting per user and IP, bot protection, and a **waiting room / queue** that admits users at a rate the backend can handle.\n- **Inventory service:** keep a stock counter in Redis. Use an atomic operation (`DECR` or a Lua script that checks and decrements) to reserve a unit. If the result is negative, reject quickly with 'sold out'. This path never touches the main database for the losers.\n- **Order service:** after a successful reservation, create an order in `PENDING` state and push an event to a queue. A worker finalises it. The reservation has a TTL (for example 10 minutes); if payment fails or times out, the unit returns to stock.\n- **Payment:** asynchronous, with an idempotency key per order so retries never double-charge.\n- **Database:** source of truth for orders and final stock, with a conditional update (`UPDATE ... SET stock = stock - 1 WHERE stock > 0`) as the safety net against Redis loss.\n\n**Key trade-offs.**\n- Redis is fast but can lose data in failover; reconcile with the database and keep the DB check as the final authority.\n- Queueing gives fairness and stability but adds latency; sharding stock across several keys raises throughput at the cost of uneven sell-out.\n- Allow a user to buy at most N units to curb scalpers.\n\n**Scaling and failure.** Pre-warm caches and instances before the sale, autoscale stateless services, use circuit breakers, and degrade by serving a static 'sold out' page when inventory hits zero. Monitor queue depth, error rates and stock reconciliation.",
+ "followUps": [
+  "How do you prevent overselling if Redis fails over mid-sale?",
+  "How would you make the system fair so bots do not win?",
+  "What happens if payment fails after the stock is reserved?",
+  "How would you shard a single hot inventory counter?",
+  "How would you load-test this before the real sale?"
+ ]
+}

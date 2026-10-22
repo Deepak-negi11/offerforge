@@ -1,0 +1,50 @@
+{
+ "pid": "rubrik-count-faster-subordinates",
+ "title": "Count Faster Subordinates",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "An organization has `n` employees, indexed `0` to `n - 1`. Every employee except the CEO (employee `0`) has exactly one manager they report to directly, so the employees form a tree rooted at the CEO. Employee `i` has a typing speed `t[i]`.\n\nFor each employee, count the employees who report to them **directly or indirectly** (everyone in their subtree, excluding themselves) and have a **strictly greater** typing speed than this employee.\n\nPrint the count for every employee, in order of index.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n - 1` integers: the manager `p[i]` of employee `i` for `i = 1, ..., n - 1` (this line is empty when `n = 1`).\nThe third line contains `n` integers `t[0], ..., t[n - 1]`.",
+ "output_format": "Print `n` space-separated integers: the count for employee `0`, then `1`, and so on.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ p[i] ≤ n - 1, and the manager links form a tree rooted at employee 0",
+  "1 ≤ t[i] ≤ 10^9",
+  "The tree has depth at most 5000 (so recursive solutions fit in the call stack)"
+ ],
+ "examples": [
+  {
+   "input": "5\n0 0 1 1\n5 3 8 4 9",
+   "output": "2 2 0 0 0",
+   "explanation": "Employee 0 (speed 5) has reports 1, 2, 3 and 4 with speeds 3, 8, 4, 9; two of them (8 and 9) are faster. Employee 1 (speed 3) has reports 3 and 4 with speeds 4 and 9, both faster. Employees 2, 3 and 4 have no reports."
+  },
+  {
+   "input": "4\n0 1 2\n3 1 4 2",
+   "output": "1 2 0 0",
+   "explanation": "The tree is a chain 0 -> 1 -> 2 -> 3. Employee 0 (speed 3) has reports with speeds 1, 4 and 2, and only 4 is faster. Employee 1 (speed 1) has reports with speeds 4 and 2, both faster. Employee 2 (speed 4) has only a report with speed 2."
+  },
+  {
+   "input": "3\n0 0\n5 5 5",
+   "output": "0 0 0",
+   "explanation": "Equal speeds do not count, only strictly greater ones."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "A DFS Euler tour turns every subtree into a contiguous range of positions, so the question becomes: how many positions in a range hold a value greater than t[v]?",
+  "Handle the vertices in decreasing order of typing speed. Before inserting a vertex, everything already inserted is strictly faster (process equal speeds as a group: query them all first, then insert them).",
+  "Keep a Fenwick tree over Euler positions. Inserting a vertex adds 1 at its position; the answer for v is the sum over the range of v's proper descendants."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    par = [-1] + [int(x) for x in data[1:n]]\n    t = [int(x) for x in data[n:2 * n]]\n    children = [[] for _ in range(n)]\n    for i in range(1, n):\n        children[par[i]].append(i)\n    tin = [0] * n\n    tout = [0] * n\n    timer = 0\n    stack = [(0, 0)]\n    while stack:\n        v, state = stack.pop()\n        if state == 0:\n            tin[v] = timer\n            timer += 1\n            stack.append((v, 1))\n            for c in children[v]:\n                stack.append((c, 0))\n        else:\n            tout[v] = timer\n    tree = [0] * (n + 1)\n\n    def add(i):\n        i += 1\n        while i <= n:\n            tree[i] += 1\n            i += i & -i\n\n    def prefix(i):\n        s = 0\n        while i > 0:\n            s += tree[i]\n            i -= i & -i\n        return s\n\n    order = sorted(range(n), key=lambda v: -t[v])\n    ans = [0] * n\n    i = 0\n    while i < n:\n        j = i\n        while j < n and t[order[j]] == t[order[i]]:\n            j += 1\n        for x in range(i, j):\n            v = order[x]\n            ans[v] = prefix(tout[v]) - prefix(tin[v] + 1)\n        for x in range(i, j):\n            add(tin[order[x]])\n        i = j\n    print(' '.join(map(str, ans)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\npar = [-1] + [int(x) for x in data[1:n]]\nt = [int(x) for x in data[n:2 * n]]\nans = []\nfor v in range(n):\n    c = 0\n    for u in range(n):\n        if u == v:\n            continue\n        x = u\n        while x != -1 and x != v:\n            x = par[x]\n        if x == v and t[u] > t[v]:\n            c += 1\n    ans.append(c)\nprint(' '.join(map(str, ans)))\n",
+ "generator": "def gen(rng):\n    def build(n, maxdepth, mode):\n        par = [-1] * n\n        depth = [0] * n\n        for i in range(1, n):\n            if mode == 'chain':\n                p = i - 1\n                if depth[p] >= maxdepth:\n                    p = rng.randint(0, i - 1)\n                    while depth[p] >= maxdepth:\n                        p = rng.randint(0, i - 1)\n            elif mode == 'star':\n                p = 0\n            else:\n                p = rng.randint(0, i - 1)\n                while depth[p] >= maxdepth:\n                    p = rng.randint(0, i - 1)\n            par[i] = p\n            depth[i] = depth[p] + 1\n        perm = list(range(1, n))\n        rng.shuffle(perm)\n        perm = [0] + perm\n        newpar = [-1] * n\n        for i in range(1, n):\n            newpar[perm[i]] = perm[par[i]]\n        return newpar\n    def fmt(par, t):\n        n = len(t)\n        return f'{n}\\n' + ' '.join(map(str, par[1:])) + '\\n' + ' '.join(map(str, t))\n    tests = [fmt([-1], [5]), fmt([-1, 0], [1, 2]), fmt([-1, 0], [2, 1]), fmt([-1, 0, 0, 1, 1], [5, 3, 8, 4, 9]),\n             fmt([-1, 0, 1, 2], [3, 1, 4, 2]), fmt([-1, 0, 0], [5, 5, 5]), fmt([-1, 0, 1, 2, 3], [5, 4, 3, 2, 1]),\n             fmt([-1, 0, 1, 2, 3], [1, 2, 3, 4, 5])]\n    for n in (3, 5, 8, 12, 20, 30):\n        for mode in ('rand', 'chain', 'star'):\n            par = build(n, 10**9, mode)\n            hi = rng.choice([3, 10, 10**9])\n            tests.append(fmt(par, [rng.randint(1, hi) for _ in range(n)]))\n    N = 100000\n    for mode, hi in (('rand', 10**9), ('chain', 10**9), ('rand', 5), ('star', 10**9)):\n        par = build(N, 4900, mode)\n        tests.append(fmt(par, [rng.randint(1, hi) for _ in range(N)]))\n    par = build(N, 4900, 'chain')\n    tests.append(fmt(par, list(range(N, 0, -1))))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_faster(parent: List[int], t: List[int]) -> List[int]:\n    # parent[0] = -1 (the CEO); parent[i] is the manager of employee i\n    # Write your solution here\n    return [0] * len(t)\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    parent = [-1] + [int(x) for x in data[1:n]]\n    t = [int(x) for x in data[n:2 * n]]\n    print(' '.join(map(str, count_faster(parent, t))))\n\n\nmain()\n",
+  "javascript": "function countFaster(parent, t) {\n  // parent[0] = -1 (the CEO); parent[i] is the manager of employee i\n  // Write your solution here\n  return new Array(t.length).fill(0)\n}\n\nconst tok = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = tok[0]\nconst parent = [-1]\nfor (let i = 1; i < n; i++) parent.push(tok[i])\nconst t = tok.slice(n, 2 * n)\nconsole.log(countFaster(parent, t).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> countFaster(vector<int>& parent, vector<int>& t) {\n    // parent[0] = -1 (the CEO); parent[i] is the manager of employee i\n    // Write your solution here\n    return vector<int>(t.size(), 0);\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> parent(n, -1), t(n);\n    for (int i = 1; i < n; i++) cin >> parent[i];\n    for (int i = 0; i < n; i++) cin >> t[i];\n    vector<int> ans = countFaster(parent, t);\n    for (int i = 0; i < n; i++) cout << ans[i] << (i + 1 < n ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] countFaster(int[] parent, int[] t) {\n        // parent[0] = -1 (the CEO); parent[i] is the manager of employee i\n        // Write your solution here\n        return new int[t.length];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] parent = new int[n];\n        parent[0] = -1;\n        for (int i = 1; i < n; i++) {\n            in.nextToken();\n            parent[i] = (int) in.nval;\n        }\n        int[] t = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            t[i] = (int) in.nval;\n        }\n        int[] ans = countFaster(parent, t);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < n; i++) sb.append(ans[i]).append(i + 1 < n ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "6f4face7db",
+ "question": "In an Apple Software Engineer (IS&T Backend) loop, one of the technical rounds asked the candidate to **create an immutable class in Java, with full working code expected.**",
+ "lookingFor": [
+  "Knowing the rules that make a class truly immutable.",
+  "Spotting the mutable-field and leaking-reference pitfalls.",
+  "Understanding why immutability matters (thread safety, hashing, caching).",
+  "Writing clean, compilable code."
+ ],
+ "answer": "**Rules for an immutable class in Java:**\n1. Declare the class `final` (or make all constructors private) so no subclass can add mutability.\n2. Make all fields `private final`.\n3. No setters or any method that modifies state.\n4. Initialise all fields in the constructor.\n5. For fields holding **mutable objects**, make **defensive copies** in the constructor and in getters; never expose or store the caller's reference.\n6. Do not let `this` escape from the constructor.\n\n**Working example:**\n\n```java\nimport java.util.ArrayList;\nimport java.util.Collections;\nimport java.util.Date;\nimport java.util.List;\nimport java.util.Objects;\n\npublic final class Employee {\n    private final int id;\n    private final String name;\n    private final Date joined;           // mutable type\n    private final List<String> skills;   // mutable type\n\n    public Employee(int id, String name, Date joined, List<String> skills) {\n        this.id = id;\n        this.name = Objects.requireNonNull(name);\n        this.joined = new Date(joined.getTime());                     // defensive copy\n        this.skills = Collections.unmodifiableList(new ArrayList<>(skills));\n    }\n\n    public int getId() { return id; }\n    public String getName() { return name; }\n    public Date getJoined() { return new Date(joined.getTime()); }    // copy out\n    public List<String> getSkills() { return skills; }                // already unmodifiable\n\n    public Employee withName(String newName) {                        // \"modify\" by returning a new object\n        return new Employee(id, newName, joined, skills);\n    }\n\n    @Override public boolean equals(Object o) {\n        if (this == o) return true;\n        if (!(o instanceof Employee)) return false;\n        Employee e = (Employee) o;\n        return id == e.id && name.equals(e.name)\n            && joined.equals(e.joined) && skills.equals(e.skills);\n    }\n    @Override public int hashCode() { return Objects.hash(id, name, joined, skills); }\n}\n```\n\n**Why it works:** `String` and wrapper types are already immutable; `Date` and `List` are not, so we copy in and out. A shallow `unmodifiableList` of a copied list is safe because the elements (`String`) are immutable.\n\n**Benefits:** inherently thread-safe with no synchronization, safe as `HashMap` keys, easy to reason about and cache. **Costs:** a new object for each change. In modern Java, mention `record` (Java 16+), which gives immutable data carriers (still copy mutable components) and `java.time` types instead of `Date`.",
+ "followUps": [
+  "Why is String immutable in Java?",
+  "How would a record differ from this class?",
+  "What is the difference between `final` reference and immutable object?",
+  "How does immutability help in multithreaded code?"
+ ]
+}

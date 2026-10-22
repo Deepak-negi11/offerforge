@@ -1,0 +1,17 @@
+{
+ "qid": "7722a43a7c",
+ "question": "Dream11 Software Engineer on-campus, Technical Interview 2 (a resume-heavy round that also had a standard puzzle). The question: **how would you implement user activity tracking in an application?**",
+ "lookingFor": [
+  "Requirements gathering before designing.",
+  "Event schema and client/server instrumentation choices.",
+  "Scalable, reliable ingestion pipeline.",
+  "Privacy, sampling and analytics trade-offs."
+ ],
+ "answer": "**Clarify requirements.** What is being tracked: page views, clicks, feature usage, purchases? Who consumes it: product analytics, debugging, personalisation, auditing? Is it real-time or batch? Expected scale (events per second), retention period, and privacy/consent requirements (for example GDPR-style user consent, no sensitive data).\n\n**Event model.** One generic event: `event_id`, `user_id` or anonymous id, `session_id`, `event_name`, `timestamp` (client and server), `properties` (JSON), `device/app version`, `platform`. Keep a versioned schema and a naming convention; validate on ingest. `event_id` supports deduplication.\n\n**Architecture**\n1. **Client SDK.** Captures events, batches them in memory/local storage and sends periodically or on app background, with retry and offline queue. Batching saves battery and network.\n2. **Ingestion API.** Stateless, horizontally scalable endpoint behind a load balancer. It authenticates, validates, enriches (IP-based geo, server timestamp) and writes immediately to a message queue such as Kafka, returning quickly.\n3. **Stream processing.** Consumers deduplicate, sessionise, and aggregate for real-time dashboards.\n4. **Storage.** Raw events in object storage (data lake) in columnar format for batch analytics; a column store or time-series/OLAP database (for example ClickHouse, Druid) for fast queries; the operational DB is *not* used for this volume.\n5. **Serving.** Dashboards, reports, APIs.\n\n**Trade-offs and issues**\n- Delivery is at-least-once, so dedupe by `event_id`.\n- Clock skew: use server time to order or correct.\n- Sampling for very high-volume events.\n- Back-pressure and queue partitioning by user id for ordering.\n- Never let tracking slow the app: asynchronous, fire-and-forget on the client.\n- Privacy: consent, PII minimisation, retention and deletion on request.\n- Alternative for small scale: a third-party analytics tool instead of building.\n\n**Scaling.** Add partitions and consumers, autoscale ingestion, and tier storage by age.",
+ "followUps": [
+  "How would you make sure events are not lost when the app is offline?",
+  "How do you handle duplicate or out-of-order events?",
+  "How would you compute daily active users from this data?",
+  "What changes if you also need real-time alerts?"
+ ]
+}

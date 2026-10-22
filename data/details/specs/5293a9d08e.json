@@ -1,0 +1,18 @@
+{
+ "qid": "5293a9d08e",
+ "question": "IBM technical interview, SQL: **write a query for the second highest salary, then optimize it.** A Java developer interview with IBM also asked candidates to **find all employees who have the second highest salary** (not just the salary value), which is a harder variant because of ties.",
+ "lookingFor": [
+  "Correct SQL for the basic case, including the case where fewer than two distinct salaries exist.",
+  "Handling duplicates (ties) correctly.",
+  "Knowing more than one approach: subquery, `LIMIT/OFFSET`, window functions.",
+  "Optimization thinking: indexes, avoiding full sorts, reading the plan.",
+  "Clear explanation of what each query returns."
+ ],
+ "answer": "Assume `Employee(id, name, salary)`.\n\n**1. Second highest salary value (subquery, works everywhere):**\n\n```sql\nSELECT MAX(salary) AS second_highest\nFROM Employee\nWHERE salary < (SELECT MAX(salary) FROM Employee);\n```\n\nThe inner query finds the top salary; the outer finds the maximum among the rest. It returns `NULL` if there is no second distinct salary, and ties at the top do not matter because of `<`.\n\n**2. With `DISTINCT` and `OFFSET` (MySQL/PostgreSQL):**\n\n```sql\nSELECT DISTINCT salary\nFROM Employee\nORDER BY salary DESC\nLIMIT 1 OFFSET 1;\n```\n\n`DISTINCT` is essential, otherwise two people with the top salary would make the second row equal to the first. Wrap it in another `SELECT` if you need `NULL` rather than an empty result.\n\n**3. All employees with the second highest salary (the Java-developer variant):**\n\n```sql\nSELECT name, salary\nFROM Employee\nWHERE salary = (\n    SELECT MAX(salary) FROM Employee\n    WHERE salary < (SELECT MAX(salary) FROM Employee)\n);\n```\n\nOr with a window function:\n\n```sql\nSELECT name, salary FROM (\n    SELECT name, salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk\n    FROM Employee\n) t\nWHERE rnk = 2;\n```\n\nUse `DENSE_RANK`, not `RANK` (which skips numbers after ties) and not `ROW_NUMBER` (which ignores ties).\n\n**Optimization.** Create an index on `salary`. Then `MAX(salary)` and the ordered scan can read from the end of the B-tree instead of sorting the whole table. Generalize to the Nth highest with `DENSE_RANK() = N` or `OFFSET N-1`. Check the plan with `EXPLAIN` to confirm that an index is used and no filesort happens. Avoid correlated subqueries per row, which are O(n squared) without an index.",
+ "followUps": [
+  "How would you find the Nth highest salary per department?",
+  "What is the difference between RANK, DENSE_RANK and ROW_NUMBER?",
+  "What happens to your query if the table has only one distinct salary?",
+  "How does an index on salary change the execution plan?"
+ ]
+}

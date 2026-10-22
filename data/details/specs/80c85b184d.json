@@ -1,0 +1,18 @@
+{
+ "qid": "80c85b184d",
+ "question": "In a Software Engineer Intern technical interview at Airbnb, the candidate was asked to implement a simplified booking-availability system. The interviewer stressed data modelling, odd edge cases and the candidate writing their own test cases more than algorithmic difficulty. (The report does not list the exact API, so the usual operations are assumed: check availability for a listing and date range, book, and cancel.)",
+ "lookingFor": [
+  "Clarifying requirements and agreeing an API before coding",
+  "A sound data model for listings and date-range bookings",
+  "Correct interval-overlap logic, especially boundary conditions",
+  "Edge-case thinking: same-day turnover, invalid ranges, cancellations, double booking",
+  "Writing and running your own tests, plus complexity discussion"
+ ],
+ "answer": "**Clarify:** Are dates whole nights or timestamps? Is checkout day free for the next guest's check-in? Is it one unit per listing? Do we need cancel, search across listings, concurrency? Settle on an API:\n\n- `is_available(listing, start, end) -> bool`\n- `book(listing, start, end) -> booking_id` (fails if it overlaps)\n- `cancel(booking_id)`\n\n**Data model.** Treat a stay as a **half-open interval [check_in, check_out)**: the guest occupies nights `check_in ... check_out-1`. Two stays [a, b) and [c, d) overlap iff `a < d and c < b`. Half-open intervals make same-day turnover (one guest leaves the day another arrives) work naturally.\n\nStore per listing a **sorted list of non-overlapping bookings**, plus `bookings: id -> (listing, start, end)` in a hash map for cancel.\n\n```python\nimport bisect\n\nclass Calendar:\n    def __init__(self):\n        self.by_listing = {}   # listing -> sorted list of (start, end, id)\n        self.by_id = {}\n        self.next_id = 1\n\n    def is_available(self, listing, s, e):\n        if s >= e: raise ValueError(\"empty or inverted range\")\n        cal = self.by_listing.get(listing, [])\n        i = bisect.bisect_left(cal, (s,))          # first booking with start >= s\n        if i < len(cal) and cal[i][0] < e: return False   # next starts before we end\n        if i > 0 and cal[i-1][1] > s: return False         # previous ends after we start\n        return True\n```\n\n`book` calls `is_available`, then `insort`s the booking; `cancel` removes it. Check is O(log n); insert into a Python list is O(n) (use a balanced tree/`SortedList` for O(log n)).\n\n**Edge cases and tests:** back-to-back stays (end == next start, allowed), one-night stays, exact duplicate booking, a new range that fully contains or is contained by an existing one, start >= end, cancel twice or unknown id, booking after cancel, listings with no bookings, very long ranges. Write these as small asserts. For concurrency, make check-and-insert atomic per listing (lock or DB unique/exclusion constraint).",
+ "followUps": [
+  "How would you search all listings available for a given date range at scale?",
+  "How do you prevent two users double-booking the same dates concurrently?",
+  "How would you handle time zones and partial-day check-in/out?",
+  "What changes if a listing has multiple units (e.g. hotel rooms)?"
+ ]
+}

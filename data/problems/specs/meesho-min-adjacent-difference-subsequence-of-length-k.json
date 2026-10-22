@@ -1,0 +1,49 @@
+{
+ "pid": "meesho-min-adjacent-difference-subsequence-of-length-k",
+ "title": "Min Adjacent-Difference Subsequence of Length K",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `a` of `n` integers and an integer `k`.\n\nA **subsequence** of `a` is obtained by deleting zero or more elements without changing the order of the remaining ones. The **special value** of a subsequence `p` of length `m` is the sum of absolute differences between consecutive elements:\n\n`special(p) = |p[2] - p[1]| + |p[3] - p[2]| + ... + |p[m] - p[m-1]|`\n\nA subsequence with a single element has special value `0`.\n\nAmong all subsequences of `a` that have **exactly `k` elements**, find the minimum special value and print it. (Because `k ≤ n`, such a subsequence always exists.)\n\nThe original problem allowed `n` up to 10^5 and `k` up to 50 with a segment tree or BIT; the limits below are scaled so that the same layered DP with a Fenwick tree runs comfortably in all languages.",
+ "input_format": "The first line contains two integers `n` and `k`.\nThe second line contains `n` integers `a[1], ..., a[n]`.",
+ "output_format": "Print a single integer: the minimum special value over all subsequences of length `k`.",
+ "constraints": [
+  "1 ≤ n ≤ 15000",
+  "1 ≤ k ≤ min(n, 10)",
+  "1 ≤ a[i] ≤ 10^6"
+ ],
+ "examples": [
+  {
+   "input": "5 3\n1 5 2 6 3",
+   "output": "2",
+   "explanation": "Choose the subsequence `1, 2, 3` (positions 1, 3, 5). Its special value is `|2-1| + |3-2| = 2`. Any 3 elements span a range of at least 2 here, and the special value is never smaller than the range, so 2 is optimal."
+  },
+  {
+   "input": "4 2\n10 3 8 9",
+   "output": "1",
+   "explanation": "With k = 2 we only choose a pair in array order. The pair `8, 9` has difference 1, which is the best possible; `10, 9` also gives 1."
+  },
+  {
+   "input": "3 1\n7 1 9",
+   "output": "0",
+   "explanation": "A subsequence of one element has no adjacent pairs, so its special value is 0."
+  }
+ ],
+ "complexity": {
+  "time": "O(n * k * log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Let `dp[j][i]` be the minimum special value of a subsequence of length `j` that ends at position `i`. The transition is `dp[j][i] = min over p < i of dp[j-1][p] + |a[i] - a[p]|`. Done naively this is O(n^2 k).",
+  "Split the absolute value by comparing values: if `a[p] ≤ a[i]` the cost is `(dp[j-1][p] - a[p]) + a[i]`, otherwise it is `(dp[j-1][p] + a[p]) - a[i]`. So you need the minimum of one quantity over earlier positions with value ≤ `a[i]`, and of another over earlier positions with value ≥ `a[i]`.",
+  "Sweep positions left to right inside each layer `j`, keeping two Fenwick trees (prefix minima) indexed by the compressed value: one for `dp - a` and one for `dp + a` (on reversed ranks). Build each layer from the previous layer only."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    if k == 1:\n        print(0)\n        return\n    vals = sorted(set(a))\n    m = len(vals)\n    rank = {v: i + 1 for i, v in enumerate(vals)}\n    r = [rank[x] for x in a]\n    INF = 1 << 60\n    prev = [0] * n          # prev[i]: best cost of a subsequence of the current length ending at i\n    for _ in range(k - 1):\n        lo = [INF] * (m + 1)   # Fenwick over value rank: min(prev[j] - a[j]), prefix min\n        hi = [INF] * (m + 1)   # Fenwick over reversed rank: min(prev[j] + a[j]), prefix min\n        cur = [INF] * n\n        for i in range(n):\n            ai, ri = a[i], r[i]\n            q1 = INF\n            j = ri\n            while j > 0:\n                if lo[j] < q1:\n                    q1 = lo[j]\n                j -= j & -j\n            q2 = INF\n            j = m + 1 - ri\n            while j > 0:\n                if hi[j] < q2:\n                    q2 = hi[j]\n                j -= j & -j\n            c = INF\n            if q1 < INF:\n                c = q1 + ai\n            if q2 < INF and q2 - ai < c:\n                c = q2 - ai\n            cur[i] = c\n            p = prev[i]\n            if p < INF:\n                v = p - ai\n                j = ri\n                while j <= m:\n                    if v < lo[j]:\n                        lo[j] = v\n                    j += j & -j\n                v = p + ai\n                j = m + 1 - ri\n                while j <= m:\n                    if v < hi[j]:\n                        hi[j] = v\n                    j += j & -j\n        prev = cur\n    print(min(prev))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, k = int(data[0]), int(data[1])\na = [int(x) for x in data[2:2 + n]]\nINF = float('inf')\n# dp[j][i]: minimum cost of a subsequence with j elements whose last element is a[i]\ndp = [[INF] * n for _ in range(k + 1)]\nfor i in range(n):\n    dp[1][i] = 0\nfor j in range(2, k + 1):\n    for i in range(n):\n        for p in range(i):\n            if dp[j - 1][p] + abs(a[i] - a[p]) < dp[j][i]:\n                dp[j][i] = dp[j - 1][p] + abs(a[i] - a[p])\nprint(min(dp[k]))\n",
+ "generator": "def gen(rng):\n    def fmt(k, a):\n        return f'{len(a)} {k}\\n' + ' '.join(map(str, a))\n    tests = [fmt(1, [5]), fmt(1, [3, 9, 1]), fmt(2, [4, 4]), fmt(3, [7, 7, 7, 7]), fmt(2, [1, 1000000]),\n             fmt(4, [1, 2, 3, 4]), fmt(3, [9, 1, 9, 1, 9]), fmt(5, [5, 4, 3, 2, 1])]\n    for n in (3, 5, 8, 12, 20, 30):\n        for _ in range(3):\n            k = rng.randint(1, min(n, 8))\n            hi = rng.choice([5, 30, 1000])\n            tests.append(fmt(k, [rng.randint(1, hi) for _ in range(n)]))\n    N, K, L = 15000, 10, 10**6\n    tests.append(fmt(K, [rng.randint(1, L) for _ in range(N)]))\n    tests.append(fmt(K, sorted(rng.randint(1, L) for _ in range(N))))\n    tests.append(fmt(K, [rng.choice([1, L]) if i % 2 else rng.randint(1, L) for i in range(N)]))\n    tests.append(fmt(K, [rng.randint(1, 50) for _ in range(N)]))\n    tests.append(fmt(9, [L - i for i in range(N)]))\n    tests.append(fmt(1, [rng.randint(1, L) for _ in range(N)]))\n    tests.append(fmt(K, [rng.randint(1, L) for _ in range(3000)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_special_value(a: List[int], k: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    print(min_special_value(a, k))\n\n\nmain()\n",
+  "javascript": "function minSpecialValue(a, k) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst a = t.slice(2, 2 + n)\nconsole.log(String(minSpecialValue(a, k)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minSpecialValue(vector<long long>& a, int k) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    cout << minSpecialValue(a, k) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minSpecialValue(long[] a, int k) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); a[i] = (long) in.nval; }\n        System.out.println(minSpecialValue(a, k));\n    }\n}\n"
+ }
+}

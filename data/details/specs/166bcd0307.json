@@ -1,0 +1,19 @@
+{
+ "qid": "166bcd0307",
+ "question": "Uber Freight SWE III, low-level-design round. **Design a basic file system supporting `mkdir` and `ls`.** The interviewer was more interested in the design than in implementation, and **no working code was required**. The candidate was expected to: identify the main entities, define the relationships between files and directories, explain how `mkdir` creates a directory, explain how `ls` retrieves the contents, and **draw the corresponding entity/class diagram**.",
+ "lookingFor": [
+  "Choosing the right abstraction for files and directories (composite structure).",
+  "Clean relationships: parent-child, ownership, and the root.",
+  "Clear walk-through of both operations including errors.",
+  "Evidence of design-pattern knowledge, used where it genuinely helps.",
+  "Extensibility reasoning: adding rm, permissions, timestamps and more."
+ ],
+ "answer": "**Requirements and assumptions.** Single process, in memory. Operations: `mkdir(path)` and `ls(path)`. Paths are absolute, Unix style. Decide whether `mkdir -p` (create missing parents) is supported; state your choice. Files exist as well as directories, because `ls` lists both.\n\n**Entities (class diagram, in words)**\n- `FileSystemNode` (abstract): `name`, `parent`, `createdAt`, and `isDirectory()`.\n- `File extends FileSystemNode`: `content` or `size`.\n- `Directory extends FileSystemNode`: `children: Map<String, FileSystemNode>`.\n- `FileSystem`: holds the `root` Directory and exposes `mkdir(path)` and `ls(path)`.\n- Optional `PathResolver` helper that splits a path and walks the tree.\n\nThis is the **Composite pattern**: files and directories share one interface, so the tree can treat them uniformly. The relationship is *Directory has 0..* children (aggregation); each node has at most one parent. Using a map keyed by name gives O(1) lookup and enforces unique names inside a directory. Draw: `FileSystemNode` at the top with `File` and `Directory` below it and a self-referencing arrow from `Directory` to `FileSystemNode`.\n\n**mkdir(path)**\n1. Split the path into segments and walk from the root through existing directories.\n2. If an intermediate segment is missing, fail (or create it if `-p`); if it is a file, fail.\n3. If the final name already exists, return an error (or do nothing for `-p`).\n4. Create a `Directory(name, parent)` and put it in the parent's `children`.\nCost: O(depth).\n\n**ls(path)**\n1. Resolve the path to a node.\n2. If it is a directory, return its children's names in sorted order (state the order). If it is a file, return just that file's name.\n3. A missing path is an error.\nCost: O(depth + k log k) for k children.\n\n**Trade-offs and extensions**: a `TreeMap` vs `HashMap` for sorted listings; permissions and owners; `rm` and `mv` (re-parenting); a trie-like path cache for deep trees; a read-write lock for concurrency; persistence behind a storage interface.",
+ "followUps": [
+  "How would you add `rm`, and what happens when removing a non-empty directory?",
+  "How would you support wildcard patterns in `ls`?",
+  "Where would you apply the Composite pattern's weaknesses, such as `File` having a `children` method?",
+  "How would you make the file system thread-safe?",
+  "How would the design change if the file system were persisted to disk?"
+ ]
+}

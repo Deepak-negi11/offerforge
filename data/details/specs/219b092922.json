@@ -1,0 +1,18 @@
+{
+ "qid": "219b092922",
+ "question": "Reported from Round 3 (Low-Level Design) of a Paytm Senior Software Engineer interview, September 2024. Three questions, with 30 minutes for them:\n\n1. How would you handle **performance optimisation in low-level design without compromising code readability and maintainability**?\n2. What is the **role of design patterns in low-level design**? Name patterns that are **particularly useful in distributed systems**.\n3. How would you handle **concurrency in low-level system design**?\n\nA coding problem followed (nearest exit from entrance in a maze), written in a document with edge cases and a dry run.",
+ "lookingFor": [
+  "Do you hold a measured, pragmatic view of optimisation instead of premature optimisation?",
+  "Do you understand design patterns as a vocabulary for trade-offs, not as boxes to tick?",
+  "Do you know patterns relevant to distributed systems (circuit breaker, saga, retry, idempotent receiver, outbox)?",
+  "Can you name concrete concurrency tools and their pitfalls?",
+  "Do you give small examples instead of abstract statements?"
+ ],
+ "answer": "**1. Performance versus readability.**\n- **Measure first.** Profile to find the real hot path; optimise only that. Most code is not the bottleneck.\n- **Prefer algorithmic and design wins** over micro-optimisations: choose the right data structure (a hash map instead of a list scan), batch calls, cache results, avoid N+1 queries, add indexes.\n- **Encapsulate the optimisation.** Hide it behind a clean interface (for example a `CachedRepository` decorating the repository) so the rest of the code stays readable and the optimisation can be changed or removed.\n- Comment *why* a non-obvious optimisation exists, and guard it with a benchmark or test. Keep the readable version as the default.\n\n**2. Design patterns.** Patterns are named, proven solutions to recurring design problems; they give a shared vocabulary and make code more extensible (Strategy, Factory, Observer, Decorator, Builder). Do not force them; use one when it removes an actual `if/else` or coupling problem. In distributed systems the most useful are:\n- **Circuit breaker** to stop calling a failing dependency.\n- **Retry with backoff and jitter** plus **idempotent receiver** for safe retries.\n- **Saga** for multi-service transactions with compensating actions.\n- **Outbox** to publish events reliably with a DB change.\n- **Bulkhead** to isolate resource pools, **Proxy/Adapter** at service boundaries, **CQRS** and **event sourcing** where reads and writes differ, **leader election**.\n\n**3. Concurrency in LLD.**\n- Prefer **avoiding shared mutable state**: immutable objects, thread confinement, message passing.\n- When state is shared, use the narrowest correct tool: `synchronized`/locks (`ReentrantLock`, read-write locks), atomic variables, concurrent collections (`ConcurrentHashMap`, `BlockingQueue`), and thread pools (`ExecutorService`) with bounded queues.\n- Keep critical sections small, acquire locks in a fixed order to avoid deadlock, and avoid holding a lock while doing I/O.\n- At the database level, use transactions and optimistic or pessimistic locking.\n- Example: an inventory `reserve(item, qty)` with an atomic compare-and-set or a row lock to prevent overselling.\n- Test with concurrent stress tests and race detectors.",
+ "followUps": [
+  "Give an example of an optimisation that hurt readability and how you contained it.",
+  "How do circuit breaker and retry interact, and what goes wrong with naive retries?",
+  "What is the difference between optimistic and pessimistic locking, and when do you choose each?",
+  "How would you make a singleton thread-safe?"
+ ]
+}

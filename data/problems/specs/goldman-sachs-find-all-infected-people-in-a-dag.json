@@ -1,0 +1,50 @@
+{
+ "pid": "goldman-sachs-find-all-infected-people-in-a-dag",
+ "title": "Find All Infected People in a DAG",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "A group of `n` people, with ids `0` to `n - 1`, is connected by one-way contacts. A contact `u v` means that if person `u` carries the virus, person `u` passes it on to person `v`. Contacts are one-directional, and following them never leads back to the same person (the graph has no cycles).\n\nExactly one person, `start`, is infected at the beginning. The virus keeps spreading along contacts for as long as it can: everyone who can be reached from `start` by following contacts in their direction eventually gets the virus. A person is not infected just because they have a contact pointing *to* an infected person.\n\nPrint the ids of **all** people who end up with the virus, including `start` itself, in increasing order.\n\n**Follow-up:** instead of a single id, the starting infection is now a list of ids. The interviewer asked for this to be achieved with minimal changes to the code. The tests below use a single starting person.",
+ "input_format": "The first line contains two integers `n` and `m`.\nEach of the next `m` lines contains two integers `u v`, meaning a contact from `u` to `v`.\nThe last line contains the integer `start`.",
+ "output_format": "Print the ids of all infected people in increasing order, separated by spaces.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ m ≤ 1.5 * 10^5",
+  "0 ≤ u, v, start < n",
+  "The contacts form a directed acyclic graph"
+ ],
+ "examples": [
+  {
+   "input": "6 5\n0 1\n1 2\n0 3\n4 2\n3 5\n0",
+   "output": "0 1 2 3 5",
+   "explanation": "Person 0 infects 1 and 3. Person 1 infects 2 and person 3 infects 5. Person 4 only has a contact pointing to 2, so 4 is not infected."
+  },
+  {
+   "input": "5 4\n4 3\n3 2\n2 1\n1 0\n2",
+   "output": "0 1 2",
+   "explanation": "Starting from 2 the virus travels along 2 to 1 and 1 to 0. People 3 and 4 are upstream of 2 and stay healthy."
+  },
+  {
+   "input": "4 2\n0 1\n2 3\n3",
+   "output": "3",
+   "explanation": "Person 3 has no outgoing contacts, so only person 3 is infected."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Build an adjacency list: for each person, the people they can pass the virus to.",
+  "Everyone reachable from `start` is infected. A BFS or DFS from `start` marks them all.",
+  "Use an explicit stack or queue, and mark a person as visited when you first reach them so each one is processed once."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    adj = [[] for _ in range(n)]\n    p = 2\n    for _ in range(m):\n        adj[int(data[p])].append(int(data[p + 1]))\n        p += 2\n    s = int(data[p])\n    seen = [False] * n\n    seen[s] = True\n    stack = [s]\n    while stack:\n        u = stack.pop()\n        for v in adj[u]:\n            if not seen[v]:\n                seen[v] = True\n                stack.append(v)\n    print(' '.join(str(i) for i in range(n) if seen[i]))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nedges = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(m)]\ns = int(data[2 + 2 * m])\ninf = {s}\nchanged = True\nwhile changed:\n    changed = False\n    for u, v in edges:\n        if u in inf and v not in inf:\n            inf.add(v)\n            changed = True\nprint(' '.join(map(str, sorted(inf))))\n",
+ "generator": "def gen(rng):\n    def fmt(n, edges, s):\n        return '%d %d\\n' % (n, len(edges)) + ''.join('%d %d\\n' % e for e in edges) + str(s)\n\n    def dag(n, m, perm=None):\n        perm = perm or rng.sample(range(n), n)\n        es = set()\n        while len(es) < m:\n            i = rng.randint(0, n - 2)\n            j = rng.randint(i + 1, n - 1)\n            es.add((perm[i], perm[j]))\n        es = list(es)\n        rng.shuffle(es)\n        return perm, es\n\n    tests = [fmt(1, [], 0), fmt(2, [], 1), fmt(2, [(0, 1)], 0), fmt(2, [(0, 1)], 1),\n             fmt(6, [(0, 1), (1, 2), (0, 3), (4, 2), (3, 5)], 0),\n             fmt(5, [(4, 3), (3, 2), (2, 1), (1, 0)], 2),\n             fmt(4, [(0, 1), (2, 3)], 3),\n             fmt(4, [(0, 1), (0, 2), (1, 3), (2, 3)], 0),\n             fmt(4, [(0, 1), (0, 2), (1, 3), (2, 3)], 1)]\n    for _ in range(25):\n        n = rng.randint(2, 9)\n        m = rng.randint(0, min(14, n * (n - 1) // 2))\n        perm, es = dag(n, m)\n        tests.append(fmt(n, es, rng.randint(0, n - 1)))\n    N = 100000\n    chain = [(i, i + 1) for i in range(N - 2, -1, -1)]\n    tests.append(fmt(N, chain, 0))\n    perm, es = dag(N, 150000)\n    tests.append(fmt(N, es, perm[0]))\n    perm, es = dag(N, 150000)\n    tests.append(fmt(N, es, perm[N // 2]))\n    perm = rng.sample(range(N), N)\n    star = [(perm[0], perm[i]) for i in range(1, N)]\n    rng.shuffle(star)\n    tests.append(fmt(N, star, perm[0]))\n    tests.append(fmt(N, [], rng.randint(0, N - 1)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef infected(n: int, edges: List[Tuple[int, int]], start: int) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    edges = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(m)]\n    start = int(data[2 + 2 * m])\n    print(' '.join(map(str, infected(n, edges, start))))\n\n\nmain()\n",
+  "javascript": "function infected(n, edges, start) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst edges = []\nfor (let i = 0; i < m; i++) edges.push([t[2 + 2 * i], t[3 + 2 * i]])\nconst start = t[2 + 2 * m]\nconsole.log(infected(n, edges, start).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> infected(int n, vector<pair<int, int>>& edges, int start) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<pair<int, int>> edges(m);\n    for (int i = 0; i < m; i++) cin >> edges[i].first >> edges[i].second;\n    int start;\n    cin >> start;\n    vector<int> res = infected(n, edges, start);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<Integer> infected(int n, int[][] edges, int start) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] edges = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken();\n            edges[i][0] = (int) in.nval;\n            in.nextToken();\n            edges[i][1] = (int) in.nval;\n        }\n        in.nextToken();\n        int start = (int) in.nval;\n        List<Integer> res = infected(n, edges, start);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.size(); i++) sb.append(res.get(i)).append(i + 1 < res.size() ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

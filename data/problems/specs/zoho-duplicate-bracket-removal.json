@@ -1,0 +1,49 @@
+{
+ "pid": "zoho-duplicate-bracket-removal",
+ "title": "Duplicate Bracket Removal",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a valid arithmetic expression `s` made of lowercase letters (operands), the operators `+`, `-`, `*`, `/`, and round brackets. The brackets are balanced and no pair of brackets is empty. The expression contains no spaces.\n\nA pair of brackets is called **duplicate** if everything between its opening and closing bracket is exactly one other matching pair of brackets (so nothing else sits between them). For example, in `((a+b))` the outer pair is duplicate, because its content `(a+b)` is a single bracket pair. The pair in `(a)` is **not** duplicate, since its content is an operand, and the outer pair in `((a+b)*c)` is not duplicate either, since its content has more than a single bracket pair.\n\nRemove the duplicate brackets: delete the outer bracket pair of every duplicate pair, keeping the inner one, until no duplicate pair is left (so `(((x)))` becomes `(x)`). All other characters stay as they are. Print the resulting expression.",
+ "input_format": "A single line containing the expression `s`.",
+ "output_format": "Print the expression after all duplicate brackets have been removed.",
+ "constraints": [
+  "1 ≤ |s| ≤ 10^5",
+  "s contains only lowercase letters, `+`, `-`, `*`, `/`, `(` and `)`",
+  "The brackets are balanced and no pair of brackets is empty"
+ ],
+ "examples": [
+  {
+   "input": "((a+b))*c",
+   "output": "(a+b)*c",
+   "explanation": "The pair around `(a+b)` contains exactly one other pair, so the outer pair is removed."
+  },
+  {
+   "input": "(((x)))+((y)+z)",
+   "output": "(x)+((y)+z)",
+   "explanation": "In `(((x)))` the two outer pairs are duplicates, leaving `(x)`. In `((y)+z)` the outer pair also contains `+z`, so it is not a duplicate and stays."
+  },
+  {
+   "input": "((a+b)*c)",
+   "output": "((a+b)*c)",
+   "explanation": "The outer pair contains more than a single bracket pair, so nothing is removed."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Use a stack of opening-bracket positions to find, for every bracket, the position of its partner.",
+  "An opening bracket at position i with partner j is duplicate exactly when position i + 1 is an opening bracket whose partner is j - 1.",
+  "Mark the outer brackets of every duplicate pair for deletion in one pass and then print the characters that are not marked."
+ ],
+ "reference": "import sys\n\ndef main():\n    s = sys.stdin.read().split()[0]\n    n = len(s)\n    match = [-1] * n\n    st = []\n    for i, c in enumerate(s):\n        if c == '(':\n            st.append(i)\n        elif c == ')':\n            j = st.pop()\n            match[j] = i\n            match[i] = j\n    drop = [False] * n\n    for i, c in enumerate(s):\n        if c == '(' and i + 1 < n and s[i + 1] == '(' and match[i + 1] == match[i] - 1:\n            drop[i] = True\n            drop[match[i]] = True\n    print(''.join(c for i, c in enumerate(s) if not drop[i]))\n\nmain()\n",
+ "brute": "import sys\n\ns = sys.stdin.read().split()[0]\nchanged = True\nwhile changed:\n    changed = False\n    for i in range(len(s) - 1):\n        if s[i] == '(' and s[i + 1] == '(':\n            depth = 0\n            j = i\n            while True:\n                if s[j] == '(':\n                    depth += 1\n                elif s[j] == ')':\n                    depth -= 1\n                if depth == 0:\n                    break\n                j += 1\n            depth = 0\n            k = i + 1\n            while True:\n                if s[k] == '(':\n                    depth += 1\n                elif s[k] == ')':\n                    depth -= 1\n                if depth == 0:\n                    break\n                k += 1\n            if k == j - 1:\n                s = s[:i] + s[i + 1:j] + s[j + 1:]\n                changed = True\n                break\nprint(s)\n",
+ "generator": "def gen(rng):\n    ops = '+-*/'\n    names = 'abcdefghijklmnopqrstuvwxyz'\n    def term(budget, depth):\n        if depth > 0 and budget > 4 and rng.random() < 0.4:\n            s = '(' + expr(budget - 2, depth - 1) + ')'\n            while rng.random() < 0.35:\n                s = '(' + s + ')'\n            return s\n        return rng.choice(names)\n    def expr(budget, depth):\n        k = rng.randint(1, 3)\n        parts = [term(budget // k, depth) for _ in range(k)]\n        out = parts[0]\n        for p in parts[1:]:\n            out += rng.choice(ops) + p\n        return out\n    tests = ['((a+b))*c', 'a', 'a+b', '(a)', '((a))', '(((x)))', '((a+b)*c)', '(a)(b)'.replace(')(', ')+('), '((a))+((b))',\n             '((a)+(b))', '(((a)+b))', '((a+b))+((c-d))*((e))']\n    while len(tests) < 80:\n        e = expr(rng.randint(5, 30), rng.randint(1, 4))\n        if len(e) <= 300:\n            tests.append(e)\n    N = 10**5\n    tests.append('(' * 49999 + 'x' + ')' * 49999)\n    tests.append('+'.join(['((a+b))'] * 12499))\n    tests.append('(a+' * 24999 + 'z' + ')' * 24999)\n    big = []\n    size = 0\n    while size < N - 400:\n        e = expr(60, 6)\n        big.append(e)\n        size += len(e) + 1\n    tests.append('+'.join(big))\n    tests.append('(' * 25000 + 'a+b' + ')' * 25000 + '*' + '(' * 24990 + 'c' + ')' * 24990)\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef remove_duplicate_brackets(s: str) -> str:\n    # Write your solution here\n    return ''\n\n\ndef main():\n    s = sys.stdin.read().split()[0]\n    print(remove_duplicate_brackets(s))\n\n\nmain()\n",
+  "javascript": "function removeDuplicateBrackets(s) {\n  // Write your solution here\n  return ''\n}\n\nconst s = input.split(/\\s+/).filter(Boolean)[0]\nconsole.log(removeDuplicateBrackets(s))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring removeDuplicateBrackets(const string& s) {\n    // Write your solution here\n    return \"\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s;\n    cin >> s;\n    cout << removeDuplicateBrackets(s) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String removeDuplicateBrackets(String s) {\n        // Write your solution here\n        return \"\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String s = br.readLine().trim();\n        System.out.println(removeDuplicateBrackets(s));\n    }\n}\n"
+ }
+}

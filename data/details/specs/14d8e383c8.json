@@ -1,0 +1,19 @@
+{
+ "qid": "14d8e383c8",
+ "question": "Morgan Stanley Technical Interview 1 (Associate, Software Engineering, Java, about 4 years of experience reported). After a detailed discussion of the current project and a group-anagram coding question, the interviewer asked about Spring Security, multithreading and a few Java questions. The candidate fumbled on Spring Security. Another Morgan Stanley Spring Boot round also asked core Spring Boot concepts, Spring Security and connection pooling.",
+ "lookingFor": [
+  "Understanding how authentication and authorization work in Spring.",
+  "Correct mental model of the filter chain and security context.",
+  "Solid multithreading fundamentals.",
+  "Practical knowledge: JWT, password hashing, CSRF, method security.",
+  "Ability to relate to your own project."
+ ],
+ "answer": "**Spring Security basics.**\n- *Authentication* answers \"who are you\"; *authorization* answers \"what may you do\".\n- Spring Security is a chain of servlet filters (`SecurityFilterChain`) that runs before the controllers. A request passes through filters such as the authentication filter, the CSRF filter and the authorization filter.\n- Authentication flow: a filter extracts credentials (form, basic, or a JWT from the `Authorization` header), creates an `Authentication` token, and hands it to the `AuthenticationManager`, which delegates to `AuthenticationProvider`s. A provider typically uses a `UserDetailsService` to load the user and a `PasswordEncoder` to verify the password. On success the `Authentication` is stored in the `SecurityContext` (held per thread through `SecurityContextHolder`).\n- Authorization: URL rules (`authorizeHttpRequests`: `hasRole(\"ADMIN\")`) and method-level rules (`@PreAuthorize(\"hasRole('ADMIN')\")`, enabled with `@EnableMethodSecurity`).\n- Passwords are stored hashed with an adaptive algorithm such as BCrypt (`BCryptPasswordEncoder`), never in plain text.\n- For REST APIs, use stateless sessions with JWT: a custom filter validates the token, sets the `SecurityContext`, and the session policy is `STATELESS`. CSRF protection is mainly needed for cookie-based browser sessions.\n- Common configuration: CORS settings, public endpoints (login, health), and returning 401 (unauthenticated) vs 403 (forbidden).\n\n**Multithreading points.**\n- Threads vs processes, the lifecycle of a thread, `Runnable` vs `Callable`, and `ExecutorService` thread pools.\n- Race conditions and fixes: `synchronized`, `ReentrantLock`, atomic classes, `volatile` for visibility but not atomicity.\n- Deadlock conditions and avoidance by consistent lock order or timeouts.\n- `wait/notify`, `CountDownLatch`, `CompletableFuture`, `ConcurrentHashMap`.\n- `ThreadLocal` and how Spring uses it for the security context (so context does not automatically propagate to new threads).\n\n**Preparing.** Build a tiny Spring Boot app with login and JWT, and trace one request through the filter chain in a debugger; this makes the concepts concrete and gives you a story from your own project.",
+ "followUps": [
+  "Walk through what happens from the moment a request with a JWT hits your API.",
+  "What is the difference between 401 and 403?",
+  "Why should passwords be hashed with BCrypt rather than SHA-256?",
+  "How does the security context behave in a new thread or async method?",
+  "What is the difference between `synchronized` and `ReentrantLock`?"
+ ]
+}

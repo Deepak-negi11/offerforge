@@ -1,0 +1,48 @@
+{
+ "pid": "linkedin-mean-of-an-infinite-stream",
+ "title": "Mean of an Infinite Stream",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "Numbers arrive one at a time from a data stream that, in principle, never ends. After each number arrives you must report the **mean of all numbers received so far**, without storing the numbers and without letting an intermediate value overflow.\n\nTo keep the output exact, report the **floor** of each mean (the largest integer not greater than the mean). For example the floor of `-3.5` is `-4`.\n\nYou are given the first `n` values of the stream. Print the floored mean after each value.\n\nValues can be as large as `10^18` in absolute value, so the running **sum can exceed the range of a signed 64-bit integer** (for instance, ten values of `10^18` sum to `10^19`). A solution that keeps `sum` in a 64-bit variable and divides at the end is therefore not safe in languages without big integers. The reported approach avoids this by updating the mean incrementally, `mean_k = mean_(k-1) + (x_k - mean_(k-1)) / k`, so that no value larger than a few times the input range is ever formed. Here you must keep that update exact, so that the floor is correct.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` integers `x_1 ... x_n`.",
+ "output_format": "Print `n` space-separated integers: the floor of the mean of `x_1..x_k` for `k = 1, 2, ..., n`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "-10^18 ≤ x_i ≤ 10^18"
+ ],
+ "examples": [
+  {
+   "input": "5\n3 4 10 -1 6",
+   "output": "3 3 5 4 4",
+   "explanation": "The sums are 3, 7, 17, 16, 22 over 1 to 5 values, so the means are 3, 3.5, 5.67, 4, 4.4. Their floors are 3, 3, 5, 4, 4."
+  },
+  {
+   "input": "4\n-5 2 -4 -8",
+   "output": "-5 -2 -3 -4",
+   "explanation": "The means are -5, -1.5, -2.33, -3.75. Flooring rounds towards negative infinity, giving -5, -2, -3, -4."
+  },
+  {
+   "input": "10\n1000000000000000000 1000000000000000000 1000000000000000000 1000000000000000000 1000000000000000000 1000000000000000000 1000000000000000000 1000000000000000000 1000000000000000000 999999999999999999",
+   "output": "1000000000000000000 1000000000000000000 1000000000000000000 1000000000000000000 1000000000000000000 1000000000000000000 1000000000000000000 1000000000000000000 1000000000000000000 999999999999999999",
+   "explanation": "The final sum is 10^19 - 1, which does not fit in a signed 64-bit integer, but the mean is 10^18 - 0.1 whose floor is 999999999999999999."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "In Python or with BigInt you can simply keep the running sum. In 64-bit languages think about what you can store instead of the sum.",
+  "Keep the current floored mean `q` and a remainder `r` so that `sum = q*k + r` with `0 <= r < k`. This is the incremental mean update made exact.",
+  "When the k-th value arrives and the count becomes `k`, the new total is `q*(k-1) + r + x`, which equals `q*k + (r - q + x)`. Divide `(r - q + x)` by `k` using floor division and fold the quotient into `q`. Be careful to floor, not truncate, for negative numbers."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    total = 0\n    out = []\n    for k in range(1, n + 1):\n        total += int(data[k])\n        out.append(total // k)\n    print(' '.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nxs = [int(v) for v in data[1:1 + n]]\nout = []\nfor k in range(1, n + 1):\n    out.append(sum(xs[:k]) // k)\nprint(' '.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    B = 10**18\n    def fmt(xs):\n        return str(len(xs)) + '\\n' + ' '.join(map(str, xs))\n    tests = [fmt([0]), fmt([B]), fmt([-B]), fmt([7, 7, 7]), fmt([-1, -1, -1, 0]),\n             fmt([B] * 10), fmt([-B] * 10), fmt([B, -B, B, -B, B]), fmt([1, 2]), fmt([-1, -2])]\n    for n in (2, 3, 5, 8, 12, 20):\n        for _ in range(3):\n            tests.append(fmt([rng.randint(-20, 20) for _ in range(n)]))\n    for _ in range(3):\n        tests.append(fmt([rng.randint(-B, B) for _ in range(15)]))\n    tests.append(fmt([rng.randint(-B, B) for _ in range(2000)]))\n    tests.append(fmt([rng.choice([B, B - 1, -B, -B + 1]) for _ in range(3000)]))\n    tests.append(fmt([rng.randint(-B, B) for _ in range(100000)]))\n    tests.append(fmt([B - rng.randint(0, 3) for _ in range(100000)]))\n    tests.append(fmt([(-B if i % 2 else B) + rng.randint(-1, 1) * (i % 3 == 0) for i in range(60000)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef running_means(xs: List[int]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    xs = [int(v) for v in data[1:1 + n]]\n    print(' '.join(map(str, running_means(xs))))\n\n\nmain()\n",
+  "javascript": "// Values go up to 10^18, so they are parsed as BigInt (Number would lose precision).\nfunction runningMeans(xs) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0])\nconst xs = []\nfor (let i = 0; i < n; i++) xs.push(BigInt(t[1 + i]))\nconsole.log(runningMeans(xs).map(String).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> runningMeans(vector<long long>& xs) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> xs(n);\n    for (int i = 0; i < n; i++) cin >> xs[i];\n    vector<long long> res = runningMeans(xs);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] runningMeans(long[] xs) {\n        // Write your solution here\n        return new long[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int n = Integer.parseInt(st.nextToken());\n        long[] xs = new long[n];\n        for (int i = 0; i < n; i++) xs[i] = Long.parseLong(st.nextToken());\n        long[] res = runningMeans(xs);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

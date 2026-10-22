@@ -1,0 +1,49 @@
+{
+ "pid": "apple-follow-a-letter-path-in-a-grid",
+ "title": "Follow a Letter Path in a Grid",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "You are given a grid of `10` rows and `15` columns. Each row is a string of 15 characters. The cell in the first row and first column is `(0, 0)`.\n\nThe grid contains a single **path** made of cells that hold either a star `*` or a lowercase letter. Every other cell holds a dot `.`. The path has these properties:\n\n- It always starts at `(0, 0)`.\n- It moves only up, down, left or right between neighbouring cells, never diagonally.\n- It has no forks and no loops: every path cell touches (by an edge) its predecessor and its successor on the path and no other path cell, apart from the first and last cells, which touch just one path cell.\n- It has a minimum length of two cells and contains at least one letter.\n- It may start with a letter and may end with a letter.\n\nFollow the path from `(0, 0)` to its end and record the letters in the order you meet them. Do not record stars. Print the string formed by those letters.",
+ "input_format": "The first line contains two integers `r` and `c`, the number of rows and columns (always `10` and `15`).\nEach of the next `r` lines contains a string of exactly `c` characters: `*`, a lowercase letter, or `.` for an empty cell.",
+ "output_format": "Print the string of letters met along the path, in order.",
+ "constraints": [
+  "r = 10 and c = 15",
+  "The path starts at (0, 0), has at least 2 cells and at least one letter, and has no forks or loops.",
+  "Cells are `*`, lowercase letters `a`-`z`, or `.`."
+ ],
+ "examples": [
+  {
+   "input": "10 15\n*t**o*p........\n......*........\n...c**i........\n...............\n...............\n...............\n...............\n...............\n...............\n...............",
+   "output": "topic",
+   "explanation": "The path runs right along the top row from (0,0) to (0,6), turns down to (2,6), then runs left to (2,3). The letters met are t, o, p, i, c in that order; the stars are skipped."
+  },
+  {
+   "input": "10 15\ng..............\n*..............\no..............\n*..............\nd..............\n...............\n...............\n...............\n...............\n...............",
+   "output": "god",
+   "explanation": "The path goes straight down the first column from (0,0) to (4,0). It starts with a letter g, passes a star, then o, another star, and ends with the letter d."
+  },
+  {
+   "input": "10 15\n*z.............\n...............\n...............\n...............\n...............\n...............\n...............\n...............\n...............\n...............",
+   "output": "z",
+   "explanation": "The shortest possible path has two cells: a star at (0,0) followed by the letter z at (0,1)."
+  }
+ ],
+ "complexity": {
+  "time": "O(r * c)",
+  "space": "O(r * c)"
+ },
+ "hints": [
+  "Start at (0, 0). From the current cell there is exactly one next cell, except at the end of the path.",
+  "Remember which cells you have already visited so that you never step back to the previous cell. Then the next cell is the unvisited neighbour that is not a dot.",
+  "Append the character to the result only if it is a letter, and stop when no unvisited neighbour on the path remains."
+ ],
+ "reference": "import sys\n\ndef main():\n    d = sys.stdin.read().split()\n    r, c = int(d[0]), int(d[1])\n    grid = d[2:2 + r]\n    seen = [[False] * c for _ in range(r)]\n    x = y = 0\n    out = []\n    while True:\n        seen[x][y] = True\n        ch = grid[x][y]\n        if ch != '*':\n            out.append(ch)\n        moved = False\n        for dx, dy in ((0, 1), (1, 0), (0, -1), (-1, 0)):\n            nx, ny = x + dx, y + dy\n            if 0 <= nx < r and 0 <= ny < c and not seen[nx][ny] and grid[nx][ny] != '.':\n                x, y = nx, ny\n                moved = True\n                break\n        if not moved:\n            break\n    print(''.join(out))\n\nmain()\n",
+ "brute": "import sys\nfrom collections import deque\n\nd = sys.stdin.read().split()\nr, c = int(d[0]), int(d[1])\ngrid = d[2:2 + r]\ncells = {(i, j) for i in range(r) for j in range(c) if grid[i][j] != '.'}\ndist = {(0, 0): 0}\nq = deque([(0, 0)])\nwhile q:\n    x, y = q.popleft()\n    for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):\n        if (nx, ny) in cells and (nx, ny) not in dist:\n            dist[(nx, ny)] = dist[(x, y)] + 1\n            q.append((nx, ny))\norder = sorted(dist, key=lambda p: dist[p])\nprint(''.join(grid[x][y] for x, y in order if grid[x][y] != '*'))\n",
+ "generator": "def gen(rng):\n    R, C = 10, 15\n    letters = 'abcdefghijklmnopqrstuvwxyz'\n\n    def render(path, chars):\n        g = [['.'] * C for _ in range(R)]\n        for (x, y), ch in zip(path, chars):\n            g[x][y] = ch\n        return f'{R} {C}\\n' + '\\n'.join(''.join(row) for row in g)\n\n    def walk(length):\n        path = [(0, 0)]\n        used = {(0, 0)}\n        while len(path) < length:\n            x, y = path[-1]\n            opts = []\n            for dx, dy in ((0, 1), (1, 0), (0, -1), (-1, 0)):\n                nx, ny = x + dx, y + dy\n                if not (0 <= nx < R and 0 <= ny < C) or (nx, ny) in used:\n                    continue\n                ok = True\n                for ex, ey in ((nx + 1, ny), (nx - 1, ny), (nx, ny + 1), (nx, ny - 1)):\n                    if (ex, ey) in used and (ex, ey) != (x, y):\n                        ok = False\n                        break\n                if ok:\n                    opts.append((nx, ny))\n            if not opts:\n                break\n            nxt = rng.choice(opts)\n            path.append(nxt)\n            used.add(nxt)\n        return path\n\n    def chars_for(n, p):\n        cs = [rng.choice(letters) if rng.random() < p else '*' for _ in range(n)]\n        if all(ch == '*' for ch in cs):\n            cs[rng.randrange(n)] = rng.choice(letters)\n        return cs\n\n    tests = []\n    tests.append(render([(0, 0), (0, 1)], ['a', 'b']))\n    tests.append(render([(0, 0), (0, 1)], ['*', 'z']))\n    tests.append(render([(0, 0), (1, 0)], ['q', '*']))\n    # serpentine path covering most of the grid\n    snake = []\n    for row in range(0, 9, 2):\n        cols = range(C) if row % 4 == 0 else range(C - 1, -1, -1)\n        for col in cols:\n            snake.append((row, col))\n        if row < 8:\n            snake.append((row + 1, C - 1 if row % 4 == 0 else 0))\n    tests.append(render(snake, chars_for(len(snake), 0.5)))\n    tests.append(render(snake, chars_for(len(snake), 1.0)))\n    tests.append(render(snake, ['*'] * (len(snake) - 1) + ['m']))\n    for _ in range(30):\n        n = rng.randint(2, 90)\n        path = walk(n)\n        if len(path) < 2:\n            continue\n        tests.append(render(path, chars_for(len(path), rng.choice([0.2, 0.5, 0.9]))))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef follow_path(grid: List[str]) -> str:\n    # Write your solution here\n    return ''\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r = int(data[0])\n    grid = data[2:2 + r]\n    print(follow_path(grid))\n\n\nmain()\n",
+  "javascript": "function followPath(grid) {\n  // Write your solution here\n  return ''\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst r = Number(t[0])\nconst grid = t.slice(2, 2 + r)\nconsole.log(followPath(grid))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring followPath(vector<string>& grid) {\n    // Write your solution here\n    return \"\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<string> grid(r);\n    for (int i = 0; i < r; i++) cin >> grid[i];\n    cout << followPath(grid) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String followPath(String[] grid) {\n        // Write your solution here\n        return \"\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int r = Integer.parseInt(st.nextToken());\n        int c = Integer.parseInt(st.nextToken());\n        String[] grid = new String[r];\n        for (int i = 0; i < r; i++) grid[i] = br.readLine().trim();\n        System.out.println(followPath(grid));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,44 @@
+{
+ "pid": "google-min-cost-to-disconnect-all-leaves",
+ "title": "Min Cost to Disconnect All Leaves",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a tree with `n` nodes numbered `0` to `n - 1`, rooted at node `0`. Every edge has a positive integer weight. A **leaf** is a node other than the root that has no children.\n\nYou may remove edges from the tree. Removing an edge costs its weight. After the removals, **every leaf must be disconnected from the root**: there must be no path between the root and any leaf that uses only the remaining edges.\n\nFind the minimum total cost of removed edges.\n\nThe tree is a general (N-ary) tree: a node may have any number of children, so the binary-tree case is included.\n\n**Follow-up:** how would the solution change if edge weights could also be negative?",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n - 1` lines contains three integers `u`, `v`, `w`: an undirected edge between nodes `u` and `v` with weight `w`.",
+ "output_format": "Print a single integer: the minimum total weight of removed edges.",
+ "constraints": [
+  "2 ≤ n ≤ 10^5",
+  "1 ≤ w ≤ 10^6",
+  "The edges form a tree"
+ ],
+ "examples": [
+  {
+   "input": "5\n0 1 4\n0 2 3\n1 3 5\n1 4 2",
+   "output": "7",
+   "explanation": "Node 2 is a leaf hanging off the root, so the edge (0,2) of weight 3 must be cut. Node 1 has two leaf children, 3 and 4. Either cut both leaf edges (5 + 2 = 7) or cut the single edge (0,1) of weight 4, which disconnects both leaves at once. Cutting (0,1) is cheaper, so the total is 3 + 4 = 7."
+  },
+  {
+   "input": "6\n1 0 10\n2 1 1\n3 1 2\n4 0 6\n5 4 9",
+   "output": "9",
+   "explanation": "Below node 1 there are two leaves, costing 1 + 2 = 3 to cut individually, which is cheaper than the edge (0,1) of weight 10, so this branch costs 3. Node 4 has one leaf child 5: cutting (0,4) costs 6, cutting (4,5) costs 9, so this branch costs 6. The total is 3 + 6 = 9."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Root the tree at node 0 and think about one subtree at a time. What is the cheapest way to make sure every leaf inside the subtree of `v` is cut off from `v`?",
+  "For a child `c` of `v` you have two choices: cut the edge `(v, c)` and pay its weight, or keep it and pay whatever it costs to disconnect all leaves inside the subtree of `c`.",
+  "A leaf has no choice below it, so treat its own cost as infinite. Process nodes in reverse BFS order to avoid deep recursion."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.buffer.read().split()\n    n = int(data[0])\n    adj = [[] for _ in range(n)]\n    p = 1\n    for _ in range(n - 1):\n        u = int(data[p]); v = int(data[p + 1]); w = int(data[p + 2])\n        p += 3\n        adj[u].append((v, w))\n        adj[v].append((u, w))\n    INF = 10 ** 18\n    parent = [-1] * n\n    pw = [0] * n\n    order = [0]\n    seen = [False] * n\n    seen[0] = True\n    for v in order:\n        for c, w in adj[v]:\n            if not seen[c]:\n                seen[c] = True\n                parent[c] = v\n                pw[c] = w\n                order.append(c)\n    haschild = [False] * n\n    for v in order[1:]:\n        haschild[parent[v]] = True\n    cost = [0] * n\n    for v in reversed(order):\n        if v == 0:\n            break\n        c = cost[v] if haschild[v] else INF\n        cost[parent[v]] += min(pw[v], c)\n    print(cost[0])\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nedges = []\np = 1\nfor _ in range(n - 1):\n    edges.append((int(data[p]), int(data[p + 1]), int(data[p + 2])))\n    p += 3\ndeg = [0] * n\nfor u, v, w in edges:\n    deg[u] += 1\n    deg[v] += 1\nleaves = [i for i in range(1, n) if deg[i] == 1]\nbest = None\nfor mask in range(1 << (n - 1)):\n    cost = 0\n    adj = [[] for _ in range(n)]\n    for i, (u, v, w) in enumerate(edges):\n        if mask >> i & 1:\n            cost += w\n        else:\n            adj[u].append(v)\n            adj[v].append(u)\n    if best is not None and cost >= best:\n        continue\n    seen = {0}\n    st = [0]\n    while st:\n        x = st.pop()\n        for y in adj[x]:\n            if y not in seen:\n                seen.add(y)\n                st.append(y)\n    if all(l not in seen for l in leaves):\n        best = cost\nprint(best)\n",
+ "generator": "def gen(rng):\n    def build(n, parents, weights):\n        perm = list(range(1, n))\n        rng.shuffle(perm)\n        lab = [0] + perm\n        edges = []\n        for i in range(1, n):\n            a, b = lab[parents[i]], lab[i]\n            if rng.random() < 0.5:\n                a, b = b, a\n            edges.append(f'{a} {b} {weights[i]}')\n        rng.shuffle(edges)\n        return str(n) + '\\n' + '\\n'.join(edges)\n    def rand_tree(n, wmax, kind='random'):\n        parents = [0] * n\n        for i in range(1, n):\n            if kind == 'random':\n                parents[i] = rng.randrange(i)\n            elif kind == 'chain':\n                parents[i] = i - 1\n            elif kind == 'star':\n                parents[i] = 0\n            elif kind == 'binary':\n                parents[i] = (i - 1) // 2\n            elif kind == 'deep':\n                parents[i] = max(0, i - 1 - rng.randint(0, 3))\n            elif kind == 'caterpillar':\n                parents[i] = i - 2 if i % 2 == 0 and i >= 2 else (i - 1 if i % 2 == 1 else 0)\n        weights = [0] + [rng.randint(1, wmax) for _ in range(1, n)]\n        return build(n, parents, weights)\n    tests = []\n    tests.append(build(2, [0, 0], [0, 5]))\n    tests.append(build(3, [0, 0, 1], [0, 1, 1]))\n    tests.append(build(3, [0, 0, 0], [0, 4, 9]))\n    tests.append(build(4, [0, 0, 1, 2], [0, 10, 10, 10]))\n    tests.append(build(4, [0, 0, 1, 2], [0, 1, 100, 100]))\n    for _ in range(40):\n        n = rng.randint(2, 11)\n        kind = rng.choice(['random', 'random', 'chain', 'star', 'binary', 'deep'])\n        tests.append(rand_tree(n, rng.choice([3, 10, 20]), kind))\n    for kind in ('random', 'chain', 'star', 'binary', 'deep', 'caterpillar'):\n        tests.append(rand_tree(rng.randint(500, 3000), 10**6, kind))\n    for kind in ('random', 'chain', 'binary', 'deep', 'caterpillar'):\n        tests.append(rand_tree(100000, 10**6, kind))\n    tests.append(rand_tree(100000, 10, 'random'))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef min_cost(n: int, edges: List[Tuple[int, int, int]]) -> int:\n    # The tree is rooted at node 0; edges are undirected (u, v, w)\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    edges = []\n    for i in range(n - 1):\n        u, v, w = (int(x) for x in data[1 + 3 * i: 4 + 3 * i])\n        edges.append((u, v, w))\n    print(min_cost(n, edges))\n\n\nmain()\n",
+  "javascript": "function minCost(n, edges) {\n  // The tree is rooted at node 0; edges[i] = [u, v, w] (undirected)\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst edges = []\nfor (let i = 0; i < n - 1; i++) {\n  edges.push([t[1 + 3 * i], t[2 + 3 * i], t[3 + 3 * i]])\n}\nconsole.log(minCost(n, edges))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minCost(int n, vector<array<long long, 3>>& edges) {\n    // The tree is rooted at node 0; edges[i] = {u, v, w} (undirected)\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<array<long long, 3>> edges(n - 1);\n    for (int i = 0; i < n - 1; i++) cin >> edges[i][0] >> edges[i][1] >> edges[i][2];\n    cout << minCost(n, edges) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minCost(int n, long[][] edges) {\n        // The tree is rooted at node 0; edges[i] = {u, v, w} (undirected)\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[][] edges = new long[n - 1][3];\n        for (int i = 0; i < n - 1; i++) {\n            for (int j = 0; j < 3; j++) {\n                in.nextToken();\n                edges[i][j] = (long) in.nval;\n            }\n        }\n        System.out.println(minCost(n, edges));\n    }\n}\n"
+ }
+}

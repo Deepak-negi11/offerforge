@@ -1,0 +1,49 @@
+{
+ "pid": "google-transform-a-string-without-equal-neighbours",
+ "title": "Transform a String Without Equal Neighbours",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given two strings `s` and `t` of the same length `n`, each made only of the letters `x`, `y` and `z`. In both strings, no two adjacent characters are equal.\n\nIn one operation you may choose any position of `s` and change that character to a different letter, as long as the resulting string still has no two adjacent equal characters. Every intermediate string must therefore also have no equal neighbours.\n\nFind the minimum number of operations needed to turn `s` into `t`. (It can be shown that this is always possible.)\n\nThe expected solution runs in time linear in `n`; a search over the possible strings is far too slow.",
+ "input_format": "The first line contains the string `s`.\nThe second line contains the string `t`.",
+ "output_format": "Print a single integer: the minimum number of operations.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "`s` and `t` have the same length and consist only of `x`, `y`, `z`",
+  "No two adjacent characters of `s` are equal, and the same holds for `t`"
+ ],
+ "examples": [
+  {
+   "input": "zxyz\nzyxz",
+   "output": "6",
+   "explanation": "One shortest sequence is zxyz → yxyz → yzyz → xzyz → xzxz → xyxz → zyxz. Directly swapping the two middle letters is impossible, since changing either one would create equal neighbours, so the letters have to be routed around the outside."
+  },
+  {
+   "input": "xyx\nzyz",
+   "output": "2",
+   "explanation": "Change the first x to z (zyx), then the last x to z (zyz). Each step keeps the neighbours different."
+  },
+  {
+   "input": "x\nz",
+   "output": "1",
+   "explanation": "A single character has no neighbours, so it can be changed directly."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Treat x, y, z as 0, 1, 2 modulo 3. Since neighbours differ, each step from one character to the next is either +1 or -1 modulo 3, so the string is a walk that goes up or down by 1.",
+  "Lift that walk to real integer heights. Changing one interior letter flips a local peak into a valley (or the reverse), which moves one height by exactly 2; the first and last letters can also move by 2. The number of operations between two lifted walks is the sum of the height differences divided by 2.",
+  "The lift of `t` is only determined up to adding a multiple of 6 to every height. Choose that shift to minimise the total absolute difference; a median argument gives it in linear time."
+ ],
+ "reference": "import sys\n\ndef lift(s):\n    v = ['xyz'.index(c) for c in s]\n    h = [{0: 0, 1: 4, 2: 2}[v[0]]]\n    for i in range(1, len(v)):\n        h.append(h[-1] + (1 if (v[i] - v[i - 1]) % 3 == 1 else -1))\n    return h\n\ndef main():\n    data = sys.stdin.read().split()\n    a, b = data[0], data[1]\n    n = len(a)\n    h, g = lift(a), lift(b)\n    off = 2 * n + 10\n    cnt = [0] * (2 * off + 1)\n    e = []\n    for i in range(n):\n        x = h[i] - g[i]\n        e.append(x)\n        cnt[x + off] += 1\n    need = n // 2 + 1\n    acc = 0\n    med = 0\n    for v in range(len(cnt)):\n        acc += cnt[v]\n        if acc >= need:\n            med = v - off\n            break\n    k0 = med // 6\n    best = None\n    for k in (k0, k0 + 1):\n        c = 0\n        for x in e:\n            c += abs(x - 6 * k)\n        c //= 2\n        if best is None or c < best:\n            best = c\n    print(best)\n\nmain()\n",
+ "brute": "import sys\nfrom collections import deque\n\ndata = sys.stdin.read().split()\ns, t = data[0], data[1]\nn = len(s)\ndist = {s: 0}\nq = deque([s])\nwhile q:\n    u = q.popleft()\n    if u == t:\n        break\n    for i in range(n):\n        for c in 'xyz':\n            if c == u[i]:\n                continue\n            if i > 0 and u[i - 1] == c:\n                continue\n            if i < n - 1 and u[i + 1] == c:\n                continue\n            v = u[:i] + c + u[i + 1:]\n            if v not in dist:\n                dist[v] = dist[u] + 1\n                q.append(v)\nprint(dist[t])\n",
+ "generator": "def gen(rng):\n    def rs(n):\n        s = [rng.choice('xyz')]\n        for _ in range(n - 1):\n            s.append(rng.choice([c for c in 'xyz' if c != s[-1]]))\n        return ''.join(s)\n\n    def cyc(n, order, start):\n        return ''.join(order[(start + i) % 3] for i in range(n))\n\n    def fmt(a, b):\n        return a + '\\n' + b\n\n    tests = [fmt('x', 'y'), fmt('x', 'x'), fmt('z', 'x'), fmt('xy', 'yx'), fmt('xy', 'xy'), fmt('xz', 'zx'),\n             fmt('zxyz', 'zyxz'), fmt('xyz', 'zyx'), fmt('xyx', 'zyz'), fmt('xyxy', 'yxyx')]\n    for n in range(1, 9):\n        for _ in range(3):\n            tests.append(fmt(rs(n), rs(n)))\n    for _ in range(12):\n        n = rng.randint(2, 8)\n        tests.append(fmt(rs(n), rs(n)))\n    tests.append(fmt('xyzyzyxyzx', 'xzyzyzyxzy'))\n    tests.append(fmt('xyxyxyxyxy', 'xzyxyxzyxz'))\n    tests.append(fmt('xyxyzyzyxy', 'zyzyxzyzyz'))\n    tests.append(fmt('xzxyxyzyzyxyzx', 'zyzyxzyzyzyxzy'))\n    n = 100000\n    tests.append(fmt(rs(n), rs(n)))\n    tests.append(fmt(cyc(n, 'xyz', 0), cyc(n, 'zyx', 0)))\n    tests.append(fmt(cyc(n, 'xyz', 0), cyc(n, 'zyx', 1)))\n    tests.append(fmt(cyc(n, 'xyz', 1), cyc(n, 'xyz', 0)))\n    tests.append(fmt(('xy' * n)[:n], ('yx' * n)[:n]))\n    tests.append(fmt(rs(20000), rs(20000)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef min_operations(s: str, t: str) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    print(min_operations(data[0], data[1]))\n\n\nmain()\n",
+  "javascript": "function minOperations(s, t) {\n  // Write your solution here\n  return 0\n}\n\nconst tokens = input.split(/\\s+/).filter(Boolean)\nconsole.log(String(minOperations(tokens[0], tokens[1])))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minOperations(const string& s, const string& t) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s, t;\n    cin >> s >> t;\n    cout << minOperations(s, t) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minOperations(String s, String t) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String s = br.readLine().trim();\n        String t = br.readLine().trim();\n        System.out.println(minOperations(s, t));\n    }\n}\n"
+ }
+}

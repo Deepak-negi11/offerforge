@@ -1,0 +1,17 @@
+{
+ "qid": "2518432900",
+ "question": "Cognizant GenC technical interview (SQL): **explain the difference between `DELETE`, `TRUNCATE` and `DROP`.** One candidate was also asked to **predict the output of each statement on two given tables**.\n\nCandidates frequently report \"difference between DELETE and TRUNCATE\" as part of the DBMS and SQL basics, together with DDL versus DML, joins, ACID properties and why `COMMIT` is used.",
+ "lookingFor": [
+  "Understanding of DML versus DDL and what each statement removes.",
+  "Knowledge of rollback, logging, triggers and identity behaviour.",
+  "Ability to predict query results precisely.",
+  "Awareness that behaviour differs by database."
+ ],
+ "answer": "| | `DELETE` | `TRUNCATE` | `DROP` |\n|---|---|---|---|\n| Type | DML | DDL | DDL |\n| Removes | Rows (all or filtered) | All rows | The whole table (data, structure, indexes) |\n| `WHERE` clause | Yes | No | No |\n| Table structure | Kept | Kept | Removed |\n| Speed | Slower (row by row, logged per row) | Fast (deallocates data pages, minimal logging) | Fast |\n| Triggers | Row-level `DELETE` triggers fire | Do not fire | Do not fire |\n| Auto-increment/identity | Not reset | Reset to the start | Gone with the table |\n| Rollback | Yes, inside a transaction | Depends on the database (see below) | Depends on the database |\n\n```sql\nDELETE FROM employees WHERE dept = 'HR';   -- removes only HR rows\nTRUNCATE TABLE employees;                  -- removes every row, keeps the table\nDROP TABLE employees;                      -- table no longer exists\n```\n\n**Predicting output on two tables.** Suppose tables `A` and `B` each have 3 rows.\n- After `DELETE FROM A WHERE id = 2;` then `SELECT * FROM A` shows the 2 remaining rows, and `B` is unchanged.\n- After `TRUNCATE TABLE B;` then `SELECT * FROM B` returns an **empty result with the column headers**, because the structure still exists.\n- After `DROP TABLE B;` then `SELECT * FROM B` raises an error such as \"table does not exist\", because the table itself is gone.\n\n**Database differences (say this, it shows depth).** `TRUNCATE` is treated as DDL: in MySQL and Oracle it causes an implicit commit and cannot be rolled back, while PostgreSQL and SQL Server allow it to be rolled back inside a transaction. Many databases refuse to truncate a table that is referenced by a foreign key. Check the documentation of the database in use.\n\n**When to use which:** `DELETE` for removing specific rows with a condition, with triggers and the ability to roll back; `TRUNCATE` to quickly empty a table, such as a staging table; `DROP` when the table is no longer needed.",
+ "followUps": [
+  "Why is TRUNCATE faster than DELETE?",
+  "Can you roll back a TRUNCATE or a DROP?",
+  "What is the difference between DDL, DML, DCL and TCL?",
+  "What happens to foreign key references when you DELETE or TRUNCATE a parent table?"
+ ]
+}

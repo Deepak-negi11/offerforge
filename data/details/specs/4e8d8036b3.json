@@ -1,0 +1,19 @@
+{
+ "qid": "4e8d8036b3",
+ "question": "In a Paytm Hiring Manager round for a Software Engineer (1-2 years of experience), after some coding questions, the candidate was asked to **design database tables that support the features of the Splitwise application**. The candidate created 4-5 tables and explained how they handled the features, but the interviewer was **not impressed with this design** and asked them to improve it.\n\nSplitwise lets people share expenses in groups or one-to-one: add an expense, split it among people, track who owes whom, and settle up.",
+ "lookingFor": [
+  "Can you identify the entities and relationships behind an expense-sharing app?",
+  "Do you handle uneven splits (equal, exact, percentage, shares) and multiple payers?",
+  "Can you separate the source of truth (expenses) from derived data (balances) and justify it?",
+  "Do you use keys, constraints, indexes and correct money types?",
+  "Do you handle edits, deletes, settlements and consistency with transactions?"
+ ],
+ "answer": "**Features to support.** Users and friends, groups, adding an expense (who paid, how it is split), balances (\"you owe X\") per group and overall, simplifying debts, settling up, and an activity history.\n\n**Core tables.**\n- `users(id PK, name, email UNIQUE, phone, created_at)`\n- `groups(id PK, name, created_by FK, created_at)`\n- `group_members(group_id FK, user_id FK, joined_at, PRIMARY KEY (group_id, user_id))`\n- `expenses(id PK, group_id FK NULL, description, total_amount DECIMAL(12,2), currency, split_type, created_by, created_at, deleted_at)`. A NULL `group_id` can mean a one-to-one expense.\n- `expense_payers(expense_id FK, user_id FK, paid_amount DECIMAL)`: supports several payers.\n- `expense_splits(expense_id FK, user_id FK, owed_amount DECIMAL)`: each person's share, computed at write time whatever the split type (equal, exact, percent, shares).\n- `settlements(id PK, group_id NULL, from_user FK, to_user FK, amount, created_at)`: a payment made to clear a debt.\n- Optional `friendships(user_a, user_b, status)` and `activity_log`.\n\n**Why it works.** Per expense, the net position of a user is `paid_amount - owed_amount`. Summing these across expenses and adding settlements gives the balance between any two users. Store money as `DECIMAL` (or integer minor units) and never as a float; check that splits add up to the total.\n\n**Balances.** Computing every balance from the full history is always correct but slow for large groups. Keep a **derived** table `balances(group_id, from_user, to_user, amount)` updated in the same database transaction as each expense or settlement, and treat expenses as the source of truth so balances can be rebuilt. The \"simplify debts\" feature is computed on read (net each user, then match the largest creditor with the largest debtor).\n\n**Indexes.** `expenses(group_id, created_at)`, `expense_splits(user_id)`, `expense_payers(user_id)`, `group_members(user_id)`.\n\n**Edits and deletes.** Soft-delete or version expenses, and reverse the balance effect in the same transaction. Wrap writes in a transaction to keep expense rows, splits and balances consistent.\n\n**Common mistake:** a single wide expenses table with a comma-separated list of participants, which breaks queries and constraints.",
+ "followUps": [
+  "How would you store an expense where three people paid different amounts?",
+  "How do you compute 'how much does Alice owe Bob overall'?",
+  "Should balances be stored or computed on demand, and why?",
+  "How would you minimize the number of transactions needed to settle a group?",
+  "How would you support multiple currencies?"
+ ]
+}

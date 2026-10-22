@@ -1,0 +1,17 @@
+{
+ "qid": "22b32fc9a6",
+ "question": "AMD SDE 2 interview (about 2-6 years of experience), final in-depth technical round of around 2 hours with many coding tasks. One reported task: **write functions to allocate and deallocate memory for a dynamically sized matrix, and then write code to multiply two matrices.**",
+ "lookingFor": [
+  "Correct dynamic memory management with no leaks and with error handling.",
+  "Choice of layout: array of pointers versus a single contiguous block.",
+  "Correct triple loop with dimension checks and complexity analysis.",
+  "Awareness of cache behaviour and overflow concerns."
+ ],
+ "answer": "**Design choice.** A single contiguous block is simpler to allocate and free, and is more cache friendly than an array of row pointers. Index it as `m->data[i * cols + j]`.\n\n```c\n#include <stdlib.h>\n\ntypedef struct { size_t rows, cols; double *data; } Matrix;\n\nMatrix *mat_alloc(size_t rows, size_t cols)\n{\n    Matrix *m = malloc(sizeof *m);\n    if (!m) return NULL;\n    m->data = calloc(rows * cols, sizeof *m->data);   /* zeroed; check overflow of rows*cols */\n    if (!m->data) { free(m); return NULL; }\n    m->rows = rows; m->cols = cols;\n    return m;\n}\n\nvoid mat_free(Matrix *m)\n{\n    if (!m) return;\n    free(m->data);\n    free(m);\n}\n\nMatrix *mat_mul(const Matrix *a, const Matrix *b)\n{\n    if (a->cols != b->rows) return NULL;               /* dimension check */\n    Matrix *c = mat_alloc(a->rows, b->cols);\n    if (!c) return NULL;\n    for (size_t i = 0; i < a->rows; i++)\n        for (size_t k = 0; k < a->cols; k++) {         /* i-k-j order is cache friendly */\n            double aik = a->data[i * a->cols + k];\n            for (size_t j = 0; j < b->cols; j++)\n                c->data[i * c->cols + j] += aik * b->data[k * b->cols + j];\n        }\n    return c;\n}\n```\n\n**Explain the key points:**\n- A product is defined only if `a.cols == b.rows`, and the result is `a.rows x b.cols`.\n- Time is O(n*m*p) (O(n^3) for square matrices); extra space is the result.\n- The i-k-j loop order accesses both `b` and `c` row-wise, which is far friendlier to the cache than the naive i-j-k order.\n- Check for NULL on every allocation, and avoid leaking `m` if the second allocation fails.\n- `calloc` checks the multiplication overflow in many implementations, but if you use `malloc(rows * cols * sizeof ...)` check for overflow explicitly.\n- The alternative (array of row pointers) needs `rows + 1` allocations and a free loop.\n\n**If asked about improvements:** blocking (tiling) for cache, SIMD, multithreading, or Strassen's algorithm (about O(n^2.81)) for very large matrices.",
+ "followUps": [
+  "How would you allocate a matrix as an array of row pointers and free it safely?",
+  "How would you improve cache behaviour of the multiplication further?",
+  "How do you guard against integer overflow in `rows * cols`?",
+  "How would you parallelise the multiplication across threads?"
+ ]
+}

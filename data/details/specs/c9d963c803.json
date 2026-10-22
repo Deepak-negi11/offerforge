@@ -1,0 +1,18 @@
+{
+ "qid": "c9d963c803",
+ "question": "**How would you design Twitter?** (System design, SWE Intern, Netflix.) No further detail was reported, so expect to scope the problem yourself: posting tweets, following users, and viewing a timeline at scale.",
+ "lookingFor": [
+  "Can you scope an open-ended problem and state assumptions and scale?",
+  "Do you understand the core read-heavy workload and the timeline fan-out problem?",
+  "Can you design APIs, a data model and the main components?",
+  "Do you identify bottlenecks (celebrity users, hot keys) and propose fixes?",
+  "Can you discuss caching, sharding and consistency trade-offs?"
+ ],
+ "answer": "**Requirements.** Functional: post a tweet (short text, optional media), follow and unfollow, home timeline (tweets from people you follow), like. Non-functional: highly available, low-latency reads, eventual consistency is fine for timelines. Assume about 300M users, 100M daily active, reads far outnumbering writes (for example 100 to 1).\n\n**Estimates.** If 100M users post 2 tweets a day, that is about 200M tweets a day, around 2,300 per second on average, with higher peaks. Timeline reads are in the hundreds of thousands per second, so reads dominate the design.\n\n**APIs.** `POST /tweets`, `POST /follow/{userId}`, `GET /timeline?cursor=`, `POST /tweets/{id}/like`.\n\n**Data model.** `User(id, ...)`, `Tweet(id, authorId, text, mediaUrl, createdAt)`, `Follow(followerId, followeeId)`, `Like(tweetId, userId)`. Use time-sortable ids (Snowflake style). Tweets in a sharded store or wide-column DB, the follow graph in a store optimized for lookups in both directions, media in object storage with a CDN.\n\n**Timeline generation.**\n- *Fan-out on write (push):* when a user tweets, a worker inserts the tweet id into each follower's timeline list in a cache (Redis). Reads are one cache lookup. Cost: a user with millions of followers triggers millions of writes.\n- *Fan-out on read (pull):* fetch recent tweets of followed users at request time and merge. Cheap writes, slower reads.\n- *Hybrid:* push for normal users, pull for celebrities and merge at read time. This is the standard compromise.\n\n**Components.** Load balancer, API servers, tweet service, timeline service, fan-out workers on a message queue, caches, sharded databases, object store with CDN, search/trending as a later extension.\n\n**Scaling and bottlenecks.** Shard tweets by id and timelines by user id, replicate for availability, cache hot tweets, use async counters for likes, handle hot keys by splitting counters, and rate limit to protect the system.\n\n**Trade-offs.** Fresh timelines versus write cost, strong versus eventual consistency (a delayed tweet is acceptable, a lost one is not).",
+ "followUps": [
+  "How would you handle a celebrity with tens of millions of followers?",
+  "How would you build trending topics?",
+  "How would you store and serve images and videos?",
+  "How do you ensure a tweet is not lost if a fan-out worker crashes?"
+ ]
+}

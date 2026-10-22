@@ -1,0 +1,19 @@
+{
+ "qid": "1420cda1a1",
+ "question": "Groww SDE intern interview (HR plus system design round). Reported question: **design an Event Management System**. Discussion covered the **overall architecture, entities, APIs, database, concurrency and transactional functionality**. The interviewer asked the candidate to **explain the transactional functionality in detail**, followed by scenario-based questions and follow-ups.",
+ "lookingFor": [
+  "Structured approach: requirements, scale, entities, APIs, then deep dives.",
+  "Sound data modelling and API design.",
+  "Understanding of transactions and ACID, and where they matter (booking, payment).",
+  "Concurrency handling, such as overselling the last ticket.",
+  "Trade-offs and sensible scaling for a student-level design."
+ ],
+ "answer": "**Requirements.** Functional: organisers create and manage events (title, venue, time, capacity, ticket types); users browse and search events, register or book tickets, pay, and cancel; notifications and reminders. Non-functional: no overbooking, high availability for browsing, consistent bookings. Assume, say, 1M users and a read-heavy workload with spikes at ticket release. State your assumptions.\n\n**Entities.** `User`, `Organizer`, `Event`, `Venue`, `TicketType` (price, quantity), `Booking` (user, event, status, expiry), `Payment`, `Notification`.\n\n**APIs.** `POST /events`, `GET /events?query&city&date`, `GET /events/{id}`, `POST /events/{id}/bookings`, `POST /bookings/{id}/pay`, `DELETE /bookings/{id}`. Use idempotency keys on booking and payment calls.\n\n**Components.** Clients, an API gateway, an event service, a booking service, a payment service (through a third-party gateway), a notification worker fed by a queue, a relational database, a cache for popular event pages, and a search index for discovery.\n\n**Data model.** Relational, since bookings need integrity: `events`, `ticket_types(available_count)`, `bookings(status: PENDING/CONFIRMED/CANCELLED/EXPIRED)`, `payments`. Index by city and date for browsing.\n\n**Transactions (the deep dive).** Booking must be atomic: reserve the ticket, create the booking, and later confirm on payment. In a single database transaction: `UPDATE ticket_types SET available = available - :n WHERE id = :id AND available >= :n`, check the affected row count, then insert the booking as PENDING. Either both happen or neither does (**atomicity**), the count never goes negative (**consistency**), concurrent buyers do not see half-applied changes (**isolation**), and committed bookings survive a crash (**durability**). If payment fails or the hold expires, a job restores the count. Alternatives: `SELECT ... FOR UPDATE` row locks, or optimistic version checks with retry. Payment across services uses a saga with compensation instead of a distributed transaction.\n\n**Scaling.** Cache reads, add read replicas, shard by event for hot launches, put a waiting queue in front of very popular events.",
+ "followUps": [
+  "How do you prevent two users from buying the last ticket?",
+  "What isolation levels exist and which would you choose for booking?",
+  "What happens if payment succeeds but confirmation fails?",
+  "How would you handle a flash sale with 100,000 users at once?",
+  "How would you design search for events?"
+ ]
+}

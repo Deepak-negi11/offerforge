@@ -1,0 +1,19 @@
+{
+ "qid": "48b996a359",
+ "question": "Implement a stack using a linked list in a language of your choice and make it thread-safe. The code must be executable. Then, in the last ten minutes of the interview, implement a version that uses the compare-and-swap (CAS) approach instead of locks.\n\nThe candidate who reported this solved the locked version easily but could only describe CAS in theory, so be ready to write a working lock-free version.",
+ "lookingFor": [
+  "Can you implement push and pop on a linked list correctly, including the empty case?",
+  "Do you know how to make it safe with a lock and what that costs?",
+  "Do you understand compare-and-swap, retry loops and lock-free progress guarantees?",
+  "Do you know the ABA problem and memory reclamation issues?",
+  "Can you write runnable code under time pressure?"
+ ],
+ "answer": "**Basic stack.** Nodes hold `value` and `next`. `push` makes a node whose `next` is the old head; `pop` returns the head's value and moves head to `next`, or signals empty.\n\n**Thread-safe with a lock.** Wrap `push` and `pop` in the same mutex (`synchronized`, `ReentrantLock`, or `threading.Lock` in Python). Both read and write `head`, so both need the lock. It is simple and obviously correct, but threads block, and a thread holding the lock that is descheduled stalls everyone.\n\n**Lock-free with CAS (Treiber stack).** CAS(addr, expected, new) atomically sets addr to new only if it still equals expected, and reports success.\n\n```java\nclass LockFreeStack<T> {\n  private static class Node<T> { final T v; Node<T> next; Node(T v){this.v=v;} }\n  private final AtomicReference<Node<T>> head = new AtomicReference<>();\n\n  void push(T v) {\n    Node<T> n = new Node<>(v);\n    do { n.next = head.get(); }\n    while (!head.compareAndSet(n.next, n));\n  }\n  T pop() {\n    Node<T> h;\n    do {\n      h = head.get();\n      if (h == null) return null;      // empty\n    } while (!head.compareAndSet(h, h.next));\n    return h.v;\n  }\n}\n```\n\nIf another thread changed `head` between the read and the CAS, the CAS fails and the loop retries with fresh state. Some thread always makes progress (lock-free), though an individual thread may retry repeatedly.\n\n**ABA problem.** `head` is A; thread 1 reads A and its `next` B; thread 2 pops A, pops B, pushes A back; thread 1's CAS succeeds because head is still A, but `B` is no longer in the stack. In garbage-collected languages, fresh node objects mostly avoid this. In C/C++ with reused memory, use tagged pointers (a version counter), hazard pointers, or epoch reclamation. Java also has `AtomicStampedReference`.\n\n**Python note:** it has no user-level CAS on plain objects; with the GIL you would simulate it with a lock or use `queue.LifoQueue`. Say so, and write the CAS version in Java or C++.",
+ "followUps": [
+  "What is the ABA problem and how do you avoid it?",
+  "When is a lock-free structure actually faster than a lock?",
+  "What are the progress guarantees: lock-free vs wait-free vs obstruction-free?",
+  "How would you add a size() method safely?",
+  "Why is memory reclamation hard in lock-free structures without a GC?"
+ ]
+}

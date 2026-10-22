@@ -1,0 +1,19 @@
+{
+ "qid": "d553ecdade",
+ "question": "Flipkart SDE-2 design round (LLD + HLD, about 48 minutes remaining after the interviewer joined late): **design a customer-support chatbot** similar to how Swiggy and Zomato answer FAQs, **resolve known issues**, and **connect the user to a customer-care specialist if the issue is not resolved**. The discussion covered both the low-level design and the high-level design, with the interviewer pressing for quick answers.",
+ "lookingFor": [
+  "Clear scoping when time is short.",
+  "A workable conversational flow: FAQ, issue resolution, escalation.",
+  "Component design and extensibility for new issue types.",
+  "Handoff to humans with context preserved.",
+  "Measuring success and handling failure."
+ ],
+ "answer": "**Clarify and scope quickly.** Channels (in-app chat), languages, whether free-text understanding is required or a guided menu is acceptable, authenticated users with order context, and success metrics (deflection rate, resolution rate, CSAT, time to resolve).\n\n**Requirements.** Functional: answer FAQs, identify the user's issue (for example missing item, refund status), fetch order data, run known resolution flows (refund, re-delivery), escalate to a human with the transcript. Non-functional: low latency (a second or two), high availability, extensible flows, audit of conversations.\n\n**High-level design.**\n- Client/WebSocket (or HTTP) -> **Chat gateway** -> **Conversation service** (session state, history in Redis/DB).\n- **Intent classifier / NLU** (rules and keyword matching first; an ML model or LLM with retrieval for FAQs later) returns intent and confidence.\n- **FAQ/knowledge service** (search index or vector search over articles).\n- **Resolution engine**: each known issue is a *workflow* (state machine) that calls backend services (orders, payments, refunds) through adapters.\n- **Escalation service**: below a confidence threshold, after repeated failure, or on user request, create a ticket and route to an agent queue with transcript and context.\n- **Agent desk** with live handoff, analytics and feedback.\n\n**Low-level design.** `ChatSession`, `Message`, `Intent`, interface `IssueHandler { boolean canHandle(Intent); Response handle(Session, Message); }` with one class per issue (Strategy/Chain of Responsibility), a `HandlerRegistry`, `EscalationPolicy`, `ConversationState` (state pattern), `KnowledgeBase`.\n\n**Trade-offs.** Rules are predictable but rigid; ML covers more phrasing but needs data and fallbacks. Never let the bot loop: cap retries and always offer a human. Never expose another user's data; verify the user's identity before showing order details.\n\n**Metrics and failure.** Track deflection, fallback rate and escalations, and review failed conversations.",
+ "followUps": [
+  "How would you decide when to escalate to a human?",
+  "How do you add a new issue type without changing core code?",
+  "How would you use an LLM safely here, and how would you evaluate it?",
+  "How would you preserve context during handoff to an agent?",
+  "How would you handle thousands of concurrent chats?"
+ ]
+}

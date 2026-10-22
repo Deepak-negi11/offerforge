@@ -1,0 +1,17 @@
+{
+ "qid": "802ae685af",
+ "question": "Rubrik system coding round (Software Engineer CPD / G6, 1 hour, **working code required**): there are **N worker nodes, each with a FIFO task queue.** Implement `addTask(node, task)`, `runTask()` (run the next task on a node), `printTasks()` (show each node's queued tasks) and `rebalanceLoad()`, which **moves tasks away from overloaded nodes** to others. Tasks must run in the order they entered the queue. One reported solution balanced by pending-task count so that each node holds at most about the average.",
+ "lookingFor": [
+  "Clean object model for nodes and tasks.",
+  "A well-defined rebalancing policy with clear invariants.",
+  "FIFO ordering preserved by the data structure.",
+  "Thought about complexity, tie-breaking and concurrency."
+ ],
+ "answer": "**Clarify:** is load just the task count, or does each task have a cost (CPU weight)? Which tasks may move, and from which end of the queue? Does `runTask` run one task on a given node or one on every node? Should rebalancing preserve overall order? Is the system multi-threaded? State your assumptions.\n\n**Model.**\n- `Task(id, cost=1)`.\n- `Node(id, queue: Deque<Task>, load)`.\n- `Scheduler(nodes)`: `addTask(nodeId, task)` appends to that node's queue and updates its load; `runTask(nodeId)` pops from the front (FIFO), runs or simulates it, updates load; `printTasks()` prints each node's queue.\n\n**Rebalance (count or weight based).**\n1. Compute `total` load and `target = ceil(total / N)`.\n2. Overloaded nodes are those with `load > target`; underloaded ones have `load < target`.\n3. Move surplus tasks from the *tail* of an overloaded queue (these are the newest and have waited least, so earlier tasks keep their place) to the underloaded node with the lowest load, using a min-heap keyed by load. Stop when no node exceeds the target or no helpful move remains.\n4. Complexity: O(N) to compute loads plus O(M log N) for M moved tasks.\n\nFor weighted tasks, moving a task of cost c only helps if it narrows the gap, that is when `donor.load - receiver.load > c`. This is a bin-balancing problem that is NP-hard in general, so greedy is acceptable; say so.\n\n**Trade-offs and edge cases.**\n- Moving from the tail preserves FIFO for the tasks that stay; the moved tasks go to the receiver's tail.\n- Empty node set, N = 1, all queues equal, and nodes removed or added (re-run rebalance).\n- Concurrency: per-node lock, and lock two nodes in id order when moving tasks to avoid deadlock.\n- Stability: avoid ping-pong by rebalancing only when imbalance exceeds a threshold.\n\nWrite a small driver that adds skewed work, calls `rebalanceLoad`, and prints queues before and after as your test.",
+ "followUps": [
+  "How would you prevent tasks from moving back and forth between nodes?",
+  "What changes if tasks have different CPU costs or must stay on specific nodes?",
+  "How would you make this safe for concurrent addTask and runTask calls?",
+  "How would you make rebalancing work in a truly distributed setting, where nodes are different machines?"
+ ]
+}

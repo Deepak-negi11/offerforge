@@ -1,0 +1,18 @@
+{
+ "qid": "c6dd923f4d",
+ "question": "In a second technical round for a 6-month SDE intern role at Myntra (Ramp Up programme), after project discussion (a Python automation script and a RAG chatbot) and DSA, the candidate was asked about the **features of Google Meet** and how one of them could be **designed at a high level**. The interviewer did not specify which feature, so choose one core feature and state your scope.",
+ "lookingFor": [
+  "Picking a focused scope in a vague prompt",
+  "Understanding of real-time media concepts at a high level",
+  "Sound component design and the signalling vs media distinction",
+  "Awareness of scale and latency trade-offs",
+  "Communication and willingness to discuss alternatives"
+ ],
+ "answer": "**Pick a scope.** Say: \"Meet has many features: video calls, screen share, chat, recording, captions. I will design the core, a multi-party video call, and mention the others at the end.\" Confirm group size (assume up to around 100 participants) and the latency target (under 300 to 400 ms end to end).\n\n**Requirements.** Create or join a meeting by link, audio/video for several participants, in-call chat, screen share, mute/unmute, work on poor networks. Non-functional: low latency, high availability, security (encryption in transit, meeting access control).\n\n**High-level components.**\n- **Meeting service** (REST): create meetings, generate IDs and links, check permissions, store metadata in a database.\n- **Signalling server** (WebSocket): clients exchange session descriptions and network candidates to set up media connections (the WebRTC offer/answer flow) and receive join/leave events and chat messages.\n- **NAT traversal**: STUN servers help clients learn their public addresses; TURN servers relay media when a direct path is impossible.\n- **Media path**: peer-to-peer mesh is fine for 2 participants but explodes with N, since each client uploads N-1 streams. For groups use an **SFU** (selective forwarding unit): each client uploads one stream to the SFU, which forwards it to the others without decoding. Simulcast (several resolutions per sender) lets the SFU pick the quality each receiver can handle. An MCU (server mixes streams) uses less client bandwidth but far more server CPU.\n- **Adaptation**: bandwidth estimation, adaptive bitrate, packet-loss recovery, and fallback to audio only.\n- **Chat**: over the signalling channel or a message service with persistence.\n- **Recording and captions**: the SFU duplicates a stream to a recorder, written to object storage and processed asynchronously; speech-to-text feeds captions.\n\n**Scaling.** Stateless meeting and signalling services behind load balancers; place SFUs by region so users connect to the nearest one; assign a meeting to one SFU (or cascade SFUs for very large meetings); autoscale on active streams, not requests.\n\n**Trade-offs to state.** Mesh vs SFU vs MCU; latency vs quality; TURN relay cost; end-to-end encryption conflicts with server-side recording and captions.",
+ "followUps": [
+  "Why can't a pure peer-to-peer mesh handle a 50-person meeting?",
+  "What do STUN and TURN do and when is each used?",
+  "How would you implement recording without hurting call quality?",
+  "How would you handle a participant on a very poor network?"
+ ]
+}

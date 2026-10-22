@@ -1,0 +1,19 @@
+{
+ "qid": "6d83ca5113",
+ "question": "LinkedIn software engineer onsite, design round: **design search-as-you-type autocomplete for LinkedIn's person search**. The candidate reported only the prompt, and that the design round went normal but not great with room for improvement. Expect to discuss requirements, how suggestions are matched and ranked, how they are served at low latency, and how they are kept fresh.",
+ "lookingFor": [
+  "Can you set requirements: latency, scale, personalisation and result types?",
+  "Do you pick an appropriate prefix-matching structure (trie, prefix index) and explain it?",
+  "Do you design ranking that fits people search (network distance, popularity, context)?",
+  "Do you use caching and sharding to meet very low latency?",
+  "Do you cover data freshness, privacy and failure handling?"
+ ],
+ "answer": "**Requirements.** Return the top suggestions (for example 5 to 10) for a typed prefix in under about 100 ms end to end, ideally tens of milliseconds server-side. People search differs from query autocomplete: candidates are member names, headlines and companies, and the best result depends on the viewer (your connections rank higher) and on privacy settings. Assume hundreds of millions of members and very high query volume (each keystroke is a request).\n\n**Matching.** A **trie** stores prefixes, and each node keeps its top-K completions precomputed, so lookup is O(length of prefix). Alternatives: an inverted index over name n-grams (edge n-grams) in a search engine, which handles multi-token names (\"john sm\" should match \"John Smith\") and typos better. Normalise input: lowercase, strip accents, tokenise first and last names.\n\n**Ranking.** Score = text match quality + social signals (connection degree, mutual connections, same company or school) + popularity (profile views, recent interactions) + recency. A two-stage approach works: cheap candidate retrieval of a few hundred, then a lightweight ranker. Personalise by also searching a small per-user index of their connections, then merge with global results.\n\n**Architecture.** Client debounces input (wait about 100 to 150 ms), cancels stale requests, and caches results by prefix. Server: API gateway to the typeahead service to index shards (by name prefix or member id) plus a connections store. Hot prefixes (\"a\", \"jo\") are cached in memory (Redis or a local cache) with short TTLs.\n\n**Freshness.** New members and name changes flow through a pipeline (change events to index builders) to update indexes in near real time; periodic rebuilds fix drift. Popularity scores update offline.\n\n**Other concerns.** Respect privacy and blocked users, rate-limit, degrade gracefully (fall back to cached or simpler results), and measure success with click-through, position of the selected result and zero-result rate.",
+ "followUps": [
+  "Trie vs inverted index with n-grams: when would you choose each?",
+  "How would you personalise results using the viewer's connections?",
+  "How do you keep the index fresh as members join or change names?",
+  "How would you handle typos and non-English names?",
+  "How would you measure whether autocomplete quality improved?"
+ ]
+}

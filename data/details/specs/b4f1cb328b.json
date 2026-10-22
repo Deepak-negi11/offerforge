@@ -1,0 +1,18 @@
+{
+ "qid": "b4f1cb328b",
+ "question": "In a low-level design round for a Java full-stack associate role at Morgan Stanley, the candidate was asked to design an **Employee Attendance System**. Only the topic was reported, so the requirements are open: clarify them with the interviewer and then design the classes, relationships and key methods in an object-oriented way, preferably in Java.",
+ "lookingFor": [
+  "Whether you clarify requirements before drawing classes",
+  "Clean object modelling: entities, responsibilities, relationships",
+  "Use of SOLID principles and patterns where they genuinely help",
+  "Handling of edge cases such as missed punch-out, time zones, leave and holidays",
+  "Ability to move from classes to code for the core flow"
+ ],
+ "answer": "**Clarify first.** Employees only or also managers/HR? Punch in/out via swipe, web or mobile? Shifts and flexible hours? Leave, holidays, regularisation requests? Reports needed? Single office or many time zones? Assume a mid-size company, a few thousand employees, correctness over throughput.\n\n**Core entities.**\n- `Employee` (id, name, department, manager, shift)\n- `Shift` (start, end, grace period, weekly off days)\n- `AttendanceRecord` (employee, date, list of `Punch` events, status, worked duration)\n- `Punch` (timestamp, type IN/OUT, source)\n- `LeaveRequest` (employee, range, type, status), `Holiday`\n- `AttendanceStatus` enum: PRESENT, ABSENT, HALF_DAY, ON_LEAVE, HOLIDAY, WEEKLY_OFF\n\n**Services.**\n- `AttendanceService.punchIn/punchOut(employeeId, time)` validates state (cannot punch out without an in, no duplicate in), appends a punch, and updates the day record.\n- `AttendancePolicy` interface with `evaluate(record, shift)` returning a status. Implementations such as `StandardPolicy` and `FlexiblePolicy` are swapped per department (Strategy pattern), so rules like \"less than 4 hours = half day\" are not hard-coded.\n- `LeaveService` for apply/approve, `ReportService` for monthly summaries and late-arrival counts.\n- Repositories (`AttendanceRepository`, `EmployeeRepository`) as interfaces so storage can be in-memory for the interview and a DB in production.\n- Use an observer or event for notifications when someone is absent or a regularisation is requested.\n\n**Data model.** `attendance(employee_id, date, status, first_in, last_out, worked_minutes)` with a unique key on `(employee_id, date)`, and a `punch` table with an index on `(employee_id, ts)`. Store timestamps in UTC and convert with the employee's zone.\n\n**Edge cases.** Missing punch-out (flag for regularisation, do not guess), overnight shifts (assign to the shift start date), duplicate swipes (idempotency window), concurrent punches (unique constraint or a lock per employee), clock skew.\n\n**Scaling and extension.** Morning peak writes are small appends; partition punches by month, cache the shift and holiday calendars, and compute daily status in a nightly job as well as on demand. Walk through `punchIn` end to end and mention how you would unit test the policy classes.",
+ "followUps": [
+  "How would you support different attendance rules for different departments without if/else chains?",
+  "How do you handle an employee who forgets to punch out, and who approves the correction?",
+  "How would the design change to support a million punches per hour from many offices?",
+  "Which design patterns did you use and what would you drop if the problem stayed small?"
+ ]
+}

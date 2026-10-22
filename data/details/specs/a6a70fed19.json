@@ -1,0 +1,18 @@
+{
+ "qid": "a6a70fed19",
+ "question": "The interviewer asked **scenario-based, tricky SQL questions** because you had used SQL in your project: they covered **triggers and joins** and asked you to write queries quickly. They then asked about **AWS IAM** and, because OAuth was listed on your resume, asked you to **explain how OAuth works**.",
+ "lookingFor": [
+  "Fluency writing joins and understanding what they return.",
+  "Knowing what a trigger is, when it fires, and its drawbacks.",
+  "Reasoning under time pressure about edge cases such as NULLs and duplicates.",
+  "Conceptual clarity on OAuth 2.0 and IAM for anything on your resume."
+ ],
+ "answer": "**Joins.** Use `INNER JOIN` for matching rows, `LEFT JOIN` to keep all rows from the left table, and `LEFT JOIN ... WHERE right.id IS NULL` to find rows with no match.\n\n```sql\n-- Customers with no orders\nSELECT c.id, c.name\nFROM customer c\nLEFT JOIN orders o ON o.customer_id = c.id\nWHERE o.id IS NULL;\n\n-- Employees earning more than their manager\nSELECT e.name\nFROM employee e\nJOIN employee m ON e.manager_id = m.id\nWHERE e.salary > m.salary;\n```\n\nWatch for: filters on the right table placed in `WHERE` instead of `ON` (which turns a left join into an inner join), duplicates from one-to-many joins, and `NULL` never equalling `NULL`.\n\n**Triggers.** A trigger is stored code that runs automatically on `INSERT`, `UPDATE` or `DELETE`, `BEFORE` or `AFTER`, per row or per statement. Typical uses: audit logs, maintaining derived values, enforcing rules.\n\n```sql\nCREATE TRIGGER trg_salary_audit\nAFTER UPDATE ON employee\nFOR EACH ROW\n  INSERT INTO salary_audit (emp_id, old_salary, new_salary, changed_at)\n  VALUES (OLD.id, OLD.salary, NEW.salary, NOW());\n```\n\n(This is MySQL syntax; PostgreSQL uses a trigger function.) `OLD` and `NEW` refer to the row before and after. Drawbacks: hidden logic, harder debugging, performance cost, cascading triggers.\n\n**OAuth 2.0.** A delegation protocol: an app gets limited access to a user's resources without their password. In the authorization code flow, the app redirects the user to the authorization server, the user logs in and consents, the server returns a one-time **code**, the app exchanges it (with its client secret or PKCE) for an **access token** (and optionally a refresh token), and calls the resource API with `Authorization: Bearer <token>`. Scopes limit what the token can do. OAuth is authorization; OpenID Connect adds authentication on top.\n\n**AWS IAM.** Identity and Access Management controls who can do what: **users**, **groups**, **roles** (assumed temporarily by services or users) and **policies** (JSON documents with allow/deny on actions and resources). Follow least privilege, prefer roles over long-lived keys, and enable MFA.",
+ "followUps": [
+  "What is the difference between a trigger and a stored procedure?",
+  "Write a query for the second-highest salary per department.",
+  "Why might a LEFT JOIN with a WHERE filter on the right table return fewer rows than expected?",
+  "What is the difference between an access token and a refresh token?",
+  "What is the difference between an IAM user and an IAM role?"
+ ]
+}

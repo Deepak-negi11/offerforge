@@ -1,0 +1,18 @@
+{
+ "qid": "275016eb91",
+ "question": "PhonePe design round (Software Engineer): **design a parking lot** with all the classes and a **class diagram**, drawn on a whiteboard. Then the interviewer asked how you would write an **algorithm to guide a car to its parking spot**; this led to a discussion of **how Google Maps works**.",
+ "lookingFor": [
+  "Can you identify entities and relationships and draw a clear class diagram?",
+  "Do you apply OOP and patterns (Strategy for pricing and spot allocation, Factory for vehicles)?",
+  "Can you design spot allocation and handle edge cases such as a full lot?",
+  "Can you model the lot as a graph and choose a shortest-path algorithm for guidance?",
+  "Can you extend the discussion to routing at scale (Google Maps-style ideas)?"
+ ],
+ "answer": "**Requirements:** multiple floors, spot types (compact, regular, large, EV, handicapped), vehicle types, entry and exit gates, ticket on entry, fee on exit, and display of availability. Confirm scope before drawing.\n\n**Classes:**\n- `ParkingLot` (singleton-like facade) has `List<Floor>`, `List<EntryGate>`, `List<ExitGate>`.\n- `Floor(id, List<ParkingSpot>)`; `ParkingSpot(id, type, status, floor)`.\n- `Vehicle` (abstract; `Car`, `Bike`, `Truck`) with a `VehicleType`.\n- `Ticket(id, vehicle, spot, entryTime)`; `Payment`; `PricingStrategy` interface (hourly, flat, by vehicle type); `SpotAllocationStrategy` (nearest to the gate, lowest floor first).\n- `ParkingService.park(vehicle)` finds a spot through the strategy, marks it occupied, and issues a ticket. `unpark(ticket)` computes the fee through the pricing strategy, takes payment and frees the spot.\n\n**Concurrency:** two cars must not get the same spot, so the allocate-and-mark step is atomic (lock per floor or per spot, or a concurrent queue of free spots per type).\n\n**Efficiency:** keep a free-spot structure per spot type (a queue or a `TreeSet` ordered by distance from the entry), so allocation is O(1) or O(log n), not a scan.\n\n**Guiding the car (the follow-up):** model the lot as a **graph**: nodes are junctions and spots, edges are lanes with distance (and an optional penalty for one-way lanes or ramps between floors). From the entry gate, the shortest path to the assigned spot is found with **BFS** if edges are equal weight, or **Dijkstra** if weighted, and **A\\*** with a heuristic (Manhattan distance) on a grid. Return turn-by-turn directions to display on boards or an app. If lanes can be blocked or occupied, recompute.\n\n**Google Maps link:** road networks are huge graphs; plain Dijkstra is too slow, so production routing uses precomputation such as contraction hierarchies or hierarchical road levels, plus live traffic edge weights and tiled map data. I would not go deeper than I know; say what is a general idea and leave out specifics of Google's internal system.\n\n**Mistakes to avoid:** a god class, a class diagram without behaviour, and ignoring concurrency or a full lot.",
+ "followUps": [
+  "Which pattern would you use for different pricing rules and why?",
+  "How do you allocate a spot atomically when several cars arrive together?",
+  "When would you pick BFS, Dijkstra or A* for the guidance?",
+  "How would you extend this to multiple parking lots across a city with reservations?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "235c52bb99",
+ "question": "Microsoft SDE-2 high-level design round with a Principal Architect (about 1 hour): **design Cricbuzz**, a live cricket score service, at scale.\n\nThe candidate reported that the interviewer supplied many requirements when asked about **number of users and scale issues**, then asked many follow-up questions and wanted **precise answers**.",
+ "lookingFor": [
+  "Gathering requirements and sizing the load (users, matches, burst traffic).",
+  "Read-heavy, fan-out design with caching and push or poll delivery.",
+  "Handling traffic spikes during big matches.",
+  "Precise reasoning about consistency, latency and failure modes.",
+  "Clear structure and communication under follow-up pressure."
+ ],
+ "answer": "**Requirements.** Functional: live score, ball-by-ball commentary, scorecards, match schedule, stats and news. Non-functional: very read-heavy, low latency (a few seconds of staleness is acceptable), high availability, and huge spikes during marquee matches. Ask the interviewer for numbers. As an example assumption: tens of millions of concurrent viewers at peak, but only a handful of live matches at a time, so the *write* volume is tiny (a few updates per second per match) while reads are enormous.\n\n**Write path.** Official scorers or a data feed enter events (ball, wicket, extras) through an authenticated **Scoring Service**. Events are validated, appended to a durable log (Kafka) and the match state (score, overs, batsmen) is updated in a primary store. Writes are ordered per match (partition by match id), so one writer per match avoids conflicts.\n\n**Read path.** The latest match state is a small JSON blob. Publish it to a **cache (Redis) and CDN**. Clients get it by short polling with a 1-3 second TTL, or by **WebSocket/Server-Sent Events** from a fleet of push servers that subscribe to a pub/sub channel per match. Polling via CDN is simplest and absorbs spikes because all clients share the same cached object; push is better for commentary and lower latency.\n\n**Data model.** Matches, teams, players, innings, balls (match_id, innings, over, ball, event); aggregates (scorecards) are derived and cached. Historical stats go to a relational or columnar store; search for players/news uses an inverted index.\n\n**Scaling and failure.** Stateless API servers behind a load balancer; multi-region replicas; CDN absorbs most traffic; per-match caching; rate limiting and request coalescing to prevent a cache stampede when a key expires; graceful degradation (serve slightly stale score, drop non-essential widgets). Ads and notifications run off the same event stream.\n\n**Trade-offs.** Polling is simple and CDN-friendly but wasteful; push gives freshness but needs sticky connections and fan-out infrastructure.\n\n**Mistakes to avoid:** designing for write scale instead of read scale, and skipping the numbers.",
+ "followUps": [
+  "How would you estimate the peak requests per second and size the cache?",
+  "Polling vs WebSocket: which would you choose and why?",
+  "How do you avoid a cache stampede when the score key expires?",
+  "How would you send push notifications for wickets to millions of users?"
+ ]
+}

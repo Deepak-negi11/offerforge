@@ -1,0 +1,18 @@
+{
+ "qid": "595ab811f6",
+ "question": "Capgemini technical interview: design a database schema for a given platform and write three queries on it. The reported item does not name the platform or the queries, so this write-up uses a typical example (an online store) to show the approach you can reuse for any platform.",
+ "lookingFor": [
+  "Identifying entities, attributes and relationships from a vague requirement",
+  "Normalisation, primary and foreign keys, and correct handling of many-to-many relations",
+  "Choosing sensible data types and constraints",
+  "Writing joins, aggregation and filtering queries correctly",
+  "Explaining design choices and trade-offs aloud"
+ ],
+ "answer": "**Process.** Clarify the platform and what must be answerable, list entities and relationships, draw the tables with keys, then write the queries.\n\n**Example: online store.**\n\n    customers(customer_id PK, name, email UNIQUE, created_at)\n    products(product_id PK, name, price, stock)\n    orders(order_id PK, customer_id FK, order_date, status)\n    order_items(order_id FK, product_id FK, quantity, unit_price,\n                PRIMARY KEY (order_id, product_id))\n\nA customer places many orders (one-to-many); orders and products are many-to-many, resolved by the junction table `order_items`. Storing `unit_price` there preserves the price at purchase time even if the product price later changes. Apply `NOT NULL` and `CHECK (quantity > 0)` constraints, and index foreign keys used in joins.\n\n**Three queries.**\n\n1. Orders with customer names in the last 30 days:\n\n        SELECT o.order_id, c.name, o.order_date\n        FROM orders o JOIN customers c ON c.customer_id = o.customer_id\n        WHERE o.order_date >= CURRENT_DATE - INTERVAL '30' DAY;\n\n2. Total spend per customer, highest first:\n\n        SELECT c.name, SUM(oi.quantity * oi.unit_price) AS total_spent\n        FROM customers c\n        JOIN orders o ON o.customer_id = c.customer_id\n        JOIN order_items oi ON oi.order_id = o.order_id\n        GROUP BY c.customer_id, c.name\n        ORDER BY total_spent DESC;\n\n3. Customers who never ordered:\n\n        SELECT c.name FROM customers c\n        LEFT JOIN orders o ON o.customer_id = c.customer_id\n        WHERE o.order_id IS NULL;\n\n**Explain as you go.** `JOIN` keeps matching rows only, `LEFT JOIN ... IS NULL` finds absence, `GROUP BY` with an aggregate summarises. Date arithmetic syntax differs by database, so mention your assumed dialect.\n\n**Normalisation.** Say why you separated tables (avoid repeating customer data in every order, avoid update anomalies), and note when you would denormalise (reporting).\n\n**Mistakes to avoid.** Many-to-many without a junction table, missing keys, storing comma-separated lists in a column, and using `SELECT *` or non-aggregated columns outside `GROUP BY`.",
+ "followUps": [
+  "Which indexes would you add and why?",
+  "How would you model product categories, including nested categories?",
+  "How would you prevent two customers from buying the last item in stock at the same time?",
+  "What is the difference between `INNER JOIN` and `LEFT JOIN`?"
+ ]
+}

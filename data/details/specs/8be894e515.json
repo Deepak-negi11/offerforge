@@ -1,0 +1,18 @@
+{
+ "qid": "8be894e515",
+ "question": "Goldman Sachs Associate (experienced), Software Engineering Practices round, a resume-based interview. Because the candidate had worked on caching, the interviewer asked: **If you want to implement caching for a distributed system, how would you implement it?** Then: **What are the different caching techniques (write-back, write-through, write-around) in detail, and when would you prefer which?**",
+ "lookingFor": [
+  "Understanding of read and write caching patterns and their consistency/durability trade-offs.",
+  "Awareness of the extra problems a distributed cache introduces (partitioning, invalidation, failures).",
+  "Ability to choose a strategy from workload characteristics.",
+  "Practical depth: TTL, eviction, stampede protection."
+ ],
+ "answer": "**Distributed cache design.** Put an in-memory store (Redis or Memcached) in front of the database, run as a cluster. Keys are partitioned across nodes with consistent hashing so adding or removing a node moves only a small share of keys; replicas give availability. Apply a TTL plus an eviction policy (LRU/LFU) to bound memory and staleness. Typical read path is **cache-aside**: check cache, on a miss read the DB and populate the cache. Also protect the database from a thundering herd on a hot key expiry (request coalescing, a lock, or jittered TTLs).\n\n**Write strategies.**\n- **Write-through:** every write goes to the cache and the database synchronously before the call returns. Cache is always consistent with the DB and reads are fast; writes are slower, and data that is never read still fills the cache. Prefer for read-heavy data that must be consistent, such as user profiles or reference data.\n- **Write-back (write-behind):** write to the cache and acknowledge immediately; flush to the database asynchronously in batches. Very fast writes and fewer DB writes, but data can be lost if the cache node fails before flushing, and the DB is temporarily stale. Prefer for write-heavy workloads that tolerate small loss, like counters, metrics or view counts, ideally with replication or a durable log.\n- **Write-around:** write straight to the database and skip the cache; the cache fills only when the data is read. Avoids polluting the cache with data that is written once and rarely read (logs, bulk imports), but the first read after a write is a miss, and a stale cached value must be invalidated explicitly.\n\n**Choosing:** consistency-critical and read-heavy: write-through (or cache-aside with invalidate-on-write). Write-heavy, loss-tolerant: write-back. Write-once, read-rarely: write-around.\n\n**Distributed concerns:** keeping cache and DB consistent (delete the key after the DB write, since update-then-write races), node failure (fall back to DB, avoid retry storms), hot keys (local near-cache or replicate the key), and monitoring hit ratio.",
+ "followUps": [
+  "How do you keep the cache and database consistent when two writers race?",
+  "What is a cache stampede and how do you prevent it?",
+  "How does consistent hashing help when a cache node is added?",
+  "How would you make write-back durable?",
+  "Cache-aside vs read-through: what is the difference?"
+ ]
+}

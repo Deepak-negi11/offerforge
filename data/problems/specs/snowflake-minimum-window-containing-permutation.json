@@ -1,0 +1,50 @@
+{
+ "pid": "snowflake-minimum-window-containing-permutation",
+ "title": "Minimum Window Containing Permutation",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A special string `s` consists only of the digit characters `0`-`9`. Its characters are consumed sequentially from the left: the first `1` in the string is the leftmost `1`, the second `1` is the next one to its right, and so on.\n\nYou are also given `m` query strings, each made of digits. For a query `q`, determine the minimum number of characters that must be taken from the **start** of `s` (that is, the shortest prefix of `s`) such that a **permutation** of `q` can be constructed from the characters of that prefix. A permutation of `q` can be constructed when, for every digit, the prefix contains at least as many copies of that digit as `q` does; each character of the prefix may be used at most once, and unused characters are ignored.\n\nFor each query print that minimum prefix length. If no prefix of `s` (including the whole string) can supply a permutation of `q`, print `-1` for that query.\n\nQueries are independent of each other.",
+ "input_format": "The first line contains the string `s`.\nThe second line contains an integer `m`.\nThe third line contains `m` space-separated query strings.",
+ "output_format": "Print `m` space-separated integers, the answer to each query in order.",
+ "constraints": [
+  "1 ≤ |s| ≤ 10^5",
+  "1 ≤ m ≤ 10^5",
+  "Every query is a non-empty string of digits; the total length of all queries is at most 5 · 10^5",
+  "`s` consists of digits 0-9"
+ ],
+ "examples": [
+  {
+   "input": "064819848398\n3\n088 364 07",
+   "output": "7 10 -1",
+   "explanation": "For `088` we need one `0` and two `8`s: the second `8` appears at index 6, so the prefix has length 7. For `364` the last needed digit, `3`, appears at index 9, so the length is 10. `s` contains no `7`, so the answer for `07` is -1."
+  },
+  {
+   "input": "1122\n3\n21 2211 111",
+   "output": "3 4 -1",
+   "explanation": "`21` needs one `1` and one `2`; the first `2` is at index 2, so the prefix `112` (length 3) works. `2211` needs both `2`s, so the whole string (length 4) is needed. `111` needs three `1`s but `s` has only two."
+  },
+  {
+   "input": "5\n2\n5 55",
+   "output": "1 -1",
+   "explanation": "One `5` is available at the very start; two are not."
+  }
+ ],
+ "complexity": {
+  "time": "O(|s| + total query length)",
+  "space": "O(|s|)"
+ },
+ "hints": [
+  "For a single query, only the number of copies of each digit matters, not the order of its characters.",
+  "The needed prefix must be long enough for every digit separately, so the answer is the maximum of the per-digit requirements.",
+  "Record, for each digit, the list of positions where it occurs in `s`. If a query needs c copies of digit d, the requirement for d is the position of the c-th occurrence plus one, or impossible if there are fewer than c occurrences."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    s = data[0]\n    m = int(data[1])\n    qs = data[2:2 + m]\n    pos = [[] for _ in range(10)]\n    for i, ch in enumerate(s):\n        pos[ord(ch) - 48].append(i)\n    out = []\n    for q in qs:\n        cnt = [0] * 10\n        for ch in q:\n            cnt[ord(ch) - 48] += 1\n        ans = 0\n        for d in range(10):\n            c = cnt[d]\n            if c == 0:\n                continue\n            if c > len(pos[d]):\n                ans = -1\n                break\n            ans = max(ans, pos[d][c - 1] + 1)\n        out.append(ans)\n    print(' '.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\nfrom collections import Counter\n\ndata = sys.stdin.read().split()\ns = data[0]\nm = int(data[1])\nqs = data[2:2 + m]\nout = []\nfor q in qs:\n    need = Counter(q)\n    res = -1\n    for L in range(0, len(s) + 1):\n        have = Counter(s[:L])\n        if all(have[d] >= c for d, c in need.items()):\n            res = L\n            break\n    out.append(res)\nprint(' '.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def fmt(s, qs):\n        return s + '\\n' + str(len(qs)) + '\\n' + ' '.join(qs)\n\n    def rs(n, alpha):\n        return ''.join(rng.choice(alpha) for _ in range(n))\n\n    def shuffled(x):\n        l = list(x)\n        rng.shuffle(l)\n        return ''.join(l)\n\n    tests = [\n        fmt('064819848398', ['088', '364', '07']),\n        fmt('1122', ['21', '2211', '111']),\n        fmt('5', ['5', '55']),\n        fmt('0', ['0']),\n        fmt('0', ['1']),\n        fmt('0123456789', ['9876543210', '0', '9']),\n        fmt('9999', ['99', '9999', '99999']),\n    ]\n    for _ in range(40):\n        n = rng.randint(1, 20)\n        alpha = rng.choice(['01', '012', '0123456789'])\n        s = rs(n, alpha)\n        qs = []\n        for _ in range(rng.randint(1, 8)):\n            if rng.random() < 0.6:\n                a = rng.randint(0, n - 1)\n                b = rng.randint(a + 1, n)\n                qs.append(shuffled(s[a:b]) if rng.random() < 0.7 else rs(rng.randint(1, 5), alpha))\n            else:\n                qs.append(rs(rng.randint(1, 6), alpha))\n        tests.append(fmt(s, qs))\n    N = 100000\n    s = rs(N, '0123456789')\n    qs = [rs(rng.randint(1, 8), '0123456789') for _ in range(50000)]\n    tests.append(fmt(s, qs))\n    # many impossible queries: a digit absent from s\n    s = rs(N, '012345678')\n    qs = [rs(rng.randint(1, 8), '012345678') + '9' for _ in range(50000)]\n    tests.append(fmt(s, qs))\n    # queries needing almost the whole string\n    s = rs(N, '01')\n    qs = []\n    c0 = s.count('0')\n    c1 = s.count('1')\n    for _ in range(3):\n        qs.append('0' * rng.randint(c0 - 3, c0) + '1' * rng.randint(c1 - 3, c1))\n    qs.append('0' * (c0 + 1))\n    tests.append(fmt(s, qs))\n    s = '0' * N\n    qs = ['0'] * 100000\n    tests.append(fmt(s, qs))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_prefix_lengths(s: str, queries: List[str]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    s = data[0]\n    m = int(data[1])\n    queries = data[2:2 + m]\n    print(' '.join(map(str, min_prefix_lengths(s, queries))))\n\n\nmain()\n",
+  "javascript": "function minPrefixLengths(s, queries) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst s = t[0]\nconst m = Number(t[1])\nconst queries = t.slice(2, 2 + m)\nconsole.log(minPrefixLengths(s, queries).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> minPrefixLengths(string& s, vector<string>& queries) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s;\n    int m;\n    cin >> s >> m;\n    vector<string> queries(m);\n    for (auto& q : queries) cin >> q;\n    vector<int> res = minPrefixLengths(s, queries);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] minPrefixLengths(String s, String[] queries) {\n        // Write your solution here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        String s = st.nextToken();\n        int m = Integer.parseInt(st.nextToken());\n        String[] queries = new String[m];\n        for (int i = 0; i < m; i++) queries[i] = st.nextToken();\n        int[] res = minPrefixLengths(s, queries);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

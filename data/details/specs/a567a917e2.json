@@ -1,0 +1,19 @@
+{
+ "qid": "a567a917e2",
+ "question": "At an SDE-2 interview at Ola, round 3 was a system design question: **Design Yelp**, a service where users search for nearby businesses and read and write reviews.",
+ "lookingFor": [
+  "Can you scope the problem (search by location, business pages, reviews, ratings)?",
+  "Do you know geospatial indexing options (geohash, quadtree, S2) and their trade-offs?",
+  "Can you design a read-heavy system with caching and search indexing?",
+  "Do you handle rating aggregation and review consistency sensibly?",
+  "Can you reason about scale and bottlenecks with numbers?"
+ ],
+ "answer": "**Requirements.** Functional: search businesses by location, category and keyword; view a business with photos and reviews; add a review and rating. Non-functional: read-heavy (assume 100:1), low-latency search, high availability, eventual consistency is fine for ratings. Assume 500M reads/day (about 6K/s average) and 200M businesses at most in a region-scoped corpus.\n\n**API.** `GET /search?lat=&lng=&radius=&q=&category=`, `GET /businesses/{id}`, `POST /businesses/{id}/reviews {rating, text}`, `GET /businesses/{id}/reviews?cursor=`.\n\n**Core components.**\n- **Business service** and DB (relational or document store): details change rarely, so cache heavily.\n- **Review service** and DB: write path is lower volume; shard by business id; paginate with cursors.\n- **Search service:** Elasticsearch/OpenSearch indexed by text, category and a geo field. Business data is pushed to the index asynchronously (change data capture or a queue).\n- **Photo storage:** object store plus CDN.\n- **Rating aggregator:** on a new review, publish an event; a consumer updates `avg_rating` and `review_count` on the business (running totals, not recomputation).\n\n**Geospatial indexing.** Static businesses suit a **geohash** (prefix match on cell plus neighbouring cells) or a **quadtree** that splits dense areas more finely; Elasticsearch's geo queries or S2 cells do this for you. Query the cell containing the user plus neighbours, then filter by exact distance and rank by relevance, rating and distance.\n\n**Data model.** `business(id, name, lat, lng, geohash, category, avg_rating, review_count)`, `review(id, business_id, user_id, rating, text, created_at)` with a unique constraint on (business, user) if one review per user.\n\n**Scaling.** Cache hot business pages and popular searches in Redis; read replicas; partition search index by region; CDN for static assets. Bottlenecks: dense city hot spots, fake reviews (add spam detection and rate limits).",
+ "followUps": [
+  "Geohash vs quadtree: when would you pick each?",
+  "How do you rank search results beyond distance?",
+  "How do you keep average rating accurate under concurrent reviews?",
+  "How would you detect fake or spam reviews?",
+  "How would you keep the search index in sync with the primary database?"
+ ]
+}

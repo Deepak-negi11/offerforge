@@ -1,0 +1,48 @@
+{
+ "pid": "atlassian-wordle-feedback-generator",
+ "title": "Wordle Feedback Generator",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "In the word game Wordle, a player guesses a hidden word and receives feedback for every letter of the guess. Implement the feedback function `generateFeedback(guess, answer)`.\n\nYou are given two lowercase words `guess` and `answer` of the same length. Return a string of the same length where character `i` describes `guess[i]`:\n\n- `G` (green): `guess[i]` equals `answer[i]`.\n- `Y` (yellow): `guess[i]` is not green, but the letter occurs in `answer` at some position that is not green and has not already been matched by an earlier yellow.\n- `X` (grey): anything else.\n\nLetters are matched at most as many times as they appear in `answer`, as in Bulls and Cows. Resolve greens first: every position where the letters agree is green and uses up that letter of the answer. Then go through the remaining positions from left to right; each one is yellow if an unused copy of its letter is still left in the answer (and uses it up), and grey otherwise.\n\n**Follow-up:** write a function that plays a whole game from a word list: it takes a list of guesses and the answer, applies `generateFeedback` to each guess in order, and stops as soon as the guess is correct or the maximum number of attempts is reached.",
+ "input_format": "The first line contains the word `guess`.\nThe second line contains the word `answer`.",
+ "output_format": "Print a single string of `G`, `Y` and `X` characters with the same length as the words.",
+ "constraints": [
+  "1 ≤ length of guess = length of answer ≤ 10^5",
+  "Both words consist of lowercase English letters"
+ ],
+ "examples": [
+  {
+   "input": "crane\ntrain",
+   "output": "XGGYX",
+   "explanation": "`r` and `a` are in the right positions, so they are green. `c` and `e` are not in `train`, so they are grey. `n` is in `train` but at position 4, not 3, and that copy of `n` is not used by a green, so it is yellow."
+  },
+  {
+   "input": "speed\nabide",
+   "output": "XXYXY",
+   "explanation": "`s` and `p` do not occur in `abide`. The first `e` (position 2) is yellow and uses up the only `e` of the answer, so the second `e` (position 3) is grey. `d` occurs in the answer, so it is yellow."
+  },
+  {
+   "input": "eerie\nthere",
+   "output": "YXYXG",
+   "explanation": "The last `e` matches exactly and is green, using up the final `e` of the answer. The first `e` takes the other `e` of `there` and is yellow, so the second `e` is grey. `r` is yellow and `i` is grey."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Handle the exact matches first. A green letter must not also be counted as available for a yellow elsewhere.",
+  "Count the letters of `answer` that are not matched by a green, using a frequency table of size 26.",
+  "Scan the non-green positions left to right. If the count for that letter is positive, mark the position yellow and decrement the count; otherwise mark it grey."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    g, a = data[0], data[1]\n    n = len(g)\n    res = ['X'] * n\n    cnt = {}\n    for i in range(n):\n        if g[i] == a[i]:\n            res[i] = 'G'\n        else:\n            cnt[a[i]] = cnt.get(a[i], 0) + 1\n    for i in range(n):\n        if res[i] == 'G':\n            continue\n        if cnt.get(g[i], 0) > 0:\n            res[i] = 'Y'\n            cnt[g[i]] -= 1\n    print(''.join(res))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\ng, a = data[0], data[1]\nn = len(g)\nres = []\nfor i in range(n):\n    if g[i] == a[i]:\n        res.append('G')\n        continue\n    c = g[i]\n    # rank of this position among earlier-or-equal non-green positions of the guess with the same letter\n    rank = sum(1 for j in range(i + 1) if g[j] == c and g[j] != a[j])\n    avail = sum(1 for j in range(n) if a[j] == c and g[j] != a[j])\n    res.append('Y' if rank <= avail else 'X')\nprint(''.join(res))\n",
+ "generator": "def gen(rng):\n    def fmt(g, a):\n        return g + '\\n' + a\n    tests = [\n        fmt('a', 'a'),\n        fmt('a', 'b'),\n        fmt('crane', 'train'),\n        fmt('speed', 'abide'),\n        fmt('eerie', 'there'),\n        fmt('aaaaa', 'aaaaa'),\n        fmt('abcde', 'edcba'),\n        fmt('aabb', 'bbaa'),\n        fmt('zzzz', 'abcd'),\n    ]\n    for n in (2, 3, 5, 5, 8, 12, 20):\n        for alpha in ('ab', 'abc', 'abcdefghij', 'abcdefghijklmnopqrstuvwxyz'):\n            g = ''.join(rng.choice(alpha) for _ in range(n))\n            a = ''.join(rng.choice(alpha) for _ in range(n))\n            tests.append(fmt(g, a))\n    N = 100000\n    letters = 'abcdefghijklmnopqrstuvwxyz'\n    tests.append(fmt(''.join(rng.choice('ab') for _ in range(N)), ''.join(rng.choice('ab') for _ in range(N))))\n    tests.append(fmt(''.join(rng.choice(letters) for _ in range(N)), ''.join(rng.choice(letters) for _ in range(N))))\n    tests.append(fmt('a' * N, 'a' * N))\n    tests.append(fmt('a' * (N // 2) + 'b' * (N // 2), 'b' * (N // 2) + 'a' * (N // 2)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef generate_feedback(guess: str, answer: str) -> str:\n    # Write your solution here\n    return ''\n\n\ndef main():\n    data = sys.stdin.read().split()\n    print(generate_feedback(data[0], data[1]))\n\n\nmain()\n",
+  "javascript": "function generateFeedback(guess, answer) {\n  // Write your solution here\n  return ''\n}\n\nconst tk = input.split(/\\s+/).filter(Boolean)\nconsole.log(generateFeedback(tk[0], tk[1]))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring generateFeedback(const string& guess, const string& answer) {\n    // Write your solution here\n    return \"\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string guess, answer;\n    cin >> guess >> answer;\n    cout << generateFeedback(guess, answer) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String generateFeedback(String guess, String answer) {\n        // Write your solution here\n        return \"\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String guess = br.readLine().trim();\n        String answer = br.readLine().trim();\n        System.out.println(generateFeedback(guess, answer));\n    }\n}\n"
+ }
+}

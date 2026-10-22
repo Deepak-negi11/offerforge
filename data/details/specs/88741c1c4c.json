@@ -1,0 +1,19 @@
+{
+ "qid": "88741c1c4c",
+ "question": "Databricks staff engineer coding round (one hour): **build a multi-threaded, durable key-value store on top of a flaky persistence layer**. The candidate described the technical questions as domain specific. The exact API and failure model of the persistence layer were not reported, so define them: assume a storage interface whose writes can fail, time out or fail partway, and a store that must not lose acknowledged writes.",
+ "lookingFor": [
+  "Defining durability and what a successful put promises.",
+  "Safe concurrent access to shared state.",
+  "Failure handling: retries, idempotency, partial writes, recovery.",
+  "Using a write-ahead log and replay for crash recovery.",
+  "Prioritising within one hour and communicating trade-offs."
+ ],
+ "answer": "**Clarify and state guarantees.** A `put` returns success only after the write is durable; a `get` returns the latest acknowledged value; after a crash and restart the store recovers all acknowledged writes. Ask how the persistence layer fails (error, timeout, torn write, silent loss?) and whether it is append-only.\n\n**Design.**\n- In-memory `ConcurrentHashMap` (or a map guarded by a read-write lock) serves reads.\n- **Write-ahead log (WAL):** every mutation is appended to the persistence layer as a record with a sequence number and checksum before it is applied to memory and acknowledged. On startup, replay the log in order, skip records with bad checksums, and stop at the first torn tail.\n- A **single writer thread** (or a lock around the append) gives a total order of writes. Producers enqueue write requests and wait on a future; the writer batches queued records into one persist call (group commit) to improve throughput.\n- Periodic **snapshot/compaction**: write the map to a new file, then truncate older log segments, so recovery time stays bounded. Make the snapshot swap atomic (write to temp, then rename).\n\n**Flaky persistence.** Wrap calls with timeouts and bounded retries with exponential backoff and jitter. Retries must be **idempotent**: a record keyed by sequence number or client request id can be written twice without effect. If retries are exhausted, fail the `put` to the caller and do **not** apply it to memory, so memory never gets ahead of disk. Consider a circuit breaker if the layer is down. Decide what happens to the ordering when an earlier write fails while a later one is queued (fail the batch, or fail only the affected requests).\n\n**Concurrency subtleties:** apply to memory in log order, protect against read-your-writes anomalies, and avoid holding locks during slow I/O.\n\n**Test:** inject failures with a fake persistence layer, kill the store mid-write and verify recovery, and run concurrent puts and gets.",
+ "followUps": [
+  "How do you guarantee a successful put is never lost after a crash?",
+  "What if the persistence layer reports a failure but actually wrote the data?",
+  "How would you bound recovery time?",
+  "How would you support transactions across multiple keys?",
+  "How would you extend this to replicate across nodes?"
+ ]
+}

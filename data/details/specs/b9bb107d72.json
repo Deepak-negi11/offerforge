@@ -1,0 +1,18 @@
+{
+ "qid": "b9bb107d72",
+ "question": "Reported from a Meta E4 (Bangalore) screening: an online CodeSignal assessment where the candidate solved a problem and its unit tests, and **at each stage another condition was added** to the problem. There were 4-5 stages in total, and the candidate solved all except the last.\n\nThe task was **building a cache for a database**. The candidate noted that you needed to know maps and how an **LRU cache** is implemented. The exact conditions of each stage were not recorded.",
+ "lookingFor": [
+  "Solid command of hash maps and an LRU structure (hash map plus linked list)",
+  "Designing so each new stage is a small extension, not a rewrite",
+  "Understanding of cache semantics: hits, misses, write handling and invalidation",
+  "Careful passing of unit tests and edge case coverage under a time limit",
+  "Complexity awareness: O(1) operations"
+ ],
+ "answer": "**What to assume.** A cache in front of a database means `get(key)` checks the cache first, falls back to the database on a miss, then stores the result. Later stages commonly add things like capacity limits, eviction, writes, invalidation or expiry. Because the report does not list the conditions, build a flexible core and confirm each stage's rules against its examples.\n\n**Core design.**\n- `Database` interface: `read(key)`, `write(key, value)`. In the OA this is usually a provided object or a dictionary.\n- `Cache` with capacity `C`, hit and miss counters, and a hash map from key to node.\n- **LRU** using a hash map plus a doubly linked list: the head is most recently used, the tail is least recently used. `get`: look up the node, move it to the head, return value. `put`: if the key exists, update and move to head; otherwise insert at head and, if size exceeds `C`, remove the tail node and its map entry. Every operation is O(1).\n- In Python, `OrderedDict` with `move_to_end` and `popitem(last=False)` gives this quickly; in Java, `LinkedHashMap` with access order, but be ready to write the manual version if asked.\n\n**Likely extensions and how to handle them.**\n- *Write policy*: write-through (write cache and database together), write-around (database only, invalidate the cache entry), or write-back (mark dirty, flush on eviction).\n- *Invalidation on update or delete*: remove or overwrite the cached key so reads are not stale.\n- *TTL*: store an expiry per entry and check on read.\n- *Negative caching*: remember that a key is absent so repeated misses skip the database.\n- *Different eviction policies*: LFU needs frequency buckets; keep the policy behind an interface.\n- *Stats*: increment hit and miss counters inside `get` only.\n\n**Tips.** Write the linked-list helpers (`remove`, `add_to_front`) once and test them. Use sentinel head and tail nodes to avoid null checks. After each stage, rerun the earlier tests. Keep the database access in a single method so changes of write policy are local.\n\n**Failure modes to mention.** Stale data, cache stampede on a popular key after eviction, and memory limits.",
+ "followUps": [
+  "How would you implement an LFU cache with O(1) operations?",
+  "What is the difference between write-through and write-back caching?",
+  "How would you make the cache thread-safe?",
+  "How would you prevent a cache stampede for a very popular key?"
+ ]
+}

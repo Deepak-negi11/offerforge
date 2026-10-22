@@ -1,0 +1,18 @@
+{
+ "qid": "c914e136d4",
+ "question": "Atlassian low-level design / coding round: **build a support agent rating system.**\n\nEach support agent has an id. Customers submit a rating from **1 to 5** for an agent. Support these operations: record a rating; compute each agent's average rating; return all agents **sorted by average rating (highest first)**; and define a **tie-breaking rule** for agents with equal averages.\n\nReported follow-ups: how to support **weighted votes**, how to find the **best agents each month**, how to make `getRatings` faster, and how to make the system **thread-safe**. Candidates mention using test-driven development.",
+ "lookingFor": [
+  "Clean model and API (service plus agent statistics) with input validation.",
+  "A sensible, stated tie-break rule and correct sorting.",
+  "Extensibility to weights and time-bucketed statistics.",
+  "Awareness of read/write trade-offs and caching or sorted structures.",
+  "Concurrency and testability (injected clock, deterministic tests)."
+ ],
+ "answer": "**Clarify first:** is the rating valid only if it is an integer in 1 to 5; what to do for an agent with no ratings (exclude, or average 0); the expected volume of reads versus writes.\n\n**Model**\n\n- `AgentStats { long sum; long count; }`; average = `sum / count`.\n- `RatingService` with `addRating(agentId, rating)` (validate 1 to 5, otherwise throw) and `getAgentsByAverage()` returning a sorted list of `(agentId, average, count)`.\n- Store `Map<agentId, AgentStats>`. Recording is O(1).\n\n**Sorting and the tie-break.** Sort by average descending. State the tie-break explicitly: for example more ratings first (a 4.5 average from 100 votes is more reliable than from 2), then agent id ascending for a deterministic order. Compare averages exactly using integers by cross multiplication (`sum1 * count2` versus `sum2 * count1`) to avoid floating-point issues. A full sort costs O(n log n) per query.\n\n**Follow-ups**\n\n1. **Weighted votes:** keep `weightedSum` and `totalWeight`, so the average is `weightedSum / totalWeight`. `addRating(agent, rating, weight)` stays O(1). Put the weighting rule behind an interface (for example weight by customer tier or by recency) so it is pluggable.\n2. **Best agents per month:** bucket the statistics by `YearMonth`: `Map<YearMonth, Map<agentId, AgentStats>>`. Use an injected `Clock` to get the month. Getting a month's ranking reuses the same sort. Keep the lifetime stats too if needed.\n3. **Faster getRatings:** if reads dominate, maintain a `TreeSet` ordered by the comparator; on each write remove the agent's entry, update, and re-insert in O(log n). Reading the top k then costs O(k). Alternatively cache the sorted list with a dirty flag, and rebuild lazily. This trades slower writes for faster reads; say which you choose and why.\n4. **Thread safety:** use a `ConcurrentHashMap` with per-agent atomic updates (`compute`, or `LongAdder`), a lock around the sorted structure, and have the read path build a snapshot. Decide whether a read must be perfectly consistent or can be slightly stale.\n\n**Testing:** TDD with a fixed clock; test ties, invalid ratings, an agent with no ratings, month boundaries and concurrent increments.",
+ "followUps": [
+  "Why compare averages by cross multiplication instead of doubles?",
+  "How would you return only the top k agents efficiently?",
+  "How would you decay older ratings so that recent ones matter more?",
+  "What changes if ratings arrive from many servers rather than one process?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "cb4fd9bf2e",
+ "question": "MakeMyTrip SDE-2, hiring manager round, Java questions. (1) **What are immutable classes in Java, and how would you implement one?** Design a Java immutable class with these members: an `int`, a `String`, a `HashMap`, an `ArrayList`, and a nested immutable Java class. (2) **Design a thread-safe singleton class.** (3) **How is Java pass by value?**",
+ "lookingFor": [
+  "Knowing every rule of immutability, especially defensive copies.",
+  "Understanding shallow vs deep immutability.",
+  "Correct singleton implementation and the memory-model reason.",
+  "Precise understanding of Java's argument passing.",
+  "Clear, concise explanations with code."
+ ],
+ "answer": "**1. Immutable class.** An object whose state cannot change after construction, so it is inherently thread-safe and safe as a map key. Rules: declare the class `final` (or make constructors private); make all fields `private final`; no setters; **defensively copy mutable inputs in the constructor and mutable outputs in getters**.\n\n```\npublic final class Employee {\n  private final int id;\n  private final String name;                 // String is immutable\n  private final Map<String,String> attrs;\n  private final List<String> skills;\n  private final Address address;             // must itself be immutable\n\n  public Employee(int id, String name, Map<String,String> attrs,\n                  List<String> skills, Address address) {\n    this.id = id; this.name = name;\n    this.attrs = Collections.unmodifiableMap(new HashMap<>(attrs));\n    this.skills = List.copyOf(skills);\n    this.address = address;\n  }\n  public Map<String,String> getAttrs(){ return attrs; }   // unmodifiable view\n  public List<String> getSkills(){ return skills; }\n}\n```\n\nThe `HashMap` and `ArrayList` are the traps: storing the caller's reference lets them mutate your state later, and `final` only prevents reassigning the reference, not changing contents. The copy plus unmodifiable wrapper gives **deep** immutability only if the elements are immutable too (here Strings). If elements were mutable, copy each.\n\n**2. Thread-safe singleton.** Prefer the **enum singleton** (`enum Registry { INSTANCE; }`), or the **initialization-on-demand holder**: a private static nested class holding the instance, which the JVM initialises lazily and safely. Double-checked locking also works, but only with a `volatile` field:\n\n```\nprivate static volatile Singleton inst;\nstatic Singleton get(){ if(inst==null){ synchronized(Singleton.class){ if(inst==null) inst=new Singleton(); } } return inst; }\n```\n\nWithout `volatile`, another thread may see a partially constructed object due to instruction reordering. Also make the constructor private and guard against reflection/serialization if required (enum handles both).\n\n**3. Pass by value.** Java always copies the argument. For primitives, the value is copied. For objects, the **reference value** is copied, so the method can mutate the object the caller sees, but reassigning the parameter (`p = new Foo()`) does not affect the caller's variable. That is why a swap method for two objects fails.\n\n**Avoid:** claiming `final` makes contents immutable, and unsafe lazy singletons without `volatile`.",
+ "followUps": [
+  "Why is String immutable in Java, and how does the string pool use that?",
+  "How does the holder-class idiom guarantee thread-safety?",
+  "How can reflection or serialization break a singleton?",
+  "Demonstrate with code why a swap(Object a, Object b) method does not work."
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "acdfc1ae80",
+ "question": "Amazon SDE-2 high-level design round with a Software Development Manager: **design a job scheduler system with dependent jobs**. Reported topics: **dependency resolution (Kahn's algorithm / topological sort), message queues and partitioning, database schema design, failure handling with exponential backoff retries, and horizontal scaling and monitoring (ELK stack)**.",
+ "lookingFor": [
+  "Modelling jobs and dependencies as a DAG.",
+  "Correct scheduling using topological ordering and cycle detection.",
+  "Reliable, scalable execution via queues and workers.",
+  "Failure handling: retries, idempotency, dead-letter handling.",
+  "Schema design and observability."
+ ],
+ "answer": "**Requirements.** Users define jobs, optionally with dependencies (job B runs after A succeeds) and schedules (once, cron). The system executes them reliably, retries failures, and reports status. Assume millions of jobs per day and many concurrent workers.\n\n**Model.** A DAG per workflow: nodes are jobs, edges are dependencies. On submission, run cycle detection (Kahn's algorithm: if the number of processed nodes is below the total, there is a cycle) and reject.\n\n**Schema (sketch).**\n- `jobs(id, workflow_id, type, payload, status, attempt, max_attempts, next_run_at, priority)`.\n- `job_dependencies(job_id, depends_on_job_id)`.\n- `job_runs(id, job_id, worker_id, started_at, ended_at, status, error)`.\nStatus: `PENDING, READY, RUNNING, SUCCEEDED, FAILED, DEAD`.\n\n**Resolution (Kahn style at runtime).** Keep an in-degree (count of unmet dependencies) per job. Jobs with zero are `READY` and pushed to a queue. When a job succeeds, decrement the in-degree of its dependents (in a transaction); any that hit zero become `READY`. This is event-driven and avoids scanning the whole graph.\n\n**Execution.** Scheduler/dispatcher publishes ready jobs to a message queue, partitioned by job type or tenant for isolation and ordering where needed. Stateless workers pull, take a lease or heartbeat on the job, run it and report. If a lease expires (worker died), the job is re-queued. Because delivery is at-least-once, jobs should be idempotent, or use an idempotency key.\n\n**Failures.** Retry with exponential backoff plus jitter (`delay = base * 2^attempt`), up to `max_attempts`, then move to a dead-letter queue and mark dependents as blocked or skipped. Alert on DLQ growth.\n\n**Scaling.** Scale workers horizontally; shard the scheduler by workflow or job id; use a leader election or partition ownership so two schedulers do not dispatch the same job; index `next_run_at` for the timer scan.\n\n**Monitoring.** Structured logs to an ELK-style stack, metrics for queue depth, job latency, retry and failure rates, and a UI for DAG state.",
+ "followUps": [
+  "How do you prevent a job from running twice?",
+  "How would you support cron-style recurring jobs?",
+  "What happens if the scheduler itself crashes?",
+  "How do you handle a dependency that fails permanently?"
+ ]
+}

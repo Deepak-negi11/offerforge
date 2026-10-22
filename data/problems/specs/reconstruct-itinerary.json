@@ -1,0 +1,50 @@
+{
+ "pid": "reconstruct-itinerary",
+ "title": "Reconstruct Itinerary",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given a list of `n` airline tickets. Each ticket is a pair `(from, to)` of three-letter uppercase airport codes and represents one direct flight. The traveller starts at the airport `JFK` and must fly **every ticket exactly once**, each flight departing from the airport where the previous one landed.\n\nReturn the itinerary: the sequence of `n + 1` airports visited, beginning with `JFK`.\n\nIf several itineraries use all tickets, return the **lexicographically smallest** one, comparing the itineraries as sequences of airport codes (the first position where they differ decides, and codes are compared alphabetically). Duplicate tickets may appear and each copy must be used once.\n\nIt is guaranteed that at least one valid itinerary exists.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains two airport codes `from` and `to`, separated by a space.",
+ "output_format": "Print the `n + 1` airport codes of the itinerary, separated by single spaces, on one line.",
+ "constraints": [
+  "1 ≤ n ≤ 5000",
+  "Every airport code is exactly three uppercase English letters",
+  "At least one itinerary starting at JFK that uses every ticket exactly once exists",
+  "The recursion depth of a natural DFS solution is at most n + 1 ≤ 5001"
+ ],
+ "examples": [
+  {
+   "input": "4\nJFK LAX\nLAX JFK\nJFK ATL\nATL JFK",
+   "output": "JFK ATL JFK LAX JFK",
+   "explanation": "From JFK both ATL and LAX are possible; ATL is alphabetically smaller and the trip can still be completed: JFK -> ATL -> JFK -> LAX -> JFK uses all four tickets."
+  },
+  {
+   "input": "3\nJFK AAA\nJFK BBB\nBBB JFK",
+   "output": "JFK BBB JFK AAA",
+   "explanation": "Going to AAA first would strand the traveller there with the BBB tickets unused. The only valid order is JFK -> BBB -> JFK -> AAA."
+  },
+  {
+   "input": "4\nJFK SFO\nSFO JFK\nJFK SFO\nSFO JFK",
+   "output": "JFK SFO JFK SFO JFK",
+   "explanation": "The duplicated tickets are separate flights and each is used once."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Model airports as nodes and tickets as directed edges. You need a path that uses every edge exactly once (an Eulerian path), and it must start at JFK.",
+  "Always taking the smallest unused destination is not enough: it can lead to a dead end before all tickets are used. Think about what to do when you get stuck.",
+  "Hierholzer's algorithm: keep each airport's destinations sorted, walk greedily with a stack, and when an airport has no tickets left, pop it onto the answer. The answer is built in reverse, so reverse it at the end."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    adj = {}\n    for i in range(n):\n        a, b = data[1 + 2 * i], data[2 + 2 * i]\n        adj.setdefault(a, []).append(b)\n    for k in adj:\n        adj[k].sort(reverse=True)\n    stack = ['JFK']\n    route = []\n    while stack:\n        top = stack[-1]\n        lst = adj.get(top)\n        if lst:\n            stack.append(lst.pop())\n        else:\n            route.append(stack.pop())\n    route.reverse()\n    print(' '.join(route))\n\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\ntickets = sorted((data[1 + 2 * i], data[2 + 2 * i]) for i in range(n))\nused = [False] * n\npath = ['JFK']\n\n\ndef dfs(cur):\n    if len(path) == n + 1:\n        return True\n    tried = set()\n    for i in range(n):\n        a, b = tickets[i]\n        if not used[i] and a == cur and b not in tried:\n            tried.add(b)\n            used[i] = True\n            path.append(b)\n            if dfs(b):\n                return True\n            path.pop()\n            used[i] = False\n    return False\n\n\ndfs('JFK')\nprint(' '.join(path))\n",
+ "generator": "def gen(rng):\n    letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'\n\n    def code():\n        return ''.join(rng.choice(letters) for _ in range(3))\n\n    def make(n, k):\n        names = ['JFK']\n        while len(names) < k:\n            c = code()\n            if c not in names:\n                names.append(c)\n        cur = 'JFK'\n        tickets = []\n        for _ in range(n):\n            nxt = rng.choice(names)\n            tickets.append((cur, nxt))\n            cur = nxt\n        rng.shuffle(tickets)\n        return tickets\n\n    def fmt(tickets):\n        return str(len(tickets)) + '\\n' + '\\n'.join(f'{a} {b}' for a, b in tickets)\n\n    tests = [\n        fmt([('JFK', 'AAA')]),\n        fmt([('JFK', 'JFK')]),\n        fmt([('JFK', 'LAX'), ('LAX', 'JFK'), ('JFK', 'ATL'), ('ATL', 'JFK')]),\n        fmt([('JFK', 'AAA'), ('JFK', 'BBB'), ('BBB', 'JFK')]),\n        fmt([('JFK', 'SFO'), ('SFO', 'JFK'), ('JFK', 'SFO'), ('SFO', 'JFK')]),\n        fmt([('JFK', 'KUL'), ('JFK', 'NRT'), ('NRT', 'JFK')]),\n        fmt([('JFK', 'AAA'), ('AAA', 'JFK'), ('JFK', 'AAA'), ('AAA', 'ZZZ')]),\n    ]\n    for _ in range(40):\n        n = rng.randint(2, 12)\n        k = rng.randint(1, 5)\n        tests.append(fmt(make(n, k)))\n    n = 5000\n    tests.append(fmt(make(n, 2)))\n    tests.append(fmt(make(n, 3)))\n    tests.append(fmt(make(n, 40)))\n    tests.append(fmt(make(n, 1000)))\n    tests.append(fmt(make(n, 5000)))\n    t = [('JFK', 'AAA'), ('AAA', 'JFK')] * (n // 2)\n    rng.shuffle(t)\n    tests.append(fmt(t))\n    t = [('JFK', 'ZZZ')] + [('ZZZ', 'AAA'), ('AAA', 'ZZZ')] * ((n - 1) // 2)\n    t = t[:n]\n    rng.shuffle(t)\n    tests.append(fmt(t))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef find_itinerary(tickets: List[List[str]]) -> List[str]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    tickets = [[data[1 + 2 * i], data[2 + 2 * i]] for i in range(n)]\n    print(' '.join(find_itinerary(tickets)))\n\n\nmain()\n",
+  "javascript": "function findItinerary(tickets) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0])\nconst tickets = []\nfor (let i = 0; i < n; i++) tickets.push([t[1 + 2 * i], t[2 + 2 * i]])\nconsole.log(findItinerary(tickets).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<string> findItinerary(vector<pair<string, string>>& tickets) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<pair<string, string>> tickets(n);\n    for (int i = 0; i < n; i++) cin >> tickets[i].first >> tickets[i].second;\n    vector<string> route = findItinerary(tickets);\n    for (size_t i = 0; i < route.size(); i++) cout << route[i] << (i + 1 < route.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<String> findItinerary(List<String[]> tickets) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        int n = Integer.parseInt(br.readLine().trim());\n        List<String[]> tickets = new ArrayList<>();\n        for (int i = 0; i < n; i++) {\n            StringTokenizer st = new StringTokenizer(br.readLine());\n            tickets.add(new String[]{st.nextToken(), st.nextToken()});\n        }\n        System.out.println(String.join(\" \", findItinerary(tickets)));\n    }\n}\n"
+ }
+}

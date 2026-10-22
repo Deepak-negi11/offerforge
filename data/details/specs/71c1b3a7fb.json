@@ -1,0 +1,17 @@
+{
+ "qid": "71c1b3a7fb",
+ "question": "Dream11 SDE-2, onsite HLD round: **design a quick-commerce app like Zepto or Blinkit**.",
+ "lookingFor": [
+  "Recognising the defining constraint: hyperlocal inventory and delivery in minutes.",
+  "Correct inventory consistency under concurrency.",
+  "Order lifecycle and delivery assignment.",
+  "Search, catalogue and scaling for peaks."
+ ],
+ "answer": "**Clarify scope and scale.** Core flows: browse and search products, cart, checkout, order tracking, delivery assignment. Out of scope unless asked: payments internals, supplier procurement. Assume millions of daily orders, delivery promises of roughly 10 to 15 minutes, and peak traffic in the evenings. The key difference from ordinary e-commerce: **inventory and delivery are hyperlocal**, tied to a nearby dark store.\n\n**Core services**\n- **Location/serviceability:** map the user's coordinates to the serving dark store (geo index such as geohash or H3) and decide whether delivery is possible.\n- **Catalogue and search:** product data is mostly read, so cache heavily; search through Elasticsearch or similar, filtered by what is in stock at that store.\n- **Inventory service:** per-store stock counts. Reserve stock at checkout with a short TTL and confirm on payment; use atomic decrements or optimistic locking to prevent overselling. A cache for fast reads, the DB as truth.\n- **Cart and order service:** order state machine (created, paid, packed, assigned, out for delivery, delivered, cancelled), stored in a relational database.\n- **Payment service**, called through idempotent APIs.\n- **Fulfilment (picker app):** order sent to the store, pick and pack tasks, substitutions.\n- **Delivery assignment:** find nearby available riders and assign by distance, load and ETA; batch orders where possible. Rider location streamed through a lightweight pipeline.\n- **ETA and tracking:** WebSocket or polling for live updates, notifications.\n- **Pricing, offers and recommendations.**\n\n**Event flow.** Services communicate via a message queue (order placed leads to inventory, picking and notifications), keeping them decoupled.\n\n**Trade-offs and scaling**\n- Strong consistency for inventory and payments; eventual consistency for catalogue and search.\n- Shard by city or store; autoscale for peaks; protect with rate limits.\n- Handle failures with retries, timeouts and a fallback when no rider is available.",
+ "followUps": [
+  "How do you prevent two customers from buying the last item?",
+  "How would you assign riders to orders efficiently?",
+  "How would you show only the products available at the user's nearest store?",
+  "How do you handle a flash sale or sudden peak?"
+ ]
+}

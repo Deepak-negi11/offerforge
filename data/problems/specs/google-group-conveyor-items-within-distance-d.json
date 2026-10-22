@@ -1,0 +1,49 @@
+{
+ "pid": "google-group-conveyor-items-within-distance-d",
+ "title": "Group Conveyor Items Within Distance D",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You stand at an incoming conveyor belt. Items arrive one at a time, and each item is a number. Your job is to pack them into boxes of exactly three items that all fit together and place each box on an outgoing belt. You have plenty of room beside the belt, so you can set items aside on a **shelf** while you wait for a full triplet. The items arrive as a stream, so you must handle them one by one as they come.\n\nThree items **fit together** if every pair among them is within distance `d`, that is, `|a - b| ≤ d` for each pair. Equivalently, the largest of the three minus the smallest is at most `d`. Once a triplet is packed, its three items are discarded and never used again.\n\nProcess the stream in order. When an item arrives, put it on the shelf. If three items on the shelf now fit together, pack them immediately. Because no three shelved items fit together before the arrival, any such triplet must contain the item that just arrived, and removing it leaves a shelf that again has no fitting triplet. So at most one box is packed per arrival. If several fitting triplets contain the new item, pack the one with the **smallest** `max - min`; if that is still tied, the one with the **smallest minimum** value.\n\nThe original problem uses floating-point items; here all items and `d` are integers. Items left on the shelf at the end are ignored.\n\nPrint the number of boxes, then each box (its three values in ascending order) in the order the boxes were packed.\n\n**Follow-up:** What if the items were points on an X-Y plane instead of numbers, with \"within distance `d`\" meaning the points are pairwise at most `d` apart? How would you change the data structure?",
+ "input_format": "The first line contains two integers `n` and `d`.\nThe second line contains `n` integers: the items in arrival order.",
+ "output_format": "The first line contains the number of boxes `m`.\nEach of the next `m` lines contains the three values of a box in ascending order, separated by spaces, in the order the boxes were packed.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ d ≤ 10^9",
+  "-10^9 ≤ item ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "6 3\n1 11 12 13 2 3",
+   "output": "2\n11 12 13\n1 2 3",
+   "explanation": "Items 1, 11, 12 are on the shelf; none of the three fit together. When 13 arrives, 11, 12, 13 fit (13 - 11 = 2 ≤ 3), so they are boxed. The shelf is left with 1; then 2 and 3 arrive and 1, 2, 3 fit, so they are boxed too."
+  },
+  {
+   "input": "6 6\n2 8 10 5 4 3",
+   "output": "2\n5 8 10\n2 3 4",
+   "explanation": "After 2, 8, 10 nothing fits (10 - 2 = 8 > 6). When 5 arrives, both (2, 5, 8) with span 6 and (5, 8, 10) with span 5 fit; the smaller span wins, so 5 8 10 is boxed. The shelf holds 2, then 4 arrives, then 3 arrives and 2, 3, 4 fit."
+  },
+  {
+   "input": "3 0\n7 7 8",
+   "output": "0",
+   "explanation": "With d = 0 only equal items fit together, and there are only two 7s."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Only the newly arrived item can complete a triplet, so you only need to look at triplets that contain it.",
+  "Keep the shelf in sorted order (a balanced BST or a sorted list). If a fitting triplet contains the new item x, then some window of three consecutive shelf values that includes x also fits.",
+  "After inserting x, check the at most three windows of three consecutive values containing x, pick the best fitting one by the stated tie-break, and remove it."
+ ],
+ "reference": "import sys, bisect\n\ndef main():\n    data = sys.stdin.read().split()\n    n, d = int(data[0]), int(data[1])\n    s = []\n    out = []\n    for i in range(n):\n        x = int(data[2 + i])\n        p = bisect.bisect_right(s, x)\n        s.insert(p, x)\n        best = None\n        for w in range(p - 2, p + 1):\n            if w < 0 or w + 2 >= len(s):\n                continue\n            span = s[w + 2] - s[w]\n            if span <= d:\n                key = (span, s[w], s[w + 1])\n                if best is None or key < best[0]:\n                    best = (key, w)\n        if best is not None:\n            w = best[1]\n            out.append('%d %d %d' % (s[w], s[w + 1], s[w + 2]))\n            del s[w:w + 3]\n    print(len(out))\n    for line in out:\n        print(line)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, d = int(data[0]), int(data[1])\nshelf = []\nout = []\nfor i in range(n):\n    x = int(data[2 + i])\n    shelf.append(x)\n    last = len(shelf) - 1\n    best = None\n    for a in range(last):\n        for b in range(a + 1, last):\n            t = sorted((shelf[a], shelf[b], x))\n            if t[2] - t[0] <= d:\n                key = (t[2] - t[0], t[0], t)\n                if best is None or key < best[0]:\n                    best = (key, a, b)\n    if best is not None:\n        _, a, b = best\n        out.append(' '.join(map(str, best[0][2])))\n        shelf = [v for idx, v in enumerate(shelf) if idx not in (a, b, last)]\nprint(len(out))\nfor line in out:\n    print(line)\n",
+ "generator": "def gen(rng):\n    def fmt(d, xs):\n        return str(len(xs)) + ' ' + str(d) + '\\n' + ' '.join(map(str, xs))\n\n    tests = [fmt(3, [1, 11, 12, 13, 2, 3]), fmt(0, [5]), fmt(0, [4, 4, 4, 4]), fmt(0, [1, 2, 3]),\n             fmt(1000000000, [-10**9, 10**9, 0, 5]), fmt(6, [2, 8, 10, 5, 4, 3]), fmt(2, [1, 2, 3, 1, 2, 3, 100]),\n             fmt(5, [10, 20, 30, 40, 50])]\n    for _ in range(40):\n        n = rng.randint(1, 30)\n        d = rng.randint(0, 8)\n        tests.append(fmt(d, [rng.randint(-10, 20) for _ in range(n)]))\n    for _ in range(15):\n        n = rng.randint(30, 80)\n        d = rng.randint(0, 40)\n        tests.append(fmt(d, [rng.randint(-100, 100) for _ in range(n)]))\n    n = 100000\n    # nothing ever fits: values spaced 6 apart with d = 10, inserted in shuffled order\n    vals = [6 * i - 300000 for i in range(n)]\n    rng.shuffle(vals)\n    tests.append(fmt(10, vals))\n    # a big shelf that sorts out gradually\n    vals2 = [7 * i for i in range(n // 2)]\n    rng.shuffle(vals2)\n    tests.append(fmt(13, vals2 + [rng.randint(0, 7 * (n // 2)) for _ in range(n - n // 2)]))\n    tests.append(fmt(1000, [rng.randint(0, 10**6) for _ in range(n)]))\n    tests.append(fmt(10**9, [rng.randint(-10**9, 10**9) for _ in range(n)]))\n    tests.append(fmt(0, [rng.randint(-10**9, 10**9) for _ in range(n)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef pack_boxes(items: List[int], d: int) -> List[List[int]]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, d = int(data[0]), int(data[1])\n    items = [int(x) for x in data[2:2 + n]]\n    boxes = pack_boxes(items, d)\n    print(len(boxes))\n    for b in boxes:\n        print(' '.join(map(str, b)))\n\n\nmain()\n",
+  "javascript": "function packBoxes(items, d) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], d = t[1]\nconst items = t.slice(2, 2 + n)\nconst boxes = packBoxes(items, d)\nconst lines = [String(boxes.length)]\nfor (const b of boxes) lines.push(b.join(' '))\nconsole.log(lines.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<array<long long, 3>> packBoxes(vector<long long>& items, long long d) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long d;\n    cin >> n >> d;\n    vector<long long> items(n);\n    for (int i = 0; i < n; i++) cin >> items[i];\n    vector<array<long long, 3>> boxes = packBoxes(items, d);\n    cout << boxes.size() << \"\\n\";\n    for (auto& b : boxes) cout << b[0] << \" \" << b[1] << \" \" << b[2] << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<long[]> packBoxes(long[] items, long d) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        long d = (long) in.nval;\n        long[] items = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            items[i] = (long) in.nval;\n        }\n        List<long[]> boxes = packBoxes(items, d);\n        StringBuilder sb = new StringBuilder();\n        sb.append(boxes.size()).append(\"\\n\");\n        for (long[] b : boxes) sb.append(b[0]).append(\" \").append(b[1]).append(\" \").append(b[2]).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

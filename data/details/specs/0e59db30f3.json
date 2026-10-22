@@ -1,0 +1,18 @@
+{
+ "qid": "0e59db30f3",
+ "question": "Samsung R&D (Noida, on-campus) technical interview: after competitive-programming style problems, the candidate was asked to **design LRU and LFU caches**. One 2023 report asked to implement an LRU cache and also **count the number of cache hits and misses**.",
+ "lookingFor": [
+  "Knowing the right data structure combination for O(1) operations",
+  "Clean API design (get, put) and eviction semantics",
+  "Handling ties, edge cases and capacity limits",
+  "Extension to thread safety and larger systems"
+ ],
+ "answer": "**Requirements.** Fixed capacity. `get(key)` returns the value or -1, `put(key, value)` inserts or updates. Both should be O(1). On a full cache, evict one entry: the least recently used (LRU) or the least frequently used (LFU). Track `hits` and `misses` counters in `get` if asked.\n\n**LRU.** Use a hash map from key to node plus a doubly linked list ordered by recency (head is most recent, tail is least).\n- `get`: look up the node, move it to the head, count a hit; if absent, count a miss.\n- `put`: if the key exists, update and move to head. Otherwise, if full, remove the tail node and its map entry; then insert a new node at the head.\nDoubly linked means removal of a known node is O(1). In Java, `LinkedHashMap` with access order and `removeEldestEntry` does the same.\n\n**LFU.** Each key has a frequency count. Keep:\n- `keyToNode` map (value and freq),\n- `freqToList` map from frequency to a doubly linked list (or LinkedHashSet) of keys at that frequency, in recency order,\n- `minFreq`.\n`get`/`put` on an existing key moves it from list `f` to list `f+1`; if list `f` became empty and `f == minFreq`, increment `minFreq`. On eviction, remove the **least recently used key from `freqToList[minFreq]`** (ties are broken by recency). Inserting a new key sets `minFreq = 1`. All steps are O(1).\n\n**Edge cases.** Capacity 0, updating an existing key without eviction, and repeated puts. A known LFU weakness is that old, once-popular keys stay forever; aging or LFU with decay fixes that.\n\n**Beyond.** For concurrency, a lock around operations (simple) or sharded segments (higher throughput). For distributed caches, consistent hashing across nodes, and TTL in addition to size-based eviction. Compare with a heap-based LFU, which is O(log n).",
+ "followUps": [
+  "Why does LRU need a doubly linked list rather than a singly linked one?",
+  "How would you make the cache thread-safe without a single global lock?",
+  "When is LFU better than LRU, and when worse?",
+  "How would you add TTL expiry?",
+  "How would you design a distributed cache with these policies?"
+ ]
+}

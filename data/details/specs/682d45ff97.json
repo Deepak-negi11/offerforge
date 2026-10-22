@@ -1,0 +1,18 @@
+{
+ "qid": "682d45ff97",
+ "question": "IBM ISDL Linux Kernel Developer interview (experienced candidate), round 1. The questions on systems internals were:\n\n- How is virtual memory mapped to physical memory?\n- What does the Memory Management Unit (MMU) do?\n- What is a system call and how is it handled (and implemented in the kernel)?\n- Difference between static linking and dynamic linking?\n- Have you used debugging tools such as GDB?",
+ "lookingFor": [
+  "End-to-end understanding of address translation, not just definitions.",
+  "Knowledge of the user-to-kernel transition and its cost.",
+  "Practical understanding of the build and link process.",
+  "Hands-on debugging experience.",
+  "Ability to explain a step-by-step flow clearly."
+ ],
+ "answer": "**Virtual to physical mapping and the MMU**\n\nEach process sees its own virtual address space. The **MMU** (hardware, using page tables set up by the OS) translates every virtual address to a physical one. Memory is divided into fixed-size pages (commonly 4 KB). A virtual address is split into a page number and an offset. The page number indexes a (usually multi-level) page table whose entry holds the physical frame number plus permission bits (read, write, execute, user/supervisor) and present or dirty flags. The **TLB** caches recent translations so most accesses avoid walking the table. If the entry is missing or the access is not permitted, the MMU raises a **page fault** and the kernel decides whether to load the page, grow the stack, or kill the process. This gives isolation, protection, lazy allocation and the ability to use more virtual memory than physical.\n\n**How a system call is handled**\n\n1. User code calls a libc wrapper, which puts the syscall number and arguments in specific registers.\n2. It executes a trap instruction (`syscall` on x86-64, `svc` on ARM). The CPU switches to kernel mode and jumps to the kernel entry point.\n3. The kernel saves user registers, switches to the kernel stack, and uses the syscall number to index the **system call table**.\n4. It runs the handler (for example `sys_read`), validating user pointers and copying data with checked helpers.\n5. The result or negative errno is placed in the return register, the kernel restores the user state and returns to user mode (`sysret` or `eret`). libc sets `errno` on failure.\n\n**Static vs dynamic linking**\n\n- **Static:** library code is copied into the executable at link time. Larger binary, no runtime dependency, no sharing between programs, updates need a rebuild.\n- **Dynamic:** the executable references shared libraries (`.so`) resolved by the dynamic loader at load or run time, often lazily through the PLT and GOT. Smaller binaries, shared memory pages between processes, library updates without rebuilding, but version and missing-library problems and slight startup cost.\n\n**GDB:** be ready to describe real use: `break`, `run`, `bt`, `info locals`, `watch`, `x/` to examine memory, `print`, and analysing a core dump. Mention `strace` and `valgrind` as companions.",
+ "followUps": [
+  "What exactly happens on a page fault, step by step?",
+  "Why is a system call more expensive than a normal function call?",
+  "What is the TLB and what happens on a context switch?",
+  "What are the PLT and GOT?"
+ ]
+}

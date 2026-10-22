@@ -1,0 +1,49 @@
+{
+ "pid": "zomato-minimum-stones-to-make-a-good-tree",
+ "title": "Minimum Stones to Make a Good Tree",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given a tree with `n` nodes numbered `0` to `n - 1`. Node `i` currently holds `stones[i]` stones.\n\nA tree is **good** if, for every edge `(u, v)`, the numbers of stones on its two endpoints differ by **at most 1**.\n\nYou may only **add** stones to nodes (you cannot remove any), and you may add any non-negative number of stones to each node. Find the **minimum total number of stones** that must be added so that the tree becomes good.\n\nPrint that minimum.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` integers `stones[0], ..., stones[n-1]`.\nEach of the next `n - 1` lines contains two integers `u v`, meaning there is an edge between nodes `u` and `v` (0-indexed).",
+ "output_format": "Print a single integer: the minimum number of stones to add.",
+ "constraints": [
+  "1 ≤ n ≤ 1000",
+  "0 ≤ stones[i] ≤ 1000",
+  "The edges form a tree (connected, no cycles)"
+ ],
+ "examples": [
+  {
+   "input": "3\n5 0 2\n0 1\n1 2",
+   "output": "5",
+   "explanation": "The tree is the path 0 - 1 - 2. Node 1 must be within 1 of node 0, which already has 5, so node 1 needs at least 4 (add 4). Then node 2 must be within 1 of node 1 (now 4), so it needs at least 3 (add 1). Total 5."
+  },
+  {
+   "input": "4\n0 4 0 4\n0 1\n1 2\n2 3",
+   "output": "6",
+   "explanation": "On the path 0 - 1 - 2 - 3, nodes 1 and 3 hold 4 each. Node 0 needs at least 3 (add 3) and node 2 needs at least 3 (add 3). Total 6."
+  },
+  {
+   "input": "4\n0 3 3 3\n0 1\n0 2\n0 3",
+   "output": "2",
+   "explanation": "Node 0 is the centre of a star whose leaves hold 3. Raising the centre to 2 (add 2) makes every edge differ by at most 1."
+  }
+ ],
+ "complexity": {
+  "time": "O(n · M), where M = max(stones)",
+  "space": "O(n · M)"
+ },
+ "hints": [
+  "A greedy local fix does not work: raising one node can force its neighbours to rise, which can force theirs, and a node may be pulled up from several sides. Think about choosing a final value for every node.",
+  "Show that the final value of any node never needs to exceed M = max(stones): clamping all final values to M keeps every edge difference at most 1 and never costs more. So each node has only M + 1 possible final values.",
+  "Root the tree and let dp[v][x] be the minimum cost of v's subtree if v ends with exactly x stones (x at least stones[v]). Then dp[v][x] = (x - stones[v]) + the sum over children c of min(dp[c][x-1], dp[c][x], dp[c][x+1]). The answer is the minimum of dp[root][x]."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    s = [int(x) for x in data[1:1 + n]]\n    adj = [[] for _ in range(n)]\n    p = 1 + n\n    for _ in range(n - 1):\n        u, v = int(data[p]), int(data[p + 1])\n        p += 2\n        adj[u].append(v)\n        adj[v].append(u)\n    M = max(s)\n    INF = 10 ** 9\n    parent = [-1] * n\n    order = [0]\n    seen = [False] * n\n    seen[0] = True\n    for u in order:\n        for v in adj[u]:\n            if not seen[v]:\n                seen[v] = True\n                parent[v] = u\n                order.append(v)\n    dp = [None] * n\n    for v in range(n):\n        dp[v] = [INF] * s[v] + [x - s[v] for x in range(s[v], M + 1)]\n    for v in reversed(order):\n        if v == 0:\n            continue\n        d = dp[v]\n        pad = [INF] + d + [INF]\n        m = [min(a, b, c) for a, b, c in zip(pad, d, pad[2:])]\n        pv = dp[parent[v]]\n        dp[parent[v]] = [a + b for a, b in zip(pv, m)]\n        dp[v] = None\n    print(min(dp[0]))\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import product\n\ndata = sys.stdin.read().split()\nn = int(data[0])\ns = [int(x) for x in data[1:1 + n]]\nedges = []\np = 1 + n\nfor _ in range(n - 1):\n    edges.append((int(data[p]), int(data[p + 1])))\n    p += 2\nM = max(s)\nbest = None\nfor b in product(*[range(s[i], M + 1) for i in range(n)]):\n    if all(abs(b[u] - b[v]) <= 1 for u, v in edges):\n        cost = sum(b[i] - s[i] for i in range(n))\n        if best is None or cost < best:\n            best = cost\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(s, edges):\n        e = []\n        for u, v in edges:\n            e.append((u, v) if rng.random() < 0.5 else (v, u))\n        return str(len(s)) + '\\n' + ' '.join(map(str, s)) + ('\\n' if e else '') + '\\n'.join(f'{u} {v}' for u, v in e)\n    def rand_tree(n):\n        perm = list(range(n))\n        rng.shuffle(perm)\n        return [(perm[rng.randrange(i)], perm[i]) for i in range(1, n)]\n    def path(n):\n        perm = list(range(n))\n        rng.shuffle(perm)\n        return [(perm[i - 1], perm[i]) for i in range(1, n)]\n    def star(n):\n        return [(0, i) for i in range(1, n)]\n    tests = [fmt([0], []), fmt([7], []), fmt([0, 0], [(0, 1)]), fmt([0, 4], [(0, 1)]), fmt([0, 4, 0], [(0, 1), (1, 2)]),\n             fmt([4, 0, 4], [(0, 1), (1, 2)]), fmt([0, 1, 2, 3, 4], path(5)), fmt([4, 0, 0, 0, 4], star(5))]\n    for _ in range(40):\n        n = rng.randint(1, 7)\n        hi = rng.choice([1, 2, 3, 4])\n        tests.append(fmt([rng.randint(0, hi) for _ in range(n)], rand_tree(n)))\n    for _ in range(3):\n        n = 6 + rng.randint(0, 1)\n        tests.append(fmt([rng.choice([0, 4]) for _ in range(n)], rand_tree(n)))\n    for n, hi in ((120, 30), (150, 10), (200, 1000), (300, 5)):\n        tests.append(fmt([rng.randint(0, hi) for _ in range(n)], rand_tree(n)))\n    N = 1000\n    tests.append(fmt([rng.randint(0, 1000) for _ in range(N)], path(N)))\n    tests.append(fmt([0 if i % 2 == 0 else 1000 for i in range(N)], [(i - 1, i) for i in range(1, N)]))\n    tests.append(fmt([rng.randint(0, 1000) for _ in range(N)], star(N)))\n    tests.append(fmt([rng.randint(0, 1000) for _ in range(N)], rand_tree(N)))\n    tests.append(fmt([rng.choice([0, 1000]) for _ in range(N)], rand_tree(N)))\n    tests.append(fmt([rng.randint(900, 1000) for _ in range(N)], rand_tree(N)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef min_stones(n: int, stones: List[int], edges: List[Tuple[int, int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    stones = [int(x) for x in data[1:1 + n]]\n    edges = []\n    p = 1 + n\n    for _ in range(n - 1):\n        edges.append((int(data[p]), int(data[p + 1])))\n        p += 2\n    print(min_stones(n, stones, edges))\n\n\nmain()\n",
+  "javascript": "function minStones(n, stones, edges) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst stones = t.slice(1, 1 + n)\nconst edges = []\nfor (let i = 0; i < n - 1; i++) edges.push([t[1 + n + 2 * i], t[2 + n + 2 * i]])\nconsole.log(String(minStones(n, stones, edges)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minStones(int n, vector<int>& stones, vector<pair<int, int>>& edges) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> stones(n);\n    for (int i = 0; i < n; i++) cin >> stones[i];\n    vector<pair<int, int>> edges(max(0, n - 1));\n    for (int i = 0; i + 1 < n; i++) cin >> edges[i].first >> edges[i].second;\n    cout << minStones(n, stones, edges) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minStones(int n, int[] stones, int[][] edges) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] stones = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            stones[i] = (int) in.nval;\n        }\n        int[][] edges = new int[Math.max(0, n - 1)][2];\n        for (int i = 0; i + 1 < n; i++) {\n            in.nextToken();\n            edges[i][0] = (int) in.nval;\n            in.nextToken();\n            edges[i][1] = (int) in.nval;\n        }\n        System.out.println(minStones(n, stones, edges));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,49 @@
+{
+ "pid": "samsung-detect-a-cycle-in-a-graph",
+ "title": "Detect a Cycle in a Graph",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a **directed** graph with `n` nodes numbered `0` to `n - 1` and `m` directed edges. The edge `u v` points from `u` to `v`. The graph may contain repeated edges and self-loops (an edge from a node to itself).\n\nA **cycle** is a path of one or more edges that starts and ends at the same node. A self-loop is a cycle of length one. The graph is not necessarily connected.\n\nPrint `1` if the graph contains at least one cycle, and `0` if it contains none.\n\n**Follow-up:** the same question for an **undirected** graph needs a different check (an edge back to the parent you just came from is not a cycle). Can you adapt the idea? This variant is not tested here.",
+ "input_format": "The first line contains two integers `n` and `m`.\nEach of the next `m` lines contains two integers `u` and `v`, a directed edge from `u` to `v`.",
+ "output_format": "Print `1` if the graph contains a cycle, otherwise `0`.",
+ "constraints": [
+  "1 ≤ n ≤ 5000",
+  "0 ≤ m ≤ 20000",
+  "0 ≤ u, v < n"
+ ],
+ "examples": [
+  {
+   "input": "4 4\n0 1\n0 2\n1 3\n2 3",
+   "output": "0",
+   "explanation": "There are two routes from node 0 to node 3, but no route ever returns to a node it has left. Following the arrows you can never come back, so there is no directed cycle."
+  },
+  {
+   "input": "4 4\n0 1\n1 2\n2 3\n3 1",
+   "output": "1",
+   "explanation": "Starting at node 1 you can follow 1 → 2 → 3 → 1 and return to where you started."
+  },
+  {
+   "input": "3 1\n2 2",
+   "output": "1",
+   "explanation": "The edge from node 2 to itself is a self-loop, which counts as a cycle of length one."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Try depth-first search and track which nodes are on the current recursion path. Reaching a node that is still on the path means you found a cycle. Seeing an already finished node does not.",
+  "An alternative with no recursion: repeatedly remove nodes that have no incoming edges (Kahn's topological sort).",
+  "If the removal process cannot remove every node, the leftover nodes all lie on or after a cycle, so the graph has a cycle. Self-loops keep their own node's in-degree above zero, so they are caught automatically."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    adj = [[] for _ in range(n)]\n    indeg = [0] * n\n    for i in range(m):\n        u = int(data[2 + 2 * i])\n        v = int(data[3 + 2 * i])\n        adj[u].append(v)\n        indeg[v] += 1\n    dq = deque(i for i in range(n) if indeg[i] == 0)\n    seen = 0\n    while dq:\n        u = dq.popleft()\n        seen += 1\n        for v in adj[u]:\n            indeg[v] -= 1\n            if indeg[v] == 0:\n                dq.append(v)\n    print(0 if seen == n else 1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nadj = [[] for _ in range(n)]\nfor i in range(m):\n    adj[int(data[2 + 2 * i])].append(int(data[3 + 2 * i]))\nfound = False\nfor s in range(n):\n    seen = set()\n    stack = list(adj[s])\n    while stack:\n        x = stack.pop()\n        if x == s:\n            found = True\n            break\n        if x in seen:\n            continue\n        seen.add(x)\n        stack.extend(adj[x])\n    if found:\n        break\nprint(1 if found else 0)\n",
+ "generator": "\ndef gen(rng):\n    def fmt(n, edges):\n        return f'{n} {len(edges)}\\n' + '\\n'.join(f'{u} {v}' for u, v in edges)\n    def dag(n, m, rng_):\n        perm = list(range(n))\n        rng_.shuffle(perm)\n        edges = []\n        for _ in range(m):\n            i = rng_.randrange(n - 1)\n            j = rng_.randrange(i + 1, n)\n            edges.append((perm[i], perm[j]))\n        return perm, edges\n    tests = ['1 0', '1 1\\n0 0', '2 1\\n0 1', '2 2\\n0 1\\n1 0', '4 4\\n0 1\\n0 2\\n1 3\\n2 3',\n             '4 4\\n0 1\\n1 2\\n2 3\\n3 1', '3 1\\n2 2', '5 0', '3 3\\n0 1\\n1 2\\n0 2', '3 3\\n0 1\\n1 2\\n2 0']\n    for n in (2, 3, 4, 6, 8, 10, 12):\n        for _ in range(3):\n            m = rng.randint(1, min(2 * n, 14))\n            perm, edges = dag(n, m, rng)\n            mode = rng.random()\n            if mode < 0.5:\n                i = rng.randrange(n - 1)\n                j = rng.randrange(i + 1, n)\n                edges.append((perm[j], perm[i]))\n            elif mode < 0.6:\n                x = rng.randrange(n)\n                edges.append((x, x))\n            rng.shuffle(edges)\n            tests.append(fmt(n, edges))\n    n = 5000\n    perm, edges = dag(n, 20000, rng)\n    tests.append(fmt(n, edges))\n    chain = [(perm[i], perm[i + 1]) for i in range(n - 1)]\n    tests.append(fmt(n, chain))\n    tests.append(fmt(n, chain + [(perm[n - 1], perm[0])]))\n    perm, edges = dag(n, 19999, rng)\n    i = rng.randrange(n // 2)\n    j = rng.randrange(n // 2, n)\n    edges.append((perm[j], perm[i]))\n    rng.shuffle(edges)\n    tests.append(fmt(n, edges))\n    cyc = [(i, (i + 1) % 2500) for i in range(2500)] + [(2500 + i, 2501 + i) for i in range(2499)]\n    rng.shuffle(cyc)\n    tests.append(fmt(5000, cyc))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef has_cycle(n: int, edges: List[Tuple[int, int]]) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    edges = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(m)]\n    print(1 if has_cycle(n, edges) else 0)\n\n\nmain()\n",
+  "javascript": "function hasCycle(n, edges) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst edges = []\nfor (let i = 0; i < m; i++) edges.push([t[2 + 2 * i], t[3 + 2 * i]])\nconsole.log(hasCycle(n, edges) ? 1 : 0)\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool hasCycle(int n, vector<pair<int, int>>& edges) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<pair<int, int>> edges(m);\n    for (int i = 0; i < m; i++) cin >> edges[i].first >> edges[i].second;\n    cout << (hasCycle(n, edges) ? 1 : 0) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean hasCycle(int n, int[][] edges) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] edges = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); edges[i][0] = (int) in.nval;\n            in.nextToken(); edges[i][1] = (int) in.nval;\n        }\n        System.out.println(hasCycle(n, edges) ? 1 : 0);\n    }\n}\n"
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "f8c5484e02",
+ "question": "Atlassian Senior Engineering Manager, system design round: **design an image fetcher, a variant of a web crawler.** Given a list of URLs, crawl them for images (only copy the `src` URLs, not the image blobs) and **re-crawl child URLs up to depth N**.\n\nAPIs reported: (1) submit a request with a list of URLs and receive a **jobId**; (2) query the **status** of a jobId (a BFS-like process updates the status in the database); (3) get the list of images for a job, **mapped to its root URL**. Deep dives covered **deduplication, crawl truncation and failure handling**.",
+ "lookingFor": [
+  "Turning the requirement into clean APIs and a job model.",
+  "Scalable crawl architecture: frontier queue, workers, politeness.",
+  "Correct depth tracking and BFS across distributed workers.",
+  "Deduplication of URLs and images; handling cycles.",
+  "Failure, retries, idempotency and job status accuracy."
+ ],
+ "answer": "**Requirements:** submit up to a few hundred URLs per job and depth N, crawl asynchronously, report status and results per root URL. Scale assumption: thousands of concurrent jobs and millions of pages per day. Non-functional: reliable, polite to sites, and eventually consistent results.\n\n**API**\n- `POST /jobs {urls[], depth}` returns `{jobId}` (202 Accepted).\n- `GET /jobs/{jobId}` returns status (`PENDING`, `RUNNING`, `COMPLETED`, `PARTIAL`, `FAILED`) and counts.\n- `GET /jobs/{jobId}/images?rootUrl=` returns image URLs grouped by root URL, paginated.\n\n**Data model:** `jobs(jobId, status, depth, createdAt)`; `tasks(jobId, rootUrl, url, depth, state)`; `images(jobId, rootUrl, imageUrl)`; plus a `visited(jobId, urlHash)` set.\n\n**Components**\n1. **API service** writes the job and root tasks and publishes crawl tasks to a queue (Kafka or SQS).\n2. **Crawler workers** pull a task `(jobId, rootUrl, url, currentDepth)`: fetch the page, extract `<img src>` values (resolve relative URLs) and `<a href>` links, write images, and if `currentDepth < N` enqueue each unseen child with `depth + 1`. This makes a distributed BFS, where the depth travels with the task.\n3. **Deduplication:** keep a visited check by normalised URL (lowercase host, strip fragments, sort query params) in Redis or a database with a unique key `(jobId, urlHash)`, using an atomic insert-if-absent so two workers do not both crawl a page. This also stops cycles. Images are deduplicated per job and root with a unique key; global image dedup by URL hash saves storage.\n4. **Politeness:** respect `robots.txt`, rate limit per domain (queue partitioned by domain), set timeouts and a maximum page size.\n5. **Status tracking:** a counter of outstanding tasks per job (increment on enqueue, decrement on completion); the job is complete when it reaches zero. Update in a transaction or with atomic increments to stay correct.\n\n**Truncation:** limit pages per job, links per page and time budget; mark the job `PARTIAL` when a limit is hit and say so in the status.\n\n**Failures:** retries with backoff and a dead-letter queue; tasks are idempotent (insert-if-absent); workers are stateless, so a crashed task is redelivered after the visibility timeout; a failed domain marks only that branch as failed.\n\n**Scale:** partition by domain or job, autoscale workers on queue depth, store images in a wide table or object storage.",
+ "followUps": [
+  "How do you detect that a job is complete in a distributed crawl?",
+  "How do you avoid crawling the same URL twice across workers and across jobs?",
+  "How do you handle JavaScript-rendered pages or infinite link traps?",
+  "What happens if the same root URL appears in two different jobs?"
+ ]
+}

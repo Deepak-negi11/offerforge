@@ -1,0 +1,48 @@
+{
+ "pid": "all-possible-full-binary-trees",
+ "title": "All Possible Full Binary Trees",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A **full binary tree** is a binary tree in which every node has either `0` or `2` children. Given an integer `n`, generate every structurally different full binary tree that has exactly `n` nodes. Node values carry no information, so two trees are different exactly when their shapes differ.\n\nEach tree is printed as a single line in **level-order** (breadth-first, left to right): every node is written as `0`, and a missing child of a node is written as `null`. Missing children of the last nodes are not printed, so there are no trailing `null` entries. (A leaf contributes two `null` entries only if some later node still follows it in the level order.)\n\nTo make the answer unique, print the trees in this **canonical order**: tree A comes before tree B if its left subtree has fewer nodes; if both left subtrees have the same size, compare the left subtrees recursively in the same order; if those are identical, compare the right subtrees recursively in the same order.\n\nIf no full binary tree with `n` nodes exists, only the count `0` is printed.\n\n**Follow-up:** Discuss the recursion behind your solution. Why can a full binary tree only have an odd number of nodes, how does the number of trees grow (Catalan numbers), what do memoization and sharing identical subtrees save, and what is the time and space complexity in terms of the output size?",
+ "input_format": "A single integer `n`.",
+ "output_format": "First line: the number of trees `T`. Then `T` lines, one per tree in canonical order, each a space-separated level-order serialization using `0` and `null`. If `T = 0`, only that first line is printed.",
+ "constraints": [
+  "1 ≤ n ≤ 19",
+  "The depth of every generated tree is at most 9, so recursive solutions are safe."
+ ],
+ "examples": [
+  {
+   "input": "5",
+   "output": "2\n0 0 0 null null 0 0\n0 0 0 0 0",
+   "explanation": "Two shapes exist. In the first, the left subtree is a single node and the right subtree has 3 nodes (root, then a leaf on the left and a node with two leaves on the right). In the second the sizes are swapped. The tree with the smaller left subtree is printed first."
+  },
+  {
+   "input": "7",
+   "output": "5\n0 0 0 null null 0 0 null null 0 0\n0 0 0 null null 0 0 0 0\n0 0 0 0 0 0 0\n0 0 0 0 0 null null null null 0 0\n0 0 0 0 0 null null 0 0",
+   "explanation": "Left subtrees of sizes 1, 3 and 5 give 1, 1 and 2 left shapes respectively, combined with right subtrees of sizes 5, 3 and 1 (2, 1 and 1 shapes). That is 2 + 1 + 2 = 5 trees, listed by increasing left size and, within the same left size, by the order of the sub-shapes."
+  },
+  {
+   "input": "4",
+   "output": "0",
+   "explanation": "Every node has 0 or 2 children, so the node count of a full binary tree is always odd. No tree has 4 nodes."
+  }
+ ],
+ "complexity": {
+  "time": "O(T · n), where T is the number of trees (a Catalan number)",
+  "space": "O(T · n)"
+ },
+ "hints": [
+  "Think about the root: the remaining n - 1 nodes are split between the left and right subtrees. Which sizes are possible for each side?",
+  "Let trees(s) be the list of all full binary trees with s nodes. Combine every tree of trees(a) with every tree of trees(s - 1 - a) for odd a.",
+  "Memoize trees(s) by size, and reuse (share) the same subtree objects when building bigger trees, so work is not repeated. Serialize each tree only at the end."
+ ],
+ "reference": "import sys\n\ndef main():\n    n = int(sys.stdin.read().split()[0])\n    if n % 2 == 0:\n        print(0)\n        return\n    f = {1: [()]}\n    for s in range(3, n + 1, 2):\n        cur = []\n        for a in range(1, s - 1, 2):\n            for l in f[a]:\n                for r in f[s - 1 - a]:\n                    cur.append((l, r))\n        f[s] = cur\n\n    def ser(root):\n        out = ['0']\n        queue = [root]\n        h = 0\n        while h < len(queue):\n            node = queue[h]\n            h += 1\n            if node == ():\n                out.append('null')\n                out.append('null')\n            else:\n                for c in node:\n                    out.append('0')\n                    queue.append(c)\n        while out[-1] == 'null':\n            out.pop()\n        return ' '.join(out)\n\n    res = [ser(t) for t in f[n]]\n    print(len(res))\n    print('\\n'.join(res))\n\nmain()\n",
+ "brute": "import sys\n\nn = int(sys.stdin.read().split()[0])\nif n % 2 == 0:\n    print(0)\n    sys.exit()\n\nfound = []\n\ndef rec(s, need):\n    if need == 0:\n        if len(s) == n:\n            found.append(s)\n        return\n    if len(s) >= n:\n        return\n    rec(s + '1', need + 1)\n    rec(s + '0', need - 1)\n\nrec('', 1)\n\ndef build(s):\n    pos = [0]\n    def go():\n        c = s[pos[0]]\n        pos[0] += 1\n        if c == '0':\n            return None\n        left = go()\n        right = go()\n        return [left, right]\n    return go()\n\ndef size(t):\n    return 1 if t is None else 1 + size(t[0]) + size(t[1])\n\ndef key(t):\n    if t is None:\n        return (0,)\n    return (size(t[0]), key(t[0]), key(t[1]))\n\ntrees = [build(s) for s in found]\ntrees.sort(key=key)\n\ndef level(t):\n    vals = []\n    q = [t]\n    i = 0\n    while i < len(q):\n        x = q[i]\n        i += 1\n        if x == 'N':\n            vals.append('null')\n            continue\n        vals.append('0')\n        if x is None:\n            q.append('N')\n            q.append('N')\n        else:\n            q.append(x[0])\n            q.append(x[1])\n    while vals[-1] == 'null':\n        vals.pop()\n    return ' '.join(vals)\n\nprint(len(trees))\nfor t in trees:\n    print(level(t))\n",
+ "generator": "def gen(rng):\n    return [str(n) for n in range(1, 20)] + ['20', '19\\n']\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef all_full_binary_trees(n: int) -> List[str]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    n = int(sys.stdin.read().split()[0])\n    res = all_full_binary_trees(n)\n    print(len(res))\n    for s in res:\n        print(s)\n\n\nmain()\n",
+  "javascript": "function allFullBinaryTrees(n) {\n  // Write your solution here\n  return []\n}\n\nconst n = parseInt(input.trim().split(/\\s+/)[0])\nconst res = allFullBinaryTrees(n)\nconst lines = [String(res.length)]\nfor (const s of res) lines.push(s)\nconsole.log(lines.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<string> allFullBinaryTrees(int n) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    int n;\n    cin >> n;\n    vector<string> res = allFullBinaryTrees(n);\n    cout << res.size() << \"\\n\";\n    for (const string& s : res) cout << s << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<String> allFullBinaryTrees(int n) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        int n = Integer.parseInt(br.readLine().trim());\n        List<String> res = allFullBinaryTrees(n);\n        StringBuilder sb = new StringBuilder();\n        sb.append(res.size()).append(\"\\n\");\n        for (String s : res) sb.append(s).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

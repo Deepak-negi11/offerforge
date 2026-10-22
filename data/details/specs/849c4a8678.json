@@ -1,0 +1,18 @@
+{
+ "qid": "849c4a8678",
+ "question": "Goldman Sachs Associate, final (hiring manager) round, about 30 minutes, built around a **parking lot**. The reported prompt: design how to **compute the parking price efficiently** when the pricing strategy differs between **weekdays and weekends**, and also depends on the **hour of the day** (a time band such as 9am to 5pm was mentioned).\n\nThe candidate noted that the interviewer did not engage much with clarifying questions, so be ready to state your own assumptions explicitly (billing granularity, stays that span midnight or a weekday/weekend boundary, rounding).",
+ "lookingFor": [
+  "Clean OOP: Strategy pattern instead of a tangle of if/else on day and hour.",
+  "Whether you clarify requirements and state assumptions when answers are not given.",
+  "Efficient computation for long stays, not hour-by-hour loops over weeks.",
+  "Extensibility: adding holidays, surge pricing or a new vehicle type without rewriting code.",
+  "Edge cases: stays crossing midnight, Friday to Saturday, rounding, free grace period."
+ ],
+ "answer": "**Clarify and assume first.** Billing unit (per hour, rounded up?), vehicle types, whether a stay can span days, a daily cap, and whether rates are configured data or code. State your choices if the interviewer will not.\n\n**Core design (Strategy + rule table).**\n- `Ticket(vehicleType, entryTime, exitTime)` and `ParkingLot` which owns a `PricingService`.\n- `PricingStrategy` interface: `double price(Ticket t)`. Implementations such as `HourlyStrategy`, `FlatDailyStrategy`, `PeakOffPeakStrategy`.\n- A `RateCard` (data, not code) maps a *time slot* to a rate: for example `WEEKDAY 09:00-17:00 -> 50/h`, `WEEKDAY off-peak -> 30/h`, `WEEKEND all day -> 40/h`. A `StrategyFactory` picks the strategy per vehicle type or lot.\n\n**Computing efficiently.** Naively stepping minute by minute is O(stay length). Better: split the stay at *boundaries* only (midnight, band start and end, weekday/weekend change). Each segment has one constant rate, so cost is the sum of `rate * duration` over segments. The number of segments is roughly 2 to 4 per day, so a stay of D days costs O(D) segments. For a very long stay, price full days with a precomputed per-day total (weekday total, weekend total) and add only the partial first and last days, giving O(1) in the middle.\n\n**Precompute.** Keep a 7 x 24 table of hourly rates (168 slots), so the lookup is O(1) and changing rules means changing data. Use `Duration` and a clock abstraction so tests do not depend on the real time.\n\n**Edge cases.** Stays crossing midnight or Friday into Saturday (segments handle this), rounding up per hour versus per minute, grace period, daily cap (`min(total, cap)` per day), holidays (a `HolidayCalendar` that overrides the day type), and time zones or daylight saving (use a zone-aware time type).\n\n**Trade-offs.** Strategy classes are flexible but can multiply; a data-driven rate table is simpler and easier to change by non-developers. Money should use integer minor units or `BigDecimal`, never floating point.\n\n**Testing.** Unit-test each boundary: entry at 08:59, exit at 17:01, Friday 23:30 to Saturday 00:30, and a 3-day stay.",
+ "followUps": [
+  "How would you add public holidays and surge pricing without changing existing strategy classes?",
+  "How do you handle a stay that crosses a daylight saving change?",
+  "Where does concurrency matter in this design (entry and exit gates, slot allocation)?",
+  "How would you test the pricing logic?"
+ ]
+}

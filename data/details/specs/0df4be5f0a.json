@@ -1,0 +1,18 @@
+{
+ "qid": "0df4be5f0a",
+ "question": "Director round, Adobe MTS-2. **Design an offensive content filter** that flags hateful or inappropriate content across **text, images and videos**. The candidate discussed ML classifiers, a multi-layer architecture and asynchronous processing; the interviewer then probed **scalability, latency and false positives**.",
+ "lookingFor": [
+  "Ability to break an open-ended ML system into pipeline stages.",
+  "Understanding of precision/recall trade-offs and the cost of false positives.",
+  "Latency versus accuracy thinking (sync fast path, async deep path).",
+  "Scale awareness: queues, batching, GPU serving, cost.",
+  "Product sense: appeals, human review, policy changes."
+ ],
+ "answer": "**Requirements.** Detect policy-violating content (hate, harassment, explicit material) in text, images and video at upload time or before display. Assume millions of items a day, a fast decision for text (tens of ms) and a slower one for video (seconds to minutes). Clarify actions: block, hide pending review, or just flag.\n\n**Pipeline.**\n1. **Ingest API** receives content and writes it to object storage plus a message queue (e.g. Kafka/SQS) so uploads are not blocked on ML.\n2. **Cheap first pass:** hash match against known-bad content, blocklists, regex, and metadata checks. Fast and high precision.\n3. **ML classifiers per modality:** text via a fine-tuned transformer toxicity model (multilingual); images via a CNN/ViT classifier plus OCR to catch text in images; video by sampling frames and audio (speech-to-text then text model), then aggregating scores per video.\n4. **Decision service:** combines scores with policy thresholds per category and region. Three outcomes: allow, block, send to human review for the uncertain band.\n5. **Review queue and feedback:** human decisions and user appeals become labelled data for retraining.\n\n**Scale and latency.** Stateless microservices consume the queue, workers batch requests to GPU model servers, and results are cached by content hash. Use a synchronous fast path for text before publishing, and an async path for heavy video work (publish as hidden, then release).\n\n**False positives.** Choose thresholds per category based on the cost of errors: high-confidence blocks are automatic, middle band goes to humans. Track precision and recall per language and per category, use context (quoted slurs, reclaimed language), maintain an appeal flow, and monitor bias across dialects.\n\n**Other trade-offs:** third-party moderation APIs versus in-house models (cost, data privacy, customisation), model drift as slang changes, and adversarial evasion (misspellings, image perturbation).",
+ "followUps": [
+  "How do you measure the quality of the filter in production without ground truth?",
+  "How would you handle a new language with little labelled data?",
+  "What would you do if the classifier is accurate but too slow for the upload path?",
+  "How do you protect human reviewers from harmful content?"
+ ]
+}

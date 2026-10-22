@@ -1,0 +1,19 @@
+{
+ "qid": "6c43dd7662",
+ "question": "Hiring manager round (a mix of system design and techno-managerial discussion) for an SDE-2 role at Swiggy, after about 4 years of experience. The interviewer discussed the candidate's **previous projects**, did a **deep dive into the design patterns used**, asked about **Kafka and Redis optimisations and database internals**, and checked the thought process around **scaling systems and handling bottlenecks**.",
+ "lookingFor": [
+  "Depth of understanding of the tools you listed on your resume, not just usage.",
+  "Ability to justify design patterns and technology choices with trade-offs.",
+  "Knowledge of Kafka, Redis and database internals, and how to tune them.",
+  "Systematic bottleneck analysis: measure, find the limit, fix, re-measure.",
+  "Ownership and clear communication of real project decisions."
+ ],
+ "answer": "**How to prepare this round.** Pick one or two projects you know deeply and be ready to explain the *why* behind every component. The three areas below are the likely probes.\n\n**Design patterns.** Name patterns you actually used (strategy, factory, observer, builder, repository, circuit breaker), the problem each solved, and what you would do differently. Do not list patterns you cannot justify.\n\n**Kafka.**\n- Throughput: partitions set the parallelism limit; consumers in a group share partitions. Batching (`linger.ms`, `batch.size`) and compression raise throughput at the cost of latency.\n- Reliability: producer `acks=all`, idempotent producer, replication factor and `min.insync.replicas`; at-least-once delivery means consumers must be **idempotent**.\n- Ordering is only guaranteed per partition, so choose the key carefully (for example order id) and watch for hot partitions.\n- Consumer lag, rebalances, retries with a dead-letter topic.\n\n**Redis.**\n- Use it as a cache with TTLs and a clear invalidation strategy (cache-aside, write-through), and guard against cache stampede (locking, jittered TTL).\n- Eviction policy (LRU/LFU), memory sizing, choosing the right data structure (hash, sorted set), pipelining to cut round-trips, avoiding big keys and `KEYS *`.\n- Persistence (RDB vs AOF) and replication or clustering for availability.\n\n**Database internals.** Indexes (B-tree, why a composite index order matters), query plans with `EXPLAIN`, transactions and isolation levels, MVCC, locking and deadlocks, write-ahead log, replication lag, and when to shard or add read replicas.\n\n**Scaling and bottlenecks.** Describe a method: set a target, measure (latency percentiles, CPU, DB connections, queue lag), find the bottleneck, apply the cheapest fix (index, cache, batching, async work), then scale out (replicas, partitions, sharding), and re-test. Give one real number from your project if you can.\n\nBe honest where your knowledge ends, and explain how you would find the answer.",
+ "followUps": [
+  "Why did you pick Kafka instead of a simpler queue for that use case?",
+  "How do you guarantee no duplicate processing when a consumer crashes?",
+  "A hot key is overloading one Redis node. What do you do?",
+  "How would you find why a query suddenly became slow in production?",
+  "Which design pattern in your project would you now replace, and why?"
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "qid": "59f7ebdaea",
+ "question": "In the Bar Raiser coding and low-level-design round of an Amazon SDE-2 interview, after a Minimum Window Substring problem, the second question was:\n\n**Implement an LRU cache.** The candidate described the approach using **interfaces and generics** so the cache works for any key and value types. The interviewer gave extra time (around 10 minutes) to finish the code.",
+ "lookingFor": [
+  "The core data structure insight: hash map plus doubly linked list for O(1) get and put",
+  "Clean abstractions: a Cache interface, generic types, an eviction policy that could be swapped",
+  "Correct edge cases: capacity of 0 or 1, updating an existing key, eviction order",
+  "Thread-safety awareness and how you would add it",
+  "Readable, testable code written in the time available"
+ ],
+ "answer": "**Requirements:** `get(key)` and `put(key, value)` in O(1); evict the least recently used entry at capacity; generic over `K` and `V`.\n\n**Design**\n- `Cache<K, V>` interface: `V get(K key)`, `void put(K key, V value)`, `int size()`.\n- `LRUCache<K, V> implements Cache<K, V>`: a `HashMap<K, Node<K, V>>` for lookup and a doubly linked list ordered from most to least recently used, with sentinel `head` and `tail` nodes so insert and remove never need null checks.\n- `get`: look up the node; if missing return null (or `Optional`); otherwise move it to the front and return the value.\n- `put`: if the key exists, update the value and move it to the front. Otherwise create a node and insert it at the front; if size exceeds capacity, remove the node before the tail sentinel and delete its key from the map.\n\n**Sketch (Java)**\n\n```java\nclass LRUCache<K, V> implements Cache<K, V> {\n  private static class Node<K, V> { K key; V val; Node<K, V> prev, next; }\n  private final int cap;\n  private final Map<K, Node<K, V>> map = new HashMap<>();\n  private final Node<K, V> head = new Node<>(), tail = new Node<>();\n  // ctor links head <-> tail\n  public synchronized V get(K k) {\n    Node<K, V> n = map.get(k);\n    if (n == null) return null;\n    unlink(n); addFirst(n); return n.val;\n  }\n  public synchronized void put(K k, V v) { /* update or insert, evict tail.prev if over cap */ }\n}\n```\n\n**Extensions**\n- Make eviction pluggable with an `EvictionPolicy` interface (LRU, LFU) so the cache holds the policy and the map.\n- Thread safety: a coarse lock is simplest; for throughput use lock striping or a concurrent design, and remember that even `get` mutates the list.\n- Add TTL, hit and miss metrics, and a loader callback for read-through caching.\n\n**Edge cases to test:** capacity 1, repeated put of the same key, get of a missing key, null values, and eviction order after a mix of gets and puts.\n\n**Complexity:** O(1) time per operation, O(capacity) space.",
+ "followUps": [
+  "How would you make this thread-safe without a single global lock?",
+  "How would you add per-entry TTL expiry?",
+  "How would you change the design to support LFU?",
+  "Why a doubly linked list and not a singly linked list or an array?",
+  "How would you distribute this cache across multiple machines?"
+ ]
+}

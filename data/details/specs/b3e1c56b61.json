@@ -1,0 +1,19 @@
+{
+ "qid": "b3e1c56b61",
+ "question": "American Express campus drive, Technology Engineer Trainee, technical interview 1 (DBMS). Questions: **Explain ACID and the CAP theorem.** **How can consistency and availability be achieved together? Explain with an example.** And: **if two users want to buy a book of which only one copy is available and they order at the same time, how do you handle it, and what is this issue called?**",
+ "lookingFor": [
+  "Precise knowledge of the four ACID properties.",
+  "Correct understanding of CAP (it is about behaviour during a network partition).",
+  "Ability to push back on the premise 'both C and A together' with nuance.",
+  "Recognising a race condition / lost update and knowing concrete database fixes.",
+  "Practical transaction and locking knowledge."
+ ],
+ "answer": "**ACID** (properties of a transaction): **Atomicity**, all or nothing; **Consistency**, a transaction moves the DB from one valid state to another (constraints hold); **Isolation**, concurrent transactions do not see each other's partial work; **Durability**, committed data survives crashes (write-ahead log).\n\n**CAP theorem.** A distributed data store cannot guarantee all three of Consistency (every read sees the latest write), Availability (every request to a non-failing node gets a response) and Partition tolerance. Partitions will happen, so the real choice is during a partition: CP (refuse or delay some requests to stay consistent, e.g. HBase, ZooKeeper) or AP (answer with possibly stale data, e.g. Cassandra, DynamoDB in default modes).\n\n**Can C and A coexist?** Yes when there is no partition: a single-node database or a healthy cluster gives both. CAP only says you cannot guarantee both *while partitioned*. Many systems let you tune it per operation (quorum reads/writes in Cassandra).\n\n**Last copy of a book.** This is a **race condition** (lost update / write skew style problem): both read `stock = 1`, both decrement and both orders succeed, so stock goes to -1 or an oversell happens. Fixes:\n1. Atomic conditional update, the simplest: `UPDATE books SET stock = stock - 1 WHERE id = ? AND stock > 0;` then check affected rows = 1.\n2. Pessimistic locking: `SELECT ... FOR UPDATE` inside a transaction so the second buyer waits.\n3. Optimistic locking: a `version` column; `UPDATE ... WHERE id=? AND version=?`; retry or fail if 0 rows changed.\n4. A `CHECK (stock >= 0)` constraint as a last line of defence.\nIn a distributed setting, use a single owner for the item or a reservation with expiry.\n\nMistake to avoid: saying 'just check stock in application code first', which is itself racy.",
+ "followUps": [
+  "What isolation levels exist and which anomalies does each prevent?",
+  "Optimistic vs pessimistic locking: when is each better?",
+  "What is BASE and how does it relate to CAP?",
+  "How does durability work internally (WAL)?",
+  "How would this change if the stock were in Redis or sharded across databases?"
+ ]
+}

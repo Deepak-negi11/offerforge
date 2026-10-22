@@ -1,0 +1,19 @@
+{
+ "qid": "1e5001c7d4",
+ "question": "Microsoft design round (SDE). Design the classic Snake game with food as a low level design. One candidate (Feb 2026) used the Strategy pattern, the Factory pattern and an extensible design, then answered optimisation questions and updated the design; running the code was not required that time. Another report places it as a high-level design round in an SDE loop. The topics tagged include queue and hashing.",
+ "lookingFor": [
+  "Modelling a game with clear classes and responsibilities.",
+  "Efficient data structures for the snake body and collision checks.",
+  "Using Strategy and Factory only where they add value.",
+  "Extensibility (obstacles, different foods, board sizes).",
+  "Handling optimisation follow-ups."
+ ],
+ "answer": "**Requirements.** An N by M board, a snake that moves in the current direction each tick, can change direction (not reverse), grows when it eats food, and the game ends if it hits a wall or itself. Food appears at a random free cell. Score equals the food eaten.\n\n**Entities.**\n- `Position(row, col)` as an immutable value with `equals/hashCode`.\n- `Direction` enum with its delta, `Snake`, `Food`, `Board`, `Game`, `FoodFactory`, `MovementStrategy`.\n\n**Snake representation.** Use a `Deque<Position>` for the body (head at the front) plus a `HashSet<Position>` of occupied cells. A move: compute the new head; check walls and, using the set, self-collision (the tail cell is allowed if the snake is not growing, since the tail moves away this tick); add the head to the front. If it landed on food, keep the tail (growth) and spawn new food; otherwise remove the tail from the deque and the set. This makes each move O(1).\n\n**Patterns.**\n- *Strategy:* `MovementStrategy`/`WallStrategy` decides what happens at the border: `WallCollisionStrategy` ends the game, `WrapAroundStrategy` teleports. A `FoodSpawnStrategy` can be random or avoid snake cells.\n- *Factory:* `FoodFactory.create(type)` yields normal food, bonus food or poison, each with different points and effects through a `Food` interface.\n- Keep `Game` as the orchestrator with a `tick()` method so rendering and input are separate (an input loop that sets the next direction).\n\n**Spawning food.** Picking a random cell and retrying until it is free is simple but slow when the board is nearly full. Optimisation: keep a list of free cells (swap-remove on occupy and release) and pick a random index in O(1), or when the free list is small, enumerate it.\n\n**Extensions.** Obstacles, multiple snakes, speed that increases with score, a replayable game from a seed, and an undo-free deterministic `tick` for testing.\n\n**Tests.** Eating food grows length by one; moving into the tail cell is legal when not growing; reversing direction is ignored; hitting the wall ends the game.",
+ "followUps": [
+  "How do you detect self-collision in O(1)?",
+  "How would you spawn food efficiently when the board is almost full?",
+  "How would you add wrap-around walls without changing `Snake`?",
+  "How would you support two players on the same board?",
+  "How would you test the game deterministically?"
+ ]
+}

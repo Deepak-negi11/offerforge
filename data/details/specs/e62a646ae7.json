@@ -1,0 +1,19 @@
+{
+ "qid": "e62a646ae7",
+ "question": "In a third technical round for an Oracle Server Technology campus role, two security design questions were asked after a discussion of the candidate's projects:\n\n1. **How will you implement SSO (single sign-on)?** The candidate described the basic one-step login mechanism.\n2. **If login credentials come from a place that is not my usual location, this could be a malicious login. How will you ensure the safety of my account?** The candidate first suggested storing the device's MAC address, which the interviewer did not accept; the answer that worked was an **extra step: send an OTP to the user's mobile number** when the login location is unusual.",
+ "lookingFor": [
+  "Can you describe the SSO flow with an identity provider and tokens?",
+  "Do you know the standards (SAML, OpenID Connect, OAuth 2.0) and what each one does?",
+  "Can you think about risk-based authentication: signals, step-up verification, and false positives?",
+  "Do you understand why some ideas (such as MAC address) are technically unsound?",
+  "Do you consider session handling, token expiry, logout and failure cases?"
+ ],
+ "answer": "**1. Implementing SSO**\n\nGoal: the user authenticates once at a central **Identity Provider (IdP)** and then accesses many applications (**Service Providers**, SPs) without logging in again.\n\nFlow (OpenID Connect / SAML style):\n1. User opens App A. App A has no session, so it redirects the browser to the IdP with a request (client id, redirect URI, state, nonce).\n2. The IdP checks its own session cookie. If none, it shows the login page (password plus MFA) and creates an IdP session.\n3. The IdP redirects back to App A with an authorization code (OIDC) or a signed assertion (SAML).\n4. App A exchanges the code at the IdP for an **ID token / access token** (signed JWT), **verifies the signature, issuer, audience, expiry and nonce**, and creates its own session.\n5. When the user opens App B, the redirect reaches the IdP, which already has a session and returns a token immediately, with no new login.\n\nImportant points: use HTTPS, validate the `redirect_uri` and `state` (against CSRF), keep tokens short-lived with refresh tokens, and design **single logout** (the IdP tells apps to end sessions). The IdP becomes a critical, highly available component.\n\n**2. Suspicious login from an unusual location**\n\nUse **risk-based (adaptive) authentication**. Compute a risk score at login from signals: IP geolocation and ASN compared with the user's history, **impossible travel** (two distant locations within a short time), new device or browser (a long-lived signed device cookie or fingerprint), time of day, failed attempt count, known-bad IP lists.\n\n- **Low risk:** allow.\n- **Medium risk:** **step-up verification**: OTP by SMS/email/app, or a push approval.\n- **High risk:** block and require account recovery.\n\nAlso: notify the user of the new login, show recent sessions with a \"sign out everywhere\" option, rate-limit and lock out after repeated failures, and log events for audit.\n\n**Why not the MAC address?** A MAC address is only visible on the local network segment; after crossing a router the server sees the router's, not the client's, and it can be spoofed. Use a device token or cookie instead.",
+ "followUps": [
+  "What is the difference between OAuth 2.0, OpenID Connect and SAML?",
+  "How do you implement single logout across applications?",
+  "What are the weaknesses of SMS OTP and what are better second factors?",
+  "How would you reduce false positives for users who travel or use VPNs?",
+  "What happens to SSO if the identity provider goes down?"
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "qid": "da7c26ad6c",
+ "question": "Groww SDE intern (frontend) take-home assignment: **build a checkout experience** that goes from a **cart (with coupon functionality)** to **payment details (UPI / cards)** to a **random payment confirmation (success / failed / pending)**. It also needed a **dynamic theme configuration loaded from an API**. Tech stack: Next.js, TypeScript, Zustand or Redux, Tailwind. The technical round then began with an in-depth discussion of the assignment, with follow-up questions.",
+ "lookingFor": [
+  "Product thinking for a multi-step flow with realistic states and errors.",
+  "State-management design and type safety in TypeScript.",
+  "Handling asynchronous API data (themes, payments) and edge cases.",
+  "Code quality, structure, accessibility and testing in a small project.",
+  "Ability to explain and defend design decisions in the follow-up discussion."
+ ],
+ "answer": "This is a project question, so the goal is a small app you can fully explain. Plan it as: problem discovery, design, prototype, test, refine.\n\n**Scope and flow.** Three steps (cart, payment, result) as routes or a stepper. Define who the user is and what success means: a user can review items, apply a valid coupon, pay with UPI or card, and clearly see the outcome.\n\n**Architecture.**\n- Next.js with TypeScript; one route per step or a stepper with route guards so users cannot reach payment with an empty cart.\n- Store (Zustand is simplest): cart items, quantities, applied coupon, derived totals, checkout step, payment result. Keep derived values (subtotal, discount, total) computed by selectors, not stored.\n- Coupons: pure function `applyCoupon(cart, code)` returning discount or an error (invalid, expired, minimum value not met). Use integer minor units for money to avoid floating point errors. Unit-test this function.\n- Payment form: validate with a schema (e.g. zod). UPI: VPA format check. Card: number length with a Luhn check, expiry in the future, CVV; never store or log card data and note that real systems use a payment gateway so raw card details never reach your server.\n- Confirmation: a mock API (route handler) that randomly returns success, failed or pending with a delay. Pending should poll or offer \"check status\" with a retry, failed should offer retry or change method. Make the call idempotent-minded (disable the pay button while in flight, send an idempotency key).\n- Theme from API: fetch config (colors, logo) on the server or at app start, apply as CSS variables, with a safe default and loading/error fallback to avoid a flash of unstyled content.\n\n**Quality.** Loading and error states, accessible form labels and focus management, responsive layout, a few tests (coupon logic, store, form validation), and a short README with decisions and trade-offs.\n\n**In the discussion.** Be ready to explain why you chose Zustand over Redux, how you would handle refresh (persist cart to localStorage), double submission, race conditions, and what you would improve with more time.\n\n**Mistakes to avoid:** copying a template you cannot explain, storing money as floats, no error states, and hardcoded theme values.",
+ "followUps": [
+  "Why Zustand (or Redux) over React context here?",
+  "How would you prevent a double payment on a slow network?",
+  "How would you handle the pending state in production?",
+  "How would you test the coupon rules?",
+  "How would you avoid a flash of default theme before the API config loads?"
+ ]
+}

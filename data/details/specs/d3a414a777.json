@@ -1,0 +1,18 @@
+{
+ "qid": "d3a414a777",
+ "question": "In a TCS Prime on-campus interview the candidate was first asked cloud basics (EC2, types of operating systems, deployment, IAM, authentication vs authorization) and then, unexpectedly, to **give a high-level design (HLD) of the TATA Neu app.** The candidate had not prepared system design for this round.",
+ "lookingFor": [
+  "Can you structure an open-ended design question when you have never seen it before?",
+  "Do you clarify requirements and state assumptions rather than guessing?",
+  "Can you break a super-app into services and explain their interaction?",
+  "Do you cover data, scale, security and reliability, especially for payments?",
+  "Do you communicate trade-offs and stay calm with an unexpected topic?"
+ ],
+ "answer": "**First, clarify and state assumptions.** Tata Neu is a \"super app\" that brings several brands' shopping, bookings and payments, plus a loyalty currency, into one app. I will assume these features (ask which to focus on): login/profile, browse and search products from partner brands, cart and checkout, payments (UPI/cards/wallet), loyalty points earned and redeemed across brands, orders and notifications. Scale: millions of users with sharp sale-day spikes.\n\n**Non-functional goals:** high availability, low latency, consistency for payments and points, security of personal and payment data.\n\n**High-level components:**\n\n1. **Clients:** Android, iOS, web.\n2. **API gateway:** single entry, authentication, rate limiting, routing.\n3. **Microservices:** User/Auth, Catalogue/Search (partner brands expose APIs or feeds), Cart, Order, Payment, Loyalty/Points ledger, Notification, Recommendations.\n4. **Integration layer:** adapters to each partner brand's backend so the app does not depend on each brand's internal format.\n5. **Data stores:** relational DB for orders, payments and the points ledger (ACID); a search engine such as Elasticsearch for products; a cache such as Redis for sessions, catalogue and carts; object storage and a CDN for images.\n6. **Messaging:** a queue or event bus (Kafka/SQS style) for order events, notifications and loyalty updates, which decouples services.\n7. **Cloud and delivery:** containers behind load balancers, auto-scaling, CI/CD, monitoring and logging.\n\n**Key flow (checkout):** cart -> order service creates order -> payment service calls a payment gateway -> on success an event triggers loyalty points credit, partner fulfilment and notification. Use **idempotency keys** so a retried payment is not charged twice, and a saga with compensating actions if a step fails.\n\n**Scaling and risks:** cache and CDN for read-heavy catalogue; horizontal scaling of stateless services; queue to absorb spikes; graceful degradation if a partner API is slow. Security: OAuth/JWT tokens, TLS, PCI-compliant payment handling, encrypted PII.\n\n**If you freeze in the interview:** say \"I will outline requirements, components and data flow\", and draw it step by step.",
+ "followUps": [
+  "How would you keep loyalty points consistent across brands?",
+  "How would you handle a flash sale with a huge traffic spike?",
+  "How would you make the payment step idempotent?",
+  "What is the difference between authentication and authorization, and how does IAM relate to it?"
+ ]
+}

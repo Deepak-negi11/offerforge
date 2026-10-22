@@ -1,0 +1,18 @@
+{
+ "qid": "5a4ef56e40",
+ "question": "Reported from a Paytm Senior Software Engineer (Backend) interview in January 2026: **What is partition tolerance and how is it achieved?** Also: explain the **difference between availability and partition tolerance**, with a **real-world example** (CAP theorem).",
+ "lookingFor": [
+  "Do you understand the actual CAP definitions, not the popular 'pick two of three' slogan?",
+  "Can you separate a network partition (a failure that happens) from availability (a property you choose to keep)?",
+  "Can you give a realistic example and map real systems to CP or AP behaviour during a partition?",
+  "Do you know how partition tolerance is achieved in practice (replication, quorums, timeouts)?",
+  "Do you know CAP is about behaviour during a partition and that PACELC covers the normal case too?"
+ ],
+ "answer": "**Definitions (CAP).**\n- **Consistency (C):** every read sees the most recent successful write (linearizability), as if there were one copy.\n- **Availability (A):** every request to a non-failing node gets a non-error response, without a guarantee that it is the latest data.\n- **Partition tolerance (P):** the system keeps operating even when the network drops or delays messages between groups of nodes.\n\n**Partition tolerance is not a feature you \"choose\".** In any distributed system network partitions can and do happen, so P is effectively mandatory. The real design choice is what to give up **during a partition**: consistency or availability. That is the correct reading of \"CP versus AP\". A single-node database is CA but is not distributed.\n\n**How partition tolerance is achieved.** The system is built so that no single node or link is essential: data is **replicated** across nodes and zones, requests have **timeouts**, nodes detect failures (heartbeats), a majority **quorum** or leader election (Raft/Paxos) decides who can accept writes, and the system defines how to **reconcile** divergent data after the partition heals (last-write-wins, vector clocks, CRDTs, read repair).\n\n**Availability versus partition tolerance.** Partition tolerance describes whether the system survives the network failure at all; availability describes whether it still answers every request while that failure is happening. A system can tolerate a partition (stay alive) but sacrifice availability by refusing requests on the minority side.\n\n**Example: a bank with two data centres whose link is cut.**\n- **CP choice:** the minority side refuses writes and reads (or errors) so balances can never diverge. Customers there get errors, but money is correct. Examples: ZooKeeper/etcd, HBase, MongoDB with majority writes.\n- **AP choice:** both sides keep serving and later merge. Customers are served, but you may see stale or conflicting values. Examples: Cassandra and DynamoDB at lower consistency settings, shopping-cart or social feed data.\n\nMoney and inventory leaning on correctness favour CP; likes, feeds and carts favour AP. Add that PACELC extends CAP: even without a partition, there is a latency versus consistency trade-off.",
+ "followUps": [
+  "Why is 'CA' not a realistic choice for a distributed database?",
+  "How do quorum reads and writes (R + W > N) trade consistency against availability?",
+  "What happens when a partition heals in an AP system, and how are conflicts resolved?",
+  "Where would you place a payment ledger versus a product-recommendation feed on the CAP spectrum?"
+ ]
+}

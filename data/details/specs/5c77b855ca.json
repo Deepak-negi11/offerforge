@@ -1,0 +1,19 @@
+{
+ "qid": "5c77b855ca",
+ "question": "Juspay SDE Intern hiring challenge, machine coding (\"Tree of Space\"). You are given a generic **M-ary tree** of N nodes with unique names, supplied in **level order** (for example `N = 7, M = 2, nodes = [World, Asia, Africa, China, India, SouthAfrica, Egypt]`). Implement three operations:\n\n- **Lock(X, uid):** succeeds only if X is not already locked, **no ancestor** of X is locked and **no descendant** of X is locked.\n- **Unlock(X, uid):** succeeds only if X is locked and was locked by the same uid.\n- **UpgradeLock(X, uid):** locks X and releases all locked descendants, only if X has at least one locked descendant, **all** locked descendants are held by the same uid and no ancestor is locked.\n\nQueries are `\"1 X uid\"` (lock), `\"2 X uid\"` (unlock), `\"3 X uid\"` (upgrade). Example queries `1 China 9, 1 India 9, 3 Asia 9, 2 India 9, 2 Asia 9` give `true true true false true`. Aim for about O(log_M N) per lock, and be ready to explain the complexity and edge cases in the follow-up round.",
+ "lookingFor": [
+  "Choosing the right per-node state so each operation touches only a root path, not the whole subtree.",
+  "Correct handling of ancestor and descendant conflicts and uid ownership.",
+  "Complexity analysis, including the height of an M-ary tree (log_M N).",
+  "Clean, readable object design and edge cases (unknown node, double lock, upgrade with no locked descendants).",
+  "Awareness of follow-ups: scale and thread safety."
+ ],
+ "answer": "**Build the tree.** With nodes in level order (0-indexed), the parent of node `i` is `(i - 1) / M`. Keep a `HashMap<String, Node>` for O(1) lookup by name.\n\n**Node state**\n- `parent`, `children` (needed only to build the tree)\n- `lockedBy` (uid or null)\n- `lockedDescCount` (how many locked nodes exist strictly below this node)\n- optionally `lockedDescendants` (a set of locked nodes below), needed for upgrade\n\n**Lock(X, uid)**\n1. If `X.lockedBy != null` or `X.lockedDescCount > 0`, return false. That covers X and all descendants in O(1).\n2. Walk up from X.parent to the root; if any ancestor is locked, return false. This is O(height).\n3. Set `X.lockedBy = uid`, then walk up again, incrementing each ancestor's `lockedDescCount` (and adding X to its `lockedDescendants`). Return true.\n\n**Unlock(X, uid)**\nIf `X.lockedBy != uid`, return false. Clear it and walk up decrementing counts and removing X from the sets.\n\n**UpgradeLock(X, uid)**\n1. Fail if X is locked itself, `lockedDescCount == 0`, or any ancestor is locked.\n2. Check that every node in `X.lockedDescendants` has `lockedBy == uid`; otherwise return false.\n3. Unlock each of them (updating the ancestors) and then lock X with uid.\n\n**Trace of the example:** lock China (true), lock India (true), upgrade Asia: both locked descendants are uid 9 so the upgrade succeeds; unlock India fails (it was released); unlock Asia succeeds. Output: true true true false true.\n\n**Complexity.** The height of an M-ary tree with N nodes is about log_M N. Lock and unlock cost O(log_M N). Upgrade costs O(k log_M N) for k locked descendants (each removal walks up), with O(N) extra space for the sets in the worst case.\n\n**Edge cases:** unknown names, repeated lock, unlock by a different uid, M = 1 (the tree is a chain, so the height is N), upgrade where a descendant belongs to another uid.\n\n**Design:** keep the tree, node and operations in separate classes, parse queries separately, and avoid string-based parsing inside the core logic.",
+ "followUps": [
+  "Why is the height of an M-ary tree log_M N, and when does this break?",
+  "How would you reduce traversal cost for lock when the tree is very deep?",
+  "How would you make this thread-safe without a single global lock?",
+  "Can you make upgrade cheaper than O(k log N)?",
+  "How would the design change for millions of nodes spread over several machines?"
+ ]
+}

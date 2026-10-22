@@ -1,0 +1,18 @@
+{
+ "qid": "3d0a31fd55",
+ "question": "MakeMyTrip SSE-2 / SDE-2 Backend, round 2. A user makes a MakeMyTrip booking. **Generate a long URL for that booking, convert it to a much shorter URL, and ensure that only that user can access it**; the short URL accessed by anyone else must not work. (The source text was cut off after this point, so confirm details such as expiry and scale with the interviewer.)",
+ "lookingFor": [
+  "Core URL-shortener design: ID generation, storage, redirect.",
+  "Authorization: tying the link to the booking owner.",
+  "Security awareness: guessable codes, token leakage, enumeration.",
+  "Trade-offs between a stateless token and a database lookup.",
+  "Scale and caching assumptions."
+ ],
+ "answer": "**Requirements and scale.** Create a short link per booking, redirect only for the authorised owner, optional expiry. Assume reads far exceed writes, so the redirect path must be fast.\n\n**API.**\n- `POST /bookings/{id}/short-link` (authenticated) returns `https://mmt.co/Ab3xY9`.\n- `GET /s/{code}` resolves the code, checks the caller, then returns a 302 to the long URL.\n\n**Generating the code.** Use a unique id (counter or Snowflake) encoded in base62; 7 characters gives about 3.5 trillion codes. A sequential id is guessable, so either add a random component or use a random 7-8 character code with a unique constraint and retry on collision. Since privacy matters here, prefer unguessable codes; do not rely on obscurity alone.\n\n**Data model.** `short_links(code PK, booking_id, owner_user_id, long_url, created_at, expires_at)`. Do not store personal data in the long URL; keep it as an internal reference.\n\n**Authorization (the key requirement).** The short code is not a secret. On `GET /s/{code}`, require the user's session or token, then check `session.user_id == owner_user_id` (or that the user is allowed to see the booking). Unauthenticated users are sent to login and then re-checked; a different logged-in user receives 403 or 404 (404 avoids confirming that the code exists). Use `Cache-Control: private` or `no-store`, so intermediaries do not cache a redirect for another user. Add rate limiting and monitoring for enumeration attempts.\n\n**Alternative.** A signed token (HMAC or JWT-like) embedding booking id, user id and expiry avoids a DB read, but longer links and no easy revocation; mix with a short DB lookup if revocation is needed.\n\n**Scale.** Cache `code -> record` in Redis with a TTL, shard by code, and keep redirects off the critical write path.\n\n**Avoid:** treating the short code as authentication, using sequential ids as the only protection, and caching redirects publicly.",
+ "followUps": [
+  "How would you support link expiry and revocation?",
+  "Why 302 and not 301 for a private redirect?",
+  "How would you prevent attackers from enumerating codes?",
+  "How would you generate IDs across multiple servers without collisions?"
+ ]
+}

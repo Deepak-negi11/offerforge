@@ -1,0 +1,18 @@
+{
+ "qid": "5c2a491388",
+ "question": "Reported from the System Design and Behavioral round (75 minutes) of a Paytm SSE interview, September 2023: **design a reporting system for an API**. The system should let you see the **successful and unsuccessful API hits**, and the **successful hits that were over the SLA** (took longer than the agreed response time).",
+ "lookingFor": [
+  "Do you clarify the questions the report must answer, the time ranges and freshness required?",
+  "Can you design a high-volume ingestion pipeline that does not slow the API itself?",
+  "Do you choose suitable storage for time-series or analytical queries and pre-aggregate sensibly?",
+  "Do you define SLA breach clearly (per endpoint threshold, percentile) and handle alerts?",
+  "Do you talk about scale, retention and failure handling?"
+ ],
+ "answer": "**Clarify.** Which APIs and how many calls per second (assume 50k requests/s across the platform)? What views: counts of success and failure per API and time window, error codes, hits over the SLA (for example latency above a per-endpoint threshold, or `p99 > 500 ms`)? Freshness: near-real-time (under a minute) dashboards, plus historical queries. Retention: raw 7-30 days, aggregates for a year.\n\n**Data captured per request.** `apiName/endpoint, method, status code, success flag, latency ms, timestamp, clientId, region, requestId`. A hit is \"successful\" if status is 2xx (define it explicitly, for example 4xx caused by clients may be excluded), and \"over SLA\" if success and `latency > sla(endpoint)`. SLA thresholds are configuration stored in a table, not hard-coded.\n\n**Architecture.**\n1. **Emit events without blocking the API.** The gateway or service writes an access event asynchronously (log line or a fire-and-forget message) to **Kafka**. A failure of the reporting path must never fail the real request.\n2. **Stream processing** (Flink, Kafka Streams or Spark Streaming) consumes events, joins each with the SLA config, tags `slaBreached`, and computes **windowed aggregates** (per endpoint per minute: total, success, failure, breached, latency percentiles).\n3. **Storage.** Raw events go to cheap storage (object storage in Parquet, or a column store) for drill-down. Aggregates go into a time-series or OLAP store (ClickHouse, Druid, Elasticsearch, or a time-partitioned SQL table) indexed by `(api, minute)`.\n4. **Query/API layer and dashboard** read the aggregates (fast), with drill-down to raw events by `requestId` for debugging.\n5. **Alerting** on thresholds such as a failure rate above X% or a breach rate above Y%.\n\n**Schema sketch.** `api_metrics_minute(api, ts_minute, total, success, failed, sla_breached, p50, p95, p99)`; `sla_config(api, threshold_ms)`; raw `api_events`.\n\n**Trade-offs and scale.**\n- Pre-aggregation makes dashboards cheap but loses detail, so keep raw data too.\n- Approximate percentiles (t-digest, histograms) are cheaper than exact; averaging percentiles is wrong, so store histograms.\n- Partition Kafka by API for ordering and scaling, handle late events with watermarks, and make processing idempotent.\n- Use sampling for very high-volume low-risk traffic if needed.",
+ "followUps": [
+  "Why is averaging per-minute p99 values to get an hourly p99 wrong?",
+  "How would you handle events that arrive late or out of order?",
+  "How would you let a team set a different SLA threshold per endpoint?",
+  "What happens to reporting if Kafka is down, and how do you make sure the API is unaffected?"
+ ]
+}

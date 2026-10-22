@@ -1,0 +1,19 @@
+{
+ "qid": "ae914a2925",
+ "question": "In the problem-solving round with the Director of Instamart for a Data Scientist 1 role at Swiggy, the first task was an **ML system design problem: design a solution that dynamically shows the right filters based on the product the user searched for**.\n\nThe round started with a discussion of the candidate's past work and reasoning. The reported detail does not include data or constraints, so the candidate must state assumptions (for example the available catalogue attributes and click logs).",
+ "lookingFor": [
+  "Do you define the problem and the success metric before proposing a model?",
+  "Do you consider a simple baseline (rules or statistics) before ML?",
+  "Can you describe data, features and a reasonable ranking or classification formulation?",
+  "Do you handle cold start and new products or queries?",
+  "Do you plan evaluation offline and online (A/B test)?"
+ ],
+ "answer": "**Problem framing.** A search for \"milk\" should show filters such as brand, fat content, pack size; a search for \"shampoo\" should show hair type, brand, price. Showing irrelevant filters wastes space; missing relevant ones hurts discovery. Goal: pick the top K filters (and the best values within each) per query.\n\n**Success metrics.** Online: filter usage rate, search-to-cart conversion, reduction in zero-result or reformulated searches, time to first add-to-cart. Offline: precision at K or NDCG of the selected filters against logged usage.\n\n**Baseline first.** For each product category, rank filters by historical click-through or usage rate, and show only filters that actually partition the current result set (a filter where 95% of results share one value is useless). This is cheap and often strong.\n\n**ML formulation.** Learning to rank over candidate filters for each query. For a (query, filter) pair, predict the probability that the user uses the filter.\n- *Features:* query category and embedding, filter type, how many distinct values the current results have and their entropy (high spread means a useful filter), historical usage of this filter for this category, result set size, user history (preferred brands, dietary preference), device.\n- *Labels:* clicks on a filter in logs. Beware **position bias**: top filters get clicked more because they are on top; correct with randomised exploration slots or inverse propensity weighting.\n- *Model:* gradient boosted trees with a ranking objective (LambdaMART style) is a sensible start; a two-stage approach (candidates by rules, then re-rank) keeps latency low.\n\n**Filter values.** Within a filter (for example brand), order values by popularity within the result set, optionally personalised.\n\n**Cold start.** New products or queries inherit the category-level filter statistics; new categories use catalogue attributes with default order.\n\n**Serving.** Precompute filter rankings per query cluster or category offline and cache them; compute set-dependent features (value distribution) online from search results. Latency budget is tight (tens of ms).\n\n**Evaluation.** Offline with time-based splits, then an A/B test; monitor guardrails such as search latency and conversion.\n\n**Risks.** Feedback loops (shown filters get clicked, so become more shown): keep some exploration.",
+ "followUps": [
+  "How would you handle position bias in click logs?",
+  "How would you personalise the filters for a returning user?",
+  "How would you handle a brand-new product category?",
+  "Which offline metric would you use and why?",
+  "What guardrail metrics would you monitor in the A/B test?"
+ ]
+}

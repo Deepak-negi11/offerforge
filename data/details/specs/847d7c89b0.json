@@ -1,0 +1,18 @@
+{
+ "qid": "847d7c89b0",
+ "question": "MakeMyTrip SSE-1 Backend, hiring manager round (HLD). After a discussion of previous work experience, the candidate was asked to **design a notification system**. The discussion covered **scaling, queues, retries and throughput**. No further requirements were reported, so clarify channels, volume and delivery guarantees first.",
+ "lookingFor": [
+  "Clarifying requirements (channels, types, volume, latency).",
+  "Decoupling with queues and workers.",
+  "Retry, idempotency and delivery-guarantee reasoning.",
+  "Throughput and rate-limit handling for providers.",
+  "User preferences, templating and observability."
+ ],
+ "answer": "**Requirements.** Channels: push, SMS, email (maybe in-app). Types: transactional (booking confirmation, OTP; low latency, must not be lost) and promotional (bulk, deferrable). Assume millions of notifications per day with bursts (a campaign or a flash event).\n\n**API.** `POST /notifications` with `{userId, template, params, channels, priority, idempotencyKey}`. The service validates, applies preferences, and enqueues.\n\n**Components.**\n1. **Notification API/service:** validation, user preference and opt-out checks (and do-not-disturb rules), template rendering with localisation.\n2. **Queues** per channel and priority (Kafka/SQS/RabbitMQ), so email backlog never delays OTPs.\n3. **Channel workers** that call providers (FCM/APNs, an SMS gateway, an email service).\n4. **Status store** with the lifecycle: queued, sent, delivered, failed; fed by provider callbacks.\n5. **Scheduler** for delayed or timed sends; **analytics** for opens/clicks.\n\n**Reliability.** Queues give at-least-once delivery, so duplicates are possible: dedupe with the idempotency key (store processed keys with a TTL). Retries use exponential backoff with jitter and a max attempts count, then a **dead-letter queue** for investigation. Retry only transient errors (timeouts, 5xx), not invalid tokens. Add provider failover (a second SMS vendor) and a circuit breaker.\n\n**Throughput.** Scale workers horizontally by partitioning on user id or channel; batch sends where providers allow; respect provider rate limits with a token bucket; rate-limit per user to avoid spamming. Large campaigns are fan-out jobs processed in chunks at lower priority.\n\n**Data.** Preferences and templates in a relational DB (cached); notification logs in a high-write store with retention.\n\n**Trade-offs.** Exactly-once delivery is not achievable end to end; aim for at-least-once plus idempotent consumers. Choose priority isolation over a single shared queue.\n\n**Avoid:** sending synchronously inside the booking request, and one queue for everything.",
+ "followUps": [
+  "How do you guarantee an OTP is delivered quickly during a campaign blast?",
+  "How do you avoid sending the same notification twice?",
+  "How would you handle a provider outage?",
+  "How would you design user preferences and opt-outs?"
+ ]
+}

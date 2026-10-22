@@ -1,0 +1,48 @@
+{
+ "pid": "rubrik-max-subarrays-with-mean-at-least-g",
+ "title": "Max Subarrays with Mean at Least G",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `arr` of `N` integers and an integer `G`. Partition `arr` into `K` contiguous, non-empty subarrays so that every element belongs to exactly one subarray and the **mean** of the elements of every subarray is at least `G`.\n\nFind the largest `K` for which such a partition exists. If no partition exists for any `K ≥ 1`, print `-1`.\n\nSubarrays are ordered by their starting index, so a partition is written as the lengths of its subarrays from left to right. If several partitions achieve the maximum `K`, choose the one whose list of lengths is **lexicographically smallest** (compare the first lengths, then the second lengths, and so on).\n\nPrint the maximum `K` and then the lengths of the `K` subarrays in left-to-right order.",
+ "input_format": "The first line contains two integers `N` and `G`.\nThe second line contains `N` space-separated integers: the elements of `arr`.",
+ "output_format": "If no valid partition exists, print `-1`. Otherwise print `K` on the first line and the `K` subarray lengths, space-separated, on the second line.",
+ "constraints": [
+  "1 ≤ N ≤ 2 * 10^5",
+  "-10^9 ≤ arr[i], G ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "5 2\n3 -2 4 6 1",
+   "output": "2\n1 4",
+   "explanation": "The whole array has mean 12/5 = 2.4, so K = 1 works. For K = 3 every split fails: the first piece must be `[3]` (any longer prefix has mean below 2), the second piece must then start at -2, but `[-2]` and `[-2, 4]` both have mean below 2, and `[-2, 4, 6]` leaves `[1]` as the last piece. For K = 2 the split `[3]` and `[-2, 4, 6, 1]` (mean 2.25) works, so the answer is 2 with lengths 1 and 4."
+  },
+  {
+   "input": "4 0\n2 -1 -1 2",
+   "output": "2\n1 3",
+   "explanation": "K = 2 is the maximum. The valid splits into two pieces are 1+3, 2+2 and 3+1 (each piece has mean at least 0), and `1 3` is the lexicographically smallest list of lengths."
+  },
+  {
+   "input": "3 4\n1 2 3",
+   "output": "-1",
+   "explanation": "The whole array has mean 2, which is below 4, and any partition into more pieces would need every piece to be at least 4 on average, which is impossible."
+  }
+ ],
+ "complexity": {
+  "time": "O(N log N)",
+  "space": "O(N)"
+ },
+ "hints": [
+  "Subtract G from every element. A subarray has mean at least G exactly when its sum after subtraction is at least 0. Look at the prefix sums of the shifted array.",
+  "A partition is a chain of cut positions 0 = c0 < c1 < ... < cK = N whose prefix sums never decrease. So K is the length of the longest non-decreasing chain of prefix sums that starts at position 0 and ends at position N, and every prefix sum in it must lie between P[0] and P[N].",
+  "Compute, from right to left, the best chain length f[i] starting at each prefix position (a patience-sorting / binary search structure works). To get the lexicographically smallest lengths, from the current cut jump to the nearest later position whose f value is exactly one less; positions that share an f value have strictly decreasing prefix sums, so the first one after the current cut is always valid."
+ ],
+ "reference": "import sys\nfrom bisect import bisect_right, bisect_left\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0]); g = int(data[1])\n    P = [0] * (n + 1)\n    for i in range(n):\n        P[i + 1] = P[i] + int(data[2 + i]) - g\n    last = P[n]\n    if last < 0:\n        print(-1)\n        return\n    tails = []\n    f = [-1] * (n + 1)\n    levels = {}\n    for i in range(n, -1, -1):\n        v = P[i]\n        if 0 <= v <= last:\n            key = -v\n            pos = bisect_right(tails, key)\n            if pos == len(tails):\n                tails.append(key)\n            else:\n                tails[pos] = key\n            f[i] = pos\n            levels.setdefault(pos, []).append(i)\n    for lst in levels.values():\n        lst.reverse()\n    k = f[0]\n    out = []\n    cur = 0\n    while cur != n:\n        lst = levels[f[cur] - 1]\n        j = lst[bisect_right(lst, cur)]\n        out.append(j - cur)\n        cur = j\n    print(k)\n    print(' '.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0]); g = int(data[1])\na = [int(x) for x in data[2:2 + n]]\nbest = None\nfor mask in range(1 << (n - 1)):\n    lens = []\n    start = 0\n    for i in range(n - 1):\n        if mask >> i & 1:\n            lens.append(i + 1 - start)\n            start = i + 1\n    lens.append(n - start)\n    ok = True\n    pos = 0\n    for L in lens:\n        if sum(a[pos:pos + L]) < g * L:\n            ok = False\n            break\n        pos += L\n    if ok:\n        key = (-len(lens), lens)\n        if best is None or key < best:\n            best = key\nif best is None:\n    print(-1)\nelse:\n    print(-best[0])\n    print(' '.join(map(str, best[1])))\n",
+ "generator": "def gen(rng):\n    def fmt(g, arr):\n        return f'{len(arr)} {g}\\n' + ' '.join(map(str, arr))\n    tests = [\n        fmt(0, [0]), fmt(5, [4]), fmt(-3, [-3]), fmt(1, [1, 1, 1, 1]),\n        fmt(0, [2, -1, -1, 2]), fmt(2, [3, -2, 4, 6, 1]), fmt(4, [1, 2, 3]),\n        fmt(-5, [-10, -10, 10, -1]), fmt(10**9, [10**9, 10**9, 10**9]),\n        fmt(-10**9, [-10**9, 10**9, -10**9]),\n    ]\n    for n in (2, 3, 4, 5, 6, 8, 10, 12):\n        for _ in range(4):\n            g = rng.randint(-4, 4)\n            arr = [rng.randint(-8, 8) for _ in range(n)]\n            tests.append(fmt(g, arr))\n        for _ in range(2):\n            g = rng.randint(-3, 3)\n            arr = [g + rng.randint(-3, 3) for _ in range(n)]\n            if sum(arr) < g * n:\n                arr[rng.randrange(n)] += g * n - sum(arr)\n            tests.append(fmt(g, arr))\n    # large\n    n = 200000\n    tests.append(fmt(7, [7] * n))\n    g = 3\n    arr = [g + rng.randint(-1000, 1000) for _ in range(n)]\n    arr[-1] += max(0, g * n - sum(arr))\n    tests.append(fmt(g, arr))\n    n = 100000\n    g = -10**9 + 5\n    arr = [rng.randint(-10**9, 10**9) for _ in range(n)]\n    tests.append(fmt(g, arr))\n    g = 10**8\n    arr = [rng.randint(-10**9, 10**9) for _ in range(n)]\n    arr[-1] += max(0, g * n - sum(arr))\n    arr[-1] = min(arr[-1], 10**9)\n    tests.append(fmt(g, arr))\n    n = 150000\n    g = 0\n    arr = []\n    for i in range(n):\n        arr.append(rng.randint(-3, 3))\n    s = sum(arr)\n    if s < 0:\n        arr[-1] += -s\n    tests.append(fmt(g, arr))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_partition(arr: List[int], g: int) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    g = int(data[1])\n    arr = [int(x) for x in data[2:2 + n]]\n    res = max_partition(arr, g)\n    if not res:\n        print(-1)\n    else:\n        print(len(res))\n        print(' '.join(map(str, res)))\n\n\nmain()\n",
+  "javascript": "function maxPartition(arr, g) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], g = t[1]\nconst arr = t.slice(2, 2 + n)\nconst res = maxPartition(arr, g)\nif (res.length === 0) {\n  console.log(-1)\n} else {\n  console.log(res.length)\n  console.log(res.join(' '))\n}\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> maxPartition(vector<long long>& arr, long long g) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long g;\n    cin >> n >> g;\n    vector<long long> arr(n);\n    for (int i = 0; i < n; i++) cin >> arr[i];\n    vector<int> res = maxPartition(arr, g);\n    if (res.empty()) {\n        cout << -1 << \"\\n\";\n    } else {\n        cout << res.size() << \"\\n\";\n        for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] maxPartition(long[] arr, long g) {\n        // Write your solution here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        long g = (long) in.nval;\n        long[] arr = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            arr[i] = (long) in.nval;\n        }\n        int[] res = maxPartition(arr, g);\n        if (res.length == 0) {\n            System.out.println(-1);\n        } else {\n            StringBuilder sb = new StringBuilder();\n            sb.append(res.length).append(\"\\n\");\n            for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n            System.out.print(sb);\n        }\n    }\n}\n"
+ }
+}

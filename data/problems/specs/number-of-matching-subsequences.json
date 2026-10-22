@@ -1,0 +1,45 @@
+{
+ "pid": "number-of-matching-subsequences",
+ "title": "Number of Matching Subsequences",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given a string `s` and a list of `m` words. A word is a **subsequence** of `s` if it can be obtained from `s` by deleting zero or more characters without changing the order of the remaining characters.\n\nCount how many words in the list are subsequences of `s`. If the same word appears several times in the list, every occurrence is counted.",
+ "input_format": "The first line contains the string `s`.\nThe second line contains the integer `m`.\nEach of the next `m` lines contains one word.",
+ "output_format": "Print one integer: the number of words (counted with repetition) that are subsequences of `s`.",
+ "constraints": [
+  "1 ≤ |s| ≤ 10^5",
+  "1 ≤ m ≤ 5000",
+  "1 ≤ length of each word ≤ 50",
+  "`s` and all words consist of lowercase English letters"
+ ],
+ "examples": [
+  {
+   "input": "dcbaxy\n4\ncx\nbay\nxd\ndbxy",
+   "output": "3",
+   "explanation": "`cx`, `bay` and `dbxy` can be read from `s` in order. `xd` cannot: the only `x` comes after the only `d`."
+  },
+  {
+   "input": "aaa\n5\na\naa\naaa\naaaa\naa",
+   "output": "4",
+   "explanation": "`a`, `aa`, `aaa` and the second `aa` match. `aaaa` needs four letters but `s` has only three."
+  }
+ ],
+ "complexity": {
+  "time": "O(|s| + total length of words)",
+  "space": "O(m)"
+ },
+ "hints": [
+  "Checking each word separately with two pointers costs O(|s|) per word, which is too slow when both |s| and m are large.",
+  "Scan `s` once. For every word keep a pointer to the next letter it still needs, and keep the words grouped by that needed letter (26 buckets).",
+  "When you read a character `ch` of `s`, take the whole bucket of `ch`, advance each word in it by one letter, and move it to the bucket of its new needed letter (or count it as matched if it is finished). Alternatively, precompute the positions of each letter in `s` and binary search for each word letter."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    s = data[0]\n    m = int(data[1])\n    words = data[2:2 + m]\n    waiting = {}\n    for wi, w in enumerate(words):\n        waiting.setdefault(w[0], []).append((wi, 1))\n    count = 0\n    for ch in s:\n        lst = waiting.pop(ch, None)\n        if not lst:\n            continue\n        for wi, pos in lst:\n            w = words[wi]\n            if pos == len(w):\n                count += 1\n            else:\n                waiting.setdefault(w[pos], []).append((wi, pos + 1))\n    print(count)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\ns = data[0]\nm = int(data[1])\nwords = data[2:2 + m]\nsubs = set()\nn = len(s)\nfor mask in range(1 << n):\n    subs.add(''.join(s[i] for i in range(n) if mask >> i & 1))\nprint(sum(1 for w in words if w in subs))\n",
+ "generator": "def gen(rng):\n    def fmt(s, words):\n        return s + \"\\n\" + str(len(words)) + \"\\n\" + \"\\n\".join(words)\n    tests = [fmt('a', ['a']), fmt('a', ['b']), fmt('abcde', ['a', 'bb', 'acd', 'ace']), fmt('aaa', ['a', 'aa', 'aaa', 'aaaa']),\n             fmt('abc', ['abc', 'abc', 'abc']), fmt('abc', ['cba', 'bca']), fmt('xyz', ['z', 'xz', 'xyzz'])]\n    for _ in range(40):\n        n = rng.randint(1, 11)\n        k = rng.randint(1, 3)\n        letters = 'abc'[:k]\n        s = ''.join(rng.choice(letters) for _ in range(n))\n        m = rng.randint(1, 8)\n        words = []\n        for _ in range(m):\n            if rng.random() < 0.5:\n                idx = [i for i in range(n) if rng.random() < 0.5] or [0]\n                words.append(''.join(s[i] for i in idx))\n            else:\n                words.append(''.join(rng.choice(letters) for _ in range(rng.randint(1, 5))))\n        tests.append(fmt(s, words))\n    S = 100000\n    M = 5000\n    L = 50\n    # worst case for per-word scanning: nothing matches fully, long near-misses\n    tests.append(fmt('a' * S, ['a' * (L - 1) + 'b'] * M))\n    tests.append(fmt('a' * S, ['a' * rng.randint(1, L) for _ in range(M)]))\n    s = ''.join(rng.choice('ab') for _ in range(S))\n    tests.append(fmt(s, [''.join(rng.choice('ab') for _ in range(rng.randint(1, L))) for _ in range(M)]))\n    s = ''.join(rng.choice('abcdefghijklmnopqrstuvwxyz') for _ in range(S))\n    ws = []\n    for _ in range(M):\n        idx = sorted(rng.sample(range(S), rng.randint(1, L)))\n        w = ''.join(s[i] for i in idx)\n        if rng.random() < 0.3:\n            w = w[:-1] + ('z' if w[-1] != 'z' else 'y')\n        ws.append(w)\n    tests.append(fmt(s, ws))\n    tests.append(fmt('ab' * (S // 2), ['ab' * 25] * (M // 2) + ['ba' * 25] * (M // 2)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_matching(s: str, words: List[str]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    s = data[0]\n    m = int(data[1])\n    words = data[2:2 + m]\n    print(count_matching(s, words))\n\n\nmain()\n",
+  "javascript": "function countMatching(s, words) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst s = t[0]\nconst m = Number(t[1])\nconst words = t.slice(2, 2 + m)\nconsole.log(String(countMatching(s, words)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint countMatching(const string& s, vector<string>& words) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s;\n    int m;\n    cin >> s >> m;\n    vector<string> words(m);\n    for (int i = 0; i < m; i++) cin >> words[i];\n    cout << countMatching(s, words) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int countMatching(String s, String[] words) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        String s = st.nextToken();\n        int m = Integer.parseInt(st.nextToken());\n        String[] words = new String[m];\n        for (int i = 0; i < m; i++) words[i] = st.nextToken();\n        System.out.println(countMatching(s, words));\n    }\n}\n"
+ }
+}

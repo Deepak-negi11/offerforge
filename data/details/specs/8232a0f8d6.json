@@ -1,0 +1,17 @@
+{
+ "qid": "8232a0f8d6",
+ "question": "In a technical interview for a Visa **new-grad Software Engineer** role the candidate was asked about **SQL joins** and to write a query for the **second largest salary**. The same round also asked about **call by value versus call by reference in C**, and **counting even digits using bitwise operators**.",
+ "lookingFor": [
+  "Can you write correct SQL for a classic problem and explain alternatives?",
+  "Do you handle edge cases: ties, fewer than two distinct salaries, NULLs?",
+  "Do you know the join types?",
+  "Do you understand how C passes arguments, and bit manipulation basics?"
+ ],
+ "answer": "**Second largest salary** for table `Employee(id, name, salary)`:\n\n    SELECT MAX(salary) AS second_highest\n    FROM Employee\n    WHERE salary < (SELECT MAX(salary) FROM Employee);\n\nThe subquery finds the highest salary; the outer query finds the maximum among the rest. It returns NULL when there is no second distinct value, and duplicates of the top salary are handled because the comparison is strict.\n\nAlternative with a window function (handles \"Nth highest\" easily):\n\n    SELECT salary\n    FROM (SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS r\n          FROM Employee) t\n    WHERE r = 2\n    LIMIT 1;\n\n`DENSE_RANK` gives tied salaries the same rank without gaps. `RANK` would skip numbers after ties, and `ROW_NUMBER` would count duplicates separately, so they are wrong here. Another form is `SELECT DISTINCT salary ... ORDER BY salary DESC LIMIT 1 OFFSET 1`, which returns no row if missing.\n\n**Joins.** INNER returns matching rows only; LEFT returns all left rows with NULLs where there is no match; RIGHT is the mirror; FULL OUTER returns all rows from both; CROSS returns the Cartesian product; a self join joins a table to itself (for example employee to manager).\n\n**Call by value versus reference in C.** C always passes arguments by value: the function gets a copy, so changing it does not affect the caller. To emulate reference, pass a pointer by value, then dereference: `void swap(int *a, int *b) { int t = *a; *a = *b; *b = t; }`. (C++ has true references.) Arrays decay to pointers, so a function can modify array elements.\n\n**Counting even digits with bits.** A digit is even when its lowest bit is 0: `(d & 1) == 0`. For each number, extract digits with `% 10` and `/ 10` and count those with `!(d & 1)`. If the question means counting even numbers in a list, test `(x & 1) == 0` directly.",
+ "followUps": [
+  "How would you find the Nth highest salary?",
+  "How would you find the second highest salary per department?",
+  "What is the difference between WHERE and HAVING?",
+  "Can you swap two numbers without a temporary variable?"
+ ]
+}

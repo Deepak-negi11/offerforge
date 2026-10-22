@@ -1,0 +1,19 @@
+{
+ "qid": "8f096ae7ed",
+ "question": "In the Razorpay SDE-1 onsite design round the candidate was asked to design a multi-level hotel and implement it. Little else was reported, so the design is open-ended: you define what multi-level means (floors, room types, rooms), what operations the system supports (search availability, book, cancel, check-in and check-out) and how to keep it correct and extensible. Clarify the scope with the interviewer, then deliver working code.",
+ "lookingFor": [
+  "Clarifying an ambiguous requirement before building",
+  "A sound hierarchical model: hotel, floors, rooms, bookings",
+  "Correct availability and double-booking prevention",
+  "Use of OOP and patterns without over-engineering",
+  "Working code with tests and clear extension points"
+ ],
+ "answer": "**Clarify the scope.** \"Multi-level\" most likely means a building with several floors, each holding rooms of different types and prices. Ask: are bookings by date range or just occupied/free? Search by room type, floor or price? Cancellation? Multiple hotels or one? I would assume one hotel, date-range bookings, and operations: add floors and rooms, search available rooms, book, cancel.\n\n**Entities.**\n- `Hotel{name, floors}`; `Floor{number, rooms}`; `Room{id, number, type, pricePerNight, floor}`.\n- `RoomType` enum (SINGLE, DOUBLE, SUITE) or a class with capacity and amenities.\n- `Guest{id, name}`; `Booking{id, room, guest, checkIn, checkOut, status}`.\n- `BookingService` for the operations; `RoomRepository` and `BookingRepository` for storage.\n\n**Availability.** A room is free for `[in, out)` if no confirmed booking for that room overlaps: two ranges overlap when `startA < endB && startB < endA`. Keep bookings per room in a list (or a sorted structure for fast overlap checks). `search(type, in, out)` loops through rooms of that type and filters out those with overlaps.\n\n**Booking atomically.** Check and insert must be a single critical section per room (lock per room or a synchronized method) so two guests cannot take the same room for the same dates.\n\n**Extensibility.** Pricing as a `PricingStrategy` (base, weekend, seasonal); room allocation as an `AllocationStrategy` (lowest floor, cheapest, closest to the elevator); notification or payment as separate interfaces. Keep `Booking` states explicit: CONFIRMED, CANCELLED, CHECKED_IN, CHECKED_OUT.\n\n**Simple floor logic** you can demo: print the floor-wise availability and total revenue for a period.\n\n**Tests.** Non-overlapping bookings succeed; overlapping rejected; back-to-back (check-out day equals next check-in) allowed; cancel frees the room; search by type and price; unknown room.\n\n**Mistakes to avoid.** Starting with inheritance for every room type when a type attribute is enough, ignoring date handling, and coding without tests.",
+ "followUps": [
+  "How would you handle concurrent bookings of the last remaining room?",
+  "How would you add dynamic pricing, discounts and cancellation fees?",
+  "How would you model multiple hotels in different cities?",
+  "How would you design the database tables for rooms and bookings?",
+  "Which design patterns did you use and why?"
+ ]
+}

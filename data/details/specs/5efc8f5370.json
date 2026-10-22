@@ -1,0 +1,19 @@
+{
+ "qid": "5efc8f5370",
+ "question": "Paytm software engineer (1-2 years experience), second technical round, after a platforms/trains scheduling DS question: **explain the internal working of HashMap in Java.** The same round covered related Java and design-pattern questions: how to write a **thread-safe Singleton**, the **factory pattern**, and the **difference between an interface and an abstract class**.",
+ "lookingFor": [
+  "Detailed understanding of hashing, buckets, collisions and resizing.",
+  "Knowing Java 8 improvements (treeification) and the equals/hashCode contract.",
+  "Thread-safety awareness (HashMap vs ConcurrentHashMap).",
+  "Design-pattern fluency: correct thread-safe Singleton and a clean factory.",
+  "Clear contrast between interfaces and abstract classes."
+ ],
+ "answer": "**HashMap internals (Java 8+).** It stores entries in an array of buckets (`Node<K,V>[] table`, default capacity 16, always a power of two).\n- **put(k, v):** compute `hash = k.hashCode() ^ (h >>> 16)` to spread bits, then `index = (n - 1) & hash`. If the bucket is empty, store a node. Otherwise walk the chain: if a key with the same hash and `equals()` is found, replace the value; else append.\n- **get(k):** same index calculation, then compare by hash and `equals()`.\n- **Collisions:** handled with a linked list per bucket. When a chain reaches 8 nodes and the table has at least 64 buckets, it is converted to a red-black tree (O(log n) lookups); it shrinks back at 6. With a small table it resizes instead.\n- **Resize:** when `size > capacity x loadFactor` (default 0.75) the table doubles and entries are redistributed. This is O(n), so pre-size when you know the count.\n- A `null` key is allowed (bucket 0); average get/put is O(1), worst case O(log n).\n- **Contract:** equal objects must have equal `hashCode()`; keys should be immutable, otherwise they get lost.\n- Not thread-safe. Use `ConcurrentHashMap` (not `Hashtable`) for concurrency.\n\n**Thread-safe Singleton.** Simplest options: an `enum` singleton, or the initialisation-on-demand holder idiom:\n\n    class Config {\n        private Config() {}\n        private static class Holder { static final Config INSTANCE = new Config(); }\n        static Config getInstance() { return Holder.INSTANCE; }\n    }\n\nDouble-checked locking also works but the field must be `volatile`.\n\n**Factory pattern.** A method or class creates objects behind an interface so callers do not use `new` with concrete classes: for example `NotificationFactory.create(\"sms\")` returns a `Notification`. It removes `if/else` construction from callers and makes adding new types easy.\n\n**Interface vs abstract class.** An interface defines a contract (a class can implement many; methods are public, fields are constants; default methods since Java 8). An abstract class shares state and partial implementation (single inheritance, constructors, any access level). Use an interface for capabilities, an abstract class for a common base.",
+ "followUps": [
+  "Why is the table size a power of two?",
+  "What happens if two keys have the same hashCode but are not equal?",
+  "How does ConcurrentHashMap achieve thread safety?",
+  "What is the difference between HashMap and Hashtable?",
+  "Why can double-checked locking break without volatile?"
+ ]
+}

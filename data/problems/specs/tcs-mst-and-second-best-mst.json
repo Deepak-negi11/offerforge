@@ -1,0 +1,51 @@
+{
+ "pid": "tcs-mst-and-second-best-mst",
+ "title": "MST and Second-Best MST",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given a connected, undirected, weighted graph with `n` nodes (numbered `1` to `n`) and `m` edges. The graph is simple: it has no self-loops and no two edges join the same pair of nodes.\n\nA **spanning tree** is a set of `n - 1` edges that connects all the nodes. Its **weight** is the sum of the costs of its edges. Treat two spanning trees as different if their edge sets differ in at least one edge, and count every distinct spanning tree separately, even when several have the same weight.\n\nList the weights of all distinct spanning trees in non-decreasing order: `w1 ≤ w2 ≤ w3 ≤ ...`.\n\n- The **MST weight** is `w1`, the weight of a minimum spanning tree.\n- The **second MST weight** is `w2`: the smallest weight of a spanning tree that is different from some minimum spanning tree, so it is allowed to be equal to `w1` when the graph has more than one minimum spanning tree.\n- If the graph has only one spanning tree at all, the second MST does not exist and its weight is `-1`.\n\nPrint the MST weight and the second MST weight.",
+ "input_format": "The first line contains two integers `n` and `m`.\nEach of the next `m` lines contains three integers `u v c`: an undirected edge between nodes `u` and `v` with cost `c`.",
+ "output_format": "Print two integers on one line: the MST weight and the second MST weight, separated by a space. If the second MST does not exist, print `-1` as the second value.",
+ "constraints": [
+  "2 ≤ n ≤ 999",
+  "n - 1 ≤ m ≤ 10^5",
+  "1 ≤ u, v ≤ n, u ≠ v, and no pair of nodes is joined by more than one edge",
+  "1 ≤ c ≤ 10^9",
+  "The graph is connected"
+ ],
+ "examples": [
+  {
+   "input": "4 4\n1 2 2\n3 2 4\n3 4 3\n1 3 6",
+   "output": "9 11",
+   "explanation": "The MST uses edges 1-2 (2), 3-4 (3) and 2-3 (4), total 9. The only edge left out is 1-3 (6); swapping it in for 2-3 gives 2 + 3 + 6 = 11, which is the cheapest different spanning tree."
+  },
+  {
+   "input": "3 3\n1 2 1\n2 3 1\n1 3 1",
+   "output": "2 2",
+   "explanation": "Every pair of edges is a minimum spanning tree of weight 2, so a different spanning tree with the same weight exists and the second MST weight equals the MST weight."
+  },
+  {
+   "input": "3 2\n1 2 5\n2 3 7",
+   "output": "12 -1",
+   "explanation": "The graph is a tree, so it has exactly one spanning tree and no second MST exists."
+  }
+ ],
+ "complexity": {
+  "time": "O(m log m + n^2)",
+  "space": "O(n^2)"
+ },
+ "hints": [
+  "Build an MST with Kruskal's algorithm first. Any other spanning tree differs from it by swapping edges, and the best different tree changes just one edge.",
+  "A non-tree edge (u, v, c) can replace the most expensive edge on the MST path between u and v. The new tree has weight MST + c - (that maximum). Take the best such swap over all non-tree edges.",
+  "To get the maximum edge on the MST path for any pair quickly, either use binary lifting, or exploit n < 1000: when Kruskal joins two components with an edge of cost c, every pair across them has c as its path maximum, so fill an n x n table at merge time. If there is no non-tree edge, print -1."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    edges = []\n    for i in range(m):\n        u = int(data[2 + 3 * i]) - 1\n        v = int(data[3 + 3 * i]) - 1\n        c = int(data[4 + 3 * i])\n        edges.append((c, u, v))\n    edges.sort()\n    parent = list(range(n))\n    members = [[i] for i in range(n)]\n    # mx[a][b] = largest edge cost on the MST path between a and b (filled when they get joined)\n    mx = [[0] * n for _ in range(n)]\n\n    def find(x):\n        while parent[x] != x:\n            parent[x] = parent[parent[x]]\n            x = parent[x]\n        return x\n\n    total = 0\n    best_extra = None\n    for c, u, v in edges:\n        ru, rv = find(u), find(v)\n        if ru != rv:\n            total += c\n            A, B = members[ru], members[rv]\n            for a in A:\n                row = mx[a]\n                for b in B:\n                    row[b] = c\n                    mx[b][a] = c\n            if len(A) < len(B):\n                ru, rv = rv, ru\n                A, B = B, A\n            parent[rv] = ru\n            A.extend(B)\n            members[rv] = []\n        else:\n            extra = c - mx[u][v]\n            if best_extra is None or extra < best_extra:\n                best_extra = extra\n    if best_extra is None:\n        print(total, -1)\n    else:\n        print(total, total + best_extra)\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import combinations\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nedges = []\nfor i in range(m):\n    edges.append((int(data[2 + 3 * i]) - 1, int(data[3 + 3 * i]) - 1, int(data[4 + 3 * i])))\nweights = []\nfor comb in combinations(range(m), n - 1):\n    p = list(range(n))\n    def find(x):\n        while p[x] != x:\n            x = p[x]\n        return x\n    ok = True\n    w = 0\n    for idx in comb:\n        u, v, c = edges[idx]\n        a, b = find(u), find(v)\n        if a == b:\n            ok = False\n            break\n        p[a] = b\n        w += c\n    if ok:\n        weights.append(w)\nweights.sort()\nprint(weights[0], weights[1] if len(weights) > 1 else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(n, edges):\n        return f\"{n} {len(edges)}\\n\" + '\\n'.join(f\"{u} {v} {c}\" for u, v, c in edges)\n\n    def build(n, m, wmax, shuffle=True):\n        # random connected simple graph with n nodes and exactly m edges\n        order = list(range(1, n + 1))\n        rng.shuffle(order)\n        used = set()\n        edges = []\n        for i in range(1, n):\n            a = order[i]\n            b = order[rng.randrange(i)]\n            used.add((min(a, b), max(a, b)))\n            edges.append((a, b))\n        while len(edges) < m:\n            a = rng.randint(1, n)\n            b = rng.randint(1, n)\n            if a == b:\n                continue\n            k = (min(a, b), max(a, b))\n            if k in used:\n                continue\n            used.add(k)\n            edges.append((a, b))\n        res = [(a, b, rng.randint(1, wmax)) for a, b in edges]\n        if shuffle:\n            rng.shuffle(res)\n        return res\n\n    tests = [\n        fmt(2, [(1, 2, 5)]),\n        fmt(2, [(2, 1, 10**9)]),\n        fmt(3, [(1, 2, 1), (2, 3, 1), (1, 3, 1)]),\n        fmt(3, [(1, 2, 5), (2, 3, 7)]),\n        fmt(4, [(1, 2, 2), (3, 2, 4), (3, 4, 3), (1, 3, 6)]),\n        fmt(4, [(1, 2, 1), (2, 3, 1), (3, 4, 1), (4, 1, 1)]),\n        fmt(3, [(1, 2, 10**9), (2, 3, 10**9), (1, 3, 10**9)]),\n    ]\n    for _ in range(60):\n        n = rng.randint(2, 7)\n        maxm = n * (n - 1) // 2\n        m = rng.randint(n - 1, min(maxm, 11))\n        wmax = rng.choice([1, 2, 3, 5, 20])\n        tests.append(fmt(n, build(n, m, wmax)))\n    # larger medium cases\n    tests.append(fmt(999, build(999, 998, 10**9)))\n    n = 999\n    tests.append(fmt(n, build(n, 100000, 10**9)))\n    tests.append(fmt(n, build(n, 100000, 3)))\n    tests.append(fmt(n, build(n, 60000, 10**9)))\n    tests.append(fmt(300, build(300, 20000, 50)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef mst_weights(n: int, edges: List[Tuple[int, int, int]]) -> Tuple[int, int]:\n    # Write your solution here\n    return (0, 0)\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    edges = [(int(data[2 + 3 * i]), int(data[3 + 3 * i]), int(data[4 + 3 * i])) for i in range(m)]\n    a, b = mst_weights(n, edges)\n    print(a, b)\n\n\nmain()\n",
+  "javascript": "function mstWeights(n, edges) {\n  // Write your solution here\n  return [0, 0]\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst edges = []\nfor (let i = 0; i < m; i++) edges.push([t[2 + 3 * i], t[3 + 3 * i], t[4 + 3 * i]])\nconst res = mstWeights(n, edges)\nconsole.log(res[0] + ' ' + res[1])\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\npair<long long, long long> mstWeights(int n, vector<array<long long, 3>>& edges) {\n    // Write your solution here\n    return {0, 0};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<array<long long, 3>> edges(m);\n    for (int i = 0; i < m; i++) cin >> edges[i][0] >> edges[i][1] >> edges[i][2];\n    pair<long long, long long> res = mstWeights(n, edges);\n    cout << res.first << \" \" << res.second << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] mstWeights(int n, long[][] edges) {\n        // Write your solution here\n        return new long[]{0, 0};\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        long[][] edges = new long[m][3];\n        for (int i = 0; i < m; i++) {\n            for (int j = 0; j < 3; j++) { in.nextToken(); edges[i][j] = (long) in.nval; }\n        }\n        long[] res = mstWeights(n, edges);\n        System.out.println(res[0] + \" \" + res[1]);\n    }\n}\n"
+ }
+}

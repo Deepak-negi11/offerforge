@@ -1,0 +1,48 @@
+{
+ "pid": "samsung-combination-lock-minimum-moves",
+ "title": "Combination Lock Minimum Moves",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "A combination lock has `N` circular dials in a row, each showing a digit from `0` to `9`. The digits wrap around, so turning a dial up from `9` shows `0`, and turning it down from `0` shows `9`.\n\nA **move** works as follows:\n\n- Choose a block of `1`, `2` or `3` **adjacent** dials.\n- Choose a shift `k` with `1 ≤ k ≤ 3` and a direction (up or down). Every dial in the block is turned by exactly `k` positions in that direction, all together.\n\nYou are given the current digits of the lock and the code that opens it. Find the minimum number of moves needed to turn the current digits into the code.\n\nFor example, `117 → 777` takes 2 moves: `117 → 447` (the first two dials are turned up by 3), then `447 → 777` (the first two dials are turned up by 3 again). And `118 → 888` takes 1 move: the first two dials are turned **down** by 3, because `1 → 8` going down is `1 → 0 → 9 → 8`.",
+ "input_format": "The first line contains the current digits of the lock as a string of `N` digits.\nThe second line contains the target code as a string of `N` digits.",
+ "output_format": "Print a single integer: the minimum number of moves.",
+ "constraints": [
+  "3 ≤ N ≤ 20",
+  "Both strings have the same length `N` and consist of the digits `0` to `9`."
+ ],
+ "examples": [
+  {
+   "input": "555\n464",
+   "output": "2",
+   "explanation": "Turn all three dials down by 1 to get 444 (one block of 3), then turn the middle dial up by 2 to get 464. Two moves; a single move cannot work because the three dials need different shifts."
+  },
+  {
+   "input": "118\n888",
+   "output": "1",
+   "explanation": "Turn the first two dials down by 3: 1 → 0 → 9 → 8."
+  },
+  {
+   "input": "06012004\n06012006",
+   "output": "1",
+   "explanation": "Only the last dial differs; turn it up by 2."
+  }
+ ],
+ "complexity": {
+  "time": "O(N · 10^4)",
+  "space": "O(10^2)"
+ },
+ "hints": [
+  "Moves commute, so only the total shift of each block (start position and length 1, 2 or 3) matters, taken modulo 10. A total shift s on one block costs 0, 1 or 2 moves depending on the residue (for example 4, 5 and 6 need two moves, 7 to 9 and 1 to 3 need one).",
+  "Let d[i] be (target[i] - current[i]) mod 10. Dial i is turned by the sum of the shifts of the blocks that cover it, and that sum must equal d[i] modulo 10.",
+  "Scan the dials from left to right. A block starting at the current dial can only influence the next two dials, so a DP state of (pending shift on the next dial, pending shift on the one after) has only 100 values. At each dial choose the shifts of the blocks of length 1, 2 and 3 that start there (the length-1 shift is forced by the other two)."
+ ],
+ "reference": "import sys\n\ndef main():\n    a, b = sys.stdin.read().split()\n    n = len(a)\n    d = [(int(y) - int(x)) % 10 for x, y in zip(a, b)]\n    # cost[s]: fewest single moves (each shifts by at most 3 either way) to shift one window by s modulo 10\n    cost = [0, 1, 1, 1, 2, 2, 2, 1, 1, 1]\n    INF = 10 ** 9\n    cur = {(0, 0): 0}\n    for k in range(n):\n        nxt = {}\n        r2 = 10 if k + 2 <= n else 1\n        r3 = 10 if k + 3 <= n else 1\n        for (u, v), c in cur.items():\n            for s2 in range(r2):\n                for s3 in range(r3):\n                    s1 = (d[k] - u - s2 - s3) % 10\n                    nc = c + cost[s1] + cost[s2] + cost[s3]\n                    key = ((v + s2 + s3) % 10, s3)\n                    if nc < nxt.get(key, INF):\n                        nxt[key] = nc\n        cur = nxt\n    print(min(cur.values()))\n\nmain()\n",
+ "brute": "import sys\nfrom collections import deque\n\na, b = sys.stdin.read().split()\nn = len(a)\nstart = tuple(int(c) for c in a)\ngoal = tuple(int(c) for c in b)\ndist = {start: 0}\nq = deque([start])\nwhile q:\n    s = q.popleft()\n    if s == goal:\n        break\n    for length in (1, 2, 3):\n        for l in range(n - length + 1):\n            for delta in (-3, -2, -1, 1, 2, 3):\n                t = list(s)\n                for i in range(l, l + length):\n                    t[i] = (t[i] + delta) % 10\n                t = tuple(t)\n                if t not in dist:\n                    dist[t] = dist[s] + 1\n                    q.append(t)\nprint(dist[goal])\n",
+ "generator": "def gen(rng):\n    def code(n):\n        return ''.join(str(rng.randrange(10)) for _ in range(n))\n    def fmt(a, b):\n        return a + '\\n' + b\n    tests = [\n        fmt('117', '777'),\n        fmt('555', '464'),\n        fmt('118', '888'),\n        fmt('06012004', '06012006'),\n        fmt('123456789', '567412490'),\n        fmt('2388754767623454321', '1432754767762549321'),\n        fmt('000', '000'),\n        fmt('000', '555'),\n        fmt('000', '444'),\n        fmt('000', '999'),\n        fmt('0000', '3333'),\n        fmt('0000', '0505'),\n        fmt('12345', '12345'),\n        fmt('00000', '05050'),\n        fmt('0' * 20, '5' * 20),\n        fmt('0' * 20, '4545454545' * 2),\n        fmt('0' * 20, '0123456789' * 2),\n    ]\n    for n in (3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5):\n        tests.append(fmt(code(n), code(n)))\n    for n in (6, 8, 10, 13, 16, 18, 20, 20, 20, 20):\n        tests.append(fmt(code(n), code(n)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef min_moves(start: str, target: str) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    print(min_moves(data[0], data[1]))\n\n\nmain()\n",
+  "javascript": "function minMoves(start, target) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconsole.log(String(minMoves(t[0], t[1])))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minMoves(const string& start, const string& target) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string a, b;\n    cin >> a >> b;\n    cout << minMoves(a, b) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minMoves(String start, String target) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String a = br.readLine().trim();\n        String b = br.readLine().trim();\n        System.out.println(minMoves(a, b));\n    }\n}\n"
+ }
+}

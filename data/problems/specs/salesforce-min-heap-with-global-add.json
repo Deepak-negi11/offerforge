@@ -1,0 +1,45 @@
+{
+ "pid": "salesforce-min-heap-with-global-add",
+ "title": "Min-Heap With Global Add",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You maintain a multiset of numbers, initially empty, and process a stream of `q` queries of three kinds:\n\n- `1 X`: insert the number `X` into the list.\n- `2 X`: add `X` to **every** number currently in the list (numbers inserted later are not affected). If the list is empty, nothing happens.\n- `3`: find the smallest number in the list, **remove one copy of it** and print it.\n\nDuplicates are allowed. A query of type `3` is only issued when the list is non-empty, and the stream contains at least one query of type `3`. Values can grow beyond 32 bits because many `2` queries can accumulate, so use 64-bit integers.\n\nPrint the answer to every type `3` query, in the order the queries appear.\n\n**Follow-up:** a naive solution touches every element on each `2` query. Can you make all three operations run in `O(log n)` or better?",
+ "input_format": "The first line contains `q`. Each of the next `q` lines is one query: either `1 X`, `2 X` or `3`.",
+ "output_format": "For every query of type 3, print the removed minimum on its own line.",
+ "constraints": [
+  "1 ≤ q ≤ 10^5",
+  "1 ≤ X ≤ 10^9",
+  "A type 3 query never occurs on an empty list; at least one type 3 query exists",
+  "Numbers in the list can reach about 10^14, so 64-bit arithmetic is needed"
+ ],
+ "examples": [
+  {
+   "input": "5\n1 3\n1 5\n2 10\n1 12\n3",
+   "output": "12",
+   "explanation": "The list is [3], then [3, 5]. Adding 10 to all gives [13, 15]. Inserting 12 gives [12, 13, 15], and the minimum 12 is removed and printed."
+  },
+  {
+   "input": "7\n1 4\n1 9\n3\n2 5\n1 6\n3\n3",
+   "output": "4\n6\n14",
+   "explanation": "The first 3 removes 4 from [4, 9]. Adding 5 turns [9] into [14]. After inserting 6 the list is [6, 14]; the next two 3 queries print 6 and then 14."
+  }
+ ],
+ "complexity": {
+  "time": "O(q log q)",
+  "space": "O(q)"
+ },
+ "hints": [
+  "Updating every element on each `2` query is too slow when there are 10^5 of them. Can you avoid touching the elements at all?",
+  "Keep one running total `offset` of all type 2 additions. An element inserted when the offset was `o` is stored as `X - o`.",
+  "Because every stored element shifts by the same amount, their relative order never changes, so a plain min-heap of the stored values works; the real value of the top is `top + offset`."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    pos = 1\n    heap, offset, out = [], 0, []\n    for _ in range(q):\n        t = int(data[pos]); pos += 1\n        if t == 1:\n            x = int(data[pos]); pos += 1\n            heapq.heappush(heap, x - offset)\n        elif t == 2:\n            offset += int(data[pos]); pos += 1\n        else:\n            out.append(heapq.heappop(heap) + offset)\n    print('\\n'.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nq = int(data[0])\npos = 1\nlst, out = [], []\nfor _ in range(q):\n    t = int(data[pos]); pos += 1\n    if t == 1:\n        lst.append(int(data[pos])); pos += 1\n    elif t == 2:\n        x = int(data[pos]); pos += 1\n        lst = [v + x for v in lst]\n    else:\n        m = min(lst)\n        lst.remove(m)\n        out.append(m)\nprint('\\n'.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def fmt(ops):\n        return str(len(ops)) + '\\n' + '\\n'.join(' '.join(map(str, o)) for o in ops)\n\n    def rand_ops(q, maxx, pa, pb):\n        ops, size = [], 0\n        for _ in range(q):\n            r = rng.random()\n            if size > 0 and r < pa:\n                ops.append((3,))\n                size -= 1\n            elif r < pa + pb:\n                ops.append((2, rng.randint(1, maxx)))\n            else:\n                ops.append((1, rng.randint(1, maxx)))\n                size += 1\n        if not any(o[0] == 3 for o in ops):\n            if size == 0:\n                ops.append((1, rng.randint(1, maxx)))\n            ops.append((3,))\n        return ops\n\n    tests = [\n        fmt([(1, 3), (1, 5), (2, 10), (1, 12), (3,)]),\n        fmt([(1, 1), (3,)]),\n        fmt([(2, 5), (1, 1), (3,)]),\n        fmt([(1, 7), (3,), (2, 4), (1, 2), (3,)]),\n        fmt([(1, 10**9), (2, 10**9), (2, 10**9), (3,)]),\n        fmt([(1, 5), (1, 5), (1, 5), (3,), (3,), (3,)]),\n        fmt([(1, 1), (1, 2), (2, 100), (3,), (2, 1), (3,)]),\n    ]\n    for _ in range(14):\n        tests.append(fmt(rand_ops(rng.randint(2, 28), rng.choice([5, 50, 10**9]), 0.3, 0.3)))\n    for _ in range(6):\n        tests.append(fmt(rand_ops(rng.randint(10, 28), 6, 0.45, 0.2)))\n    tests.append(fmt(rand_ops(2000, 10**9, 0.3, 0.3)))\n    tests.append(fmt(rand_ops(10**5, 10**9, 0.3, 0.3)))\n    tests.append(fmt(rand_ops(10**5, 10, 0.4, 0.1)))\n    tests.append(fmt([(1, rng.randint(1, 10**9)) for _ in range(50000)] + [(3,)] * 50000))\n    ops = []\n    for _ in range(33333):\n        ops += [(2, 10**9), (1, rng.randint(1, 10**9)), (3,)]\n    ops.append((1, 1))\n    tests.append(fmt(ops))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef process_queries(queries: List[Tuple[int, int]]) -> List[int]:\n    # queries[i] = (type, x); x is 0 for a type 3 query.\n    # Return the value removed by each type 3 query, in order.\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    pos = 1\n    queries = []\n    for _ in range(q):\n        t = int(data[pos])\n        pos += 1\n        x = 0\n        if t != 3:\n            x = int(data[pos])\n            pos += 1\n        queries.append((t, x))\n    print('\\n'.join(map(str, process_queries(queries))))\n\n\nmain()\n",
+  "javascript": "function processQueries(types, values) {\n  // types[i] is 1, 2 or 3; values[i] is X (0 for a type 3 query).\n  // Return the value removed by each type 3 query, in order.\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst q = t[0]\nlet pos = 1\nconst types = [], values = []\nfor (let i = 0; i < q; i++) {\n  const ty = t[pos++]\n  types.push(ty)\n  values.push(ty === 3 ? 0 : t[pos++])\n}\nconsole.log(processQueries(types, values).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> processQueries(vector<int>& types, vector<long long>& values) {\n    // types[i] is 1, 2 or 3; values[i] is X (0 for a type 3 query).\n    // Return the value removed by each type 3 query, in order.\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int q;\n    cin >> q;\n    vector<int> types(q);\n    vector<long long> values(q, 0);\n    for (int i = 0; i < q; i++) {\n        cin >> types[i];\n        if (types[i] != 3) cin >> values[i];\n    }\n    vector<long long> res = processQueries(types, values);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] processQueries(int[] types, long[] values) {\n        // types[i] is 1, 2 or 3; values[i] is X (0 for a type 3 query).\n        // Return the value removed by each type 3 query, in order.\n        // Write your solution here\n        return new long[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int q = (int) in.nval;\n        int[] types = new int[q];\n        long[] values = new long[q];\n        for (int i = 0; i < q; i++) {\n            in.nextToken();\n            types[i] = (int) in.nval;\n            if (types[i] != 3) {\n                in.nextToken();\n                values[i] = (long) in.nval;\n            }\n        }\n        long[] res = processQueries(types, values);\n        StringBuilder sb = new StringBuilder();\n        for (long v : res) sb.append(v).append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

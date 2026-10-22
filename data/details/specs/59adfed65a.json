@@ -1,0 +1,18 @@
+{
+ "qid": "59adfed65a",
+ "question": "Groww SDE-2 machine coding round (1 hour). **Build a brokerage calculator** that computes charges for stock trades by broker plan and trade type. Trade types: Equity Delivery, Equity Intraday and Futures and Options (F&O). Plans: **Regular** (delivery 0.5%, intraday 0.03%, F&O 0.05% of trade value), **Pro** (flat Rs 20 delivery, Rs 10 intraday, Rs 15 F&O per trade), **Ultra** (flat Rs 10 for all trades). Additional charges on every plan: **STT** 0.1% on the sell side for delivery and 0.025% on the sell side for intraday, **GST of 18% on the brokerage**, and a flat **Rs 10 transaction charge** per trade. Produce a detailed per-trade breakdown (brokerage, STT, GST, transaction charges, total) and validate inputs (negative amounts, invalid trade types). Input rows look like: trade id, segment, trade type, buy/sell, amount, plan. **Extension:** marketing campaigns that discount trades on particular days.",
+ "lookingFor": [
+  "Strategy-pattern thinking: plans and charge rules as pluggable objects, not if/else chains.",
+  "Correct, clearly stated money arithmetic and rounding.",
+  "Input validation and clean error handling.",
+  "Extensibility: handling the campaign extension without rewriting core code.",
+  "Time management: a working, tested core in the first 40 minutes."
+ ],
+ "answer": "**Clarify.** What does STT apply to for F&O (the statement lists only delivery and intraday, so ask and keep it configurable)? Is the campaign discount on brokerage only, and is GST computed before or after the discount? What rounding is expected? State your choices.\n\n**Design.**\n- `Trade`: id, segment, `TradeType`, `Side` (BUY/SELL), amount, plan, date. Validate in the constructor or a `TradeValidator`.\n- `BrokeragePlan` interface with `brokerage(trade)`; implementations `RegularPlan`, `ProPlan`, `UltraPlan`, each backed by a small table of `TradeType -> rule` (percentage rule or flat rule).\n- `ChargeRule` interface returning a named amount: `BrokerageRule`, `SttRule` (sell side only; rate per trade type from config), `GstRule` (18% of brokerage), `TransactionChargeRule` (flat 10). The calculator runs the list of rules and collects a `ChargeBreakdown`.\n- `DiscountPolicy` interface, applied to the brokerage before GST (decorator or an extra rule). A `DayOfWeekCampaign` or `DateRangeCampaign` implements it, so campaigns are added by configuration.\n- `BrokerageCalculator.calculate(trade) -> ChargeBreakdown`, and a `calculateAll(List<Trade>)`.\n\n**Worked check.** Delivery sell of Rs 1,00,000 on Regular: brokerage 0.5% = 500; STT 0.1% = 100; GST 18% of 500 = 90; transaction charge 10; total = 700. A buy has STT 0 under the stated rules.\n\n**Details that matter.**\n- Use `BigDecimal` with an explicit `RoundingMode` (for example HALF_UP to 2 places) and round each component, then sum, so the breakdown adds up exactly.\n- Keep rates in config or enums, not scattered literals.\n- Reject negative or zero amounts, unknown trade types or plans with a clear error; process a batch so one bad row does not hide the others' results.\n\n**Test.** One case per plan and trade type, buy vs sell, validation failures, and a campaign day vs a normal day.",
+ "followUps": [
+  "How would you add a new plan or a new charge (for example stamp duty) without changing existing classes?",
+  "Where does the campaign discount go in the order of calculation, and why does it matter for GST?",
+  "How would you handle rate changes over time (a trade placed before a new rate takes effect)?",
+  "How would you test rounding behaviour?"
+ ]
+}

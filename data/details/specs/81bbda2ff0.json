@@ -1,0 +1,18 @@
+{
+ "qid": "81bbda2ff0",
+ "question": "Groww SDE-2 high-level design round (1 hour). **Design a stock market system that handles buy, sell and stop-loss events arriving via a queue, with a 10 ms SLA to place the order.** Topics discussed: sharding, indexing, partitioning, caching, happy flows, retries, failure handling and schedulers. The candidate's feedback a week later was that the answer was a basic implementation that **did not extend to multi-exchange or multi-segment support** and needed more focus on scalability.",
+ "lookingFor": [
+  "Latency-budget thinking: where the 10 ms goes and what stays off the hot path.",
+  "Correct partitioning and ordering guarantees for orders and triggers.",
+  "Reliable retries without duplicate orders.",
+  "Extensibility to multiple exchanges and segments via abstraction and isolation.",
+  "Scalability and failure handling, which the interviewer said were missing."
+ ],
+ "answer": "**Requirements.** Event types: BUY, SELL (immediate orders) and STOP_LOSS (a conditional order that fires when the price crosses a trigger). Place the order to the exchange within 10 ms of the event reaching the system. Ask for volume (orders per second at peak) and which guarantees are needed: no duplicates, ordering per user or symbol.\n\n**Components.**\n- **Queue** (Kafka-like), partitioned so related events stay ordered. Partition key: `userId` or `(exchange, symbol)`; explain the trade-off. Per-user ordering protects a user's own sequence; per-symbol suits trigger evaluation.\n- **Order processors**: consume, validate against cached data (user balance and margin, instrument status) held in memory or Redis, to avoid a database call on the hot path.\n- **Stop-loss engine**: keeps pending stop-loss orders in an in-memory index per symbol sorted by trigger price; price ticks fire all crossed triggers, converting them into market or limit orders.\n- **Exchange gateway**: persistent, pooled connections and a rate limiter per exchange.\n- **Persistence**: write an append-only order log and update state asynchronously, so the database is not on the critical path.\n\n**10 ms budget (illustrative).** Queue read and decode a few ms at most; validation from memory about 1-2 ms; send to the exchange the remainder. Measure p99, not averages.\n\n**Order state machine and retries.** RECEIVED, VALIDATED, SENT, ACKED, FILLED or REJECTED. Orders carry a client order id. If a send times out, the result is **unknown**: query the order status before retrying, never blindly resend, or you risk a duplicate trade. Failed messages go to a retry topic with backoff and then a dead-letter queue; a scheduler reconciles stuck SENT orders.\n\n**Multi-exchange and multi-segment.** An `ExchangeAdapter` interface (`placeOrder`, `cancel`, `status`) per exchange; routing from a configuration table keyed by exchange and segment (equity, F&O, commodities). Separate topics or partitions and thread pools per exchange so one slow exchange cannot block others; per-exchange rate limits and trading hours.\n\n**Scaling.** Add partitions and processors horizontally, shard stop-loss indexes by symbol, and replicate state for failover.",
+ "followUps": [
+  "What do you do when an order request to the exchange times out and you do not know whether it was placed?",
+  "How would you choose the partition key for the order queue?",
+  "How do you add a new exchange without touching existing order-processing code?",
+  "How would you monitor the 10 ms SLA?"
+ ]
+}

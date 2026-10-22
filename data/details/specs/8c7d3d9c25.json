@@ -1,0 +1,19 @@
+{
+ "qid": "8c7d3d9c25",
+ "question": "Razorpay SDE design round (face to face, with your own laptop, working solution expected after discussing with the interviewer): design a notification system. There are multiple channels through which a notification can be sent, such as SMS, email and push, and the success rate of each channel is given. The system must choose the best channel and also handle the case where a channel fails by falling back.",
+ "lookingFor": [
+  "Object-oriented design with a pluggable channel abstraction",
+  "A clear selection policy based on success rates, and a defined fallback order",
+  "Failure handling: retries, timeouts, avoiding infinite loops",
+  "Thoughtfulness about extending: new channels, user preferences, dynamic rates",
+  "Working code that is demonstrable and tested"
+ ],
+ "answer": "**Clarify.** Is the success rate static (given) or updated from outcomes? Choose strictly the highest rate, or weighted by cost? Per-user preferences or opt-outs? Is sending synchronous? Is there a maximum number of attempts? Assume: rates are given, pick the best first, fall back in descending order, stop after all channels have failed.\n\n**Entities.**\n- `Notification{id, userId, message, type}`.\n- `interface NotificationChannel { String name(); double successRate(); boolean send(Notification n); }` with `SmsChannel`, `EmailChannel`, `PushChannel`. Each hides the provider; the `send` method returns success or throws.\n- `ChannelSelectionStrategy`: `List<Channel> order(Notification n, List<Channel> available)`. The default sorts by success rate descending; alternatives are weighted-random or cost-aware. Strategy pattern keeps the policy replaceable.\n- `NotificationService.send(n)`: ask the strategy for the order, then try each channel in turn; the first success returns a result; failure moves to the next; if all fail, record the failure and optionally enqueue for retry later.\n\n**Flow.**\n`ordered = strategy.order(n, channels)`; for each channel: try `send` with a timeout; on success record `{channel, attempt}` and stop; on exception log and continue. Return `DeliveryResult{status, attemptedChannels}`.\n\n**Design details.** Use a `ChannelRegistry` to add channels without changing the service (open-closed). Keep a delivery log per notification for observability and idempotency (do not send the same notification id twice). Add a circuit breaker per channel so a channel that is down is skipped for a cooldown period instead of being tried every time.\n\n**Dynamic success rates (extension).** Maintain a sliding window of outcomes per channel and compute the real success rate, so ordering adapts. Use a small exploration chance so that a recovered channel is eventually retried.\n\n**Scaling beyond the exercise.** Put notifications on a queue, have worker consumers per channel, retry with exponential backoff, and add rate limits and priorities (OTP before marketing).\n\n**Tests.** Best channel succeeds; best fails then second succeeds; all fail; unknown channel; ordering by rate.",
+ "followUps": [
+  "How would you add user preferences, such as do-not-disturb and preferred channel?",
+  "How would you avoid sending duplicates when a retry happens after a timeout?",
+  "How would you update success rates from real delivery results?",
+  "How would you scale this to millions of notifications per hour (queues, workers, retries)?",
+  "How would you prioritise OTPs over promotional messages?"
+ ]
+}

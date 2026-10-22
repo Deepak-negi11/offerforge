@@ -1,0 +1,19 @@
+{
+ "qid": "d427af1852",
+ "question": "Morgan Stanley Associate - Software Engineering (Java) technical round 2 (offline). One task was to **write a complete service on paper following the layers Controller to Service to DAO to Entity**. Expect to write classes in Java (likely Spring-style), keep layers separate and discuss validation, errors and transactions.",
+ "lookingFor": [
+  "Correct separation of layers and responsibilities.",
+  "Clean, compilable Java written without an IDE.",
+  "Dependency injection and interface-based design.",
+  "Error handling, validation and transaction boundaries.",
+  "Ability to explain design decisions."
+ ],
+ "answer": "**Pick a simple domain** (for example `Account` or `Employee`), say what operations you will support (create and get by id), and describe each layer's job before writing code.\n\n- **Entity:** a plain model mapped to a table, with an id and fields, no business logic about other layers.\n- **DAO / Repository:** the only layer that talks to the database; returns entities or `Optional`.\n- **Service:** business rules, validation, transaction boundary, converts between DTOs and entities.\n- **Controller:** HTTP only: parse the request, call the service, map results to status codes.\n\n    @Entity class Account { @Id Long id; String owner; BigDecimal balance; /* getters */ }\n\n    interface AccountDao { Optional<Account> findById(Long id); Account save(Account a); }\n\n    @Service class AccountService {\n      private final AccountDao dao;\n      AccountService(AccountDao dao) { this.dao = dao; }\n      @Transactional\n      Account create(CreateAccountRequest r) {\n        if (r.owner() == null || r.owner().isBlank()) throw new IllegalArgumentException(\"owner required\");\n        return dao.save(new Account(r.owner(), BigDecimal.ZERO));\n      }\n      Account get(Long id) { return dao.findById(id).orElseThrow(() -> new NotFoundException(id)); }\n    }\n\n    @RestController @RequestMapping(\"/accounts\") class AccountController {\n      private final AccountService service;\n      AccountController(AccountService s) { this.service = s; }\n      @GetMapping(\"/{id}\") AccountDto get(@PathVariable Long id) { return AccountDto.from(service.get(id)); }\n      @PostMapping ResponseEntity<AccountDto> create(@RequestBody CreateAccountRequest r) {\n        return ResponseEntity.status(201).body(AccountDto.from(service.create(r)));\n      }\n    }\n\n**Points to say aloud:** constructor injection and depending on interfaces (testable with mocks); DTOs keep entities out of the API; a global `@ControllerAdvice` maps `NotFoundException` to 404 and validation errors to 400; transactions belong in the service, not the DAO or controller; `BigDecimal` for money.\n\n**Avoid:** business logic in the controller, controllers calling the DAO directly, exposing entities, swallowing exceptions, and no input validation.",
+ "followUps": [
+  "Why should the transaction boundary be in the service layer?",
+  "Why use DTOs instead of returning entities?",
+  "How would you unit test the service without a database?",
+  "How do you handle exceptions across layers consistently?",
+  "What changes if you use JDBC instead of JPA in the DAO?"
+ ]
+}

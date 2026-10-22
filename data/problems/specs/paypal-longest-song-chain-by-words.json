@@ -1,0 +1,49 @@
+{
+ "pid": "paypal-longest-song-chain-by-words",
+ "title": "Longest Song Chain by Words",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A playlist contains `n` songs, numbered `0` to `n - 1`. The title of each song is a sequence of one or more lowercase words. A title with a single word has that word as both its first word and its last word.\n\nYou build a **chain** that starts from the initial song, which is song `0`. Every following song must start with the previous song's last word: if the previous song in the chain is `p`, the next song `q` must satisfy `first word of q == last word of p`. A song can appear in the chain **at most once**, so the chain never repeats a song. A chain may stop at any point, and a chain with only song `0` is valid.\n\nReturn the largest possible number of songs in a chain, counting song `0`.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines describes one title: an integer `k` followed by `k` words separated by spaces.",
+ "output_format": "Print one integer: the length of the longest chain that starts from song `0`.",
+ "constraints": [
+  "1 ≤ n ≤ 16",
+  "1 ≤ k ≤ 5 words per title",
+  "each word has 1 to 10 lowercase letters"
+ ],
+ "examples": [
+  {
+   "input": "5\n2 blue moon\n2 moon river\n2 river deep\n2 moon dance\n2 dance moon",
+   "output": "5",
+   "explanation": "Song 0 ends with `moon`. Going to song 1 first leads to `river deep` and a dead end after 3 songs. The better chain is 0, 3, 4, 1, 2: `blue moon`, `moon dance`, `dance moon`, `moon river`, `river deep`, using all 5 songs."
+  },
+  {
+   "input": "4\n1 one\n2 one two\n2 two one\n2 one three",
+   "output": "4",
+   "explanation": "Song 0 is the single word `one`. The chain 0, 1, 2, 3 works: `one`, `one two`, `two one`, `one three`. Going from song 0 straight to song 3 would give only 2 songs."
+  },
+  {
+   "input": "2\n2 red car\n2 blue car",
+   "output": "1",
+   "explanation": "No song starts with `car`, so the chain cannot grow past song 0."
+  }
+ ],
+ "complexity": {
+  "time": "O(2^n · n)",
+  "space": "O(2^n)"
+ },
+ "hints": [
+  "Think of every song as an edge from its first word to its last word. The chain is a walk that never reuses an edge, starting at the last word of song 0.",
+  "Plain backtracking tries every order of the songs and can take n! steps when many songs share the same words. Notice that what matters for the future is only which songs are used and which word you are standing on.",
+  "Memoize on (set of used songs as a bitmask, current last word): the best number of extra songs from that state does not depend on how you got there."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    p = 1\n    first, last = [], []\n    for _ in range(n):\n        k = int(data[p])\n        ws = data[p + 1:p + 1 + k]\n        p += 1 + k\n        first.append(ws[0])\n        last.append(ws[-1])\n    by = {}\n    for i in range(n):\n        by.setdefault(first[i], []).append(i)\n    memo = {}\n\n    def go(mask, w):\n        key = (mask, w)\n        if key in memo:\n            return memo[key]\n        best = 0\n        for j in by.get(w, ()):\n            if not (mask >> j) & 1:\n                v = 1 + go(mask | (1 << j), last[j])\n                if v > best:\n                    best = v\n        memo[key] = best\n        return best\n\n    print(1 + go(1, last[0]))\n\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\np = 1\nfirst, last = [], []\nfor _ in range(n):\n    k = int(data[p])\n    ws = data[p + 1:p + 1 + k]\n    p += 1 + k\n    first.append(ws[0])\n    last.append(ws[-1])\nused = [False] * n\nused[0] = True\nbest = 1\n\n\ndef dfs(cur, length):\n    global best\n    if length > best:\n        best = length\n    for j in range(n):\n        if not used[j] and first[j] == last[cur]:\n            used[j] = True\n            dfs(j, length + 1)\n            used[j] = False\n\n\ndfs(0, 1)\nprint(best)\n",
+ "generator": "def gen(rng):\n    pool = ['red', 'blue', 'sun', 'moon', 'sky', 'rain', 'love', 'fire', 'night', 'day']\n\n    def fmt(songs):\n        lines = [str(len(songs))]\n        for ws in songs:\n            lines.append(str(len(ws)) + ' ' + ' '.join(ws))\n        return '\\n'.join(lines)\n\n    def rnd_song(words):\n        k = rng.choice([1, 1, 2, 2, 3, 4])\n        return [rng.choice(words) for _ in range(k)]\n\n    tests = [\n        fmt([['solo']]),\n        fmt([['a', 'b']]),\n        fmt([['red', 'car'], ['blue', 'car']]),\n        fmt([['blue', 'moon'], ['moon', 'river'], ['river', 'deep'], ['moon', 'dance'], ['dance', 'moon']]),\n        fmt([['a']] * 8),\n        fmt([['a', 'b', 'a']] * 7),\n        fmt([['one'], ['one', 'two'], ['two', 'one'], ['one', 'three']]),\n    ]\n    for n in range(2, 9):\n        for psize in (2, 3, 4):\n            words = pool[:psize]\n            tests.append(fmt([rnd_song(words) for _ in range(n)]))\n    # a long forced chain whose song 0 is first, shuffled behind it\n    names = [chr(97 + i) + 'x' for i in range(17)]\n    chain = [[names[i], names[i + 1]] for i in range(16)]\n    rest = chain[1:]\n    rng.shuffle(rest)\n    tests.append(fmt([chain[0]] + rest))\n    # max-size cases\n    tests.append(fmt([['a']] * 16))\n    tests.append(fmt([['a', 'b', 'a']] * 16))\n    for psize in (2, 3, 4, 6):\n        tests.append(fmt([rnd_song(pool[:psize]) for _ in range(16)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef longest_chain(titles: List[List[str]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    p = 1\n    titles = []\n    for _ in range(n):\n        k = int(data[p])\n        titles.append(data[p + 1:p + 1 + k])\n        p += 1 + k\n    print(longest_chain(titles))\n\n\nmain()\n",
+  "javascript": "function longestChain(titles) {\n  // Write your solution here\n  return 0\n}\n\nconst tok = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(tok[0])\nlet p = 1\nconst titles = []\nfor (let i = 0; i < n; i++) {\n  const k = parseInt(tok[p])\n  titles.push(tok.slice(p + 1, p + 1 + k))\n  p += 1 + k\n}\nconsole.log(longestChain(titles))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint longestChain(vector<vector<string>>& titles) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<vector<string>> titles(n);\n    for (int i = 0; i < n; i++) {\n        int k;\n        cin >> k;\n        titles[i].resize(k);\n        for (int j = 0; j < k; j++) cin >> titles[i][j];\n    }\n    cout << longestChain(titles) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int longestChain(List<List<String>> titles) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int n = Integer.parseInt(st.nextToken());\n        List<List<String>> titles = new ArrayList<>();\n        for (int i = 0; i < n; i++) {\n            int k = Integer.parseInt(st.nextToken());\n            List<String> t = new ArrayList<>();\n            for (int j = 0; j < k; j++) t.add(st.nextToken());\n            titles.add(t);\n        }\n        System.out.println(longestChain(titles));\n    }\n}\n"
+ }
+}

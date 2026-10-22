@@ -1,0 +1,18 @@
+{
+ "qid": "e87e14f81a",
+ "question": "Snowflake Data Engineering intern, technical round 2. On employee, department and project tables (the schema was shown as an image, so column names below are assumed), write queries to: **find the 3rd highest salary**, **find the department with the most active projects**, and **list employee names with their departments who are involved in one or more projects**.",
+ "lookingFor": [
+  "Can you find the Nth highest value correctly, including ties?",
+  "Do you use GROUP BY, COUNT and ordering with LIMIT or window functions correctly?",
+  "Can you pick the right join and avoid duplicate rows?",
+  "Do you state schema assumptions and edge cases (fewer than 3 salaries, ties)?",
+  "Can you offer more than one approach?"
+ ],
+ "answer": "Assume `employees(emp_id, name, salary, dept_id)`, `departments(dept_id, dept_name)`, `projects(project_id, dept_id, status)` and `project_assignments(emp_id, project_id)`. Adapt to the real schema.\n\n**1. Third highest salary** (distinct values, so ties count once):\n```\nSELECT salary FROM (\n  SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk\n  FROM employees\n) t WHERE rnk = 3 LIMIT 1;\n```\n`DENSE_RANK` gives tied salaries the same rank without gaps. A portable alternative is `SELECT DISTINCT salary FROM employees ORDER BY salary DESC LIMIT 1 OFFSET 2`. With fewer than three distinct salaries both return no row, so wrap with `MAX(...)` if NULL is preferred. `ROW_NUMBER` would be wrong with ties.\n\n**2. Department with the most active projects:**\n```\nSELECT d.dept_name, COUNT(*) AS active_projects\nFROM departments d\nJOIN projects p ON p.dept_id = d.dept_id\nWHERE p.status = 'ACTIVE'\nGROUP BY d.dept_id, d.dept_name\nORDER BY active_projects DESC\nLIMIT 1;\n```\nFilter with `WHERE` before grouping, then count per department. If several departments tie, use `RANK()` over the counts and select rank 1 to return all of them.\n\n**3. Employees (with department) on at least one project:**\n```\nSELECT DISTINCT e.name, d.dept_name\nFROM employees e\nJOIN departments d ON d.dept_id = e.dept_id\nJOIN project_assignments pa ON pa.emp_id = e.emp_id;\n```\nThe inner join to assignments keeps only employees with at least one project. `DISTINCT` avoids repeating an employee who has many projects (use `emp_id` too, in case of duplicate names). An `EXISTS` subquery is an equally good option and avoids duplicates without `DISTINCT`.\n\nExplain which join type you use and why (inner join drops employees without projects; a left join would keep them).",
+ "followUps": [
+  "How would you find the Nth highest salary per department?",
+  "How do you list employees who are on no project?",
+  "What is the difference between RANK, DENSE_RANK and ROW_NUMBER?",
+  "How would you speed up these queries on large tables (indexes, partitioning)?"
+ ]
+}

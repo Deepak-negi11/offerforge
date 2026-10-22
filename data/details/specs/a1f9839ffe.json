@@ -1,0 +1,17 @@
+{
+ "qid": "a1f9839ffe",
+ "question": "In the low-level design portion (the last 20 minutes) of a Zomato SWE-1 interview, the candidate was asked to **design a Zomato Enterprise system for offering food benefits to companies and their employees**. The discussion covered the core services and their interactions, the order lifecycle, payment and order consistency, and the restaurant and delivery partner flow.",
+ "lookingFor": [
+  "Can you identify the actors and break the problem into sensible services?",
+  "Can you model corporate budgets, employee entitlements and orders?",
+  "Do you keep orders and payments consistent when steps can fail?",
+  "Do you reason about non-happy paths such as budget exhaustion, cancellation and refunds?"
+ ],
+ "answer": "**Clarify requirements.** Companies enrol and give each employee a food budget (daily, monthly or per meal). Employees order from restaurants, the benefit covers some or all of the bill, and the employee pays any remainder. The company is invoiced.\n\n**Actors:** company admin (HR), employee, restaurant, delivery partner.\n\n**Core services**\n- **Enterprise service:** companies, employees, policies (limit, period, allowed meal windows, spend caps).\n- **Wallet / benefit service:** balance per employee, with a **ledger** of holds and debits.\n- **Ordering service:** cart, order and its state machine.\n- **Payment service:** charges the employee's share; **billing service** produces the company invoice.\n- **Restaurant and delivery services:** accept and prepare orders, assign a partner, track status.\n- **Notification service** (events to users).\n\n**Order lifecycle.** `CREATED -> BENEFIT_HELD -> PAYMENT_CONFIRMED -> ACCEPTED -> PREPARING -> PICKED_UP -> DELIVERED`, with `CANCELLED` and `REFUNDED` as exits.\n\n**Consistency.**\n1. Place order: reserve (hold) the benefit amount against the employee's balance, atomically with a conditional update (`UPDATE ... WHERE balance >= :amt`) to avoid overspend under concurrency.\n2. Charge any remaining amount. If it fails, release the hold.\n3. On delivery, convert the hold into a final debit; on cancellation, release it.\nUse an **idempotency key** on each step, the **outbox pattern** to publish events reliably, and a **saga** with compensations instead of a distributed transaction. Run a reconciliation job for stuck holds.\n\n**Data model sketch.** `companies`, `employees(company_id, policy_id)`, `benefit_accounts`, `benefit_ledger(entry_id, account_id, type, amount, order_id)`, `orders`, `order_items`, `invoices(company_id, period)`.\n\n**Edge cases.** Policy changes mid-month, an employee leaving, expiry of unused benefits, partial refunds returned to the right source, restaurant rejection, no delivery partner available, and fraud limits.\n\n**Scaling.** Stateless services, event bus between them, and sharding ledgers by employee or company.",
+ "followUps": [
+  "How would you stop two simultaneous orders from overspending the same balance?",
+  "How do you generate the monthly invoice for a company?",
+  "What happens if the restaurant rejects the order after payment?",
+  "Which parts would you build as separate services and which as one module, and why?"
+ ]
+}

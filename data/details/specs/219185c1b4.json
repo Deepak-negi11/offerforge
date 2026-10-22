@@ -1,0 +1,19 @@
+{
+ "qid": "219185c1b4",
+ "question": "In the HLD round for an SDE-2 role at Ola, the interview began with a deep dive into the candidate's resume and then moved to: **Design Spotify**, a music streaming application.",
+ "lookingFor": [
+  "Can you scope a large product into a few core features?",
+  "Do you understand audio streaming delivery (chunking, CDN, adaptive bitrate)?",
+  "Can you separate metadata, media and recommendation concerns?",
+  "Do you reason about caching and read-heavy traffic?",
+  "Can you discuss trade-offs and scaling with realistic numbers?"
+ ],
+ "answer": "**Scope and requirements.** Core features: search and browse songs, play (stream) a track, playlists, library, offline download. Out of scope initially: recommendations and social (mention later). Non-functional: playback starts in under 2 seconds, no buffering, high availability, very read-heavy. Assume 100M daily users, about 30 plays each, tracks of 3-5 MB.\n\n**API.** `GET /search?q=`, `GET /tracks/{id}`, `GET /tracks/{id}/stream` (returns a manifest or signed URL), `POST /playlists`, `POST /playlists/{id}/tracks`.\n\n**Components.**\n- **Metadata service:** artists, albums, tracks, playlists. A relational DB (or sharded SQL) fits structured relations; cache hot metadata in Redis. Search via Elasticsearch fed from the metadata store.\n- **Media storage:** audio files in an object store (S3-like), encoded at several bitrates and split into small chunks.\n- **Streaming delivery:** serve chunks through a **CDN** with signed, expiring URLs. The client fetches chunks sequentially, buffers ahead and uses **adaptive bitrate** to switch quality with network conditions. Popular tracks stay cached at edge nodes; the long tail is fetched from origin.\n- **Playback/usage service:** logs plays asynchronously to Kafka for royalties, charts and recommendations.\n- **User service:** auth, subscriptions (free vs premium affects bitrate, ads, downloads).\n- **Recommendation pipeline (extension):** offline batch (collaborative filtering) plus a feature store, served from a precomputed cache.\n\n**Data model.** `track(id, album_id, title, duration, file_ref)`, `playlist(id, owner_id)`, `playlist_track(playlist_id, track_id, position)`, `user_library(user_id, track_id)`.\n\n**Trade-offs and scale.** Streaming bandwidth dominates cost, so a CDN with a high hit rate is the key lever; the Pareto distribution of plays makes caching effective. Metadata reads are scaled with caches and read replicas; shard playlists by user. Prefetch the next track in the queue. For offline mode, store encrypted chunks on-device with licence checks.",
+ "followUps": [
+  "How does adaptive bitrate streaming work?",
+  "How would you design the recommendation feature?",
+  "How do you handle a newly released track that suddenly goes viral?",
+  "How would you count plays accurately for royalty payments?",
+  "How would you design offline downloads and DRM?"
+ ]
+}

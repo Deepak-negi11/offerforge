@@ -1,0 +1,19 @@
+{
+ "qid": "13aa815b9b",
+ "question": "Databricks New Grad system design round. Reported as focusing on lower-level design rather than global scale: choosing a **database**, defining **API endpoints**, designing the schema, and thinking about **resilience and fault tolerance**. Another report describes being given a simple API and asked to **modify it to support new requirements**. The exact product was not stated, so expect a small service (for example a CRUD-style service) where you drive the requirements.",
+ "lookingFor": [
+  "Clarifying requirements before designing.",
+  "Sensible API design: resources, verbs, request and response shape, pagination, errors.",
+  "Justified database and schema choice with indexes and access patterns.",
+  "Thinking about failure: retries, idempotency, timeouts, consistency.",
+  "Adapting a design when requirements change without a rewrite."
+ ],
+ "answer": "This round rewards a small, correct, well-reasoned design over big-scale buzzwords.\n\n**1. Clarify.** Who are the users, what are the core operations, read versus write ratio, rough size (say thousands of requests per second at most), consistency needs, and what can be left out.\n\n**2. API.** List resources and endpoints, for example `POST /items`, `GET /items/{id}`, `GET /items?cursor=&limit=`, `PATCH /items/{id}`, `DELETE /items/{id}`. Cover: auth, request validation, status codes, **cursor pagination**, versioning (`/v1`), and an **idempotency key** on create so client retries do not duplicate work.\n\n**3. Data model and database.** Write the tables or documents and the queries they must serve, then pick the store from the access pattern. A relational database (PostgreSQL, MySQL) is a safe default for structured data with relationships and transactions. Consider a key-value or document store only if you can name the access pattern that needs it. Add indexes for the main lookups and mention uniqueness constraints.\n\n**4. Resilience.** Cover:\n- Stateless service instances behind a load balancer.\n- Timeouts, bounded retries with exponential backoff and jitter, and idempotent writes.\n- Database replication with a failover plan, and backups.\n- Async work through a queue with a dead-letter queue.\n- Health checks, metrics (latency, error rate), logs and alerts.\n\n**5. Handling the modified requirement.** If asked to change the API (new field, new filter, bulk operation, new entity), show how you evolve it safely: add optional fields (backward compatible), add a migration with a default or backfill, keep old clients working, version only when a breaking change is unavoidable, and update indexes and tests.\n\n**Mistakes to avoid:** jumping to Kafka and sharding for a small service, ignoring failure cases, vague schemas, and not stating trade-offs.",
+ "followUps": [
+  "How would you make this endpoint idempotent?",
+  "What breaks if two clients update the same record at once? How do you prevent lost updates?",
+  "How would you add a new required field without breaking existing clients?",
+  "When would you pick NoSQL over a relational database here?",
+  "How do you handle the database becoming unavailable?"
+ ]
+}

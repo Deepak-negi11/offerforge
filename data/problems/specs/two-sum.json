@@ -1,0 +1,50 @@
+{
+ "pid": "two-sum",
+ "title": "Two Sum and Valid Anagram",
+ "difficulty": "Easy",
+ "source_note": "standard",
+ "statement": "This problem combines two warm-up questions that interviewers often ask together. The input contains an integer array with a target, and two strings. Answer both parts.\n\n**Part 1 (pair with a given sum).** Find two different positions `i < j` such that `a[i] + a[j] = target`. Several pairs may exist, so report the canonical one: the pair with the **smallest `j`**, and among pairs with that `j`, the **smallest `i`**. This is the pair you discover first when scanning left to right and looking up each element's partner among the elements already seen. If no such pair exists, report `-1 -1`.\n\n**Part 2 (anagram check).** Decide whether string `t` is an anagram of string `s`: it must use exactly the same letters, each the same number of times, in any order.\n\nPrint the pair on the first line and `true` or `false` on the second line.",
+ "input_format": "The first line contains two integers `n` and `target`.\nThe second line contains `n` integers `a[0] ... a[n-1]`.\nThe third line contains the string `s` and the fourth line contains the string `t`.",
+ "output_format": "First line: the two indices `i j` (with `i < j`) of the canonical pair, or `-1 -1` if none exists.\nSecond line: `true` if `t` is an anagram of `s`, otherwise `false`.",
+ "constraints": [
+  "1 ≤ n ≤ 4 · 10^4",
+  "-10^9 ≤ a[i], target ≤ 10^9",
+  "1 ≤ length of s, length of t ≤ 10^5",
+  "s and t contain only lowercase English letters"
+ ],
+ "examples": [
+  {
+   "input": "5 9\n3 8 1 6 4\nlisten\nsilent",
+   "output": "1 2\ntrue",
+   "explanation": "Two pairs sum to 9: positions (0, 3) with 3 + 6, and positions (1, 2) with 8 + 1. The pair (1, 2) has the smaller j (2 versus 3), so it is the canonical one. `silent` uses exactly the letters of `listen`, so the strings are anagrams."
+  },
+  {
+   "input": "4 10\n5 5 1 2\nabc\nabd",
+   "output": "0 1\nfalse",
+   "explanation": "The same value may be used twice if it occurs at two different positions: 5 + 5 at positions 0 and 1. The strings differ in one letter (`c` versus `d`), so they are not anagrams."
+  },
+  {
+   "input": "3 100\n1 2 3\naab\naba",
+   "output": "-1 -1\ntrue",
+   "explanation": "No pair adds up to 100. Both strings have two `a` and one `b`, so they are anagrams."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + |s| + |t|)",
+  "space": "O(n + 26)"
+ },
+ "hints": [
+  "Checking every pair works but takes O(n^2). For each element a[j], which value would its partner need to have?",
+  "Scan left to right and keep a hash map from value to the first index where it appeared. Look up target - a[j] before inserting a[j] so an element is never paired with itself.",
+  "For the anagram part, count the letters of s up and the letters of t down in a 26-slot array. They are anagrams exactly when the lengths match and every slot ends at zero."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, target = int(data[0]), int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    s, t = data[2 + n], data[3 + n]\n    first = {}\n    ans = (-1, -1)\n    for j, v in enumerate(a):\n        if target - v in first:\n            ans = (first[target - v], j)\n            break\n        if v not in first:\n            first[v] = j\n    print(ans[0], ans[1])\n    cnt = [0] * 26\n    for ch in s:\n        cnt[ord(ch) - 97] += 1\n    for ch in t:\n        cnt[ord(ch) - 97] -= 1\n    print('true' if len(s) == len(t) and not any(cnt) else 'false')\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, target = int(data[0]), int(data[1])\na = [int(x) for x in data[2:2 + n]]\ns, t = data[2 + n], data[3 + n]\nans = (-1, -1)\nfor j in range(n):\n    for i in range(j):\n        if a[i] + a[j] == target:\n            ans = (i, j)\n            break\n    if ans != (-1, -1):\n        break\nprint(ans[0], ans[1])\nprint('true' if sorted(s) == sorted(t) else 'false')\n",
+ "generator": "def gen(rng):\n    def fmt(target, a, s, t):\n        return f'{len(a)} {target}\\n' + ' '.join(map(str, a)) + '\\n' + s + '\\n' + t\n    def word(n, al):\n        return ''.join(rng.choice(al) for _ in range(n))\n    def shuffled(s):\n        l = list(s)\n        rng.shuffle(l)\n        return ''.join(l)\n    tests = [\n        fmt(5, [5], 'a', 'a'),\n        fmt(6, [3, 3], 'ab', 'ba'),\n        fmt(0, [-4, 4, 0, 0], 'abc', 'abd'),\n        fmt(7, [1, 2, 3], 'aab', 'ab'),\n        fmt(-10**9, [-10**9, 0, 5], 'zz', 'zz'),\n    ]\n    for n, lo, hi, sl in ((5, 0, 5, 4), (6, -5, 5, 5), (8, 0, 4, 6), (10, -10, 10, 7), (12, 0, 3, 8), (15, -20, 20, 9)):\n        a = [rng.randint(lo, hi) for _ in range(n)]\n        target = rng.randint(2 * lo, 2 * hi)\n        s = word(sl, 'abc')\n        t = shuffled(s) if rng.random() < 0.5 else word(sl, 'abc')\n        tests.append(fmt(target, a, s, t))\n    N, M = 40000, 100000\n    a = [rng.randint(-10**9, 10**9) for _ in range(N)]\n    s = word(M, 'abcdefghijklmnopqrstuvwxyz')\n    tests.append(fmt(a[7] + a[N - 3], a, s, shuffled(s)))\n    tests.append(fmt(2 * 10**9 + 1, a, s, s[:-1] + ('a' if s[-1] != 'a' else 'b')))\n    b = [i for i in range(N)]\n    tests.append(fmt(2 * N - 3, b, s, shuffled(s)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef two_sum(a: List[int], target: int) -> List[int]:\n    # Write your solution here\n    return [-1, -1]\n\n\ndef is_anagram(s: str, t: str) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, target = int(data[0]), int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    s, t = data[2 + n], data[3 + n]\n    pair = two_sum(a, target)\n    print(pair[0], pair[1])\n    print('true' if is_anagram(s, t) else 'false')\n\n\nmain()\n",
+  "javascript": "function twoSum(a, target) {\n  // Write your solution here\n  return [-1, -1]\n}\n\nfunction isAnagram(s, t) {\n  // Write your solution here\n  return false\n}\n\nconst tok = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(tok[0]), target = parseInt(tok[1])\nconst a = tok.slice(2, 2 + n).map(Number)\nconst s = tok[2 + n], t = tok[3 + n]\nconst pair = twoSum(a, target)\nconsole.log(pair[0] + ' ' + pair[1])\nconsole.log(isAnagram(s, t) ? 'true' : 'false')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\npair<int, int> twoSum(vector<long long>& a, long long target) {\n    // Write your solution here\n    return {-1, -1};\n}\n\nbool isAnagram(const string& s, const string& t) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long target;\n    cin >> n >> target;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    string s, t;\n    cin >> s >> t;\n    pair<int, int> p = twoSum(a, target);\n    cout << p.first << ' ' << p.second << '\\n';\n    cout << (isAnagram(s, t) ? \"true\" : \"false\") << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] twoSum(long[] a, long target) {\n        // Write your solution here\n        return new int[]{-1, -1};\n    }\n\n    static boolean isAnagram(String s, String t) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int n = Integer.parseInt(st.nextToken());\n        long target = Long.parseLong(st.nextToken());\n        long[] a = new long[n];\n        st = new StringTokenizer(br.readLine());\n        for (int i = 0; i < n; i++) a[i] = Long.parseLong(st.nextToken());\n        String s = br.readLine().trim();\n        String t = br.readLine().trim();\n        int[] p = twoSum(a, target);\n        System.out.println(p[0] + \" \" + p[1]);\n        System.out.println(isAnagram(s, t) ? \"true\" : \"false\");\n    }\n}\n"
+ }
+}

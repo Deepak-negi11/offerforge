@@ -1,0 +1,48 @@
+{
+ "pid": "american-express-two-equal-disjoint-squares",
+ "title": "Two Equal Disjoint Squares",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a map of a region as an `N x M` grid. A cell marked `1` is **buildable** (a solar power plant can be built on it) and a cell marked `0` is not.\n\nPlace **two square-shaped power plants** on the map so that:\n\n- both squares have the **same side length** `s`;\n- every cell inside each square is buildable;\n- the two squares do **not share any cell**;\n- a single cell (side length `1`) counts as a valid square.\n\nSquares are aligned with the grid. Find the **maximum possible side length** `s` for which two such squares exist. If it is impossible to place two squares at all (even of side `1`), print `0`.",
+ "input_format": "The first line contains two integers `N` and `M`.\nEach of the next `N` lines contains a string of `M` characters, each `0` or `1`, describing one row of the map.",
+ "output_format": "Print a single integer: the maximum side length, or `0` if two squares cannot be placed.",
+ "constraints": [
+  "1 ≤ N, M ≤ 700",
+  "Each grid character is `0` or `1`"
+ ],
+ "examples": [
+  {
+   "input": "4 5\n11101\n11111\n11011\n11111",
+   "output": "2",
+   "explanation": "The squares with top-left cells (0, 0) and (2, 3), both of side 2, cover only buildable cells and share no cell. Side 3 is impossible: a 3 x 3 block of ones needs three buildable rows and columns, and the grid has no room for two disjoint ones."
+  },
+  {
+   "input": "5 5\n11111\n11111\n11111\n11111\n11111",
+   "output": "2",
+   "explanation": "The grid is entirely buildable, but two disjoint squares of side 3 would need 6 rows or 6 columns, and only 5 exist. Two squares of side 2 fit, for example at the top-left and bottom-right corners."
+  },
+  {
+   "input": "1 1\n1",
+   "output": "0",
+   "explanation": "There is only one buildable cell, so two non-overlapping squares cannot be placed and the answer is 0."
+  }
+ ],
+ "complexity": {
+  "time": "O(N · M)",
+  "space": "O(N + M)"
+ },
+ "hints": [
+  "If two disjoint squares of side `s` exist, then two disjoint squares of side `s - 1` exist as well, so the answer can be found by searching over `s` from large to small (or by binary search).",
+  "Compute, for every cell, the side of the largest all-ones square whose bottom-right corner is that cell. A square of side `s` fits with that corner exactly when the value is at least `s`.",
+  "Two squares of side `s` with corners `(r1, c1)` and `(r2, c2)` are disjoint exactly when `|r1 - r2| >= s` or `|c1 - c2| >= s`. The largest such difference over all valid corners is determined by the smallest and largest valid row and column, so you only need the per-row and per-column maxima of the DP table."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    rows = data[2:2 + n]\n    prev = [0] * (m + 1)\n    colmax = [0] * m\n    rowmax = [0] * n\n    for r in range(n):\n        row = rows[r]\n        cur = [0] * (m + 1)\n        left = 0\n        for c in range(m):\n            if row[c] == '1':\n                a = prev[c]\n                b = prev[c + 1]\n                v = a if a < b else b\n                if left < v:\n                    v = left\n                v += 1\n                cur[c + 1] = v\n                left = v\n            else:\n                left = 0\n        rowmax[r] = max(cur)\n        colmax = list(map(max, colmax, cur[1:]))\n        prev = cur\n    # dp value at (r, c) = largest all-ones square whose bottom-right corner is (r, c).\n    # Two squares of side s are disjoint iff their corners differ by >= s in rows or in columns,\n    # so only the extreme rows / columns that can hold a square of side s matter.\n    for s in range(max(rowmax), 0, -1):\n        rs = [r for r in range(n) if rowmax[r] >= s]\n        cs = [c for c in range(m) if colmax[c] >= s]\n        if max(rs[-1] - rs[0], cs[-1] - cs[0]) >= s:\n            print(s)\n            return\n    print(0)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\ng = data[2:2 + n]\nbest = 0\nfor s in range(1, min(n, m) + 1):\n    sq = []\n    for r in range(n - s + 1):\n        for c in range(m - s + 1):\n            cells = set((i, j) for i in range(r, r + s) for j in range(c, c + s))\n            if all(g[i][j] == '1' for i, j in cells):\n                sq.append(cells)\n    for a in range(len(sq)):\n        for b in range(a + 1, len(sq)):\n            if not (sq[a] & sq[b]):\n                best = s\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(g):\n        return '%d %d\\n%s' % (len(g), len(g[0]), '\\n'.join(g))\n    def rnd(n, m, p):\n        return [''.join('1' if rng.random() < p else '0' for _ in range(m)) for _ in range(n)]\n    tests = [fmt(['1']), fmt(['0']), fmt(['11']), fmt(['101']), fmt(['11', '11']), fmt(['111', '111', '111']),\n             fmt(['1111', '1111', '1111', '1111']), fmt(['110', '110', '001']),\n             fmt(['1', '1', '1']), fmt(['0000', '0000'])]\n    for (n, m) in ((2, 3), (3, 3), (4, 4), (3, 6), (5, 5), (6, 4), (6, 6), (4, 8), (7, 7), (8, 5)):\n        for p in (0.6, 0.85, 0.95):\n            tests.append(fmt(rnd(n, m, p)))\n    N = 700\n    tests.append(fmt(['1' * N] * N))\n    tests.append(fmt(rnd(N, N, 0.999)))\n    tests.append(fmt(rnd(N, N, 0.5)))\n    # two big blocks separated by a zero column, plus noise\n    g = [['0'] * N for _ in range(N)]\n    for i in range(0, 400):\n        for j in range(0, 300):\n            g[i][j] = '1'\n    for i in range(300, 700):\n        for j in range(330, 700):\n            g[i][j] = '1'\n    tests.append(fmt([''.join(r) for r in g]))\n    tests.append(fmt(['1' * 700] * 1))\n    tests.append(fmt(['1'] * 700))\n    # one block bigger than half the grid: only a smaller pair fits\n    g = [['1'] * N for _ in range(N)]\n    for i in range(N):\n        g[i][349] = '0'\n    for j in range(N):\n        g[349][j] = '0'\n    tests.append(fmt([''.join(r) for r in g]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_side(grid: List[str]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    grid = data[2:2 + n]\n    print(max_side(grid))\n\n\nmain()\n",
+  "javascript": "function maxSide(grid) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0]), m = parseInt(t[1])\nconst grid = t.slice(2, 2 + n)\nconsole.log(maxSide(grid))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint maxSide(vector<string>& grid) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<string> grid(n);\n    for (int i = 0; i < n; i++) cin >> grid[i];\n    cout << maxSide(grid) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int maxSide(String[] grid) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int n = Integer.parseInt(st.nextToken());\n        int m = Integer.parseInt(st.nextToken());\n        String[] grid = new String[n];\n        for (int i = 0; i < n; i++) grid[i] = br.readLine().trim();\n        System.out.println(maxSide(grid));\n    }\n}\n"
+ }
+}

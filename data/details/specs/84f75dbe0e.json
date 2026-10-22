@@ -1,0 +1,17 @@
+{
+ "qid": "84f75dbe0e",
+ "question": "Atlassian software engineer intern, coding interview (design a **rate limiter**). You are given a list of pairs `(customerId, timestamp in milliseconds)` representing pings in order. Return a list of booleans, one per ping, saying whether that ping is **allowed**, given that a single customer may ping **at most twice in any 1-second window**. The candidate reported solving it in O(n) time and O(n) space.",
+ "lookingFor": [
+  "Choosing the right per-key state (a small window of recent timestamps).",
+  "Defining window semantics precisely: sliding versus fixed, boundary inclusivity.",
+  "Handling rejected pings correctly (do they count toward the limit?).",
+  "Complexity analysis and edge cases."
+ ],
+ "answer": "**Clarify first.**\n- Is the window sliding (any 1000 ms span) or a fixed bucket per second? Sliding is the usual reading of 'at most twice in a 1-second duration'.\n- Are timestamps sorted? Assume non-decreasing.\n- Does a rejected ping count toward the limit? Typically no: only allowed pings are recorded.\n- Boundary: is a ping at `t` and another at `t + 1000` in the same window? Decide, say it out loud, and pick one (commonly the window is `(t - 1000, t]`, so the second ping is allowed).\n\n**Approach.** Keep a hash map from `customerId` to a small queue (or just the last two allowed timestamps). For each ping `(c, t)`:\n1. Get the customer's deque of allowed timestamps.\n2. Evict timestamps `<= t - 1000`.\n3. If the deque has fewer than 2 entries, allow: append `t` and output true. Otherwise output false and do not record it.\n\n```\nallowed = []\nlast = {}                      # customerId -> deque of allowed timestamps\nfor c, t in pings:\n    q = last.setdefault(c, deque())\n    while q and q[0] <= t - 1000:\n        q.popleft()\n    if len(q) < 2:\n        q.append(t); allowed.append(True)\n    else:\n        allowed.append(False)\n```\n\n**Complexity.** Each ping is appended and removed at most once, and each deque holds at most 2 items, so time is O(n) overall and space O(number of customers). Because the deque is bounded by 2, you can replace it with two variables per customer (`t1`, `t2`, the two most recent allowed timestamps): allow if `t - t1 >= 1000`, where `t1` is the older of the two, then shift.\n\n**Edge cases.** Equal timestamps (two pings in the same millisecond are both allowed, the third is not), a first-time customer, large gaps, and unsorted input (sort by timestamp, or if per-customer order is guaranteed, only per-customer order matters).\n\n**Production notes.** Real systems use token bucket or sliding-window-counter algorithms with Redis, and expire idle customers' state.",
+ "followUps": [
+  "How would this change for 100 requests per minute instead of 2 per second?",
+  "How would you make it thread-safe, or distribute it across servers?",
+  "What are the differences between fixed window, sliding window log and token bucket?",
+  "How would you evict state for customers who stop pinging?"
+ ]
+}

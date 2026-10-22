@@ -1,0 +1,18 @@
+{
+ "qid": "ee557586c3",
+ "question": "MakeMyTrip SSE-2 Backend (Bangalore), round 2, Low Level Design. The candidate was asked to **design the database schema of a chat system**. No further constraints were reported, so state your own assumptions (one-to-one and group chats, message history, read status) and confirm them.",
+ "lookingFor": [
+  "Choosing entities and relationships that cover one-to-one and group chats.",
+  "Keys, constraints and indexes that match the access patterns.",
+  "Awareness of scale: message volume and hot partitions.",
+  "SQL vs NoSQL reasoning.",
+  "Handling delivery and read state."
+ ],
+ "answer": "**Requirements to confirm.** One-to-one and group conversations, text (and maybe attachments), message history with pagination, delivery/read receipts, unread counts.\n\n**Core tables (relational sketch).**\n- `users(id, name, phone/email, created_at)`\n- `conversations(id, type 'direct'|'group', title, created_by, created_at, last_message_id, last_message_at)`\n- `conversation_members(conversation_id, user_id, role, joined_at, last_read_message_id)` with primary key `(conversation_id, user_id)` and an index on `user_id` to list a user's chats.\n- `messages(id, conversation_id, sender_id, body, type, created_at, reply_to_id, deleted_at)`, with an index on `(conversation_id, id)` or `(conversation_id, created_at)`.\n- `message_receipts(message_id, user_id, delivered_at, read_at)` for per-user status in groups, or just `last_read_message_id` per member (cheaper: read-up-to pointer).\n- `attachments(id, message_id, url, mime_type, size)`.\n\nFor direct chats, enforce one conversation per user pair by storing a canonical `(min_user, max_user)` key with a unique constraint.\n\n**Access patterns drive indexes.** (1) Open a chat: load the latest N messages by `conversation_id` ordered by id descending, with keyset pagination (`WHERE id < :cursor`), not offset. (2) Chat list: member rows for a user joined to the conversation's last message. (3) Unread count: messages with id greater than `last_read_message_id`.\n\n**IDs.** Use time-ordered ids (Snowflake or ULID) so ordering by id equals ordering by time and inserts are append-friendly.\n\n**Scale.** Messages dominate volume. Partition or shard by `conversation_id` so a conversation's history lives together; a wide-column store (Cassandra-like, partition key `conversation_id`, clustering by message id) fits this well, while users and memberships can stay relational. Mention very large groups: avoid writing a receipt row per member per message.\n\n**Avoid:** storing members as a comma-separated column, offset pagination, and one receipt row per member in huge groups.",
+ "followUps": [
+  "How would you support message edits and deletes?",
+  "How would you compute unread counts efficiently for a user with many chats?",
+  "Why keyset pagination instead of OFFSET?",
+  "When would you pick Cassandra-style storage over MySQL/Postgres here?"
+ ]
+}

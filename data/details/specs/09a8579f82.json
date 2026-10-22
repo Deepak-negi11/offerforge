@@ -1,0 +1,18 @@
+{
+ "qid": "09a8579f82",
+ "question": "In the Hiring Manager round of a D. E. Shaw SDE interview, the candidate was asked a SQL question: **write a query that returns the rows present in table A but not in table B.**\n\nThe report does not give the table schemas, so assume A and B have the same columns (or a shared key such as `id`). Be ready to say how your query behaves with duplicate rows and with NULLs, and to offer more than one way to write it.",
+ "lookingFor": [
+  "Knowing the standard anti-join patterns, not just one",
+  "Awareness of NULL traps with NOT IN",
+  "Handling duplicates and the meaning of set difference",
+  "Reasoning about performance and indexes on the join key",
+  "Clarifying ambiguous requirements before writing the query"
+ ],
+ "answer": "**Clarify first:** is \"row\" a whole row or a key match? Assume key `id`, tables `A(id, name)` and `B(id, name)`.\n\n**1. NOT EXISTS (my default):**\n\n```sql\nSELECT a.*\nFROM A a\nWHERE NOT EXISTS (SELECT 1 FROM B b WHERE b.id = a.id);\n```\n\n**2. LEFT JOIN with an IS NULL filter (anti-join):**\n\n```sql\nSELECT a.*\nFROM A a\nLEFT JOIN B b ON b.id = a.id\nWHERE b.id IS NULL;\n```\n\nEvery A row is kept; rows with no match get NULLs for B's columns, and the filter keeps only those.\n\n**3. EXCEPT (set difference, compares whole rows):**\n\n```sql\nSELECT id, name FROM A\nEXCEPT\nSELECT id, name FROM B;\n```\n\nIt is `MINUS` in Oracle. It removes duplicates and treats NULLs as equal, which is usually what you want for a true set difference.\n\n**4. NOT IN, with a warning:**\n\n```sql\nSELECT * FROM A WHERE id NOT IN (SELECT id FROM B);\n```\n\nIf `B.id` contains even one NULL, the comparison becomes UNKNOWN for every row and the query returns nothing. Use it only when the column is NOT NULL, or filter with `WHERE id IS NOT NULL` in the subquery.\n\n**Trade-offs:**\n- NOT EXISTS and the LEFT JOIN form are NULL-safe and let the optimizer use an anti-join; with an index on `B.id` each check is an index lookup.\n- EXCEPT compares all columns and de-duplicates (so it does extra sorting or hashing); the other forms keep duplicate A rows.\n- To get B-minus-A as well (the symmetric difference), run it both ways and `UNION ALL`, or use a FULL OUTER JOIN with a filter on either side being NULL.\n\nState your assumption about the schema, run through a tiny example with a missing row and a NULL, and mention the index.",
+ "followUps": [
+  "Why does NOT IN return no rows when the subquery contains a NULL?",
+  "How would you return rows that are in exactly one of the two tables?",
+  "How do the plans for NOT EXISTS and LEFT JOIN IS NULL differ, and which indexes help?",
+  "What changes if the tables have duplicate rows?"
+ ]
+}

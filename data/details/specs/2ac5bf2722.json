@@ -1,0 +1,19 @@
+{
+ "qid": "2ac5bf2722",
+ "question": "Hiring manager round for an SMTS backend role, framed as system design but with a Low Level Design focus: **design a food delivery app.** Topics that came up:\n\n- core entities: user, restaurant, menu item, order, cart, delivery agent, payment;\n- the **order state machine** (placed, confirmed, preparing, picked up, delivered or cancelled);\n- delivery agent assignment using **geospatial indexing** (geohash versus quadtree), nearest-first versus load-balanced, and reassignment when an agent becomes unavailable;\n- trade-offs: synchronous versus asynchronous confirmation, strong consistency for payments versus eventual consistency for delivery status, **push versus poll** for order tracking, **idempotent payment retries**, schema choices, menu caching;\n- behavioral questions.",
+ "lookingFor": [
+  "Can you design clean entities and service boundaries?",
+  "Do you model the order lifecycle as a state machine with valid transitions?",
+  "Do you understand geospatial lookup and assignment strategies?",
+  "Can you reason about consistency, idempotency and real-time updates?",
+  "Do you justify storage and caching choices?"
+ ],
+ "answer": "**Entities.** `User`, `Restaurant`, `MenuItem`, `Cart` (user, restaurant, items), `Order` (items, prices snapshot, address, status, payment id, agent id), `DeliveryAgent` (location, status), `Payment`. Services: order, restaurant/menu, delivery, payment, notification.\n\n**Order state machine.** `PLACED -> CONFIRMED (restaurant accepts) -> PREPARING -> PICKED_UP -> DELIVERED`, with `CANCELLED` reachable from early states (with refund rules). Store the status and transition history; accept only valid transitions in code (a `canTransition` table), and apply them with an optimistic version check so concurrent updates cannot corrupt state. Emit an event on each transition for notifications and tracking.\n\n**Placing an order.** Convert the cart to an order, snapshot prices, create the payment intent, and return quickly. Confirmation can be asynchronous: the restaurant is notified through a queue and the user sees \"waiting for confirmation\". Synchronous is simpler but ties the user to restaurant latency.\n\n**Agent assignment.** Agents send location updates every few seconds into a geospatial index: **geohash** (a string prefix per cell, easy to store and query in Redis or a database, with the neighbour-cell edge case) or a **quadtree** (adapts to dense areas, but is a custom in-memory structure). Query agents near the restaurant, filter by availability, then choose by strategy: nearest first (fast, can overload one agent) or load-balanced (considers current orders, rating, estimated arrival). If the agent declines or goes offline, put the order back into assignment and notify the user.\n\n**Payments.** Strong consistency and ACID storage (relational). Each payment attempt carries an **idempotency key** (for example the order id plus attempt) so a retry returns the stored result instead of charging twice; reconcile with the provider for unknown outcomes.\n\n**Tracking.** Push (WebSocket or SSE) gives instant updates but needs connection management at scale; polling is simple and robust but wasteful. A common choice is push with a polling fallback; location updates can be eventually consistent.\n\n**Storage and cache.** Relational tables for orders and payments; menus fit a document store or cached relational data with TTL and invalidation when the restaurant updates its menu.",
+ "followUps": [
+  "Geohash versus quadtree: when do you pick each?",
+  "How do you prevent two agents from being assigned to the same order?",
+  "What happens if the payment succeeds but the order creation fails?",
+  "How do you scale location updates from hundreds of thousands of agents?",
+  "How would you estimate delivery time?"
+ ]
+}

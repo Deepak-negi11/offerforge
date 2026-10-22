@@ -1,0 +1,49 @@
+{
+ "pid": "wildcard-matching",
+ "title": "Wildcard Pattern Matching",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given a wildcard **pattern** `p` and a **text** `s`. Decide whether the pattern matches the **entire** text.\n\nThe pattern may contain lowercase letters and two special characters:\n\n- `?` matches exactly one arbitrary character.\n- `*` matches any sequence of characters, including the empty sequence.\n\nEvery other character matches only itself. The match must cover the whole text, not just a part of it.\n\nPrint `1` if the pattern matches the text and `0` otherwise.\n\nThe same idea shows up with other symbols (for example a single symbol that stands for \"zero or more characters\"); here the two symbols above are used.",
+ "input_format": "The first line contains the pattern `p`.\nThe second line contains the text `s`.",
+ "output_format": "Print `1` if `p` matches `s` completely, otherwise `0`.",
+ "constraints": [
+  "1 ≤ |p|, |s| ≤ 4000",
+  "p consists of lowercase letters, `?` and `*`",
+  "s consists of lowercase letters only"
+ ],
+ "examples": [
+  {
+   "input": "b*kg?ound\nbackground",
+   "output": "1",
+   "explanation": "`b` matches `b`, `*` matches `ac`, then `k` and `g` match, `?` matches `r`, and `ound` matches the rest."
+  },
+  {
+   "input": "*a*b\nba",
+   "output": "0",
+   "explanation": "After the first `*`, an `a` must appear and later a `b`, but in `ba` the only `b` comes before the only `a`."
+  },
+  {
+   "input": "a?c*\nabcdef",
+   "output": "1",
+   "explanation": "`a` matches `a`, `?` matches `b`, `c` matches `c`, and the trailing `*` absorbs `def`."
+  }
+ ],
+ "complexity": {
+  "time": "O(|p| * |s|) worst case (O(|p| + |s|) typical with the greedy method)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Try dp[i][j]: does the first i pattern characters match the first j text characters? Think about what `*` adds: it either matches nothing or one more character.",
+  "A greedy alternative: when you see `*`, remember its position and the current text position, and keep matching. On a mismatch, go back to the last `*` and let it swallow one more character.",
+  "After the text is consumed, the rest of the pattern must consist only of `*`."
+ ],
+ "reference": "import sys\n\ndef main():\n    p, s = sys.stdin.read().split()[:2]\n    n, m = len(s), len(p)\n    i = j = 0\n    star = -1\n    mark = 0\n    while i < n:\n        if j < m and (p[j] == '?' or p[j] == s[i]):\n            i += 1\n            j += 1\n        elif j < m and p[j] == '*':\n            star = j\n            mark = i\n            j += 1\n        elif star != -1:\n            j = star + 1\n            mark += 1\n            i = mark\n        else:\n            print(0)\n            return\n    while j < m and p[j] == '*':\n        j += 1\n    print(1 if j == m else 0)\n\nmain()\n",
+ "brute": "import sys\nfrom functools import lru_cache\n\np, s = sys.stdin.read().split()[:2]\n\n@lru_cache(None)\ndef f(i, j):\n    # i: position in s, j: position in p\n    if j == len(p):\n        return i == len(s)\n    if p[j] == '*':\n        return f(i, j + 1) or (i < len(s) and f(i + 1, j))\n    if i < len(s) and (p[j] == '?' or p[j] == s[i]):\n        return f(i + 1, j + 1)\n    return False\n\nprint(1 if f(0, 0) else 0)\n",
+ "generator": "def gen(rng):\n    def rs(n, k):\n        return ''.join(rng.choice('abc'[:k]) for _ in range(n))\n    def make_match(s):\n        out = []\n        i = 0\n        while i < len(s):\n            r = rng.random()\n            if r < 0.25:\n                out.append('?')\n                i += 1\n            elif r < 0.45:\n                j = rng.randint(i, len(s))\n                out.append('*')\n                i = j\n            else:\n                out.append(s[i])\n                i += 1\n        if rng.random() < 0.3:\n            out.append('*')\n        return ''.join(out) or '*'\n    def mutate(p):\n        i = rng.randrange(len(p))\n        return p[:i] + rng.choice('ab?*') + p[i + 1:]\n    def fmt(p, s):\n        return p + '\\n' + s\n    tests = [fmt('*', 'a'), fmt('?', 'a'), fmt('a', 'b'), fmt('a', 'aa'), fmt('aa', 'a'), fmt('*a', 'ba'), fmt('a*', 'ab'),\n             fmt('b*kg?ound', 'background'), fmt('*a*b', 'ba'), fmt('a?c*', 'abcdef'), fmt('**', 'abc'), fmt('?*?', 'ab'), fmt('?*?', 'a')]\n    for _ in range(40):\n        s = rs(rng.randint(1, 8), rng.choice([2, 3]))\n        t = rng.random()\n        if t < 0.4:\n            p = make_match(s)\n        elif t < 0.7:\n            p = mutate(make_match(s))\n        else:\n            p = ''.join(rng.choice('ab?*') for _ in range(rng.randint(1, 8)))\n        tests.append(fmt(p, s))\n    s = rs(3990, 3)\n    tests.append(fmt(make_match(s), s))\n    tests.append(fmt('*' + 'a' * 1999 + 'b', 'a' * 4000))\n    tests.append(fmt('*a' * 1000 + 'b', 'a' * 3999 + 'b'))\n    tests.append(fmt('?' * 4000, rs(4000, 3)))\n    tests.append(fmt('*' * 4000, rs(4000, 3)))\n    s = rs(3990, 2)\n    tests.append(fmt(mutate(make_match(s)), s))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef is_match(p: str, s: str) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    print(is_match(data[0], data[1]))\n\n\nmain()\n",
+  "javascript": "function isMatch(p, s) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconsole.log(isMatch(t[0], t[1]))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint isMatch(const string& p, const string& s) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string p, s;\n    cin >> p >> s;\n    cout << isMatch(p, s) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int isMatch(String p, String s) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String p = br.readLine().trim();\n        String s = br.readLine().trim();\n        System.out.println(isMatch(p, s));\n    }\n}\n"
+ }
+}

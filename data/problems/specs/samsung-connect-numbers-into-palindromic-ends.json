@@ -1,0 +1,48 @@
+{
+ "pid": "samsung-connect-numbers-into-palindromic-ends",
+ "title": "Connect Numbers into Palindromic Ends",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `A` of `N` positive integers. You may **connect** numbers: a number `A[i]` can be connected to a number `A[j]` when `i < j` and the **last digit** of `A[i]` equals the **first digit** of `A[j]`. Connecting writes the two numbers one after the other, so `14` connected to `431` gives `14431`. A connection can be extended: you may pick any increasing sequence of indices `i1 < i2 < ... < ik` (with `k ≥ 1`) such that every consecutive pair can be connected, and concatenate the numbers in that order.\n\nA result is **valid** if its first digit equals its last digit. A single number such as `22` or `53635` is already a valid result if its first and last digits match.\n\nReturn the largest **length** (the number of digits) of a valid result. If no valid result exists, return `0`.",
+ "input_format": "The first line contains `N`.\nThe second line contains `N` integers `A[0] ... A[N-1]`.",
+ "output_format": "Print a single integer: the maximum number of digits of a valid connected number, or `0` if none exists.",
+ "constraints": [
+  "1 ≤ N ≤ 100000",
+  "1 ≤ A[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "6\n14 123 323 321 431 53635",
+   "output": "9",
+   "explanation": "Valid results include 14431 (14 and 431), 123321 (123 and 321), 53635 on its own, and 123323321 (123, 323, 321), which has 9 digits and starts and ends with 1."
+  },
+  {
+   "input": "4\n12 13 14 15",
+   "output": "0",
+   "explanation": "No number has equal first and last digits and no two numbers can be connected, so there is no valid result."
+  },
+  {
+   "input": "4\n14 13 22 19",
+   "output": "2",
+   "explanation": "Only 22 is valid by itself; none of the other numbers can be connected to another one."
+  }
+ ],
+ "complexity": {
+  "time": "O(10 · N)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "A chain is described by its first digit, its last digit and its total length. Only the first digit (10 options) and the last digit (10 options) matter for what can be appended next.",
+  "Process the numbers from left to right and keep best[d][c]: the longest chain so far that starts with digit d and ends with digit c.",
+  "For a number with first digit f, last digit l and length L, and for each start digit d, the new chain is either the number alone (if f == d) or best[d][f] + L. Update best[d][l], using the old values. The answer is the maximum best[d][d]."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    NEG = -1\n    # best[d][c]: max total digits of a chain whose first digit is d and last digit is c\n    best = [[NEG] * 10 for _ in range(10)]\n    for k in range(n):\n        s = data[1 + k]\n        f = ord(s[0]) - 48\n        l = ord(s[-1]) - 48\n        L = len(s)\n        for d in range(10):\n            row = best[d]\n            cand = NEG\n            if row[f] != NEG:\n                cand = row[f] + L\n            if f == d and L > cand:\n                cand = L\n            if cand > row[l]:\n                row[l] = cand\n    ans = 0\n    for d in range(1, 10):\n        if best[d][d] > ans:\n            ans = best[d][d]\n    print(ans)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = data[1:1 + n]\nans = 0\nfor mask in range(1, 1 << n):\n    idx = [i for i in range(n) if mask >> i & 1]\n    ok = True\n    for x, y in zip(idx, idx[1:]):\n        if a[x][-1] != a[y][0]:\n            ok = False\n            break\n    if not ok:\n        continue\n    if a[idx[0]][0] == a[idx[-1]][-1]:\n        ans = max(ans, sum(len(a[i]) for i in idx))\nprint(ans)\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n\n    def num(first, last, length):\n        if length == 1:\n            return first if first == last else None\n        mid = [rng.randint(0, 9) for _ in range(length - 2)]\n        return int(''.join(map(str, [first] + mid + [last])))\n\n    def rand_num(digs, maxlen):\n        while True:\n            length = rng.randint(1, maxlen)\n            f = rng.choice([d for d in digs if d != 0])\n            l = rng.choice(digs)\n            if length == 1:\n                l = f\n            v = num(f, l, length)\n            if v is not None and 1 <= v <= 10 ** 9:\n                return v\n\n    tests = [\n        fmt([14, 123, 323, 321, 431, 53635]),\n        fmt([12, 13, 14, 15]),\n        fmt([14, 13, 22, 19]),\n        fmt([7]),\n        fmt([10]),\n        fmt([10 ** 9]),\n        fmt([11, 11, 11, 11]),\n        fmt([21, 12, 21, 12]),\n        fmt([12, 21]),\n        fmt([21, 12]),\n        fmt([5, 55, 555, 5555]),\n    ]\n    for n in (2, 3, 4, 5, 6, 8, 10, 12):\n        for _ in range(4):\n            digs = rng.choice([[1, 2], [1, 2, 3], [1, 2, 3, 4, 5], list(range(10))])\n            tests.append(fmt([rand_num(digs, rng.choice([2, 3, 4, 10])) for _ in range(n)]))\n    for _ in range(3):\n        tests.append(fmt([rng.randint(1, 10 ** 9) for _ in range(1000)]))\n    # max-size\n    tests.append(fmt([rng.randint(1, 10 ** 9) for _ in range(100000)]))\n    tests.append(fmt([rand_num([1, 2, 3], 10) for _ in range(100000)]))\n    tests.append(fmt([rand_num(list(range(10)), 3) for _ in range(100000)]))\n    tests.append(fmt([rng.choice([12, 23, 31, 121, 232, 313]) for _ in range(100000)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_valid_length(a: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    print(max_valid_length(a))\n\n\nmain()\n",
+  "javascript": "function maxValidLength(a) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = Number(t[0])\nconst a = []\nfor (let i = 0; i < n; i++) a.push(Number(t[1 + i]))\nconsole.log(String(maxValidLength(a)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint maxValidLength(vector<long long>& a) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> a(n);\n    for (auto& x : a) cin >> x;\n    cout << maxValidLength(a) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int maxValidLength(long[] a) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (long) in.nval;\n        }\n        System.out.println(maxValidLength(a));\n    }\n}\n"
+ }
+}

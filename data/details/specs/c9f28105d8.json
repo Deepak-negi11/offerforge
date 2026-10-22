@@ -1,0 +1,19 @@
+{
+ "qid": "c9f28105d8",
+ "question": "Morgan Stanley Technology Analyst on-campus technical round 2 (object-oriented design round). The candidate was asked to **design a user-authentication system that is as secure as possible** (flowcharts or diagrams were enough) and had a discussion on **ACID versus BASE** properties, prompted by why a project used a NoSQL database instead of SQL.",
+ "lookingFor": [
+  "Security mindset covering the whole authentication lifecycle.",
+  "Knowledge of correct password storage and session handling.",
+  "Threat modelling: brute force, phishing, token theft, replay.",
+  "Understanding of consistency models (ACID vs BASE).",
+  "Clear, structured flow and trade-off reasoning."
+ ],
+ "answer": "**Requirements.** Sign-up, login, logout, password reset, optional MFA, session or token management, and resistance to common attacks. Assume millions of users and bursts of login traffic.\n\n**Core flows.**\n- *Registration:* validate input, check email ownership by a verification link, hash the password with a slow, salted algorithm (**Argon2id**, bcrypt or scrypt, never plain SHA), store only the hash and a per-user salt.\n- *Login:* all over TLS; look up the user, verify the hash in constant time, give a generic error (\"invalid credentials\") to avoid account enumeration, then require MFA (TOTP, push or WebAuthn passkeys) for sensitive accounts.\n- *Session:* issue a short-lived access token (JWT or opaque) plus a rotating refresh token, or a server-side session ID; cookies marked `HttpOnly`, `Secure` and `SameSite`; CSRF protection for cookie-based flows; revoke on logout or password change.\n- *Reset:* single-use, short-lived random token sent by email, stored hashed, rate-limited.\n\n**Defences.** Rate limiting and progressive delays or lockout per account and per IP, CAPTCHA after repeated failures, breached-password checks, bot and anomaly detection (new device or location), secure secret storage (KMS or HSM) with key rotation, audit logs and alerting, input validation against injection, least-privilege access to the user store.\n\n**Components.** Client, API gateway with rate limiter, auth service, user database, token or session store (Redis), email or SMS service, audit log pipeline. Delegating to an identity provider using OAuth 2.0 and OpenID Connect is often wiser than building your own.\n\n**Data model.** `users(id, email, password_hash, mfa_secret_encrypted, status)`, `sessions or refresh_tokens(id, user_id, hash, expiry, device)`, `login_attempts`.\n\n**ACID vs BASE.** ACID (atomicity, consistency, isolation, durability) gives strong guarantees, suitable for the user and credential records. BASE (basically available, soft state, eventually consistent) favours availability and scale, suitable for session caches, activity feeds and logs. A common design uses an ACID store for credentials and a fast eventually consistent store for sessions.",
+ "followUps": [
+  "Why is hashing with SHA-256 alone not enough for passwords?",
+  "JWT versus server-side sessions: how do you revoke each?",
+  "How do you prevent account enumeration?",
+  "How would you design the password-reset flow securely?",
+  "What does eventual consistency mean for session revocation?"
+ ]
+}

@@ -1,0 +1,44 @@
+{
+ "pid": "meesho-point-inside-a-triangle",
+ "title": "Point Inside a Triangle",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "You are given `t` independent cases. Each case gives the three vertices `(x1, y1)`, `(x2, y2)`, `(x3, y3)` of a triangle and a query point `(px, py)`. All coordinates are integers, and the three vertices are never on one straight line (the triangle has positive area).\n\nFor each case, decide whether the point lies **inside** the triangle or **outside** it. A point on an edge or exactly on a vertex counts as **inside**.\n\nPrint `Inside` or `Outside` for every case.",
+ "input_format": "The first line contains an integer `t`.\nEach of the next `t` lines contains eight integers `x1 y1 x2 y2 x3 y3 px py`.",
+ "output_format": "Print `t` lines. Line `k` is `Inside` if the point of case `k` lies inside the triangle or on its boundary, otherwise `Outside`.",
+ "constraints": [
+  "1 ≤ t ≤ 3 * 10^4",
+  "-10^6 ≤ x1, y1, x2, y2, x3, y3, px, py ≤ 10^6",
+  "The three vertices of each triangle are not collinear"
+ ],
+ "examples": [
+  {
+   "input": "3\n0 0 4 0 0 3 1 1\n0 0 4 0 0 3 4 3\n0 0 4 0 0 3 2 0",
+   "output": "Inside\nOutside\nInside",
+   "explanation": "The triangle has vertices (0,0), (4,0), (0,3). Point (1,1) is strictly inside. Point (4,3) is beyond the hypotenuse, so it is outside. Point (2,0) lies on the bottom edge, and boundary points count as inside."
+  },
+  {
+   "input": "3\n-2 -2 6 -2 2 4 8 -2\n-2 -2 6 -2 2 4 2 4\n-2 -2 6 -2 2 4 0 0",
+   "output": "Outside\nInside\nInside",
+   "explanation": "Point (8,-2) is on the line through the bottom edge but past the vertex (6,-2), so it is outside. Point (2,4) is the top vertex, so it is inside. Point (0,0) is strictly inside."
+  }
+ ],
+ "complexity": {
+  "time": "O(t)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Walk around the triangle edge by edge. For each edge, the sign of a cross product tells you on which side of that edge the point lies.",
+  "If the point is on the same side of all three edges, it is inside. A cross product of 0 means the point is on the line of that edge.",
+  "Use only integer arithmetic. Boundary points must come out as inside, so treat 0 as compatible with both signs."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    t = int(data[0])\n    out = []\n    p = 1\n    for _ in range(t):\n        x1, y1, x2, y2, x3, y3, px, py = (int(v) for v in data[p:p + 8])\n        p += 8\n        c1 = (x2 - x1) * (py - y1) - (y2 - y1) * (px - x1)\n        c2 = (x3 - x2) * (py - y2) - (y3 - y2) * (px - x2)\n        c3 = (x1 - x3) * (py - y3) - (y1 - y3) * (px - x3)\n        neg = c1 < 0 or c2 < 0 or c3 < 0\n        pos = c1 > 0 or c2 > 0 or c3 > 0\n        out.append('Outside' if neg and pos else 'Inside')\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\ndata = sys.stdin.read().split()\nt = int(data[0])\np = 1\ndef area2(ax, ay, bx, by, cx, cy):\n    return abs(ax * (by - cy) + bx * (cy - ay) + cx * (ay - by))\nfor _ in range(t):\n    x1, y1, x2, y2, x3, y3, px, py = (int(v) for v in data[p:p + 8])\n    p += 8\n    whole = area2(x1, y1, x2, y2, x3, y3)\n    parts = area2(px, py, x2, y2, x3, y3) + area2(x1, y1, px, py, x3, y3) + area2(x1, y1, x2, y2, px, py)\n    print('Inside' if whole == parts else 'Outside')\n",
+ "generator": "def gen(rng):\n    from math import gcd\n    def fmt(cases):\n        return str(len(cases)) + '\\n' + '\\n'.join(' '.join(map(str, c)) for c in cases)\n    def cross(ax, ay, bx, by, cx, cy):\n        return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax)\n    def tri(R):\n        while True:\n            v = [rng.randint(-R, R) for _ in range(6)]\n            if cross(*v) != 0:\n                return v\n    def point(v, R):\n        k = rng.randint(0, 5)\n        x1, y1, x2, y2, x3, y3 = v\n        if k == 0:\n            return rng.choice([(x1, y1), (x2, y2), (x3, y3)])\n        if k == 1 or k == 2:\n            (ax, ay), (bx, by) = rng.choice([((x1, y1), (x2, y2)), ((x2, y2), (x3, y3)), ((x3, y3), (x1, y1))])\n            g = gcd(abs(bx - ax), abs(by - ay))\n            s = rng.randint(0, g)\n            return (ax + (bx - ax) // g * s, ay + (by - ay) // g * s)\n        if k == 3:\n            (ax, ay), (bx, by) = rng.choice([((x1, y1), (x2, y2)), ((x2, y2), (x3, y3)), ((x3, y3), (x1, y1))])\n            px, py = 2 * bx - ax, 2 * by - ay\n            if abs(px) <= R and abs(py) <= R:\n                return (px, py)\n        lo_x, hi_x = min(x1, x2, x3), max(x1, x2, x3)\n        lo_y, hi_y = min(y1, y2, y3), max(y1, y2, y3)\n        if k == 4:\n            return (rng.randint(lo_x, hi_x), rng.randint(lo_y, hi_y))\n        return (rng.randint(-R, R), rng.randint(-R, R))\n    def cases(t, R):\n        out = []\n        for _ in range(t):\n            v = tri(R)\n            out.append(v + list(point(v, R)))\n        return out\n    tests = [fmt([[0, 0, 4, 0, 0, 3, 1, 1], [0, 0, 4, 0, 0, 3, 4, 3], [0, 0, 4, 0, 0, 3, 2, 0]]),\n             fmt([[-2, -2, 6, -2, 2, 4, 8, -2], [-2, -2, 6, -2, 2, 4, 2, 4], [-2, -2, 6, -2, 2, 4, 0, 0]]),\n             fmt([[0, 0, 1, 0, 0, 1, 1, 1]]), fmt([[0, 0, 1, 0, 0, 1, 0, 0]]),\n             fmt([[-1000000, -1000000, 1000000, -1000000, 0, 1000000, 0, 0]]),\n             fmt([[-1000000, -1000000, 1000000, -1000000, 0, 1000000, 1000000, 1000000]])]\n    for R in (3, 5, 10, 50):\n        for _ in range(3):\n            tests.append(fmt(cases(rng.randint(3, 6), R)))\n    tests.append(fmt(cases(2000, 4)))\n    tests.append(fmt(cases(30000, 1000000)))\n    tests.append(fmt(cases(30000, 1000000)))\n    tests.append(fmt(cases(30000, 20)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef point_in_triangle(x1: int, y1: int, x2: int, y2: int, x3: int, y3: int, px: int, py: int) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    t = int(data[0])\n    out = []\n    for i in range(t):\n        v = [int(x) for x in data[1 + 8 * i: 9 + 8 * i]]\n        out.append('Inside' if point_in_triangle(*v) else 'Outside')\n    print('\\n'.join(out))\n\n\nmain()\n",
+  "javascript": "function pointInTriangle(x1, y1, x2, y2, x3, y3, px, py) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst cases = t[0]\nconst out = []\nfor (let i = 0; i < cases; i++) {\n  const v = t.slice(1 + 8 * i, 9 + 8 * i)\n  out.push(pointInTriangle(...v) ? 'Inside' : 'Outside')\n}\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool pointInTriangle(long long x1, long long y1, long long x2, long long y2, long long x3, long long y3, long long px, long long py) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int t;\n    cin >> t;\n    while (t--) {\n        long long x1, y1, x2, y2, x3, y3, px, py;\n        cin >> x1 >> y1 >> x2 >> y2 >> x3 >> y3 >> px >> py;\n        cout << (pointInTriangle(x1, y1, x2, y2, x3, y3, px, py) ? \"Inside\" : \"Outside\") << '\\n';\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean pointInTriangle(long x1, long y1, long x2, long y2, long x3, long y3, long px, long py) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int t = (int) in.nval;\n        StringBuilder sb = new StringBuilder();\n        while (t-- > 0) {\n            long[] v = new long[8];\n            for (int i = 0; i < 8; i++) {\n                in.nextToken();\n                v[i] = (long) in.nval;\n            }\n            sb.append(pointInTriangle(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]) ? \"Inside\" : \"Outside\").append('\\n');\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

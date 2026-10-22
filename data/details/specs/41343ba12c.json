@@ -1,0 +1,17 @@
+{
+ "qid": "41343ba12c",
+ "question": "JPMorgan Chase Java Developer, first-round face-to-face technical interview. Reported questions in this group: **how to sort a map**, **write a singleton class**, **difference between `Comparable` and `Comparator`**, **new features in Java 7 and 8**, **what is try-with-resources**, and **what is the multi-catch statement in Java**. (Other questions in the same list covered finding duplicate strings, a palindrome check, REST vs SOAP and SQL.)",
+ "lookingFor": [
+  "Knowing that maps have no inherent value order and choosing the right approach.",
+  "Writing a correct, thread-safe singleton and knowing its pitfalls.",
+  "Clear distinction between natural and custom ordering.",
+  "Familiarity with the language features that changed everyday Java."
+ ],
+ "answer": "**Sorting a map.** A `HashMap` has no order, so you sort a view of its entries.\n\n```java\n// by key: use a TreeMap\nMap<String,Integer> byKey = new TreeMap<>(map);\n\n// by value, descending (Java 8)\nList<Map.Entry<String,Integer>> list = new ArrayList<>(map.entrySet());\nlist.sort(Map.Entry.<String,Integer>comparingByValue().reversed());\nMap<String,Integer> sorted = new LinkedHashMap<>();\nfor (var e : list) sorted.put(e.getKey(), e.getValue());\n```\n\nUse a `LinkedHashMap` to preserve the sorted order; a stream with `sorted(...)` and `Collectors.toMap(..., LinkedHashMap::new)` does the same.\n\n**Singleton.** One instance, global access. Thread-safe and simple options:\n\n```java\npublic enum Registry { INSTANCE; /* fields and methods */ }   // safest: serialization and reflection safe\n\npublic final class Config {\n    private Config() {}\n    private static class Holder { static final Config I = new Config(); }\n    public static Config getInstance() { return Holder.I; }   // lazy, thread-safe via class loading\n}\n```\n\nDouble-checked locking also works but the field must be `volatile`. Mention that singletons make testing harder.\n\n**Comparable vs Comparator.** `Comparable<T>` defines the class's single **natural order** inside the class (`compareTo`). `Comparator<T>` is an external, interchangeable strategy (`compare(a, b)`), so you can have many orderings without changing the class: `Comparator.comparing(Person::getName).thenComparing(Person::getAge)`.\n\n**Java 7 features:** try-with-resources, multi-catch, diamond operator `<>`, strings in `switch`, underscores in numeric literals, NIO.2. **Java 8:** lambdas, functional interfaces, the Stream API, `Optional`, default and static interface methods, method references, the new `java.time` date-time API.\n\n**try-with-resources.** Resources implementing `AutoCloseable` declared in the parentheses are closed automatically, in reverse order, even on exceptions; suppressed exceptions are kept. No `finally` boilerplate:\n\n```java\ntry (BufferedReader br = new BufferedReader(new FileReader(path))) { ... }\n```\n\n**Multi-catch.** `catch (IOException | SQLException e)` handles several unrelated exception types in one block; the types must not be subclasses of one another, and `e` is effectively final.",
+ "followUps": [
+  "How do you break a singleton (reflection, serialization, cloning) and prevent it?",
+  "Why must `compareTo` be consistent with `equals`?",
+  "How would you sort a map by value in ascending order using streams?",
+  "What happens to exceptions thrown from both the try block and `close()` in try-with-resources?"
+ ]
+}

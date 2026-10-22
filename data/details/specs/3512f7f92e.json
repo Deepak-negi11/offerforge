@@ -1,0 +1,18 @@
+{
+ "qid": "3512f7f92e",
+ "question": "PhonePe SDE-2 machine coding round: **design a customer-support issue resolution system for failed or pending transactions**. Transactions can end in FAILED or PENDING state (bank failure, NPCI issue, internal errors). Customers raise issues against them (issue types such as payment, mutual fund, gold, insurance) giving transaction id, issue type, subject, description and email.\n\nAgents (onboarded by an admin with expertise in specific issue types) handle **one issue at a time**; if all suitable agents are busy, the issue goes to an **agent's waiting list** and is picked up after that agent resolves the current one. Required operations: `createIssue`, `addAgent`, `assignIssue` using a pluggable assignment strategy, `getIssues(filter)` (by issue id or customer email), `updateIssue`, `resolveIssue`, and `viewAgentsWorkHistory`.",
+ "lookingFor": [
+  "Clear domain model: Issue, Agent, issue types, statuses and lifecycle.",
+  "Strategy pattern for assignment so new policies can be plugged in.",
+  "Correct queue handling: waiting lists and promoting the next issue on resolve.",
+  "Search/filter design and history tracking.",
+  "Working code, validation and handling of edge cases (no agent for a type, unknown ids)."
+ ],
+ "answer": "**Clarify.** Which agent gets a waiting issue when all are busy (shortest queue? round-robin?), are waiting issues FIFO per agent, can an issue be reassigned, what are valid status transitions.\n\n**Model.**\n- `Issue(id, transactionId, type, subject, description, email, status, resolution, assignedAgentId)`; `IssueStatus`: `OPEN, ASSIGNED, IN_PROGRESS, RESOLVED`.\n- `IssueType` enum: `PAYMENT, MUTUAL_FUND, GOLD, INSURANCE`.\n- `Agent(id, email, name, expertise: Set<IssueType>, current: Issue, waiting: Queue<Issue>, history: List<Issue>)`.\n\n**Components.**\n- `IssueService`: `createIssue`, `getIssues(IssueFilter)`, `updateIssue`, `resolveIssue`.\n- `AgentService`: `addAgent`, `getHistory`.\n- `AssignmentStrategy.pick(issue, agents)` with implementations such as `FirstFreeAgent`, `LeastLoadedAgent` (smallest waiting list), `RoundRobin`. Only agents whose expertise contains the issue type are candidates.\n- `IssueFilter` (email, issue id, status, type) combined with AND.\n\n**Core flow.**\n1. `createIssue` stores the issue (indexed by id and by email: `Map<String, List<Issue>>`) and calls `assignIssue`.\n2. `assignIssue` asks the strategy for an agent. If the agent is free, set it as `current` and mark `IN_PROGRESS`; otherwise append to that agent's waiting queue (`ASSIGNED`).\n3. `resolveIssue(id, resolution)` marks `RESOLVED`, moves it to the agent's history, then **polls the agent's waiting queue** and starts the next issue.\n4. If no agent has the expertise, keep the issue `OPEN` in a pending list and retry when an agent is added.\n\n**Complexities.** Lookup by id or email is O(1) with hash maps; assignment is O(agents) to scan candidates; resolve is O(1).\n\n**Concurrency and edge cases.** Two threads must not assign to the same free agent: synchronise per agent (or one lock on the assignment step). Validate unknown issue id, resolving an already resolved issue and invalid transitions.\n\n**Deliver.** A driver demonstrating create, assign, waiting, resolve, search and history.",
+ "followUps": [
+  "How would you add a priority-based assignment strategy?",
+  "How do you avoid two issues being assigned to the same free agent concurrently?",
+  "What happens to a waiting list when an agent goes offline?",
+  "How would you scale this beyond one process (persistence, queues)?"
+ ]
+}

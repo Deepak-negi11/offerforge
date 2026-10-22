@@ -1,0 +1,18 @@
+{
+ "qid": "631f1014d3",
+ "question": "In the advanced Java and concurrency round (with managerial questions) for an Associate Software Engineering (Java) role at Morgan Stanley, the candidate was given a multithreading scenario: **use multiple threads to find the largest number in a random matrix**. The interviewer also asked them to explain **compare-and-swap (CAS)** in Java and **transaction management** in Java.",
+ "lookingFor": [
+  "Ability to split work across threads and combine results safely",
+  "Understanding of data races and how to avoid shared mutable state",
+  "Knowledge of CAS and the atomic classes",
+  "Basic grasp of transaction management and ACID",
+  "Awareness of when threading is not worth the overhead"
+ ],
+ "answer": "**Matrix max with threads.** Split the matrix by rows into chunks, give each thread a chunk, compute a local maximum with no shared state, then combine the local results. Using an `ExecutorService` and futures:\n\n    ExecutorService pool = Executors.newFixedThreadPool(n);\n    List<Future<Integer>> parts = new ArrayList<>();\n    for (int[] row : matrix)\n        parts.add(pool.submit(() -> Arrays.stream(row).max().getAsInt()));\n    int max = Integer.MIN_VALUE;\n    for (Future<Integer> f : parts) max = Math.max(max, f.get());\n    pool.shutdown();\n\nBetter still, submit one task per block of rows rather than per row. Because each thread reads only its own slice and returns a value, there is no race. If you prefer a shared variable, update it with an `AtomicInteger` and `accumulateAndGet(v, Math::max)`, or use `parallelStream`/`ForkJoin`. A plain shared `int` with `if (v > max) max = v` is a race, and `synchronized` would work but serialises the threads. For a small matrix, a single loop is faster than threads, which is worth saying out loud.\n\n**CAS.** Compare-and-swap is a hardware atomic instruction: update a memory location to a new value only if it currently equals an expected value, returning whether it succeeded. It underlies lock-free algorithms. In Java it is exposed through `AtomicInteger.compareAndSet` and `VarHandle`. The usual pattern is a retry loop: read the current value, compute the new one, attempt CAS, and retry if another thread changed it. Strengths: no blocking, no deadlock. Weaknesses: spinning under heavy contention, and the ABA problem (value changes A to B to A and goes unnoticed), addressed with `AtomicStampedReference`.\n\n**Transaction management.** A transaction groups operations so they follow ACID (atomicity, consistency, isolation, durability). In plain JDBC you set `autoCommit(false)`, then `commit()` or `rollback()` on failure. In Spring, `@Transactional` wraps a method in a transaction through a proxy, with propagation settings (such as `REQUIRED`, `REQUIRES_NEW`), isolation levels, and rollback by default on unchecked exceptions. Watch for self-invocation, which bypasses the proxy.",
+ "followUps": [
+  "Why is a plain shared int with a check-then-set not safe, and how many ways can you fix it?",
+  "What is the ABA problem and how is it mitigated?",
+  "What does Spring's `@Transactional` do under the hood, and when does it not work?",
+  "How would you choose the number of threads for this task?"
+ ]
+}

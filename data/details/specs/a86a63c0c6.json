@@ -1,0 +1,18 @@
+{
+ "qid": "a86a63c0c6",
+ "question": "BrowserStack Software Engineer phone screen (SDE-1/SDE-2 reports). After introductions, the candidate was asked to explain the high-level design of a resume project and then to justify its stack: **how does your tech stack fit the requirements of the project, and what would you choose?** Specific follow-ups: **RabbitMQ versus a Redis queue**, and **why MongoDB, and why not PostgreSQL or another SQL database?** The interviewer grilled the candidate heavily on the project.",
+ "lookingFor": [
+  "Whether you chose technology for reasons rather than habit or trends.",
+  "Understanding of message queue semantics (durability, acknowledgements, routing).",
+  "Understanding of document versus relational data modelling and consistency.",
+  "Awareness of trade-offs and honesty about limits of your choice.",
+  "Ability to explain your own project's architecture clearly."
+ ],
+ "answer": "Answer from your real project, and tie each choice to a requirement. A general comparison is below.\n\n**RabbitMQ versus a Redis queue**\n- **RabbitMQ** is a dedicated message broker (AMQP). It provides durable queues, per-message acknowledgements and redelivery, dead-letter queues, flexible routing (exchanges: direct, topic, fanout), and consumer prefetch limits. Use it when you cannot lose messages, need complex routing, or need reliable task processing.\n- **Redis as a queue** (lists, streams, or libraries such as BullMQ or Celery with Redis) is simple, very fast, and often already in your stack for caching. Plain lists with `LPUSH/BRPOP` lose messages if a worker crashes after popping; Redis Streams with consumer groups add acknowledgements and replay. Persistence depends on RDB or AOF settings, so durability is weaker by default.\n- **Rule of thumb:** small jobs, low risk of loss, and Redis already present: Redis. Reliability, routing and decoupled services: RabbitMQ (or Kafka for a replayable event log at high volume).\n\n**MongoDB versus PostgreSQL**\n- **MongoDB** stores flexible JSON-like documents. It suits data whose shape varies or evolves, where you read an entire entity at once (nested documents avoid joins), and where horizontal sharding matters.\n- **PostgreSQL / SQL** suits structured, relational data, multi-row ACID transactions, joins, constraints and foreign keys, and complex queries. It also supports JSONB, which narrows the gap.\n- **Honest framing:** MongoDB supports multi-document transactions today, but relational designs are usually better when you have many relationships and need strong integrity.\n\n**How to answer for your project:** state the access pattern (\"we mostly fetch a user's profile with nested preferences, schema changed often, so documents fit\"), and then name the cost (\"we gave up joins and enforced consistency in application code\"). If your real reason was familiarity, say so and describe what you would change at scale, which is a mature answer.\n\n**Mistakes to avoid:** \"it is faster\" with no context, calling one technology simply better, or not knowing how your queue handles failure.",
+ "followUps": [
+  "What happens to a message if a consumer crashes mid-processing?",
+  "How would you migrate this project to PostgreSQL, and what would break?",
+  "How would you guarantee a job is processed at least once, and handle duplicates?",
+  "When would you choose Kafka over RabbitMQ?"
+ ]
+}

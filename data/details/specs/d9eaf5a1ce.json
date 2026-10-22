@@ -1,0 +1,18 @@
+{
+ "qid": "d9eaf5a1ce",
+ "question": "Meesho SDE-1, machine coding / low-level design round (about 60 to 90 minutes, on a HackerRank-style editor). The task: **implement a cab booking system with these functions: add a cab, book a ride, end a ride, and display driver, passenger and ride details.** Campus versions asked for around 10 basic functions using OOP concepts, which had to be coded and tested live; the interviewer debugged along with the candidate. Input and output formats are not fixed, so you define them.",
+ "lookingFor": [
+  "Clean domain modelling: entities, responsibilities and relationships.",
+  "Working code with a runnable demo or tests, not only a diagram.",
+  "Handling edge cases: no cab available, double booking, ending a ride that does not exist.",
+  "Extensible design (pluggable cab-selection strategy) without over-engineering.",
+  "Time management in a 60-90 minute window."
+ ],
+ "answer": "**Clarify first (2-3 minutes).** Is location needed (nearest cab) or is any available cab fine? Cab types? Is fare computed? Is it in-memory and single-threaded, or must it be thread-safe? State your assumptions and keep scope to the listed functions; add extras only after the core works.\n\n**Entities**\n- `Driver(id, name)`, `Passenger(id, name)`.\n- `Cab(id, driver, type, location, status)` with status `AVAILABLE` or `ON_TRIP`.\n- `Ride(id, passenger, cab, source, destination, status, startTime, endTime, fare)` with status `ONGOING` or `COMPLETED`.\n\n**Services**\n- `CabService`: `addCab(...)`, find available cabs.\n- `RideService`: `bookRide(passengerId, source, destination)`, `endRide(rideId)`.\n- `CabSelectionStrategy` interface (nearest cab, first available) injected into `RideService`: new rules do not change the service (Open/Closed).\n- Optional `FareStrategy` (flat per km).\n\n**Core flows**\n- `addCab`: validate and store in `Map<id, Cab>`.\n- `bookRide`: ask the strategy for a cab among `AVAILABLE` ones; if none, return a clear error (or throw `NoCabAvailableException`); mark the cab `ON_TRIP`, create a `Ride`, store it, and return it.\n- `endRide`: find the ride, reject if missing or already completed; set `COMPLETED`, record end time, compute fare, set the cab back to `AVAILABLE` (and update its location to the destination).\n- `display...`: print a ride with driver, passenger, cab and status from the stored objects.\n\n**Edge cases.** Unknown ids, ending a ride twice, a passenger who already has an ongoing ride, a cab being booked by two requests at once. For concurrency, make the check-and-mark of cab availability atomic (a lock per cab or a synchronized method) so a cab cannot be assigned twice.\n\n**Execution plan.** Write models, then services, then a `main` that runs a scripted scenario: add 3 cabs, book 2 rides, end one, show details, try the failure cases. Keep methods small and name things clearly. If you run out of time, explain the remaining parts verbally. A working core beats a perfect but unfinished design.",
+ "followUps": [
+  "How would you pick the nearest available cab efficiently with thousands of cabs?",
+  "How would you make booking thread-safe so two riders cannot get the same cab?",
+  "How would you add surge pricing or different cab types?",
+  "Which design patterns did you use and why?"
+ ]
+}

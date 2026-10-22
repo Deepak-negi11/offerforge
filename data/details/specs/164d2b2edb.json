@@ -1,0 +1,17 @@
+{
+ "qid": "164d2b2edb",
+ "question": "One of three entry-level technical rounds for a Bloomberg Software Engineer (Entry Level) role asked the candidate to build a Wordle solver. The report gives no further detail, so the usual setup is assumed: given a list of valid five-letter words, repeatedly propose a guess, receive Wordle feedback (green, yellow, grey for each letter) and narrow down to the secret word.",
+ "lookingFor": [
+  "Modelling the problem: candidate set, feedback function, filtering",
+  "Handling duplicate letters correctly in feedback",
+  "A sensible guess-selection strategy (frequency, then information gain)",
+  "Complexity reasoning and testing against a known answer list"
+ ],
+ "answer": "**State:** a list of *candidates*, all words still consistent with every piece of feedback so far. Each round: choose a guess, get feedback, filter the candidates, repeat until the guess is correct.\n\n**Feedback function** (used both to simulate the game and to filter):\n- Green (2): same letter in the same position.\n- Yellow (1): the letter occurs elsewhere in the secret, **but only as many times as it has not already been matched**.\n- Grey (0): otherwise.\n\n```python\nfrom collections import Counter\n\ndef feedback(guess, secret):\n    res = [0] * 5\n    left = Counter()\n    for i in range(5):\n        if guess[i] == secret[i]: res[i] = 2\n        else: left[secret[i]] += 1\n    for i in range(5):\n        if res[i] == 0 and left[guess[i]] > 0:\n            res[i] = 1; left[guess[i]] -= 1\n    return tuple(res)\n```\n\n**Filtering:** keep word `w` iff `feedback(guess, w) == observed`. Using the same function guarantees consistency, including duplicate-letter cases such as guessing \"SPEED\" against \"ABIDE\".\n\n**Choosing the guess**\n1. *Simple:* score each candidate by summed letter frequency (letters shared by many remaining words) and pick the best; prefer words with distinct letters early.\n2. *Better:* for each possible guess, group candidates by the feedback they would produce; choose the guess that maximises **entropy** (or minimises the largest group, a minimax rule). Cost is O(G x C) feedback calls per round for G guesses and C candidates; fine for a few thousand candidates, so restrict G to candidates in later rounds.\n\n**Testing:** run the solver against every answer word, record the guess counts (average and worst case), and assert it never exceeds six guesses on a small known list. Edge cases: duplicate letters, a word not in the list, empty candidate set (inconsistent feedback).\n\nMention that the answer list is a few thousand words, so brute force over the list is fast enough; no heavy data structure is required.",
+ "followUps": [
+  "How do you handle repeated letters in the feedback?",
+  "How would you pick the best first guess?",
+  "What is the worst-case number of guesses and how would you measure it?",
+  "How could hard mode (must reuse revealed hints) change the solver?"
+ ]
+}

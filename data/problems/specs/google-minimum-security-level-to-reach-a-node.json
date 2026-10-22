@@ -1,0 +1,50 @@
+{
+ "pid": "google-minimum-security-level-to-reach-a-node",
+ "title": "Minimum Security Level to Reach a Node",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A directed network has `n` nodes numbered `0` to `n - 1` and `m` directed links. Link `i` goes from node `a[i]` to node `b[i]` and carries an integer **security level** `w[i]`. Levels may be negative.\n\nYou travel from node `u` to node `v` (`u ≠ v`) after being granted an integer **clearance** `S`. A link can be used only if its security level is **strictly less** than `S`. Links may be used any number of times; the network may contain cycles, self-loops and parallel links.\n\nFind the **minimum integer clearance `S`** for which `v` can be reached from `u` using only usable links. If `v` cannot be reached from `u` for any clearance, print `IMPOSSIBLE`.",
+ "input_format": "The first line contains two integers `n` and `m`.\nEach of the next `m` lines contains three integers `a[i]`, `b[i]` and `w[i]`.\nThe last line contains two integers `u` and `v`.",
+ "output_format": "Print a single integer: the minimum clearance `S`, or the word `IMPOSSIBLE` if `v` is unreachable from `u`. (The clearance itself can be negative.)",
+ "constraints": [
+  "2 ≤ n ≤ 5 · 10^4",
+  "0 ≤ m ≤ 8 · 10^4",
+  "0 ≤ a[i], b[i], u, v < n, u ≠ v",
+  "-10^9 ≤ w[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "4 5\n0 1 5\n0 2 2\n2 1 -4\n1 3 3\n2 3 7\n0 3",
+   "output": "4",
+   "explanation": "There are three routes from 0 to 3. Via 0→1→3 the highest level is 5, via 0→2→3 it is 7, and via 0→2→1→3 the levels are 2, -4, 3, so the highest is 3. Every link on the route must be strictly below `S`, so `S` must exceed 3; the smallest such integer is 4."
+  },
+  {
+   "input": "3 3\n0 1 -5\n1 2 -2\n2 0 1\n0 2",
+   "output": "-1",
+   "explanation": "The only useful route is 0→1→2 with levels -5 and -2, so `S` must exceed -2. The smallest integer is -1. The link 2→0 is never needed."
+  },
+  {
+   "input": "3 2\n1 0 4\n1 2 3\n0 2",
+   "output": "IMPOSSIBLE",
+   "explanation": "No link leaves node 0, so node 2 can never be reached no matter how large `S` is."
+  }
+ ],
+ "complexity": {
+  "time": "O(m log n)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "A path is usable for clearance S exactly when its highest security level is below S. So you want the path from u to v whose highest level is as small as possible.",
+  "If a given S works, any larger S works too, so you could binary search S and test reachability with BFS. There is also a direct way: run Dijkstra, but let the cost of a path be the maximum level on it instead of the sum.",
+  "Once you know the smallest possible 'highest level' B over all u-to-v paths, the answer is B + 1 because the comparison is strict and S is an integer."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    adj = [[] for _ in range(n)]\n    p = 2\n    for _ in range(m):\n        a, b, w = int(data[p]), int(data[p + 1]), int(data[p + 2])\n        p += 3\n        adj[a].append((b, w))\n    u, v = int(data[p]), int(data[p + 1])\n    INF = float('inf')\n    best = [INF] * n\n    best[u] = -INF\n    heap = [(-INF, u)]\n    while heap:\n        c, x = heapq.heappop(heap)\n        if c > best[x]:\n            continue\n        if x == v:\n            break\n        for y, w in adj[x]:\n            nc = c if c > w else w\n            if nc < best[y]:\n                best[y] = nc\n                heapq.heappush(heap, (nc, y))\n    print('IMPOSSIBLE' if best[v] == INF else best[v] + 1)\n\nmain()\n",
+ "brute": "import sys\nfrom collections import deque\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nedges = []\np = 2\nfor _ in range(m):\n    edges.append((int(data[p]), int(data[p + 1]), int(data[p + 2])))\n    p += 3\nu, v = int(data[p]), int(data[p + 1])\n\ndef reach(S):\n    adj = [[] for _ in range(n)]\n    for a, b, w in edges:\n        if w < S:\n            adj[a].append(b)\n    seen = [False] * n\n    seen[u] = True\n    dq = deque([u])\n    while dq:\n        x = dq.popleft()\n        for y in adj[x]:\n            if not seen[y]:\n                seen[y] = True\n                dq.append(y)\n    return seen[v]\n\nans = 'IMPOSSIBLE'\nfor S in sorted(set(w + 1 for _, _, w in edges)):\n    if reach(S):\n        ans = S\n        break\nprint(ans)\n",
+ "generator": "def gen(rng):\n    def fmt(n, es, u, v):\n        return str(n) + ' ' + str(len(es)) + '\\n' + ''.join(f'{a} {b} {w}\\n' for a, b, w in es) + f'{u} {v}'\n    tests = [\n        fmt(2, [(0, 1, 7)], 0, 1),\n        fmt(2, [(0, 1, -10**9)], 0, 1),\n        fmt(2, [(0, 1, 10**9)], 0, 1),\n        fmt(2, [], 0, 1),\n        fmt(2, [(1, 0, 3)], 0, 1),\n        fmt(3, [(0, 0, 1), (0, 1, 5), (0, 1, 2), (1, 2, 2)], 0, 2),\n        fmt(3, [(0, 1, -5), (1, 2, -2), (2, 0, 1)], 0, 2),\n        fmt(4, [(0, 1, 1), (1, 0, 1), (2, 3, 1)], 0, 3),\n    ]\n    for _ in range(60):\n        n = rng.randint(2, 8)\n        m = rng.randint(0, 14)\n        lo = rng.choice([-6, 0, -1])\n        hi = rng.choice([3, 6, 10])\n        es = [(rng.randrange(n), rng.randrange(n), rng.randint(lo, hi)) for _ in range(m)]\n        u = rng.randrange(n)\n        v = rng.randrange(n)\n        while v == u:\n            v = rng.randrange(n)\n        tests.append(fmt(n, es, u, v))\n    N = 50000\n    # random sparse-ish graph with a guaranteed route\n    perm = list(range(N)); rng.shuffle(perm)\n    es = [(perm[i], perm[i + 1], rng.randint(-10**9, 10**9)) for i in range(N - 1)]\n    es += [(rng.randrange(N), rng.randrange(N), rng.randint(-10**9, 10**9)) for _ in range(30001)]\n    rng.shuffle(es)\n    tests.append(fmt(N, es, perm[0], perm[-1]))\n    # a single long chain with increasing levels, plus cheap-looking dead-end shortcuts back\n    es = [(i, i + 1, 10**9 - (N - i) * 3) for i in range(N - 1)]\n    es += [(i + 1, i, -10**9) for i in range(N - 1)]\n    es += [(rng.randrange(N), rng.randrange(N), rng.randint(-10**9, 10**9)) for _ in range(N)]\n    es = es[:80000]\n    tests.append(fmt(N, es, 0, N - 1))\n    # dense-ish random: many distinct levels, answer is large\n    es = [(rng.randrange(N), rng.randrange(N), rng.randint(5 * 10**8, 10**9)) for _ in range(80000)]\n    es = [(i, i + 1, rng.randint(5 * 10**8, 10**9)) for i in range(0, N - 1)] + es[:30001]\n    rng.shuffle(es)\n    tests.append(fmt(N, es, 0, N - 1))\n    # unreachable large\n    es = [(rng.randrange(N - 1), rng.randrange(N - 1), rng.randint(-10**9, 10**9)) for _ in range(80000)]\n    tests.append(fmt(N, es, 0, N - 1))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef min_clearance(n: int, edges: List[Tuple[int, int, int]], u: int, v: int):\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    edges = []\n    p = 2\n    for _ in range(m):\n        edges.append((int(data[p]), int(data[p + 1]), int(data[p + 2])))\n        p += 3\n    u, v = int(data[p]), int(data[p + 1])\n    print(min_clearance(n, edges, u, v))\n\n\nmain()\n",
+  "javascript": "function minClearance(n, edges, u, v) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = Number(t[0]), m = Number(t[1])\nconst edges = []\nlet p = 2\nfor (let i = 0; i < m; i++) {\n  edges.push([Number(t[p]), Number(t[p + 1]), Number(t[p + 2])])\n  p += 3\n}\nconst u = Number(t[p]), v = Number(t[p + 1])\nconsole.log(String(minClearance(n, edges, u, v)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\n// Return the minimum clearance, or LLONG_MIN if v is unreachable from u.\nlong long minClearance(int n, vector<array<long long, 3>>& edges, int u, int v) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<array<long long, 3>> edges(m);\n    for (int i = 0; i < m; i++) cin >> edges[i][0] >> edges[i][1] >> edges[i][2];\n    int u, v;\n    cin >> u >> v;\n    long long r = minClearance(n, edges, u, v);\n    if (r == LLONG_MIN) cout << \"IMPOSSIBLE\" << endl;\n    else cout << r << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    // Return the minimum clearance, or Long.MIN_VALUE if v is unreachable from u.\n    static long minClearance(int n, long[][] edges, int u, int v) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        long[][] edges = new long[m][3];\n        for (int i = 0; i < m; i++) {\n            for (int j = 0; j < 3; j++) {\n                in.nextToken();\n                edges[i][j] = (long) in.nval;\n            }\n        }\n        in.nextToken();\n        int u = (int) in.nval;\n        in.nextToken();\n        int v = (int) in.nval;\n        long r = minClearance(n, edges, u, v);\n        System.out.println(r == Long.MIN_VALUE ? \"IMPOSSIBLE\" : String.valueOf(r));\n    }\n}\n"
+ }
+}

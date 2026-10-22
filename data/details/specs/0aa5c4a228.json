@@ -1,0 +1,18 @@
+{
+ "qid": "0aa5c4a228",
+ "question": "Apple, Senior Software Engineer (ICT3), systems design round. Design an **online block-diagram maker** (like a web diagramming tool) with **real-time updates for multiple users** editing together and **infinite canvas size management**.",
+ "lookingFor": [
+  "Choosing a real-time collaboration approach: operational transform versus CRDTs.",
+  "Transport and server design: WebSockets, sessions per document, ordering, persistence.",
+  "A data model for shapes and connectors that merges cleanly under concurrent edits.",
+  "Handling an infinite canvas: viewport, tiling or spatial indexing, level of detail.",
+  "Offline/reconnect behaviour, presence, and scaling the number of concurrent documents."
+ ],
+ "answer": "**Requirements.** Create and edit shapes, connectors and text; many users edit one diagram at once and see changes within ~100-200 ms; show cursors and presence; undo/redo; save and share; the canvas has no fixed bounds. Assume millions of diagrams but typically fewer than ~50 concurrent editors each.\n\n**Data model.** A document is a set of objects keyed by id: `{id, type, x, y, w, h, style, text, z-order, parent}`; connectors hold `fromId` and `toId` rather than coordinates so moving a node reroutes them. Each property is a separate field so concurrent edits to different properties do not conflict.\n\n**Real-time sync.**\n- Clients connect over **WebSockets** to a collaboration server; a document is routed to one server (consistent hashing on document id) so it has a single ordering point.\n- Conflict resolution: **CRDTs** (e.g. last-writer-wins registers per property with logical clocks, plus a sequence CRDT for text and z-order) allow offline edits and simple merges; **OT** needs a central server to transform operations. For a shape map, per-property LWW is simple and enough; use a text CRDT only for rich text.\n- Clients apply edits optimistically, send operations, and the server broadcasts to others. Persist an operation log plus periodic snapshots to a database/object store; on reconnect, replay missed operations from a version number.\n- Presence (cursors, selections) is ephemeral, sent over the same channel without persistence.\n\n**Infinite canvas.** Never render everything. Use world coordinates with a camera (pan/zoom); keep a spatial index (quadtree or R-tree) to query objects intersecting the viewport; load objects lazily by region for very large diagrams; render at lower detail when zoomed out; use canvas/WebGL and virtualise off-screen items. Use float coordinates and be careful about precision far from the origin.\n\n**Scaling and trade-offs.** Shard by document; hot documents are limited by a single server, so cap editors or batch broadcasts. Compact operation logs into snapshots to bound load time. Permissions are checked server-side per operation.",
+ "followUps": [
+  "Why choose CRDTs over operational transform, or the reverse?",
+  "How would you implement undo/redo in a multi-user setting?",
+  "Two users move the same shape at the same time. What happens?",
+  "How would you load a diagram with 100,000 shapes quickly?"
+ ]
+}

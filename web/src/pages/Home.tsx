@@ -38,13 +38,12 @@ export function Home() {
   return (
     <>
       <section className="relative isolate -mx-4 overflow-x-clip px-4 pb-20 pt-14 text-center sm:-mx-6 sm:px-6 md:pb-24 md:pt-20">
-        <Link
-          to="/about"
-          className="enter inline-flex items-center gap-2 rounded-full border border-line bg-surface/70 px-4 py-1.5 text-sm text-muted backdrop-blur transition-colors hover:border-accent-line hover:text-fg"
+        <p
+          className="enter inline-flex items-center gap-2 rounded-full border border-line bg-surface/70 px-4 py-1.5 text-sm text-muted backdrop-blur"
         >
           <span className="tabular-nums font-semibold text-fg">{atlas.stats.questions.toLocaleString()}</span> real questions from
           <span className="tabular-nums font-semibold text-fg">{atlas.stats.companies}</span> companies
-        </Link>
+        </p>
         <h1 className="mx-auto mt-7 max-w-4xl text-[2.4rem] font-medium leading-[1.06] tracking-[-0.04em] text-fg sm:text-5xl md:text-6xl lg:text-[4.1rem]">
           <span className="line-mask">
             <span className="line-rise" style={{ ['--i' as string]: 0 }}>

@@ -1,0 +1,49 @@
+{
+ "pid": "swiggy-largest-hole-after-removing-bars",
+ "title": "Largest Hole After Removing Bars",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "A prison gate is made of `n` horizontal bars, numbered `1` to `n` from top to bottom, and `m` vertical bars, numbered `1` to `m` from left to right. Neighbouring bars of the same direction are exactly one unit apart, so before anything is removed every hole between the bars is a `1 x 1` square.\n\nA prisoner removes some bars to make bigger holes. You are given the numbers of the horizontal bars that were removed and the numbers of the vertical bars that were removed. When several neighbouring bars of one direction are removed, the holes next to them merge: removing `k` consecutive horizontal bars makes a hole that is `k + 1` units tall, and removing `k` consecutive vertical bars makes a hole that is `k + 1` units wide. A bar that was not removed is still in place, so it separates holes.\n\nReturn the **area of the largest hole** in the gate after the removals. If a direction has no removed bars, its holes still have size `1` in that direction.\n\nThe bars are numbered by position, so two removed bars are consecutive only if their numbers differ by exactly `1`. The removed bars are not given in any particular order and a number never appears twice in the same list.",
+ "input_format": "The first line contains `n` and `m`.\nThe second line contains `h`, the number of removed horizontal bars, followed by `h` bar numbers on the same line.\nThe third line contains `v`, the number of removed vertical bars, followed by `v` bar numbers on the same line.",
+ "output_format": "Print one integer: the area of the largest hole.",
+ "constraints": [
+  "1 ≤ n, m ≤ 10^5",
+  "0 ≤ h ≤ n, 0 ≤ v ≤ m",
+  "Removed bar numbers are distinct within each list and lie in the range 1 to n (horizontal) or 1 to m (vertical)"
+ ],
+ "examples": [
+  {
+   "input": "6 5\n3 2 3 5\n1 3",
+   "output": "6",
+   "explanation": "Horizontal bars 2 and 3 are consecutive, giving a hole 3 units tall; bar 5 alone gives height 2. So the best height is 3. Only vertical bar 3 is removed, so the best width is 2. The largest hole is 3 * 2 = 6."
+  },
+  {
+   "input": "4 4\n0\n0",
+   "output": "1",
+   "explanation": "Nothing is removed, so every hole is 1 x 1."
+  },
+  {
+   "input": "10 10\n5 1 2 3 4 9\n4 7 5 6 2",
+   "output": "20",
+   "explanation": "Horizontal bars 1, 2, 3, 4 are consecutive (9 is alone), so the tallest hole is 5 units. Vertical bars 5, 6, 7 are consecutive (2 is alone), so the widest hole is 4 units. The largest hole is 5 * 4 = 20."
+  }
+ ],
+ "complexity": {
+  "time": "O(h log h + v log v)",
+  "space": "O(h + v)"
+ },
+ "hints": [
+  "The height and width of a hole are independent: the horizontal bars decide the height and the vertical bars decide the width.",
+  "For one direction, the tallest hole comes from the longest run of consecutive bar numbers among the removed ones. Sort the list to find it.",
+  "Answer = (longest horizontal run + 1) * (longest vertical run + 1)."
+ ],
+ "reference": "import sys\n\ndef run(a):\n    a.sort()\n    best = cur = 0\n    prev = None\n    for x in a:\n        if prev is not None and x == prev + 1:\n            cur += 1\n        else:\n            cur = 1\n        prev = x\n        best = max(best, cur)\n    return best\n\ndef main():\n    d = sys.stdin.read().split()\n    n, m = int(d[0]), int(d[1])\n    h = int(d[2])\n    H = [int(x) for x in d[3:3 + h]]\n    v = int(d[3 + h])\n    V = [int(x) for x in d[4 + h:4 + h + v]]\n    print((run(H) + 1) * (run(V) + 1))\n\nmain()\n",
+ "brute": "import sys\nd = sys.stdin.read().split()\nn, m = int(d[0]), int(d[1])\nh = int(d[2])\nH = set(int(x) for x in d[3:3 + h])\nv = int(d[3 + h])\nV = set(int(x) for x in d[4 + h:4 + h + v])\ndef best(S, N):\n    b = 0\n    for i in range(1, N + 1):\n        j = i\n        while j in S:\n            j += 1\n        b = max(b, j - i)\n    return b\nprint((best(H, n) + 1) * (best(V, m) + 1))\n",
+ "generator": "def gen(rng):\n    def fmt(n, m, H, V):\n        return f\"{n} {m}\\n{len(H)} \" + ' '.join(map(str, H)) + f\"\\n{len(V)} \" + ' '.join(map(str, V))\n    t = [fmt(1, 1, [], []), fmt(1, 1, [1], [1]), fmt(5, 5, [1, 2, 3, 4, 5], []), fmt(6, 5, [2, 3, 5], [3]),\n         fmt(4, 4, [], []), fmt(5, 7, [], [1, 2, 3, 4, 5, 6, 7]), fmt(8, 8, [1, 3, 5, 7], [2, 4, 6, 8])]\n    for _ in range(40):\n        n = rng.randint(1, 12)\n        m = rng.randint(1, 12)\n        H = rng.sample(range(1, n + 1), rng.randint(0, n))\n        V = rng.sample(range(1, m + 1), rng.randint(0, m))\n        t.append(fmt(n, m, H, V))\n    N = 100000\n    t.append(fmt(N, N, rng.sample(range(1, N + 1), 60000), rng.sample(range(1, N + 1), 60000)))\n    t.append(fmt(N, N, list(range(N, 0, -1)), list(range(1, N + 1))))\n    t.append(fmt(N, N, [i for i in range(1, N + 1) if i % 3], [i for i in range(1, N + 1) if i % 2]))\n    t.append(fmt(N, N, rng.sample(range(1, N + 1), 99990), []))\n    return t\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef largest_hole(n: int, m: int, H: List[int], V: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    d = sys.stdin.read().split()\n    n, m = int(d[0]), int(d[1])\n    h = int(d[2])\n    H = [int(x) for x in d[3:3 + h]]\n    v = int(d[3 + h])\n    V = [int(x) for x in d[4 + h:4 + h + v]]\n    print(largest_hole(n, m, H, V))\n\n\nmain()\n",
+  "javascript": "function largestHole(n, m, H, V) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst h = t[2]\nconst H = t.slice(3, 3 + h)\nconst v = t[3 + h]\nconst V = t.slice(4 + h, 4 + h + v)\nconsole.log(String(largestHole(n, m, H, V)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long largestHole(int n, int m, vector<int>& H, vector<int>& V) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m, h, v;\n    cin >> n >> m >> h;\n    vector<int> H(h);\n    for (auto& x : H) cin >> x;\n    cin >> v;\n    vector<int> V(v);\n    for (auto& x : V) cin >> x;\n    cout << largestHole(n, m, H, V) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long largestHole(int n, int m, int[] H, int[] V) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        in.nextToken();\n        int h = (int) in.nval;\n        int[] H = new int[h];\n        for (int i = 0; i < h; i++) { in.nextToken(); H[i] = (int) in.nval; }\n        in.nextToken();\n        int v = (int) in.nval;\n        int[] V = new int[v];\n        for (int i = 0; i < v; i++) { in.nextToken(); V[i] = (int) in.nval; }\n        System.out.println(largestHole(n, m, H, V));\n    }\n}\n"
+ }
+}

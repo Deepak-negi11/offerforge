@@ -1,0 +1,49 @@
+{
+ "pid": "flipkart-print-all-subsets-with-target-sum",
+ "title": "Print All Subsets With Target Sum",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "Given an array `nums` of `n` positive integers (which may contain duplicates) and a positive integer `target`, find **all subsets** of the array whose elements sum to `target`.\n\nSubsets are compared as **multisets of values**: two choices of elements that give the same values count as one subset (for `nums = [2, 2, 3]` and `target = 5`, taking either `2` with the `3` is the same subset `[2, 3]`). Each subset must be reported once.\n\nOutput format: first print the number `m` of distinct subsets. Then print each subset on its own line, with its elements in **non-decreasing order**, and the `m` lines in **lexicographic order** (compare the sorted lists element by element). If there are no such subsets, print only `0`.",
+ "input_format": "The first line contains two integers `n` and `target`.\nThe second line contains `n` integers `nums[0] ... nums[n-1]`.",
+ "output_format": "The first line contains `m`, the number of distinct subsets. Each of the next `m` lines contains one subset: its elements in non-decreasing order separated by single spaces. The lines are in lexicographic order.",
+ "constraints": [
+  "1 ≤ n ≤ 20",
+  "1 ≤ nums[i] ≤ 50",
+  "1 ≤ target ≤ 1000"
+ ],
+ "examples": [
+  {
+   "input": "4 7\n2 3 5 4",
+   "output": "2\n2 5\n3 4",
+   "explanation": "2 + 5 = 7 and 3 + 4 = 7. No other subset sums to 7."
+  },
+  {
+   "input": "5 6\n1 1 2 2 4",
+   "output": "3\n1 1 2 2\n1 1 4\n2 4",
+   "explanation": "The multiset subsets that sum to 6 are [1, 1, 2, 2], [1, 1, 4] and [2, 4]. Using either copy of a duplicated value gives the same subset, so each is listed once, in lexicographic order."
+  },
+  {
+   "input": "3 10\n1 2 3",
+   "output": "0",
+   "explanation": "All elements together sum to 6, so 10 cannot be reached."
+  }
+ ],
+ "complexity": {
+  "time": "O(2^n * n)",
+  "space": "O(n) recursion plus output"
+ },
+ "hints": [
+  "Sort the array first. Then a subset can be built by choosing elements in increasing index order, and duplicates become easy to handle.",
+  "Use backtracking: at each step try every later element, subtract it from the remaining target, and recurse. Stop as soon as the remaining target reaches 0 (record) or the current value is larger than the remaining target (everything after it is also too large).",
+  "To avoid duplicate subsets, skip an element at the same recursion level if it equals the previous element at that level. Because the array is sorted and all values are positive, the results come out already in lexicographic order."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0]); target = int(data[1])\n    a = sorted(int(x) for x in data[2:2 + n])\n    suf = [0] * (n + 1)\n    for i in range(n - 1, -1, -1):\n        suf[i] = suf[i + 1] + a[i]\n    res = []\n    path = []\n\n    def dfs(start, rem):\n        if rem == 0:\n            res.append(' '.join(map(str, path)))\n            return\n        if suf[start] < rem:\n            return\n        for i in range(start, n):\n            if i > start and a[i] == a[i - 1]:\n                continue\n            if a[i] > rem:\n                break\n            path.append(a[i])\n            dfs(i + 1, rem - a[i])\n            path.pop()\n\n    dfs(0, target)\n    print(len(res))\n    if res:\n        print('\\n'.join(res))\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import combinations\n\ndata = sys.stdin.read().split()\nn = int(data[0]); target = int(data[1])\na = [int(x) for x in data[2:2 + n]]\nfound = set()\nfor r in range(1, n + 1):\n    for c in combinations(a, r):\n        if sum(c) == target:\n            found.add(tuple(sorted(c)))\nres = sorted(found)\nprint(len(res))\nfor t in res:\n    print(' '.join(map(str, t)))\n",
+ "generator": "def gen(rng):\n    def fmt(a, t):\n        return f'{len(a)} {t}\\n' + ' '.join(map(str, a))\n\n    tests = [\n        fmt([2, 3, 5, 4], 7),\n        fmt([1, 1, 2, 2, 4], 6),\n        fmt([1, 2, 3], 10),\n        fmt([5], 5),\n        fmt([5], 6),\n        fmt([2, 2, 2, 2], 4),\n        fmt([1] * 8, 4),\n        fmt([3, 3, 3], 9),\n    ]\n    for n in (2, 3, 4, 5, 6, 7, 8, 9, 10):\n        for hi in (4, 8):\n            a = [rng.randint(1, hi) for _ in range(n)]\n            t = rng.randint(1, max(2, sum(a) // 2 + 1))\n            tests.append(fmt(a, t))\n    for _ in range(3):\n        a = [rng.randint(1, 6) for _ in range(10)]\n        tests.append(fmt(a, rng.randint(5, 20)))\n    tests.append(fmt(list(range(1, 21)), 60))\n    tests.append(fmt([50] * 20, 1000))\n    tests.append(fmt([rng.randint(1, 10) for _ in range(20)], 40))\n    tests.append(fmt([rng.randint(1, 50) for _ in range(20)], 300))\n    tests.append(fmt([1] * 20, 7))\n    tests.append(fmt([rng.randint(1, 50) for _ in range(20)], 1000))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef subsets_with_sum(nums: List[int], target: int) -> List[List[int]]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, target = int(data[0]), int(data[1])\n    nums = [int(x) for x in data[2:2 + n]]\n    res = sorted(sorted(s) for s in subsets_with_sum(nums, target))\n    print(len(res))\n    for s in res:\n        print(' '.join(map(str, s)))\n\n\nmain()\n",
+  "javascript": "function subsetsWithSum(nums, target) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], target = t[1]\nconst nums = t.slice(2, 2 + n)\nconst res = subsetsWithSum(nums, target).map(s => s.slice().sort((x, y) => x - y))\nres.sort((x, y) => {\n  for (let i = 0; i < Math.min(x.length, y.length); i++) if (x[i] !== y[i]) return x[i] - y[i]\n  return x.length - y.length\n})\nconst out = [String(res.length)]\nfor (const s of res) out.push(s.join(' '))\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<vector<int>> subsetsWithSum(vector<int>& nums, int target) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, target;\n    cin >> n >> target;\n    vector<int> nums(n);\n    for (auto& x : nums) cin >> x;\n    vector<vector<int>> res = subsetsWithSum(nums, target);\n    for (auto& s : res) sort(s.begin(), s.end());\n    sort(res.begin(), res.end());\n    cout << res.size() << \"\\n\";\n    for (auto& s : res) {\n        for (size_t i = 0; i < s.size(); i++) cout << s[i] << (i + 1 < s.size() ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<List<Integer>> subsetsWithSum(int[] nums, int target) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int target = (int) in.nval;\n        int[] nums = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            nums[i] = (int) in.nval;\n        }\n        List<List<Integer>> res = subsetsWithSum(nums, target);\n        for (List<Integer> s : res) Collections.sort(s);\n        res.sort((x, y) -> {\n            for (int i = 0; i < Math.min(x.size(), y.size()); i++) {\n                int c = Integer.compare(x.get(i), y.get(i));\n                if (c != 0) return c;\n            }\n            return Integer.compare(x.size(), y.size());\n        });\n        StringBuilder sb = new StringBuilder();\n        sb.append(res.size()).append(\"\\n\");\n        for (List<Integer> s : res) {\n            for (int i = 0; i < s.size(); i++) sb.append(s.get(i)).append(i + 1 < s.size() ? \" \" : \"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

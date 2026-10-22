@@ -1,0 +1,44 @@
+{
+ "pid": "adobe-active-users-in-last-5-minutes",
+ "title": "Active Users in Last 5 Minutes",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are building an analytics component that processes a stream of application log events in real time. Each event is a triple `(timestamp, userId, eventType)`:\n\n- `timestamp` is an integer number of seconds. Events arrive in **non-decreasing** timestamp order (several events may share a timestamp).\n- `userId` is a string identifying the user who produced the event.\n- `eventType` is a string such as `login`, `view` or `click`. Any event counts as activity; the type does not matter.\n\nAfter each event is processed, report the number of **unique users who were active in the last 5 minutes**, measured relative to the timestamp `t` of the event that just arrived. A user is active if they produced at least one event (including the current one) with timestamp `s` such that `t - s < 300`, i.e. an event exactly 300 seconds old is already outside the window. The count after an event must reflect only the events seen so far.\n\n**Follow-up:** In the live system the stream never ends and there can be millions of users. Discuss how much memory your window needs, what happens when many events arrive in the same second, and how you would expose the count as an on-demand query that may be called between events.",
+ "input_format": "The first line contains the number of events `q`. Each of the next `q` lines contains `timestamp userId eventType` separated by spaces, in arrival order.",
+ "output_format": "Print `q` lines: line `i` is the number of unique active users in the last 5 minutes right after event `i` has been processed.",
+ "constraints": [
+  "1 ≤ q ≤ 10^5",
+  "0 ≤ timestamp ≤ 10^9, and timestamps are non-decreasing",
+  "`userId` and `eventType` are non-empty strings of at most 8 letters or digits with no spaces"
+ ],
+ "examples": [
+  {
+   "input": "6\n10 alice login\n100 bob view\n250 alice click\n309 carol login\n310 bob view\n611 dave login",
+   "output": "1\n2\n2\n3\n3\n1",
+   "explanation": "At 10: {alice}. At 100: {alice, bob}. At 250 the window holds events after time -50, so still 2 users. At 309 the window is events with timestamp > 9: alice, bob, carol, so 3. At 310 the window is timestamps > 10, so alice's event at 10 has just expired, but she is still active through her event at 250: {alice, bob, carol} = 3. At 611 the window is timestamps > 311 and only dave remains: 1."
+  },
+  {
+   "input": "3\n5 u1 a\n5 u2 a\n5 u1 b",
+   "output": "1\n2\n2",
+   "explanation": "All events share one timestamp. The second user raises the count to 2; the third event repeats u1, so the number of unique users stays 2."
+  }
+ ],
+ "complexity": {
+  "time": "O(q) amortised",
+  "space": "O(q) worst case, O(events in the window)"
+ },
+ "hints": [
+  "Only events from the last 300 seconds matter, and because timestamps never decrease, old events expire from the front in arrival order.",
+  "Keep a queue of (timestamp, userId) for the events inside the window.",
+  "Maintain a hash map userId -> number of events of that user currently in the window. Add on arrival, decrement on expiry and remove the entry at zero. The answer is the map size."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    d = sys.stdin.read().split()\n    q = int(d[0])\n    dq = deque()\n    cnt = {}\n    out = []\n    p = 1\n    for _ in range(q):\n        t = int(d[p]); u = d[p + 1]\n        p += 3\n        dq.append((t, u))\n        cnt[u] = cnt.get(u, 0) + 1\n        while dq[0][0] <= t - 300:\n            _, v = dq.popleft()\n            c = cnt[v] - 1\n            if c:\n                cnt[v] = c\n            else:\n                del cnt[v]\n        out.append(len(cnt))\n    print('\\n'.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\nd = sys.stdin.read().split()\nq = int(d[0])\nev = [(int(d[1 + 3 * i]), d[2 + 3 * i]) for i in range(q)]\nout = []\nfor i in range(q):\n    t = ev[i][0]\n    out.append(len({u for s, u in ev[:i + 1] if t - s < 300}))\nprint('\\n'.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    kinds = ['login', 'view', 'click', 'logout', 'buy']\n\n    def fmt(evs):\n        return str(len(evs)) + '\\n' + '\\n'.join(f'{t} {u} {e}' for t, u, e in evs)\n\n    def stream(q, users, maxstep, start=0, ulen=None):\n        t = start\n        evs = []\n        for _ in range(q):\n            t += rng.randint(0, maxstep)\n            evs.append((t, f'u{rng.randint(1, users)}', rng.choice(kinds)))\n        return evs\n\n    tests = [\n        fmt([(0, 'a', 'login')]),\n        fmt([(5, 'u1', 'a'), (5, 'u2', 'a'), (5, 'u1', 'b')]),\n        fmt([(0, 'a', 'x'), (299, 'b', 'x'), (300, 'c', 'x'), (599, 'd', 'x'), (600, 'a', 'x')]),\n        fmt([(10, 'alice', 'login'), (100, 'bob', 'view'), (250, 'alice', 'click'), (309, 'carol', 'login'), (310, 'bob', 'view'), (611, 'dave', 'login')]),\n        fmt([(1000000000, 'z', 'login'), (1000000000, 'z', 'view')]),\n    ]\n    for _ in range(25):\n        tests.append(fmt(stream(rng.randint(1, 20), rng.randint(1, 6), rng.choice([0, 20, 100, 400]))))\n    tests.append(fmt(stream(3000, 400, 5)))\n    tests.append(fmt(stream(3000, 50, 300)))\n    N = 10**5\n    # everything inside one window: naive per-event rescans are quadratic\n    evs = sorted((rng.randint(0, 299), f'u{rng.randint(1, 50000)}', rng.choice(kinds)) for _ in range(N))\n    tests.append(fmt(evs))\n    # all same timestamp\n    tests.append(fmt([(7, f'u{rng.randint(1, 30000)}', 'v') for _ in range(N)]))\n    # slowly moving window, a few hundred events each\n    tests.append(fmt(stream(N, 60000, 2)))\n    # large timestamps, sparse\n    tests.append(fmt(stream(N, 99999, 19000)))\n    # near the upper bound of timestamps\n    evs = stream(N, 5000, 3, start=10**9 - 3 * N - 5)\n    tests.append(fmt(evs))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef active_users(events: List[Tuple[int, str, str]]) -> List[int]:\n    # Write your solution here\n    return [0] * len(events)\n\n\ndef main():\n    d = sys.stdin.read().split()\n    q = int(d[0])\n    events = [(int(d[1 + 3 * i]), d[2 + 3 * i], d[3 + 3 * i]) for i in range(q)]\n    print('\\n'.join(map(str, active_users(events))))\n\n\nmain()\n",
+  "javascript": "function activeUsers(events) {\n  // Write your solution here\n  return events.map(() => 0)\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst q = parseInt(t[0])\nconst events = []\nfor (let i = 0; i < q; i++) events.push([parseInt(t[1 + 3 * i]), t[2 + 3 * i], t[3 + 3 * i]])\nconsole.log(activeUsers(events).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstruct Event {\n    long long timestamp;\n    string userId;\n    string eventType;\n};\n\nvector<int> activeUsers(vector<Event>& events) {\n    // Write your solution here\n    return vector<int>(events.size(), 0);\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int q;\n    cin >> q;\n    vector<Event> events(q);\n    for (auto& e : events) cin >> e.timestamp >> e.userId >> e.eventType;\n    vector<int> res = activeUsers(events);\n    for (int x : res) cout << x << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] activeUsers(long[] timestamps, String[] userIds, String[] eventTypes) {\n        // Write your solution here\n        return new int[timestamps.length];\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        int q = Integer.parseInt(br.readLine().trim());\n        long[] ts = new long[q];\n        String[] users = new String[q], types = new String[q];\n        for (int i = 0; i < q; i++) {\n            StringTokenizer st = new StringTokenizer(br.readLine());\n            ts[i] = Long.parseLong(st.nextToken());\n            users[i] = st.nextToken();\n            types[i] = st.nextToken();\n        }\n        int[] res = activeUsers(ts, users, types);\n        StringBuilder sb = new StringBuilder();\n        for (int x : res) sb.append(x).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

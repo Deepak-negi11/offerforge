@@ -1,0 +1,48 @@
+{
+ "pid": "zoho-spiral-fibonacci-matrix",
+ "title": "Spiral Fibonacci Matrix",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "Given two positive integers `M` and `N`, build an `M x N` matrix (`M` rows, `N` columns) and fill it with the first `M * N` terms of the Fibonacci sequence `0, 1, 1, 2, 3, 5, 8, ...` in **clockwise spiral order**.\n\nThe spiral starts at the top-left cell, runs to the right along the top row, then down the right-most column, then left along the bottom row, then up the left-most column, and keeps winding inwards in the same way until every cell is filled. The sequence starts with `F(0) = 0`, `F(1) = 1`, and `F(k) = F(k-1) + F(k-2)`; the first cell receives `F(0)`, the next cell on the path `F(1)`, and so on.\n\nPrint the finished matrix, one row per line.",
+ "input_format": "A single line containing the two integers `M` and `N`.",
+ "output_format": "Print `M` lines, each with `N` space-separated integers: the rows of the matrix.",
+ "constraints": [
+  "1 ≤ M, N",
+  "M * N ≤ 90 (so every value fits in a signed 64-bit integer)"
+ ],
+ "examples": [
+  {
+   "input": "3 4",
+   "output": "0 1 1 2\n34 55 89 3\n21 13 8 5",
+   "explanation": "The sequence is 0 1 1 2 3 5 8 13 21 34 55 89. Top row left to right: 0 1 1 2. Right column downwards: 3, 5. Bottom row right to left: 8 13 21. Left column upwards: 34. The remaining middle row gets 55 and 89."
+  },
+  {
+   "input": "1 5",
+   "output": "0 1 1 2 3",
+   "explanation": "A single row is just the first five Fibonacci numbers left to right."
+  },
+  {
+   "input": "4 3",
+   "output": "0 1 1\n34 55 2\n21 89 3\n13 8 5",
+   "explanation": "The sequence is 0 1 1 2 3 5 8 13 21 34 55 89. Top row: 0 1 1. Right column down: 2 3 5. Bottom row right to left: 8 13. Left column up: 21 34. The inner 2x1 block (column 1, rows 1 and 2) is filled top to bottom with 55 and 89."
+  }
+ ],
+ "complexity": {
+  "time": "O(M * N)",
+  "space": "O(M * N)"
+ },
+ "hints": [
+  "Generate the first `M * N` Fibonacci numbers first, then place them one by one.",
+  "Keep four boundaries (top, bottom, left, right). Fill the top row, then shrink `top`; fill the right column, then shrink `right`; and so on.",
+  "After filling the bottom row and the left column, check that the boundaries have not crossed, otherwise single rows or columns would be filled twice."
+ ],
+ "reference": "import sys\n\ndef main():\n    m, n = map(int, sys.stdin.read().split())\n    f = [0, 1]\n    while len(f) < m * n:\n        f.append(f[-1] + f[-2])\n    g = [[0] * n for _ in range(m)]\n    top, bot, left, right = 0, m - 1, 0, n - 1\n    k = 0\n    while top <= bot and left <= right:\n        for c in range(left, right + 1):\n            g[top][c] = f[k]\n            k += 1\n        top += 1\n        for r in range(top, bot + 1):\n            g[r][right] = f[k]\n            k += 1\n        right -= 1\n        if top <= bot:\n            for c in range(right, left - 1, -1):\n                g[bot][c] = f[k]\n                k += 1\n            bot -= 1\n        if left <= right:\n            for r in range(bot, top - 1, -1):\n                g[r][left] = f[k]\n                k += 1\n            left += 1\n    print('\\n'.join(' '.join(map(str, row)) for row in g))\n\nmain()\n",
+ "brute": "import sys\n\nm, n = map(int, sys.stdin.read().split())\na, b = 0, 1\ng = [[None] * n for _ in range(m)]\nr = c = 0\ndr, dc = 0, 1\nfor _ in range(m * n):\n    g[r][c] = a\n    a, b = b, a + b\n    nr, nc = r + dr, c + dc\n    if not (0 <= nr < m and 0 <= nc < n and g[nr][nc] is None):\n        dr, dc = dc, -dr\n        nr, nc = r + dr, c + dc\n    r, c = nr, nc\nprint('\\n'.join(' '.join(map(str, row)) for row in g))\n",
+ "generator": "def gen(rng):\n    shapes = [(1, 1), (1, 2), (2, 1), (2, 2), (1, 3), (3, 1), (3, 3), (3, 4), (4, 3), (1, 5), (5, 1), (2, 5), (5, 2), (4, 4), (5, 5), (6, 7), (7, 6), (2, 9), (9, 3), (8, 8)]\n    tests = [f'{m} {n}' for m, n in shapes]\n    for _ in range(6):\n        m = rng.randint(1, 9)\n        n = rng.randint(1, 90 // m)\n        tests.append(f'{m} {n}')\n    tests += ['9 10', '10 9', '1 90', '90 1', '6 15', '15 6', '2 45', '3 30']\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef spiral_fibonacci(m: int, n: int) -> List[List[int]]:\n    # Write your solution here\n    return [[0] * n for _ in range(m)]\n\n\ndef main():\n    m, n = map(int, sys.stdin.read().split())\n    grid = spiral_fibonacci(m, n)\n    print('\\n'.join(' '.join(map(str, row)) for row in grid))\n\n\nmain()\n",
+  "javascript": "function spiralFibonacci(m, n) {\n  // Write your solution here\n  return Array.from({ length: m }, () => new Array(n).fill(0))\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst m = t[0], n = t[1]\n// values can reach about 1.8e18, so use BigInt if your solution needs exact arithmetic\nconsole.log(spiralFibonacci(m, n).map(row => row.join(' ')).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<vector<long long>> spiralFibonacci(int m, int n) {\n    // Write your solution here\n    return vector<vector<long long>>(m, vector<long long>(n, 0));\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int m, n;\n    cin >> m >> n;\n    vector<vector<long long>> g = spiralFibonacci(m, n);\n    for (int i = 0; i < m; i++) {\n        for (int j = 0; j < n; j++) cout << g[i][j] << (j + 1 < n ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[][] spiralFibonacci(int m, int n) {\n        // Write your solution here\n        return new long[m][n];\n    }\n\n    public static void main(String[] args) throws IOException {\n        Scanner sc = new Scanner(System.in);\n        int m = sc.nextInt();\n        int n = sc.nextInt();\n        long[][] g = spiralFibonacci(m, n);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < m; i++) {\n            for (int j = 0; j < n; j++) sb.append(g[i][j]).append(j + 1 < n ? \" \" : \"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

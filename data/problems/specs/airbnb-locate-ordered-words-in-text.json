@@ -1,0 +1,49 @@
+{
+ "pid": "airbnb-locate-ordered-words-in-text",
+ "title": "Locate Ordered Words in Text",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a sentence made of `n` words, numbered from `0`, and a query made of `m` words. Find the stretch of the sentence in which **all query words occur in the same order** as in the query.\n\nPrecisely, a span `[s, e]` (`0 ≤ s ≤ e < n`) is valid if the query words can be matched to words inside the span at strictly increasing positions: the first query word to some position, the second query word to a later position, and so on. Other words may appear in between, and a query word may be repeated in the query, in which case it needs that many separate occurrences. Words are case-sensitive.\n\nPrint the start and end word indices of the **shortest** valid span (smallest `e - s`). If several spans have the same length, print the one with the smallest `s`. If no span is valid, because a query word is missing or the words never appear in the query's order, print `-1 -1`.",
+ "input_format": "The first line contains `n`, followed by the `n` words of the sentence (whitespace-separated, possibly across several lines).\nThen comes `m`, followed by the `m` query words.",
+ "output_format": "Print two integers `s e` separated by a space, or `-1 -1` if no span is valid.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ m ≤ 10",
+  "Each word consists of letters and digits and has length at most 10"
+ ],
+ "examples": [
+  {
+   "input": "8 Leetcode is a good community for software developers\n3 is for developers",
+   "output": "1 7",
+   "explanation": "`is` is at index 1, `for` at index 5 and `developers` at index 7, so the span from 1 to 7 contains the query words in order."
+  },
+  {
+   "input": "8 Leetcode is a good community for software developers\n2 developers for",
+   "output": "-1 -1",
+   "explanation": "Both words appear, but `for` (index 5) comes before `developers` (index 7), so they never appear in the query's order."
+  },
+  {
+   "input": "9 a b a c a b c b c\n3 a b c",
+   "output": "4 6",
+   "explanation": "Several spans work, such as [0, 3] and [2, 6]. The span [4, 6] has length 2 (`a b c`), which is the shortest."
+  }
+ ],
+ "complexity": {
+  "time": "O(n · m)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "A greedy scan from one fixed start finds the earliest end for that start, but trying every start separately is quadratic.",
+  "Sweep through the sentence once while keeping, for each query position j, the latest start index of a span that has matched the first j + 1 query words so far.",
+  "Update the query positions of the current word from the last one down to the first, so a single sentence word is never used for two query words. Whenever the last query word completes, compare the span length with the best so far."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    words = data[1:1 + n]\n    m = int(data[1 + n])\n    q = data[2 + n:2 + n + m]\n    pos = {}\n    for j, w in enumerate(q):\n        pos.setdefault(w, []).append(j)\n    for w in pos:\n        pos[w].reverse()\n    dp = [-1] * m\n    best = 10 ** 9\n    bs = be = -1\n    for i, w in enumerate(words):\n        js = pos.get(w)\n        if not js:\n            continue\n        for j in js:\n            if j == 0:\n                dp[0] = i\n            elif dp[j - 1] >= 0:\n                dp[j] = dp[j - 1]\n            if j == m - 1 and dp[j] >= 0 and i - dp[j] < best:\n                best = i - dp[j]\n                bs, be = dp[j], i\n    print(bs, be)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nwords = data[1:1 + n]\nm = int(data[1 + n])\nq = data[2 + n:2 + n + m]\n\ndef ok(s, e):\n    j = 0\n    for i in range(s, e + 1):\n        if j < m and words[i] == q[j]:\n            j += 1\n    return j == m\n\nans = (-1, -1)\ndone = False\nfor length in range(0, n):\n    for s in range(0, n - length):\n        if ok(s, s + length):\n            ans = (s, s + length)\n            done = True\n            break\n    if done:\n        break\nprint(ans[0], ans[1])\n",
+ "generator": "def gen(rng):\n    def fmt(w, q):\n        return '%d %s\\n%d %s' % (len(w), ' '.join(w), len(q), ' '.join(q))\n\n    tests = []\n    tests.append(fmt(['a'], ['a']))\n    tests.append(fmt(['a'], ['b']))\n    tests.append(fmt(['a', 'a'], ['a', 'a']))\n    tests.append(fmt(['a', 'b'], ['b', 'a']))\n    tests.append(fmt(['A', 'a', 'b'], ['a', 'b']))\n    tests.append(fmt('x a y a b b'.split(), ['a', 'b', 'b']))\n    tests.append(fmt('Leetcode is a good community for software developers'.split(), 'is for developers'.split()))\n    for _ in range(40):\n        n = rng.randint(1, 14)\n        vocab = ['a', 'b', 'c', 'd'][:rng.randint(1, 4)]\n        w = [rng.choice(vocab) for _ in range(n)]\n        m = rng.randint(1, 4)\n        if rng.random() < 0.6:\n            idx = sorted(rng.sample(range(n), min(m, n)))\n            q = [w[i] for i in idx]\n        else:\n            q = [rng.choice(vocab) for _ in range(m)]\n        tests.append(fmt(w, q))\n    N = 100000\n    tests.append(fmt(['a'] * N, ['a'] * 10))\n    tests.append(fmt([rng.choice('abc') for _ in range(N)], list('abcabcabca')))\n    w = [rng.choice(['x', 'y', 'z']) for _ in range(N)]\n    tests.append(fmt(w, ['x', 'y', 'z', 'x', 'y', 'z', 'x', 'y', 'z', 'q']))\n    w = ['a'] * (N - 3) + ['b', 'c', 'd']\n    tests.append(fmt(w, ['a', 'a', 'b', 'c', 'd']))\n    w = [rng.choice(['p', 'q', 'r', 's']) for _ in range(N)]\n    tests.append(fmt(w, ['p', 'q', 'r', 's', 's', 'r', 'q', 'p']))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef locate(words: List[str], query: List[str]) -> List[int]:\n    # Write your solution here\n    return [-1, -1]\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    words = data[1:1 + n]\n    m = int(data[1 + n])\n    query = data[2 + n:2 + n + m]\n    res = locate(words, query)\n    print(res[0], res[1])\n\n\nmain()\n",
+  "javascript": "function locate(words, query) {\n  // Write your solution here\n  return [-1, -1]\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0])\nconst words = t.slice(1, 1 + n)\nconst m = parseInt(t[1 + n])\nconst query = t.slice(2 + n, 2 + n + m)\nconst res = locate(words, query)\nconsole.log(res[0] + ' ' + res[1])\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\npair<int, int> locate(vector<string>& words, vector<string>& query) {\n    // Write your solution here\n    return {-1, -1};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n;\n    vector<string> words(n);\n    for (int i = 0; i < n; i++) cin >> words[i];\n    cin >> m;\n    vector<string> query(m);\n    for (int i = 0; i < m; i++) cin >> query[i];\n    pair<int, int> res = locate(words, query);\n    cout << res.first << \" \" << res.second << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] locate(String[] words, String[] query) {\n        // Write your solution here\n        return new int[]{-1, -1};\n    }\n\n    public static void main(String[] args) throws IOException {\n        String[] t = new String(System.in.readAllBytes()).trim().split(\"\\\\s+\");\n        int n = Integer.parseInt(t[0]);\n        String[] words = Arrays.copyOfRange(t, 1, 1 + n);\n        int m = Integer.parseInt(t[1 + n]);\n        String[] query = Arrays.copyOfRange(t, 2 + n, 2 + n + m);\n        int[] res = locate(words, query);\n        System.out.println(res[0] + \" \" + res[1]);\n    }\n}\n"
+ }
+}

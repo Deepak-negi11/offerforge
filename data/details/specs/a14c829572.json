@@ -1,0 +1,18 @@
+{
+ "qid": "a14c829572",
+ "question": "Nutanix MTS-1 problem solving and debugging round (reported as unusual). The candidate had to **clone an open-source database driver from GitHub** and explain where different features are implemented, in the code block or line, starting with **database configuration such as connection pools and connection logic**. Then they had to **clone the database itself** and show **where indexing is implemented** and **where the actual query execution logic lives**. The report does not name the driver or the database, so the skill being tested is navigating an unfamiliar codebase quickly.",
+ "lookingFor": [
+  "Ability to read unfamiliar code and find things efficiently.",
+  "Mental model of how a driver and a database engine are structured.",
+  "Good use of search tools, tests, docs and entry points.",
+  "Communicating what you are looking for and why.",
+  "Prior open-source or deep systems experience."
+ ],
+ "answer": "**Method for finding features in an unfamiliar repository.**\n1. *Orient*: read the README, contributing guide and directory layout. Names of folders usually reveal modules.\n2. *Search by vocabulary*: use `grep -rn` or `rg` for terms such as `pool`, `max_connections`, `idle`, `connect`, `dial`, `index`, `btree`, `plan`, `execute`. Check config structs and option names, because every setting is parsed somewhere.\n3. *Follow entry points*: start from the public API call (`connect()`, `query()`, `exec()`) and trace down with an IDE's find-references, or read tests that exercise the feature; tests are a map of behaviour.\n4. *Use debug aids*: stack traces, log messages, or a debugger breakpoint show the real call path.\n\n**What to expect in a database driver.**\n- *Configuration*: connection string or options parsing, defaults like pool size, timeouts, and TLS.\n- *Connection logic*: socket setup, authentication handshake, protocol messages.\n- *Pooling*: a pool object with acquire and release, idle timeouts, health checks, max size and waiting queue.\n- *Statement execution*: building protocol messages, parameter binding, and decoding result rows.\n\n**What to expect in a database engine.**\n- *Parsing and planning*: SQL parser, rewriter, optimiser/planner choosing access paths.\n- *Execution*: executor or virtual machine running the plan (operators like scan, join, sort).\n- *Indexing*: storage structures such as B-trees under the access-method or storage layer. For instance, in PostgreSQL the B-tree code lives under `src/backend/access/nbtree` and the executor under `src/backend/executor`; in SQLite, `btree.c` implements the B-tree and `vdbe.c` runs query bytecode. Check any such pointer against the repo you are given.\n- *Storage and transactions*: buffer pool, WAL, locking or MVCC.\n\n**How to present.** Narrate your search aloud, state hypotheses (\"pooling is likely in a pool or connection manager file\"), verify quickly, and admit when you are tracing rather than guessing. Preparing by browsing the source of one open-source database ahead of time helps.",
+ "followUps": [
+  "How would you find where a specific SQL feature is implemented in a large codebase?",
+  "How does a connection pool decide when to create or close a connection?",
+  "Where would you look to find why a query is not using an index?",
+  "Describe the path of a query from parse to result in a typical database."
+ ]
+}

@@ -1,0 +1,48 @@
+{
+ "pid": "longest-increasing-path-in-a-matrix",
+ "title": "Longest Increasing Path in a Matrix",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given a grid of `r` rows and `c` columns filled with integers. A path starts at any cell and repeatedly moves to one of the four side-adjacent cells (up, down, left or right). Diagonal moves are not allowed and you cannot leave the grid.\n\nA path is **strictly increasing** if every step goes to a cell whose value is strictly greater than the value of the cell you are leaving. The **length** of a path is the number of cells on it (a single cell has length 1).\n\nPrint the length of the longest strictly increasing path in the grid.\n\n**Follow-up:** one reported variant (Infosys online assessment) also allows up to two jumps in a straight direction, landing on a cell that must again be strictly higher. First solve the plain version above (brute-force DFS from every cell, then memoization or a topological order), then discuss how the extra moves change the state graph.",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains `c` integers: the values of that row.",
+ "output_format": "Print a single integer: the length of the longest strictly increasing path.",
+ "constraints": [
+  "1 ≤ r, c ≤ 200",
+  "0 ≤ grid[i][j] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3 3\n1 2 9\n5 3 8\n6 4 7",
+   "explanation": "Start at the 1 in the top-left corner and go 1, 2, 3, 4, 7, 8, 9: right, down, down, right, up, up. Every step moves to a larger neighbour and the path has 7 cells. No path can use all 9 cells.",
+   "output": "7"
+  },
+  {
+   "input": "2 3\n5 5 5\n5 5 5",
+   "explanation": "All values are equal, so no move is allowed (steps must be strictly increasing). The best path is a single cell.",
+   "output": "1"
+  },
+  {
+   "input": "1 5\n9 3 4 8 2",
+   "explanation": "In the single row, the run 3, 4, 8 is the longest strictly increasing sequence of neighbours, giving length 3.",
+   "output": "3"
+  }
+ ],
+ "complexity": {
+  "time": "O(r · c · log(r · c))",
+  "space": "O(r · c)"
+ },
+ "hints": [
+  "Plain DFS from every cell re-explores the same suffixes many times. What does the longest increasing path starting at a given cell depend on?",
+  "Let f(cell) be the longest increasing path that starts at that cell. Then f(cell) = 1 + the maximum of f(neighbour) over neighbours with a strictly larger value. Memoize it.",
+  "Because steps are strictly increasing, the grid is a DAG. You can avoid deep recursion by processing cells in decreasing order of value, or by peeling layers with Kahn's algorithm."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    a = list(map(int, data[2:2 + r * c]))\n    order = sorted(range(r * c), key=lambda i: -a[i])\n    dp = [1] * (r * c)\n    for idx in order:\n        i, j = divmod(idx, c)\n        v = a[idx]\n        best = 0\n        if i > 0 and a[idx - c] > v and dp[idx - c] > best:\n            best = dp[idx - c]\n        if i < r - 1 and a[idx + c] > v and dp[idx + c] > best:\n            best = dp[idx + c]\n        if j > 0 and a[idx - 1] > v and dp[idx - 1] > best:\n            best = dp[idx - 1]\n        if j < c - 1 and a[idx + 1] > v and dp[idx + 1] > best:\n            best = dp[idx + 1]\n        dp[idx] = best + 1\n    print(max(dp))\n\nmain()\n",
+ "brute": "import sys\nsys.setrecursionlimit(10000)\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\ng = [[int(data[2 + i * c + j]) for j in range(c)] for i in range(r)]\n\ndef dfs(i, j):\n    best = 1\n    for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n        a, b = i + di, j + dj\n        if 0 <= a < r and 0 <= b < c and g[a][b] > g[i][j]:\n            best = max(best, 1 + dfs(a, b))\n    return best\n\nprint(max(dfs(i, j) for i in range(r) for j in range(c)))\n",
+ "generator": "def gen(rng):\n    def fmt(g):\n        return f'{len(g)} {len(g[0])}\\n' + '\\n'.join(' '.join(map(str, row)) for row in g)\n    tests = [fmt([[7]]), fmt([[4, 4], [4, 4]]), fmt([[1, 2, 3, 4]]), fmt([[1], [2], [3]]), fmt([[3, 2, 1], [4, 5, 0]]), fmt([[0, 10**9], [10**9, 0]])]\n    for _ in range(14):\n        r = rng.randint(1, 5)\n        c = rng.randint(1, 5)\n        hi = rng.choice([2, 4, 10, 30])\n        tests.append(fmt([[rng.randint(0, hi) for _ in range(c)] for _ in range(r)]))\n    R = C = 200\n    snake = [[0] * C for _ in range(R)]\n    k = 0\n    for i in range(R):\n        cols = range(C) if i % 2 == 0 else range(C - 1, -1, -1)\n        for j in cols:\n            snake[i][j] = k * 20000\n            k += 1\n    tests.append(fmt(snake))\n    tests.append(fmt([[(i * C + j) * 20000 for j in range(C)] for i in range(R)]))\n    tests.append(fmt([[rng.randint(0, 10**9) for _ in range(C)] for _ in range(R)]))\n    tests.append(fmt([[rng.randint(0, 5) for _ in range(C)] for _ in range(R)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef longest_increasing_path(matrix: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    vals = list(map(int, data[2:2 + r * c]))\n    matrix = [vals[i * c:(i + 1) * c] for i in range(r)]\n    print(longest_increasing_path(matrix))\n\n\nmain()\n",
+  "javascript": "function longestIncreasingPath(matrix) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst r = t[0], c = t[1]\nconst matrix = []\nfor (let i = 0; i < r; i++) matrix.push(t.slice(2 + i * c, 2 + (i + 1) * c))\nconsole.log(longestIncreasingPath(matrix))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint longestIncreasingPath(vector<vector<int>>& matrix) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<vector<int>> matrix(r, vector<int>(c));\n    for (int i = 0; i < r; i++)\n        for (int j = 0; j < c; j++) cin >> matrix[i][j];\n    cout << longestIncreasingPath(matrix) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int longestIncreasingPath(int[][] matrix) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int r = (int) in.nval;\n        in.nextToken();\n        int c = (int) in.nval;\n        int[][] matrix = new int[r][c];\n        for (int i = 0; i < r; i++) {\n            for (int j = 0; j < c; j++) {\n                in.nextToken();\n                matrix[i][j] = (int) in.nval;\n            }\n        }\n        System.out.println(longestIncreasingPath(matrix));\n    }\n}\n"
+ }
+}

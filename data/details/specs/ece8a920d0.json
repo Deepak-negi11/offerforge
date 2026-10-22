@@ -1,0 +1,18 @@
+{
+ "qid": "ece8a920d0",
+ "question": "In the Java role-specialization round for a Software Engineer 2 role at PayPal (a HackerRank-style implementation task), the candidate got two linked tasks:\n\n- A **circular cipher** problem: **decode a given string** using a provided shift value `k`.\n- A Java implementation task: write a **class with a constructor and custom sorting using a `Comparator`**, and use it together with the cipher part.\n\nThe exact input format and sort key were not reported, so state your assumptions (alphabet, case, non-letters, which field to sort on) before coding.",
+ "lookingFor": [
+  "Can you handle wrap-around (modular arithmetic) correctly, including large or negative k?",
+  "Do you clarify assumptions about case, non-letters and input constraints?",
+  "Do you know how to write a Comparator (or Comparable) cleanly, including tie-breaking?",
+  "Is your Java idiomatic: immutability, StringBuilder, no needless complexity?",
+  "Do you state time and space complexity and test edge cases?"
+ ],
+ "answer": "**Decoding a circular (Caesar) cipher.** If the text was encoded by shifting each letter forward by `k`, decoding shifts it back by `k` with wrap-around. Reduce `k` first with `k % 26`, and add 26 before taking the final modulus so the result is never negative.\n\n```java\nstatic String decode(String s, int k) {\n    int shift = ((k % 26) + 26) % 26;\n    StringBuilder sb = new StringBuilder(s.length());\n    for (char c : s.toCharArray()) {\n        if (c >= 'a' && c <= 'z')      sb.append((char) ('a' + (c - 'a' - shift + 26) % 26));\n        else if (c >= 'A' && c <= 'Z') sb.append((char) ('A' + (c - 'A' - shift + 26) % 26));\n        else                           sb.append(c);   // leave digits and symbols unchanged\n    }\n    return sb.toString();\n}\n```\n\nThis is O(n) time and O(n) space. Ask whether the direction of the shift is forward or backward in the encoder, and whether digits or other characters also rotate (if digits rotate, use modulus 10 for them).\n\n**Custom sorting with a Comparator.** Keep the class immutable and give it a constructor, then sort with a comparator that has a deterministic tie-breaker:\n\n```java\nclass Record {\n    private final String name; private final int score;\n    Record(String name, int score) { this.name = name; this.score = score; }\n    String getName() { return name; }  int getScore() { return score; }\n}\nlist.sort(Comparator.comparingInt(Record::getScore).reversed()\n                    .thenComparing(Record::getName));\n```\n\nPoints to mention: use `Integer.compare` (not subtraction, which can overflow) when writing a lambda by hand, a comparator must be consistent (transitive, no contradictions), `List.sort` and `Collections.sort` are stable merge/TimSort variants with O(n log n) time, and `Comparable` defines the natural order while `Comparator` defines external orderings. Finish by testing: empty string, `k = 0`, `k = 26`, `k` larger than 26, mixed case, and ties in the sort key.",
+ "followUps": [
+  "How would you encode and decode if the shift differs per position (Vigenere style)?",
+  "Why is `a - b` a risky comparator for ints?",
+  "Is the Java sort stable? Why does stability matter here?",
+  "How would you do this if the string is too large for memory?"
+ ]
+}

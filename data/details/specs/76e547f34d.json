@@ -1,0 +1,18 @@
+{
+ "qid": "76e547f34d",
+ "question": "JPMorgan Chase SDE-2 system design round: design a property listing application like NoBroker or 99acres, where users can upload and view properties. The interviewer asked for three services: a view service to browse the property list, a user service to manage users, and a search service to search for properties. The discussion centred on high-level design and the components, and the interviewer pointed out points the candidate missed.",
+ "lookingFor": [
+  "Requirement gathering and scoping for a read-heavy marketplace",
+  "Clean service boundaries and APIs",
+  "Search design (indexing, filters, geo queries)",
+  "Data modelling, media handling and caching",
+  "Scalability and consistency trade-offs"
+ ],
+ "answer": "**Requirements.**\n- Functional: owners register and post listings with photos, users browse and search (city, price, bedrooms, type), view details, shortlist, contact the owner.\n- Non-functional: reads vastly outnumber writes (maybe 100:1), search latency of a few hundred ms, high availability, eventual consistency is fine for search, strong consistency for accounts.\n- Scale assumption: 10M listings, 5M daily users, about 50M searches per day (roughly 600 per second average, a few thousand at peak).\n\n**API sketch.**\n`POST /listings`, `GET /listings/{id}`, `GET /search?city=&minPrice=&maxPrice=&bhk=&lat=&lng=&radius=&page=`, `POST /users`, `POST /login`, `POST /listings/{id}/contact`.\n\n**Components.**\n- API gateway (auth, rate limiting) in front of the **user service**, **listing (view) service**, **search service**, and a **media service**.\n- Object storage (such as S3) plus a CDN for images, with thumbnails created asynchronously.\n- Relational database for users and listings (PostgreSQL, sharded by city or listing id when needed).\n- **Search index** (Elasticsearch or OpenSearch) built from listing events, supporting filters, text and geo queries.\n- A message queue (Kafka) carrying `listing.created/updated` events to the indexer, a notification service and analytics.\n- Redis cache for hot listing pages and popular searches.\n\n**Data model.** `users(id, name, email, role)`, `listings(id, owner_id, title, price, bhk, type, lat, lng, city, status, created_at)`, `images(listing_id, url, order)`. Index by `(city, status, price)`.\n\n**Flow.** Owner uploads: the listing service writes to the database, emits an event, the indexer updates search, images are processed asynchronously. Viewer searches: the search service queries the index, then the listing service hydrates details through the cache.\n\n**Trade-offs.** Separate search index means eventual consistency (a new listing appears after seconds), and listings must be removed or hidden when sold. Moderation and fraud checks (duplicate or fake listings) run asynchronously. Pagination by cursor, not offset.\n\n**Scaling.** Read replicas, caching, CDN, sharding the index by city, and autoscaling stateless services. Add monitoring and a plan for failure of the search service (fallback to a database query with limited filters).",
+ "followUps": [
+  "How would you support location-based search such as properties within 5 km?",
+  "How do you keep the search index consistent with the database?",
+  "How would you prevent duplicate or fake listings?",
+  "How would you design the shortlist and contact owner features?"
+ ]
+}

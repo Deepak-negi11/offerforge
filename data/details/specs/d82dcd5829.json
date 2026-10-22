@@ -1,0 +1,18 @@
+{
+ "qid": "d82dcd5829",
+ "question": "Amazon SDE-2 (L5), Round 1, low-level design: **design a chat messenger like WhatsApp or Facebook Messenger.** The round started with introductions and leadership-principle questions (for example a situation where you had to deep dive in code), then the design question. Expect object-oriented design with attention to concurrency.",
+ "lookingFor": [
+  "Scoping a large product into a feasible LLD.",
+  "Clean object model and responsibilities.",
+  "Use of suitable design patterns (Observer, Strategy, Factory).",
+  "Concurrency, message ordering and delivery guarantees.",
+  "Extensibility and testing."
+ ],
+ "answer": "**1. Requirements.** Functional: register and log in, one-to-one chat, group chat, send text (and later media), message status (sent, delivered, read), online presence, message history, and offline delivery. Non-functional: low latency, no message loss, per-conversation ordering, scalability. Out of scope for the LLD: encryption internals, the voice call.\n\n**2. Core entities.**\n- `User`: id, name, status, device sessions.\n- `Conversation` (abstract) with `DirectChat` and `GroupChat`: id, participants, messages.\n- `Message`: id, senderId, conversationId, content, type, timestamp, status per recipient.\n- `Group`: members, admins, add and remove member.\n- `Session` or `Connection`: the live channel of a user device.\n- `MessageService`: send, fetch history, mark delivered or read.\n- `NotificationService`: push to offline users.\n- `PresenceService`: online and last-seen.\n\n**3. Flows.**\n- *Send:* validate membership, assign a message id and a per-conversation sequence number, persist, then deliver to each online recipient's session; for offline recipients, store pending messages and send a push notification.\n- *Ack:* recipient device sends delivered and read receipts; the status is updated and the sender notified.\n- *Reconnect:* client sends its last seen sequence number and the server returns the missing messages.\n\n**4. Patterns and design choices.**\n- *Observer / pub-sub:* sessions subscribe to conversations to receive new messages.\n- *Strategy:* different delivery or notification channels, or message types handled by a `MessageHandler`.\n- *Factory:* create a text, image or video message.\n- Interfaces for storage so that it can be swapped.\n\n**5. Concurrency and reliability.** Use a thread-safe structure per conversation and a per-conversation queue or lock to keep ordering. Make sends idempotent using a client-generated message id to avoid duplicates on retry. Use at-least-once delivery with deduplication on the client.\n\n**6. Extensions.** Group size limits, message deletion and edit, media upload through a separate service, and scaling to many servers with a gateway layer and a message queue (HLD).",
+ "followUps": [
+  "How do you guarantee message ordering within a conversation?",
+  "How do you avoid duplicate messages when a client retries?",
+  "How would you implement read receipts for a group of 200 people?",
+  "How would the design change to support multiple devices per user?"
+ ]
+}

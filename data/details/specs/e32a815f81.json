@@ -1,0 +1,18 @@
+{
+ "qid": "e32a815f81",
+ "question": "Groww SDE-2 machine coding round (LLD). **Design and implement an in-memory wallet/ledger system in Java.** Multiple users each have one wallet with a balance. A wallet supports `credit()` and `debit()`, and a debit fails if the balance is insufficient. Support the transaction types `DEPOSIT`, `WITHDRAW`, `EXPENSE` and `RECEIPT`. Each transaction has a `transactionId`, `idempotencyKey`, `userId`, `transactionType` and `amount`. **Idempotency:** if the same idempotency key is received again, do not process the transaction again; return the original transaction.",
+ "lookingFor": [
+  "Clean OOP modelling: Wallet, Transaction, enum types, service, repository.",
+  "Correct money handling: no floating point, no negative balances, atomic check-and-update.",
+  "Understanding of idempotency and where to store and check the key.",
+  "Thread-safety reasoning even in an in-memory system.",
+  "Extensibility and testability: new transaction types without rewriting the service."
+ ],
+ "answer": "**Clarify first.** Is the idempotency key scoped per user or global? What happens if the same key arrives with a different amount? Are failed debits recorded? Are there transfers between users (EXPENSE/RECEIPT suggest the two sides of a payment)? State your assumptions out loud.\n\n**Entities.**\n- `TransactionType` enum with a direction: DEPOSIT and RECEIPT credit; WITHDRAW and EXPENSE debit.\n- `Wallet`: `userId`, `balance`, `credit(amount)`, `debit(amount)` (throws `InsufficientFundsException`). Store money as `long` minor units (paise) or `BigDecimal`, never `double`.\n- `Transaction`: immutable, with `transactionId`, `idempotencyKey`, `userId`, `type`, `amount`, `status`, `timestamp`.\n- `WalletRepository` and `TransactionRepository` interfaces with in-memory `ConcurrentHashMap` implementations.\n- `WalletService.process(userId, type, amount, idempotencyKey)`.\n\n**Flow of `process`.**\n1. Validate: amount greater than zero, user exists.\n2. Look up `(userId, idempotencyKey)`; if present, return the stored transaction without touching the balance.\n3. Otherwise apply `credit` or `debit` according to the type, build the Transaction, save it, and record the key.\n\n**Concurrency.** Steps 2 and 3 must be one atomic unit, otherwise two threads with the same key both pass the check and double-charge. Simplest correct design: a **per-wallet lock** (or `synchronized` on the wallet) around check, apply and record. Alternative: `ConcurrentHashMap.computeIfAbsent(key, ...)` runs the processing exactly once per key. Use a lock per user, not one global lock, so users do not block each other.\n\n**Trade-offs.** Replaying a key with a different payload should return a conflict error rather than the old result. Whether to store failed attempts under the key is a product choice: storing them makes retries deterministic; not storing lets a retry succeed after a top-up.\n\n**Extending.** A `TransactionHandler` per type (strategy) keeps the service closed to modification. Add a ledger of immutable entries so the balance can be re-derived and audited. Write a `main` or JUnit test covering insufficient funds, a duplicate key and concurrent duplicates.",
+ "followUps": [
+  "How would you make idempotency keys expire, and what are the risks of expiring them?",
+  "How would you implement a transfer between two wallets without deadlock?",
+  "What changes if this moves to a database with multiple service instances?",
+  "Why is `double` a bad choice for balances?"
+ ]
+}

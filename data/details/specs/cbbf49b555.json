@@ -1,0 +1,19 @@
+{
+ "qid": "cbbf49b555",
+ "question": "Microsoft High Level Design round (SDE-2, L62). Design a URL shortener. One candidate reported that the interviewer was not satisfied with the traditional solution and the discussion turned into a deep dive on components and scenarios. Another candidate was asked for a deep dive on multi-region deployment and the ID generation process, discussing Twitter Snowflake, an ID generation service and Base62 encoding of auto-increment IDs.",
+ "lookingFor": [
+  "Complete requirement and capacity estimation.",
+  "Choice and justification of short-code generation.",
+  "Storage, caching and read-heavy scaling.",
+  "Multi-region design and failure handling.",
+  "Ability to go beyond the textbook answer when pushed."
+ ],
+ "answer": "**Requirements.** Create a short URL for a long URL, redirect quickly, optional custom alias and expiry, analytics as a stretch. Assume 100M new URLs per month and a 100:1 read-to-write ratio, so roughly 40 writes/s and 4,000 reads/s on average, with peaks several times higher. Seven Base62 characters give 62^7 (about 3.5 trillion) codes, enough for decades.\n\n**API.** `POST /urls {longUrl, alias?, ttl?}` returns the short URL; `GET /{code}` returns a 301 or 302 redirect (use 302 if you need analytics or expiry control, because 301 is cached by browsers).\n\n**Generating the code.**\n1. *Hash and truncate (MD5/SHA):* simple but collisions need a check and retry.\n2. *Counter plus Base62:* take a unique number and encode it. Predictable (enumerable) unless you scramble the number. Needs a distributed counter: ranges leased in blocks to each app server from a coordinator (ZooKeeper or a DB sequence), so servers hand out IDs locally.\n3. *Snowflake-style ID:* timestamp, machine id and sequence packed into 64 bits, generated with no coordination; encode in Base62 (gives a code of around 11 characters, longer than a counter).\n4. *Pre-generated key service:* a service creates random unused keys in advance and stores them; app servers take batches. This also avoids guessability.\nPick one and defend it: for short codes, block-leased counters with an encoding that shuffles bits is a good default.\n\n**Storage.** A key-value mapping `code -> longUrl, createdAt, expiry, userId`. A NoSQL store (DynamoDB/Cassandra) or sharded SQL by code fits the access pattern; there are no joins. Enforce uniqueness on code, and make alias creation a conditional write.\n\n**Read path and caching.** Cache hot codes in Redis plus a CDN/edge for popular links; the cache hit rate is high because access follows a power law. Negative-cache missing codes to resist scanning.\n\n**Multi-region.** Serve reads from the nearest region with replicated data; writes to a home region or use multi-leader with ID ranges per region so codes never collide (region bits in the ID). Handle replication lag: a brand-new link may not exist yet in another region, so fall back to the home region on a miss.\n\n**Other concerns.** Abuse and malware checks, rate limiting, expiry clean-up, analytics through an async event stream, and monitoring redirect latency (target well under 100 ms).",
+ "followUps": [
+  "Why not just hash the long URL and take the first 7 characters?",
+  "How do you prevent two servers from generating the same ID?",
+  "301 or 302 redirects, and what does it change?",
+  "How would you handle a custom alias requested by two users at once?",
+  "How would you design analytics without slowing down redirects?"
+ ]
+}

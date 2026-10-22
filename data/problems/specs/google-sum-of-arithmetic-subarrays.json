@@ -1,0 +1,48 @@
+{
+ "pid": "google-sum-of-arithmetic-subarrays",
+ "title": "Sum of Arithmetic Subarrays",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an integer array `a` of length `n`. A **subarray** is a contiguous block `a[l..r]`.\n\nCall a subarray **valid** if it forms an arithmetic progression whose common difference is either `0` or `1`:\n\n- difference `0`: all elements of the subarray are equal, for example `[4, 4, 4]`;\n- difference `1`: every element is exactly one more than the previous one, for example `[7, 8, 9]`.\n\nA subarray with a single element is always valid. A subarray cannot mix the two differences, so `[2, 2, 3]` is not valid.\n\nFor every valid subarray take the sum of its elements, then add these sums together over all valid subarrays. Print this total modulo `1 000 000 007` (the result is always printed as a value in `[0, 10^9 + 6]`, even when the true total is negative).",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` integers `a[0], a[1], ..., a[n-1]`.",
+ "output_format": "Print one integer: the total sum modulo `1 000 000 007`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "-10^9 ≤ a[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3\n1 2 3",
+   "output": "20",
+   "explanation": "All six subarrays are valid: `[1]`, `[2]`, `[3]`, `[1,2]`, `[2,3]` and `[1,2,3]`. Their sums are 1 + 2 + 3 + 3 + 5 + 6 = 20."
+  },
+  {
+   "input": "3\n2 2 3",
+   "output": "16",
+   "explanation": "Valid subarrays: `[2]`, `[2]`, `[3]`, `[2,2]` (difference 0) and `[2,3]` (difference 1). `[2,2,3]` is not valid because it mixes differences. Sums: 2 + 2 + 3 + 4 + 5 = 16."
+  },
+  {
+   "input": "2\n5 3",
+   "output": "8",
+   "explanation": "The pair `[5,3]` has difference -2, so only the two single-element subarrays count: 5 + 3 = 8."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Enumerating all subarrays is O(n²) or worse. Instead, count the valid subarrays that end at each index and sum them incrementally.",
+  "For each difference d in {0, 1}, keep two numbers for the valid d-subarrays ending at position i: how many there are and the total of their sums. If `a[i] - a[i-1] == d`, every such subarray ending at i-1 can be extended by `a[i]`; otherwise only the single element `[a[i]]` remains.",
+  "Extending `c` subarrays with total sum `S` by one element `x` gives `c` subarrays with total `S + c * x`. The single-element subarray appears in both d = 0 and d = 1 lists, so count it only once. Apply the modulus as you go."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    M = 10**9 + 7\n    total = 0\n    c0 = c1 = 0  # number of valid d-subarrays ending at previous index (incl. single)\n    s0 = s1 = 0  # their sums\n    prev = None\n    for x in a:\n        if prev is not None and x - prev == 0:\n            s0 = (s0 + c0 * x + x) % M\n            c0 += 1\n        else:\n            s0, c0 = x % M, 1\n        if prev is not None and x - prev == 1:\n            s1 = (s1 + c1 * x + x) % M\n            c1 += 1\n        else:\n            s1, c1 = x % M, 1\n        total = (total + s0 + s1 - x) % M\n        prev = x\n    print(total % M)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + n]]\ntotal = 0\nfor l in range(n):\n    for r in range(l, n):\n        sub = a[l:r + 1]\n        ok = all(sub[i + 1] - sub[i] == 0 for i in range(len(sub) - 1)) or all(sub[i + 1] - sub[i] == 1 for i in range(len(sub) - 1))\n        if ok:\n            total += sum(sub)\nprint(total % (10**9 + 7))\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n    tests = [fmt([7]), fmt([-5]), fmt([1, 2, 3]), fmt([2, 2, 3]), fmt([5, 3]), fmt([4, 4, 4, 4]), fmt([-3, -2, -1, 0, 1]),\n             fmt([1, 2, 2, 3, 3, 4]), fmt([10**9, 10**9, 10**9]), fmt([-10**9, -10**9 + 1, -10**9 + 2])]\n    for _ in range(18):\n        n = rng.randint(2, 30)\n        mode = rng.randrange(3)\n        if mode == 0:\n            a = [rng.randint(-2, 3) for _ in range(n)]\n        elif mode == 1:\n            a = [rng.randint(0, 1) for _ in range(n)]\n        else:\n            a = []\n            v = rng.randint(-5, 5)\n            for _ in range(n):\n                a.append(v)\n                v += rng.choice([0, 0, 1, 1, 1, 2, -1])\n        tests.append(fmt(a))\n    N = 100000\n    tests.append(fmt([10**9] * N))\n    tests.append(fmt([10**9 - N + 1 + i for i in range(N)]))\n    tests.append(fmt([-10**9 + i for i in range(N)]))\n    tests.append(fmt([-10**9] * N))\n    tests.append(fmt([rng.randint(-10**9, 10**9) for _ in range(N)]))\n    a, v = [], 0\n    for _ in range(N):\n        a.append(v)\n        v += rng.choice([0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, 5, -3]) if rng.random() < 0.01 else rng.choice([0, 1]) if rng.random() < 0.5 else 0\n    tests.append(fmt(a))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef sum_ap_subarrays(a: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    print(sum_ap_subarrays(a))\n\n\nmain()\n",
+  "javascript": "function sumApSubarrays(a) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst a = t.slice(1, 1 + n)\nconsole.log(String(sumApSubarrays(a)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long sumApSubarrays(vector<long long>& a) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    cout << sumApSubarrays(a) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long sumApSubarrays(long[] a) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (long) in.nval;\n        }\n        System.out.println(sumApSubarrays(a));\n    }\n}\n"
+ }
+}

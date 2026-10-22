@@ -1,0 +1,18 @@
+{
+ "qid": "3df5d0810d",
+ "question": "Microsoft Applied AI Scientist (Hyderabad) technical round 1: **how does an auto-suggest or auto-complete system work?** The interviewer asked about:\n- the **data structure** used,\n- how the system **suggests the word after the nth word**, and\n- the **factors** that decide the list of suggestions shown.",
+ "lookingFor": [
+  "Knowing the trie and how to make prefix lookup fast",
+  "Next-word prediction using n-gram or neural language models",
+  "Ranking factors: frequency, recency, personalisation, context",
+  "Latency and serving design at scale",
+  "Connecting classic data structures with ML"
+ ],
+ "answer": "**Prefix suggestions with a trie.** Store known queries or words in a trie. Walking the prefix typed so far takes O(L) for length L. To avoid scanning the whole subtree, store at each node the **top-k completions by score** (precomputed offline and refreshed regularly), so a lookup is O(L + k). Alternatives: a sorted array with binary search, or finite state transducers, which are memory compact. Add a **debounce** on the client and cache hot prefixes.\n\n**Suggesting the next word (after the nth word).** Treat it as language modelling: estimate P(next word | previous words).\n- **N-gram model:** store counts for sequences of up to n words, for example in a trie keyed by the previous words. Predict by looking up the context and taking the most frequent continuations, with smoothing and backoff to shorter contexts when the context was never seen.\n- **Neural model:** an LSTM or small transformer predicts a distribution over the next token and beam search or top-k sampling gives candidates. It handles unseen contexts better but costs more latency.\nHybrid systems use n-grams or tries for generating candidates fast, then a model to re-rank.\n\n**Ranking factors.**\n- Query or word **frequency** (popularity) and **recency or trending** signals.\n- **Personalisation:** user history and preferences.\n- **Context:** previous words, session, device, location, time and language.\n- **Quality filters:** remove offensive, private or low quality suggestions.\n- **Click-through feedback:** learn to rank with features like prefix match, past CTR and position.\n- Also typo tolerance (edit distance) and diversity.\n\n**System view.** Offline pipeline mines logs to build counts and scores, producing a trie or index that is deployed to serving nodes. Online, a lookup returns candidates, a ranker scores them, and the result returns in tens of milliseconds. Shard by prefix, cache aggressively and update frequently.\n\n**Trade-offs.** Memory versus speed (top-k per node costs space), freshness versus stability, personalisation versus privacy.",
+ "followUps": [
+  "How would you keep the top-k lists fresh without rebuilding the whole trie?",
+  "How would you handle typos or misspelled prefixes?",
+  "What smoothing technique would you use for an n-gram model and why?",
+  "How would you evaluate the quality of suggestions offline and online?"
+ ]
+}

@@ -1,0 +1,50 @@
+{
+ "pid": "optimize-water-distribution-in-a-village",
+ "title": "Optimize Water Distribution in a Village",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "A village has `n` houses numbered `0` to `n - 1`, and every house must end up with a water supply. A house can get water in two ways:\n\n- Dig a well inside that house, which costs `wells[i]` for house `i`.\n- Be connected by a chain of pipes to a house that has a well. There are `m` possible pipes; pipe `j` joins houses `a[j]` and `b[j]` in both directions and costs `c[j]` to lay. Water flows freely along laid pipes, so one well can supply every house in its connected group of laid pipes.\n\nYou choose which wells to dig and which pipes to lay. Several different pipes may be given between the same pair of houses; you may lay any subset of them.\n\nFind the minimum total cost (wells plus pipes) so that every house has water.",
+ "input_format": "The first line contains `n` and `m`.\nThe second line contains `n` integers `wells[0], ..., wells[n - 1]`.\nEach of the next `m` lines contains three integers `a b c`: a possible pipe between houses `a` and `b` of cost `c`.",
+ "output_format": "Print a single integer: the minimum total cost.",
+ "constraints": [
+  "1 ≤ n ≤ 5 * 10^4",
+  "0 ≤ m ≤ 10^5",
+  "0 ≤ wells[i], c ≤ 10^5",
+  "0 ≤ a, b < n and a ≠ b"
+ ],
+ "examples": [
+  {
+   "input": "4 3\n4 3 9 5\n0 1 2\n1 2 2\n2 3 1",
+   "output": "8",
+   "explanation": "Dig one well in house 1 (cost 3) and lay all three pipes (2 + 2 + 1), reaching houses 0, 2 and 3. Total 8. Digging in house 0 instead would cost 9, and two wells would cost more."
+  },
+  {
+   "input": "3 0\n1 1 1",
+   "output": "3",
+   "explanation": "There are no pipes, so each house needs its own well."
+  },
+  {
+   "input": "3 3\n5 5 5\n0 1 1\n1 2 1\n0 2 1",
+   "output": "7",
+   "explanation": "One well (5) plus two of the three pipes (1 + 1) supplies everyone. The third pipe is redundant."
+  }
+ ],
+ "complexity": {
+  "time": "O((n + m) log (n + m))",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Digging a well in house i is like laying a pipe from house i to a source of water. Can you make that literal?",
+  "Add a virtual node 0 (the water source) and a virtual edge from it to each house i with cost wells[i]. Now the question is how to connect all n + 1 nodes as cheaply as possible.",
+  "That is a minimum spanning tree on n + 1 nodes. Use Kruskal's algorithm with union-find over the virtual and real edges sorted by cost."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    edges = [(int(data[2 + i]), 0, i + 1) for i in range(n)]\n    pos = 2 + n\n    for _ in range(m):\n        a, b, c = int(data[pos]), int(data[pos + 1]), int(data[pos + 2])\n        pos += 3\n        edges.append((c, a + 1, b + 1))\n    edges.sort()\n    parent = list(range(n + 1))\n\n    def find(x):\n        root = x\n        while parent[root] != root:\n            root = parent[root]\n        while parent[x] != root:\n            parent[x], x = root, parent[x]\n        return root\n\n    total = 0\n    used = 0\n    for c, u, v in edges:\n        ru, rv = find(u), find(v)\n        if ru != rv:\n            parent[ru] = rv\n            total += c\n            used += 1\n            if used == n:\n                break\n    print(total)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nwells = [int(data[2 + i]) for i in range(n)]\npipes = []\npos = 2 + n\nfor _ in range(m):\n    pipes.append((int(data[pos]), int(data[pos + 1]), int(data[pos + 2])))\n    pos += 3\nbest = None\nfor wmask in range(1, 1 << n):\n    for pmask in range(1 << m):\n        comp = list(range(n))\n        def find(a):\n            while comp[a] != a:\n                a = comp[a]\n            return a\n        cost = 0\n        for i in range(n):\n            if wmask >> i & 1:\n                cost += wells[i]\n        for j in range(m):\n            if pmask >> j & 1:\n                a, b, c = pipes[j]\n                cost += c\n                ra, rb = find(a), find(b)\n                if ra != rb:\n                    comp[ra] = rb\n        if best is not None and cost >= best:\n            continue\n        has = set(find(i) for i in range(n) if wmask >> i & 1)\n        if all(find(i) in has for i in range(n)):\n            best = cost\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(n, wells, pipes):\n        return '\\n'.join([f\"{n} {len(pipes)}\", ' '.join(map(str, wells))] + [f'{u} {v} {c}' for u, v, c in pipes])\n    def rand_pipe(n, cmax):\n        u = rng.randrange(n)\n        v = rng.randrange(n - 1)\n        if v >= u:\n            v += 1\n        return (u, v, rng.randint(0, cmax))\n    tests = [fmt(1, [7], []), fmt(1, [0], []), fmt(3, [1, 1, 1], []), fmt(3, [5, 5, 5], [(0, 1, 1), (1, 2, 1), (0, 2, 1)]),\n             fmt(4, [4, 3, 9, 5], [(0, 1, 2), (1, 2, 2), (2, 3, 1)]),\n             fmt(2, [10, 10], [(0, 1, 3), (0, 1, 1), (1, 0, 2)]),\n             fmt(3, [2, 2, 2], [(0, 1, 5), (1, 2, 5)]),\n             fmt(3, [0, 100, 100], [(0, 1, 0), (1, 2, 0)])]\n    for n in (2, 3, 4, 5):\n        for _ in range(5):\n            m = rng.randint(0, 7)\n            cmax = rng.choice([3, 9])\n            tests.append(fmt(n, [rng.randint(0, cmax + 2) for _ in range(n)], [rand_pipe(n, cmax) for _ in range(m)]))\n    def big(n, m, wl, wh, cl, ch, tree=True):\n        wells = [rng.randint(wl, wh) for _ in range(n)]\n        pipes = []\n        if tree:\n            perm = list(range(n))\n            rng.shuffle(perm)\n            for i in range(1, n):\n                pipes.append((perm[i], perm[rng.randrange(i)], rng.randint(cl, ch)))\n        while len(pipes) < m:\n            u = rng.randrange(n)\n            v = rng.randrange(n - 1)\n            if v >= u:\n                v += 1\n            pipes.append((u, v, rng.randint(cl, ch)))\n        rng.shuffle(pipes)\n        return fmt(n, wells, pipes)\n    tests.append(big(50000, 100000, 0, 10**5, 0, 10**5))\n    tests.append(big(50000, 60000, 10**5 - 10, 10**5, 0, 10))\n    tests.append(big(50000, 50000, 0, 20, 10**4, 10**5))\n    tests.append(big(50000, 75000, 5 * 10**4, 10**5, 1, 10**5))\n    tests.append(big(20000, 100000, 0, 10**5, 0, 10**5, tree=False))\n    tests.append(big(3000, 100000, 1000, 10**5, 0, 10**5))\n    pipes = [(i, i + 1, 1) for i in range(49999)]\n    tests.append(fmt(50000, [10**5 - (i % 7) for i in range(50000)], pipes))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_cost_to_supply_water(n: int, wells: List[int], pipes: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    wells = [int(data[2 + i]) for i in range(n)]\n    pipes = []\n    pos = 2 + n\n    for _ in range(m):\n        pipes.append([int(data[pos]), int(data[pos + 1]), int(data[pos + 2])])\n        pos += 3\n    print(min_cost_to_supply_water(n, wells, pipes))\n\n\nmain()\n",
+  "javascript": "function minCostToSupplyWater(n, wells, pipes) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst wells = t.slice(2, 2 + n)\nconst pipes = []\nlet pos = 2 + n\nfor (let i = 0; i < m; i++) {\n  pipes.push([t[pos], t[pos + 1], t[pos + 2]])\n  pos += 3\n}\nconsole.log(String(minCostToSupplyWater(n, wells, pipes)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minCostToSupplyWater(int n, vector<long long>& wells, vector<array<long long, 3>>& pipes) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<long long> wells(n);\n    for (int i = 0; i < n; i++) cin >> wells[i];\n    vector<array<long long, 3>> pipes(m);\n    for (int i = 0; i < m; i++) cin >> pipes[i][0] >> pipes[i][1] >> pipes[i][2];\n    cout << minCostToSupplyWater(n, wells, pipes) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minCostToSupplyWater(int n, long[] wells, long[][] pipes) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        long[] wells = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            wells[i] = (long) in.nval;\n        }\n        long[][] pipes = new long[m][3];\n        for (int i = 0; i < m; i++) {\n            for (int j = 0; j < 3; j++) {\n                in.nextToken();\n                pipes[i][j] = (long) in.nval;\n            }\n        }\n        System.out.println(minCostToSupplyWater(n, wells, pipes));\n    }\n}\n"
+ }
+}

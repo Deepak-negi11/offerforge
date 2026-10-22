@@ -1,0 +1,17 @@
+{
+ "qid": "ae8c38492a",
+ "question": "Reported in an NVIDIA Systems Software Engineer interview: explain a typical **SoC architecture**; what happens when an embedded system boots; what sits between the CPU and the GPU (buses, caches, interconnect); and virtual memory and page tables. The report does not give the target SoC, so answer in general terms and name examples as examples.",
+ "lookingFor": [
+  "A block-level picture of a system on chip and how blocks communicate",
+  "Ordered, accurate boot sequence with the purpose of each stage",
+  "Understanding of coherence and shared memory between CPU and GPU",
+  "Clear virtual memory fundamentals (translation, page tables, TLB)"
+ ],
+ "answer": "**SoC architecture.** A single chip integrating CPU cluster(s) (with private L1 and shared L2 or L3 caches), a GPU, memory controller for DRAM, on-chip ROM and SRAM, interconnect fabric, DMA engines, peripherals (UART, I2C, SPI, USB, PCIe, Ethernet, display), accelerators (video, ISP, DSP, AI), interrupt controller, clocks, power and reset management, and security blocks. Blocks talk over a bus or network-on-chip (for example AMBA AXI/AHB/APB) with masters (CPU, DMA, GPU) and slaves (memory, peripherals) in a memory-mapped address space.\n\n**Boot sequence (typical embedded ARM-style).**\n\n1. Reset: CPU starts at a fixed address in the on-chip boot ROM.\n2. Boot ROM initialises minimal hardware, picks a boot device (flash, eMMC, SD, network) and loads the first-stage loader into SRAM, verifying its signature when secure boot is enabled.\n3. First-stage loader initialises DRAM, clocks and PMIC and loads the next stage.\n4. Bootloader (U-Boot or similar) loads the kernel, device tree and optional initramfs, then jumps to the kernel.\n5. The kernel sets up the MMU, drivers, mounts the root filesystem and starts `init`.\n\n**Between CPU and GPU.** Both are masters on the interconnect and typically share system DRAM (unified memory on mobile and embedded; discrete GPUs go over PCIe instead). In between: caches (CPU L1/L2, GPU L2), cache-coherent or non-coherent interconnect (coherence needs snoop or directory logic; otherwise software performs cache flush and invalidate), the memory controller, an IOMMU/SMMU translating GPU addresses, and DMA and command queues or doorbell registers for submitting work.\n\n**Virtual memory.** Each process sees a private virtual address space. The MMU translates via multi-level page tables (e.g. four levels with 4 KB pages), caching results in the TLB. Entries carry permission and present bits; a miss walks the table, a missing page raises a page fault handled by the OS. On an SoC the GPU can share the same tables through the IOMMU (shared virtual memory).",
+ "followUps": [
+  "What does the device tree describe and why is it needed on embedded systems?",
+  "How does cache coherence between CPU and GPU affect software?",
+  "What is secure boot and what is the chain of trust?",
+  "How does an IOMMU protect memory from a misbehaving DMA device?"
+ ]
+}

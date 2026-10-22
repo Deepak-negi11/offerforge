@@ -1,0 +1,18 @@
+{
+ "qid": "733ced7829",
+ "question": "Google SWE III (L4) onsite round 1 (DSA plus LLD). **Design a multi-user heart rate monitor**: the classes and objects, their relationships, and the data structures. The interviewer cared about **minimising message delay**. The candidate initially missed the most suitable structure; in the last minutes they discussed **using a linked list instead of an array**. The feedback also praised asking clarifying questions, thinking aloud and course-correcting when pointed to edge cases. Exact requirements were not reported, so state your assumptions.",
+ "lookingFor": [
+  "Clarifying requirements: users, sampling rate, what 'message' means, alerts, history.",
+  "Sensible class design and relationships (entities, observers, services).",
+  "Data structure reasoning tied to the access pattern and latency goal.",
+  "Handling edge cases: bad readings, disconnects, many users, concurrency.",
+  "Thinking aloud and adapting when the interviewer gives hints."
+ ],
+ "answer": "**Clarify and assume.** Many users each stream readings (BPM, timestamp) at a steady rate; the monitor must show the latest value, raise alerts (for example BPM above or below a threshold, or a sudden jump), and maybe keep recent history for averages. Latency of delivering each reading or alert is the main goal.\n\n**Classes.**\n- `User` (id, name, thresholds) and `Device` (sensor, user id).\n- `Reading` (userId, bpm, timestamp), immutable.\n- `HeartRateMonitor` (entry point): `onReading(reading)`, `getLatest(userId)`, `subscribe(userId, listener)`.\n- `UserStream` (per user): holds the recent readings and last value.\n- `AlertRule` (strategy: threshold, trend) and `AlertListener` (observer: push, SMS, UI).\n\nRelationships: `HeartRateMonitor` has a map `userId -> UserStream`; each `UserStream` has its recent readings and a list of listeners; `AlertRule` instances are applied per reading.\n\n**Data structures and the latency argument.**\n- `HashMap<userId, UserStream>` for O(1) routing of a message to the right user.\n- For recent history, the operations are append at the tail, drop from the head, and read the latest. A **linked list (or deque)** does append and removal in O(1) with no copying and no resizing. A plain dynamic array has amortised O(1) append but an occasional O(n) resize or copy, and removing from the front costs O(n) shifting, which adds tail latency. Be honest in the trade-off: a **fixed-size circular buffer** gives the same O(1) with better cache behaviour and bounded memory, so it is often the best choice for a bounded window; a linked list wins when the size is unbounded or you need cheap insertion and removal in the middle.\n- Maintain a running sum and count so the average is O(1) per update (subtract the evicted reading).\n\n**Processing path.** Receive a reading, route through the map, append to the user's window, update aggregates, evaluate rules, notify listeners. Keep the hot path non-blocking; send alerts through a queue so a slow listener does not delay readings.\n\n**Concurrency and scale.** One lock per user stream (or a single thread per partition of users) avoids global contention. Handle invalid values, out-of-order timestamps, silent devices (timeout alert) and memory bounds.\n\n**Testing.** Threshold crossing, burst of readings, many users, and a listener that fails.",
+ "followUps": [
+  "Why might a circular buffer beat a linked list here?",
+  "How would you compute the average of the last 60 seconds in O(1)?",
+  "How would you handle thousands of users sending readings concurrently?",
+  "How would you detect that a device has stopped sending data?"
+ ]
+}

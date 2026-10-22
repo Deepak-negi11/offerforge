@@ -1,0 +1,19 @@
+{
+ "qid": "34c2312d7b",
+ "question": "Dream11 Low Level Design round: design an **elevator system**. Define the classes, the states an elevator can be in, and the scheduling logic that decides which elevator serves which request. The report did not give more detail, so clarify scope (number of elevators and floors, hall calls versus in-cab buttons, capacity) before designing.",
+ "lookingFor": [
+  "Requirement clarification and sensible scope.",
+  "Clean OOP modelling: entities, responsibilities, state handling.",
+  "A reasonable scheduling algorithm and its trade-offs.",
+  "Use of design patterns where they help (State, Strategy).",
+  "Thread safety and extensibility."
+ ],
+ "answer": "**Clarify:** N elevators, M floors, two kinds of requests (external up/down button on a floor, internal destination button in the car), capacity limit, no need for UI. Optional: maintenance mode, emergency stop.\n\n**Entities.**\n- `Request`: floor, direction (external) or destination (internal).\n- `Elevator`: id, currentFloor, direction (`UP`, `DOWN`, `IDLE`), state, and a set of pending stops (two sorted sets: upward stops and downward stops, or a TreeSet).\n- `ElevatorController` (or `Dispatcher`): owns all elevators and a scheduling strategy.\n- `Scheduler` strategy interface: `selectElevator(request, elevators)`.\n- `Door` and `Display` are optional.\n\n**State machine for an elevator** (State pattern): `IDLE`, `MOVING_UP`, `MOVING_DOWN`, `DOORS_OPEN`, `MAINTENANCE`. Transitions: when a stop is added to an idle elevator it starts moving; on reaching a stop it opens doors, then continues in the same direction if stops remain ahead, else reverses or goes idle.\n\n**Movement algorithm (SCAN / LOOK):** keep moving in the current direction serving all stops in that direction, then reverse. This avoids starvation and unneeded reversals, and is the classic disk scheduling idea applied to elevators.\n\n**Dispatch strategy:** for an external request, choose the elevator with the lowest cost: an idle elevator nearest to the floor, or one already moving toward the floor in the same direction. Cost can be estimated as distance plus stops in between. Since it is a `Strategy`, you can swap in other policies (nearest first, least loaded, zoned).\n\n**Concurrency:** requests arrive from many threads. Use a thread-safe queue per elevator or synchronize the stop sets; each elevator runs its own loop or is advanced by a tick method, which makes the simulation easy to test.\n\n**Extensibility and edge cases:** overload, request for the current floor, duplicate requests, invalid floors, fire mode, and adding express elevators without changing the existing classes (open/closed principle).",
+ "followUps": [
+  "How would your design change for a building with 50 floors and 8 elevators?",
+  "How do you avoid starvation of far floors?",
+  "Which design patterns did you use and why?",
+  "How would you make the dispatcher thread-safe?",
+  "How would you add a priority mode for emergency or VIP requests?"
+ ]
+}

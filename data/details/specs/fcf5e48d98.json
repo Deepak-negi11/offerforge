@@ -1,0 +1,17 @@
+{
+ "qid": "fcf5e48d98",
+ "question": "Atlassian senior software engineer low level design (code design) round. A cinema has a **single screen**. It opens around **10 am**, and the last show can run until **11 pm**. If a movie ends at 12 pm, the next one can start **exactly at 12 pm**. Screenings carry a movie name, start time and duration. Implement `canSchedule(Movie movie, CurrentMovieSchedule schedule)` returning whether the movie can be put into the schedule with **no overlaps**, with the start time not before 10 am and not after 11 pm. **Follow-ups:** support **replacing** a movie in the schedule, and handle the case where each movie has an associated **revenue**.",
+ "lookingFor": [
+  "Interval overlap logic with correct boundary handling.",
+  "Class design that anticipates follow-ups.",
+  "Reasoning about replace and optimisation extensions (weighted scheduling).",
+  "Clear communication of assumptions about ambiguous times."
+ ],
+ "answer": "**Clarify the ambiguity.** The report says the last show can run up to 11 pm and start times cannot be after 11 pm. Ask whether 11 pm bounds the **start** or the **end**; state your assumption and keep the bounds in constants. The check below assumes the movie must start at or after open and finish by close.\n\n**Core check.** Here the movie comes with a proposed start time. Two intervals `[s1, e1)` and `[s2, e2)` overlap exactly when `s1 < e2 and s2 < e1`; using half-open intervals makes back-to-back screenings legal. So:\n\n```\ncanSchedule(movie, schedule):\n    s, e = movie.start, movie.start + movie.duration\n    if s < OPEN or e > CLOSE: return false\n    for x in schedule.screenings:\n        if s < x.end and x.start < e: return false\n    return true\n```\n\nO(n) per query. If the schedule is kept sorted by start, binary search for the neighbouring screenings and check only the previous end and next start: O(log n).\n\n**Follow-up 1: replace a movie.** Replacing screening `X` with new movie `M` means checking `M` against all screenings **except** `X`. Implement `canReplace(old, new, schedule)` by skipping `old` in the loop (or building a temporary list). Do the check first and mutate only on success, so a failed replace leaves the schedule unchanged. A new movie with different duration at the same start time is the common case.\n\n**Follow-up 2: revenue.** This can mean two things; ask. (a) When there is a conflict, replace conflicting screenings only if the new movie's revenue exceeds the total revenue of those it would displace: collect conflicting screenings and compare sums. (b) Maximise total revenue over a set of candidate movies with fixed start times: this is **weighted interval scheduling**, solved by sorting by end time and dynamic programming with binary search for the last compatible interval, O(n log n).\n\n**Design.** Keep `Screening` immutable with `start`, `end`; a `Schedule` class owning the list and exposing `canSchedule`, `add`, `replace`; make open and close configurable. Test boundaries: exactly at 10:00, ending exactly at 23:00, touching neighbours.",
+ "followUps": [
+  "Why use half-open intervals for the overlap test?",
+  "How would the DP for revenue maximisation work?",
+  "How would you make the schedule safe for concurrent booking?",
+  "How would you extend this to several screens?"
+ ]
+}

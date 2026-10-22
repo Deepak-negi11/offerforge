@@ -1,0 +1,17 @@
+{
+ "qid": "2804ae4b02",
+ "question": "Cognizant GenC Next second technical round. Two questions reported: **explain the Java thread life cycle**, then **the difference between the `UNIQUE` and `PRIMARY KEY` constraints** in SQL.",
+ "lookingFor": [
+  "Accurate knowledge of thread states and transitions.",
+  "Understanding of database constraints and what each enforces.",
+  "Ability to give concise, correct comparisons.",
+  "Awareness of practical differences (NULLs, number per table, indexes)."
+ ],
+ "answer": "**Java thread life cycle** (the states in `Thread.State`):\n1. **NEW:** the thread object is created but `start()` has not been called.\n2. **RUNNABLE:** after `start()`; the thread is ready to run or running (the JVM does not separate \"ready\" from \"running\"; the OS scheduler decides).\n3. **BLOCKED:** waiting to acquire a monitor lock (for example, entering a `synchronized` block held by another thread).\n4. **WAITING:** waiting indefinitely for another thread: `Object.wait()`, `Thread.join()`, `LockSupport.park()`. It resumes on `notify`/`notifyAll` or when the joined thread ends.\n5. **TIMED_WAITING:** waiting with a timeout: `sleep(ms)`, `wait(ms)`, `join(ms)`.\n6. **TERMINATED:** `run()` finished or an uncaught exception ended it. A terminated thread cannot be restarted (calling `start()` again throws `IllegalThreadStateException`).\n\nTypical flow: NEW, then `start()` to RUNNABLE, then possibly BLOCKED/WAITING/TIMED_WAITING and back to RUNNABLE, and finally TERMINATED.\n\n**UNIQUE vs PRIMARY KEY**\n\n| | PRIMARY KEY | UNIQUE |\n|---|---|---|\n| Purpose | Identifies each row | Prevents duplicate values in a column |\n| Per table | Only one | Many allowed |\n| NULLs | Not allowed | Allowed (most databases permit multiple NULLs; SQL Server allows only one) |\n| Index | Unique index; clustered by default in InnoDB and SQL Server | Unique non-clustered index |\n| Referenced by | Typically the target of foreign keys | Can also be referenced by foreign keys in most databases |\n\nBoth can span several columns (composite).\n\n```sql\nCREATE TABLE users (\n  id INT PRIMARY KEY,\n  email VARCHAR(100) UNIQUE,\n  phone VARCHAR(15) UNIQUE\n);\n```\n\nHere `id` identifies each user, and `email` and `phone` must not repeat but can be left empty in most databases.\n\nRule of thumb: use a primary key for the row identity, UNIQUE for other \"natural\" unique attributes.",
+ "followUps": [
+  "What is the difference between wait() and sleep()?",
+  "What is a deadlock and how can you prevent it?",
+  "Can a table have a foreign key that references a UNIQUE column?",
+  "What is the difference between a primary key and a candidate key?"
+ ]
+}

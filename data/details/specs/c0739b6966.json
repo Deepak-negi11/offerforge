@@ -1,0 +1,17 @@
+{
+ "qid": "c0739b6966",
+ "question": "Cisco software engineer (3 years of experience, Go) coding round 2, focused on Go: **goroutines, unbuffered and buffered channels, mutexes and WaitGroups. Write a Fibonacci program in Go using channels and goroutines.** Resume-based questions followed.",
+ "lookingFor": [
+  "Understanding of Go's concurrency model: goroutines and channel semantics.",
+  "Correct choice between channels and mutexes.",
+  "Avoiding goroutine leaks and deadlocks.",
+  "Clean, idiomatic code, with closing channels from the sender."
+ ],
+ "answer": "**Concepts.**\n- **Goroutine:** a lightweight function running concurrently, scheduled by the Go runtime onto OS threads (small growable stacks, cheap to create). Started with `go f()`.\n- **Unbuffered channel:** `make(chan int)`; a send blocks until a receiver is ready, so it synchronises both sides.\n- **Buffered channel:** `make(chan int, n)`; sends block only when the buffer is full and receives only when empty; it decouples producer and consumer speed.\n- **Mutex (`sync.Mutex`):** protects shared memory; use for simple shared state (\"share memory by locking\"), channels for passing ownership or pipelines (\"share memory by communicating\").\n- **WaitGroup:** `Add`, `Done`, `Wait` to wait for a set of goroutines to finish.\n- Rules: only the sender closes a channel; receiving from a closed channel yields zero values; sending on a closed channel panics; `for range ch` ends when it closes.\n\n**Fibonacci generator.**\n\n```go\npackage main\n\nimport \"fmt\"\n\nfunc fib(n int, out chan<- int) {\n    a, b := 0, 1\n    for i := 0; i < n; i++ {\n        out <- a\n        a, b = b, a+b\n    }\n    close(out) // sender closes\n}\n\nfunc main() {\n    ch := make(chan int)\n    go fib(10, ch)\n    for v := range ch {\n        fmt.Println(v)\n    }\n}\n```\n\nThe producer goroutine sends each value; `main` receives until the channel is closed. With an unbuffered channel they proceed in lock step; a buffer of, say, 5 would let the producer run ahead.\n\n**Pitfalls.** Forgetting to close (the `range` loop blocks forever and `main` deadlocks), leaking goroutines blocked on sends nobody receives, data races (check with `go run -race`), copying a mutex, and loop-variable capture in closures in older Go versions. Use `context` for cancellation.",
+ "followUps": [
+  "How would you stop the generator early using `context` or a done channel?",
+  "What happens when you send on a nil channel?",
+  "When would you pick a mutex over a channel?",
+  "How does the Go scheduler (G, M, P) work at a high level?"
+ ]
+}

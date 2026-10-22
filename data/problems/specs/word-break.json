@@ -1,0 +1,50 @@
+{
+ "pid": "word-break",
+ "title": "Word Break",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given a string `s` and a dictionary of `m` words. Decide whether `s` can be split into a sequence of one or more dictionary words, so that joining the pieces in order gives back exactly `s`.\n\nA dictionary word may be used any number of times, including not at all, and the dictionary may contain duplicates (this does not change the answer). Every character of `s` must belong to exactly one piece.\n\nPrint `true` if such a split exists and `false` otherwise.\n\nA plain recursive search that tries every split is too slow for the largest inputs: you need to avoid solving the same suffix again and again.",
+ "input_format": "The first line contains the string `s`.\nThe second line contains the integer `m`.\nEach of the next `m` lines contains one dictionary word.",
+ "output_format": "Print `true` or `false`.",
+ "constraints": [
+  "1 ≤ |s| ≤ 10^4",
+  "1 ≤ m ≤ 1000",
+  "1 ≤ |word| ≤ 20",
+  "s and all words consist of lowercase English letters"
+ ],
+ "examples": [
+  {
+   "input": "bananaberry\n5\nban\nana\nberry\nna\nbanana",
+   "output": "true",
+   "explanation": "`banana` + `berry` covers the whole string. Another valid split is `ban` + `ana` + `berry`."
+  },
+  {
+   "input": "sunflowers\n4\nsun\nflower\nsunflow\ner",
+   "output": "false",
+   "explanation": "`sun` + `flower` and `sunflow` + `er` both leave the final `s` uncovered, and no dictionary word matches `s`, so no split works."
+  },
+  {
+   "input": "aaaaab\n3\na\naa\naaa",
+   "output": "false",
+   "explanation": "The five leading `a`s can be split in many ways, but the final `b` is not part of any dictionary word."
+  }
+ ],
+ "complexity": {
+  "time": "O(n · L) set lookups (L = max word length)",
+  "space": "O(n + total dictionary size)"
+ },
+ "hints": [
+  "Let `dp[i]` mean that the prefix of length `i` can be split into dictionary words. What does `dp[0]` equal?",
+  "To fill `dp[i]`, look at the last piece: it is a dictionary word ending at position `i`. Only lengths up to the longest word matter.",
+  "Store the words in a hash set and, for each `i`, try only the distinct word lengths. That makes the whole DP roughly `|s| * 20` lookups."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    s = data[0]\n    m = int(data[1])\n    words = set(data[2:2 + m])\n    lens = sorted(set(len(w) for w in words))\n    n = len(s)\n    dp = [False] * (n + 1)\n    dp[0] = True\n    for i in range(1, n + 1):\n        for L in lens:\n            if L > i:\n                break\n            if dp[i - L] and s[i - L:i] in words:\n                dp[i] = True\n                break\n    print('true' if dp[n] else 'false')\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\ns = data[0]\nm = int(data[1])\nwords = data[2:2 + m]\n\ndef can(i):\n    if i == len(s):\n        return True\n    for w in words:\n        if s.startswith(w, i) and can(i + len(w)):\n            return True\n    return False\n\nprint('true' if can(0) else 'false')\n",
+ "generator": "def gen(rng):\n    def fmt(s, words):\n        return s + '\\n' + str(len(words)) + '\\n' + '\\n'.join(words)\n    def rword(alpha, lo, hi):\n        return ''.join(rng.choice(alpha) for _ in range(rng.randint(lo, hi)))\n    tests = [\n        fmt('a', ['a']),\n        fmt('a', ['b']),\n        fmt('ab', ['a', 'b']),\n        fmt('aaaa', ['aaa']),\n        fmt('abab', ['ab', 'aba', 'b']),\n        fmt('sunflowers', ['sun', 'flower', 'sunflow', 'er']),\n    ]\n    for _ in range(14):\n        alpha = rng.choice(['ab', 'abc'])\n        k = rng.randint(1, 6)\n        words = list(dict.fromkeys(rword(alpha, 1, 4) for _ in range(k)))\n        if rng.random() < 0.5:\n            s = ''.join(rng.choice(words) for _ in range(rng.randint(1, 6)))\n            if rng.random() < 0.3:\n                i = rng.randrange(len(s))\n                s = s[:i] + rng.choice(alpha) + s[i + 1:]\n        else:\n            s = rword(alpha, 1, 25)\n        tests.append(fmt(s, words))\n    # big cases\n    tests.append(fmt('a' * 9999 + 'b', ['a' * L for L in range(1, 21)]))\n    tests.append(fmt('a' * 10000, ['a' * 20, 'a' * 19]))\n    big = list(dict.fromkeys(rword('ab', 1, 20) for _ in range(1000)))\n    big = big[:1000]\n    parts = []\n    total = 0\n    while total < 9900:\n        w = rng.choice(big)\n        if total + len(w) > 10000:\n            break\n        parts.append(w)\n        total += len(w)\n    good = ''.join(parts)\n    tests.append(fmt(good, big))\n    bad = good[:-1] + ('b' if good[-1] == 'a' else 'a')\n    tests.append(fmt(bad, big))\n    tests.append(fmt(('ab' * 5000), ['ab' * 10, 'a', 'b', 'aba' * 3]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef word_break(s: str, words: List[str]) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    s = data[0]\n    m = int(data[1])\n    words = data[2:2 + m]\n    print('true' if word_break(s, words) else 'false')\n\n\nmain()\n",
+  "javascript": "function wordBreak(s, words) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst s = t[0]\nconst m = parseInt(t[1])\nconst words = t.slice(2, 2 + m)\nconsole.log(wordBreak(s, words) ? 'true' : 'false')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool wordBreak(const string& s, const vector<string>& words) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s;\n    int m;\n    cin >> s >> m;\n    vector<string> words(m);\n    for (int i = 0; i < m; i++) cin >> words[i];\n    cout << (wordBreak(s, words) ? \"true\" : \"false\") << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean wordBreak(String s, List<String> words) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        String s = st.nextToken();\n        int m = Integer.parseInt(st.nextToken());\n        List<String> words = new ArrayList<>();\n        for (int i = 0; i < m; i++) words.add(st.nextToken());\n        System.out.println(wordBreak(s, words) ? \"true\" : \"false\");\n    }\n}\n"
+ }
+}

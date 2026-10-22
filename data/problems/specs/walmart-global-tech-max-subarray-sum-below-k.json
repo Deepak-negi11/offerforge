@@ -1,0 +1,49 @@
+{
+ "pid": "walmart-global-tech-max-subarray-sum-below-k",
+ "title": "Max Subarray Sum Below K",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `a` of `n` integers (positive, zero or negative) and an integer `k`.\n\nFind the maximum sum of a **non-empty contiguous subarray** among those whose sum is **strictly less than** `k`. This is Kadane's problem with an upper bound: the classic algorithm returns the overall maximum, which may be `k` or more, so it no longer applies directly.\n\nPrint that sum. If every non-empty subarray has a sum of at least `k`, print `NONE`.",
+ "input_format": "The first line contains two integers `n` and `k`.\nThe second line contains `n` integers `a[0] ... a[n-1]`.",
+ "output_format": "Print the maximum subarray sum that is strictly less than `k`, or `NONE` if no subarray qualifies.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "-10^9 ≤ a[i] ≤ 10^9",
+  "-10^14 ≤ k ≤ 10^14"
+ ],
+ "examples": [
+  {
+   "input": "5 7\n2 3 -1 4 1",
+   "output": "6",
+   "explanation": "The whole array sums to 9 and `3 -1 4 1` sums to 7, both too large. `2 3 -1 4` sums to 8. `3 -1 4` sums to 6, which is below 7 and is the best such sum (`4 1` gives 5, `2 3 -1` gives 4)."
+  },
+  {
+   "input": "3 -5\n4 -2 6",
+   "output": "NONE",
+   "explanation": "The smallest subarray sum is `-2` (the single element), which is not below -5, so no subarray qualifies."
+  },
+  {
+   "input": "4 3\n5 -4 3 -6",
+   "output": "1",
+   "explanation": "The subarray sums below 3 are `5 -4` = 1, `5 -4 3 -6` = -2, `-4` = -4, `-4 3` = -1 and several smaller ones. The single element `3` equals `k`, which is not strictly less, and `5` and `5 -4 3` = 4 are too large. The largest valid sum is 1."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Let `P[i]` be the prefix sum of the first `i` elements. The subarray `(j, i]` has sum `P[i] - P[j]`, so you want the largest `P[i] - P[j] < k` over `j < i`.",
+  "For a fixed `i` the best `j` is the one with the smallest `P[j]` that is still strictly greater than `P[i] - k`.",
+  "Keep the earlier prefix sums in an ordered structure (balanced tree / sorted set, or a Fenwick tree over compressed prefix values) and query for the smallest value above a threshold."
+ ],
+ "reference": "import sys\nfrom bisect import bisect_right\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    P = [0]\n    for i in range(n):\n        P.append(P[-1] + int(data[2 + i]))\n    vals = sorted(set(P))\n    m = len(vals)\n    INF = float('inf')\n    tree = [INF] * (m + 1)\n\n    def add(idx, v):\n        r = m - idx\n        while r <= m:\n            if v < tree[r]:\n                tree[r] = v\n            r += r & -r\n\n    def query(pos):\n        r = m - pos\n        res = INF\n        while r > 0:\n            if tree[r] < res:\n                res = tree[r]\n            r -= r & -r\n        return res\n\n    from bisect import bisect_left\n    add(bisect_left(vals, 0), 0)\n    best = None\n    for i in range(1, n + 1):\n        pos = bisect_right(vals, P[i] - k)\n        if pos < m:\n            low = query(pos)\n            if low != INF:\n                s = P[i] - low\n                if best is None or s > best:\n                    best = s\n        add(bisect_left(vals, P[i]), P[i])\n    print(best if best is not None else 'NONE')\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, k = int(data[0]), int(data[1])\na = [int(x) for x in data[2:2 + n]]\nbest = None\nfor i in range(n):\n    s = 0\n    for j in range(i, n):\n        s += a[j]\n        if s < k and (best is None or s > best):\n            best = s\nprint(best if best is not None else 'NONE')\n",
+ "generator": "def gen(rng):\n    def fmt(k, a):\n        return f'{len(a)} {k}\\n' + ' '.join(map(str, a))\n    tests = [fmt(1, [5]), fmt(6, [5]), fmt(5, [5]), fmt(-100, [1, 2, 3]), fmt(100, [-1, -2, -3]),\n             fmt(0, [-1]), fmt(0, [0, 0, 0]), fmt(1, [0, 0, 0]), fmt(7, [2, 3, -1, 4, 1]), fmt(3, [5, -4, 3, -6]),\n             fmt(10 ** 14, [10 ** 9, 10 ** 9, -10 ** 9]), fmt(-10 ** 14, [-10 ** 9, 10 ** 9])]\n    for n in (2, 3, 5, 8, 12, 20, 30):\n        for _ in range(3):\n            R = rng.choice([3, 10, 100])\n            a = [rng.randint(-R, R) for _ in range(n)]\n            i = rng.randrange(n)\n            j = rng.randrange(i, n)\n            k = sum(a[i:j + 1]) + rng.randint(-R, R)\n            tests.append(fmt(k, a))\n    tests.append(fmt(rng.randint(-5, 5), [rng.randint(-3, 3) for _ in range(40)]))\n    N = 100000\n    B = 10 ** 9\n    a = [rng.randint(-B, B) for _ in range(N)]\n    tests.append(fmt(rng.randint(-B, B), a))\n    a = [rng.randint(-B // 4, B) for _ in range(N)]\n    tests.append(fmt(10 ** 11, a))\n    a = [rng.randint(1, 10 ** 4) for _ in range(N)]\n    tests.append(fmt(sum(a) // 3, a))\n    a = [rng.randint(-B, B // 3) for _ in range(N)]\n    tests.append(fmt(-10 ** 8, a))\n    a = [rng.randint(-1000, 1000) for _ in range(N)]\n    tests.append(fmt(37, a))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Optional\n\n\ndef max_sum_below_k(a: List[int], k: int) -> Optional[int]:\n    # Write your solution here\n    return None\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    res = max_sum_below_k(a, k)\n    print('NONE' if res is None else res)\n\n\nmain()\n",
+  "javascript": "function maxSumBelowK(a, k) {\n  // Write your solution here\n  // Return null when no subarray sum is below k\n  return null\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst a = t.slice(2, 2 + n)\nconst res = maxSumBelowK(a, k)\nconsole.log(res === null ? 'NONE' : String(res))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\n// Return true and set `result` if some subarray sum is below k, otherwise return false.\nbool maxSumBelowK(vector<long long>& a, long long k, long long& result) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long k;\n    cin >> n >> k;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    long long result = 0;\n    if (maxSumBelowK(a, k, result)) cout << result << \"\\n\";\n    else cout << \"NONE\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    // Return null when no subarray sum is below k\n    static Long maxSumBelowK(long[] a, long k) {\n        // Write your solution here\n        return null;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        long k = (long) in.nval;\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (long) in.nval;\n        }\n        Long res = maxSumBelowK(a, k);\n        System.out.println(res == null ? \"NONE\" : String.valueOf(res));\n    }\n}\n"
+ }
+}

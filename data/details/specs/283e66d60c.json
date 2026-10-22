@@ -1,0 +1,19 @@
+{
+ "qid": "283e66d60c",
+ "question": "Design a **notification service** that will be used by 10 to 15 internal applications. It must send **email and SMS**, and the interviewer wanted the **data model, tech stack, APIs, the application structure and a reporting service**, with the ability to add new channels or features later.\n\nFollow-ups reported: one client application sends millions of records because of a bug (an infinite loop), so how do you handle that? How do you create **Kafka partitions** before and during event dispatch? How would you host it, and where do an **API gateway** and AWS services fit?",
+ "lookingFor": [
+  "Structured requirements gathering and sensible scale assumptions.",
+  "Decoupling producers from delivery with a queue, and why.",
+  "Protecting the platform from a misbehaving client: rate limits, quotas, isolation.",
+  "Kafka understanding: partition keys, ordering, consumer groups, retries, dead-letter topics.",
+  "Extensibility (new channels) and operability (idempotency, reporting, monitoring)."
+ ],
+ "answer": "**Requirements and scale (state assumptions):** send email and SMS for 10-15 apps, reliable (at-least-once), templates, per-app quotas, delivery status reporting, easy to add push or WhatsApp. Assume e.g. a few thousand messages/sec at peak with bursts.\n\n**API:** `POST /v1/notifications` (appId, channel, recipient, templateId, params, idempotencyKey, priority), `GET /v1/notifications/{id}`, bulk endpoint, template CRUD, and report endpoints. Return 202 Accepted after the message is durably queued. Put apps behind an API gateway for authentication (API key or OAuth per app), throttling and routing.\n\n**Flow:** gateway -> notification API (validates, dedups by idempotency key, writes a row, publishes to Kafka) -> channel topics (`email`, `sms`, perhaps priority variants) -> channel workers (consumer groups) -> provider adapters (SES, SMS vendor) -> status events -> reporting store.\n\n**Data model:** `apps`, `templates`, `notifications` (id, app_id, channel, recipient, status, created_at), `delivery_attempts` (notification_id, provider, response, time), `quotas`. Store raw events in a store suited to analytics; keep the OLTP store small.\n\n**Extensibility:** a `ChannelSender` interface per channel (strategy pattern); a new channel is a new topic plus a worker.\n\n**Runaway client:** per-app rate limit at the gateway and a daily quota in the API; reject with 429; bulk requests must use the bulk endpoint with size caps; separate topics or partitions per priority and per-tenant quotas so one app cannot starve others; alert on anomalies, and give operators a kill switch to pause an app. Idempotency keys plus recipient-level dedup limit duplicate sends.\n\n**Partitioning:** partition by a key such as `recipientId` or `notificationId` for even spread; ordering is only needed per recipient. Choose partition count from target throughput divided by per-consumer throughput, with headroom, since partitions can be added later but changing counts shifts key mapping. Consumers scale up to the partition count.\n\n**Reliability:** retries with backoff, a retry topic and a dead-letter topic; provider failover; consume idempotently.\n\n**Hosting (example):** containers on ECS/EKS, managed Kafka (MSK), SES/SNS for delivery, a relational DB for state, S3 plus a query engine for reports, CloudWatch for metrics.",
+ "followUps": [
+  "How do you guarantee a notification is not sent twice?",
+  "How would you add scheduled and priority notifications (e.g. OTPs before marketing)?",
+  "What happens if the SMS provider is down for an hour?",
+  "How would you honour user opt-outs and quiet hours?",
+  "Why Kafka rather than a simple database queue or SQS?"
+ ]
+}

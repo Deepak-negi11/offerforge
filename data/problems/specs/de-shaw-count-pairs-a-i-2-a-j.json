@@ -1,0 +1,48 @@
+{
+ "pid": "de-shaw-count-pairs-a-i-2-a-j",
+ "title": "Count Pairs a[i] >= 2*a[j]",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "Given an array `a` of `n` integers, count the pairs of indices `(i, j)` with `i < j` such that `a[i] >= 2 * a[j]`.\n\nThis is a variant of the classic \"reverse pairs\" problem: instead of an inversion `a[i] > a[j]`, the earlier element must be at least **twice** the later element. The values can be negative or zero, and the comparison is on the exact value `2 * a[j]`, so for example `-4 >= 2 * -2` holds but `-3 >= 2 * -2` does not.\n\nPrint the number of such pairs. The answer can exceed the 32-bit integer range.\n\n**Follow-up:** The interviewer expected a merge-sort based counting solution (count across the two halves before merging). A Fenwick tree over compressed values also works.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` space-separated integers `a[0], ..., a[n-1]`.",
+ "output_format": "Print a single integer: the number of pairs `(i, j)` with `i < j` and `a[i] >= 2 * a[j]`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "-10^9 ≤ a[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "5\n8 3 1 7 2",
+   "output": "5",
+   "explanation": "The valid pairs are (0,1) since 8 >= 6, (0,2) since 8 >= 2, (0,4) since 8 >= 4, (1,2) since 3 >= 2, and (3,4) since 7 >= 4. Every other pair fails: for example (0,3) needs 8 >= 14 and (1,4) needs 3 >= 4."
+  },
+  {
+   "input": "4\n0 0 0 0",
+   "output": "6",
+   "explanation": "Every pair satisfies 0 >= 0, and there are 4 * 3 / 2 = 6 pairs."
+  },
+  {
+   "input": "4\n-4 -3 -2 5",
+   "output": "3",
+   "explanation": "(0,1): -4 >= -6 yes. (0,2): -4 >= -4 yes. (1,2): -3 >= -4 yes. Pairs ending at index 3 need a[i] >= 10, which none satisfy."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Counting for each `j` how many earlier elements are at least `2 * a[j]` turns the problem into a repeated 'count elements >= x in a growing set' query.",
+  "Merge sort: if both halves are sorted, then for each element `y` of the right half, the qualifying elements of the left half form a suffix, and that suffix only shrinks as `y` increases, so a single two-pointer sweep counts all cross pairs.",
+  "Alternative: compress the values, then use a Fenwick tree that stores how many earlier elements have each rank, and query `bisect_left(sorted_values, 2 * a[j])` to count the earlier values that are at least `2 * a[j]`."
+ ],
+ "reference": "import sys\nfrom bisect import bisect_left\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    vals = sorted(set(a))\n    m = len(vals)\n    rank = {v: i + 1 for i, v in enumerate(vals)}\n    tree = [0] * (m + 1)\n    total = 0\n    inserted = 0\n    for x in a:\n        p = bisect_left(vals, 2 * x)\n        s = 0\n        while p > 0:\n            s += tree[p]\n            p -= p & -p\n        total += inserted - s\n        k = rank[x]\n        while k <= m:\n            tree[k] += 1\n            k += k & -k\n        inserted += 1\n    print(total)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + n]]\ncnt = 0\nfor i in range(n):\n    for j in range(i + 1, n):\n        if a[i] >= 2 * a[j]:\n            cnt += 1\nprint(cnt)\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n    M = 10**9\n    tests = [\n        fmt([5]),\n        fmt([0, 0, 0, 0]),\n        fmt([8, 3, 1, 7, 2]),\n        fmt([-4, -3, -2, 5]),\n        fmt([M, -M]),\n        fmt([-M, M]),\n        fmt([M, M, M, 1, 0, -1, -M]),\n        fmt([1, 2, 4, 8, 16, 32]),\n        fmt([32, 16, 8, 4, 2, 1]),\n    ]\n    for n in (2, 3, 5, 8, 12, 20, 30, 40):\n        for _ in range(2):\n            r = rng.choice([3, 10, 100])\n            tests.append(fmt([rng.randint(-r, r) for _ in range(n)]))\n    for _ in range(3):\n        tests.append(fmt([rng.randint(-M, M) for _ in range(40)]))\n    tests.append(fmt([rng.randint(-M, M) for _ in range(100000)]))\n    tests.append(fmt([0] * 100000))\n    tests.append(fmt([rng.randint(0, 50) for _ in range(100000)]))\n    tests.append(fmt(sorted((rng.randint(1, M) for _ in range(100000)), reverse=True)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_pairs(a: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    print(count_pairs(a))\n\n\nmain()\n",
+  "javascript": "function countPairs(a) {\n  // Write your solution here\n  return 0\n}\n\nconst tk = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = tk[0]\nconst a = tk.slice(1, 1 + n)\nconsole.log(String(countPairs(a)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countPairs(vector<long long>& a) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    cout << countPairs(a) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countPairs(long[] a) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (long) in.nval;\n        }\n        System.out.println(countPairs(a));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "f2f78e1f50",
+ "question": "ServiceNow frontend Software Engineer, technical round 1. After a few array and string coding problems, the interviewer moved to JavaScript and React: **implement a timer with start, stop and reset functionality**, and **draw a hollow circle using simple CSS**.",
+ "lookingFor": [
+  "Command of React state and effects, and cleanup of intervals",
+  "Avoiding stale closures and drift bugs",
+  "Solid CSS fundamentals",
+  "Clean, minimal, working code"
+ ],
+ "answer": "**Timer (React).** State: elapsed seconds and a running flag. Use `setInterval` inside an effect that runs only when `running` is true, and always clear it in the cleanup function. Updating with the functional form `setSeconds(s => s + 1)` avoids a stale closure.\n\n```\nfunction useTimer() {\n  const [seconds, setSeconds] = useState(0);\n  const [running, setRunning] = useState(false);\n\n  useEffect(() => {\n    if (!running) return;\n    const id = setInterval(() => setSeconds(s => s + 1), 1000);\n    return () => clearInterval(id);\n  }, [running]);\n\n  const start = () => setRunning(true);\n  const stop = () => setRunning(false);\n  const reset = () => { setRunning(false); setSeconds(0); };\n  return { seconds, start, stop, reset };\n}\n```\nThe component shows `seconds` and three buttons wired to `start`, `stop` and `reset`. Why this works: toggling `running` re-runs the effect, the cleanup stops the old interval (no leak, no double intervals on repeated Start clicks), and unmount also clears it.\n\n**Improvements to mention.** `setInterval` drifts and is throttled in background tabs. For accuracy, store the start timestamp (`Date.now()`) and compute elapsed time on each tick, accumulating the previous total across pauses. Use milliseconds for display with `padStart` for mm:ss. Disable Start while running.\n\n**Plain JavaScript version.** Keep `let id = null`; `start` checks `if (id) return;` before `setInterval`; `stop` calls `clearInterval(id)` and sets `id = null`; `reset` stops and sets the count to 0.\n\n**Hollow circle in CSS.**\n```\n.circle {\n  width: 100px;\n  height: 100px;\n  border: 4px solid #333;\n  border-radius: 50%;\n  background: transparent;\n}\n```\nEqual width and height make a square, `border-radius: 50%` rounds it, and the transparent background keeps it hollow. Add `box-sizing: border-box` so the border does not enlarge it.",
+ "followUps": [
+  "Why does clicking Start twice create a bug in a naive version, and how do you prevent it?",
+  "What is a stale closure and how did the functional state update avoid it?",
+  "How would you make the timer accurate in a background tab?",
+  "How would you draw a ring with a gap (a progress ring)?",
+  "How would you test this component?"
+ ]
+}

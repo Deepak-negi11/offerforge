@@ -1,0 +1,49 @@
+{
+ "pid": "linkedin-ball-holder-after-k-seconds",
+ "title": "Ball Holder After K Seconds",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "In a park, `n` friends stand in a random order and throw a ball around. Each friend has a unique number from `1` to `n`. Friend `i` **always** throws the ball to friend `receiver[i]`, and a friend never throws to themselves (`receiver[i] ≠ i`).\n\nFriend `1` starts with the ball. Exactly one throw happens every second: at each second, the friend currently holding the ball throws it to their receiver. Determine the number of the friend who holds the ball after `k` seconds have passed.\n\nNote that `k` can be far larger than `n`, so simulating every second is too slow. If `k = 0`, friend `1` still holds the ball.",
+ "input_format": "The first line contains `n`. The second line contains `n` integers `receiver[1], ..., receiver[n]`. The third line contains `k`.",
+ "output_format": "Print one integer: the number of the friend holding the ball after `k` seconds.",
+ "constraints": [
+  "2 ≤ n ≤ 10^5",
+  "1 ≤ receiver[i] ≤ n and receiver[i] ≠ i",
+  "0 ≤ k ≤ 10^15"
+ ],
+ "examples": [
+  {
+   "input": "4\n2 3 1 1\n5",
+   "output": "3",
+   "explanation": "The ball goes 1 -> 2 -> 3 -> 1 -> 2 -> 3. After 5 throws, friend 3 holds it."
+  },
+  {
+   "input": "5\n2 3 4 2 4\n1000000000000000",
+   "output": "2",
+   "explanation": "The ball goes 1 -> 2 -> 3 -> 4 -> 2 -> 3 -> 4 ... After the first throw it cycles through friends 2, 3, 4 with period 3. Friend 2 holds the ball after throws 1, 4, 7, ..., that is whenever k mod 3 = 1. Since 10^15 mod 3 = 1, friend 2 holds it."
+  },
+  {
+   "input": "3\n3 1 2\n0",
+   "output": "1",
+   "explanation": "With k = 0 no throw has happened yet, so friend 1 holds the ball."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Each friend has exactly one outgoing throw, so the sequence of holders must eventually repeat. Follow the ball from friend 1 until a friend repeats.",
+  "Record the step at which each friend first holds the ball. When you meet a friend again, you know where the cycle starts and how long it is.",
+  "If `k` is within the part you walked, read the answer directly. Otherwise reduce `k - start` modulo the cycle length and index into the cycle."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    r = [int(x) - 1 for x in data[1:1 + n]]\n    k = int(data[1 + n])\n    seen = [-1] * n\n    order = []\n    cur = 0\n    while seen[cur] < 0:\n        seen[cur] = len(order)\n        order.append(cur)\n        cur = r[cur]\n    if k < len(order):\n        ans = order[k]\n    else:\n        start = seen[cur]\n        length = len(order) - start\n        ans = order[start + (k - start) % length]\n    print(ans + 1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nf = [int(x) - 1 for x in data[1:1 + n]]\nk = int(data[1 + n])\nres = list(range(n))\nbase = f[:]\nwhile k:\n    if k & 1:\n        res = [base[x] for x in res]\n    base = [base[x] for x in base]\n    k >>= 1\nprint(res[0] + 1)\n",
+ "generator": "def gen(rng):\n    def fmt(recv, k):\n        return str(len(recv)) + '\\n' + ' '.join(map(str, recv)) + '\\n' + str(k)\n\n    def rand_recv(n):\n        return [rng.choice([j for j in range(1, n + 1) if j != i]) for i in range(1, n + 1)]\n\n    def one_cycle(n):\n        perm = list(range(1, n + 1))\n        rng.shuffle(perm)\n        recv = [0] * n\n        for i in range(n):\n            recv[perm[i] - 1] = perm[(i + 1) % n]\n        return recv\n\n    K = 10 ** 15\n    tests = [\n        fmt([2, 1], 0),\n        fmt([2, 1], 1),\n        fmt([2, 1], K),\n        fmt([2, 1], K - 1),\n        fmt([2, 3, 1], 0),\n        fmt([2, 3, 1], 7),\n        fmt([2, 3, 2], 1),\n        fmt([2, 3, 2], 2),\n        fmt([2, 3, 2], 10 ** 12 + 1),\n        fmt([2, 1, 2, 3], 3),\n    ]\n    for n in (2, 3, 4, 5, 6, 8, 10, 14):\n        for _ in range(3):\n            tests.append(fmt(rand_recv(n), rng.randint(0, 40)))\n        tests.append(fmt(rand_recv(n), rng.randint(0, K)))\n        tests.append(fmt(rand_recv(n), rng.randint(K // 2, K)))\n    N = 100000\n    # long tail leading into a 2-cycle\n    recv = [i + 1 for i in range(1, N - 1)] + [N, N - 1]\n    tests.append(fmt(recv, K))\n    tests.append(fmt(recv, N - 3))\n    # one big cycle\n    tests.append(fmt(one_cycle(N), K))\n    tests.append(fmt(one_cycle(N), K - 1))\n    # random function\n    tests.append(fmt(rand_recv_big(rng, N), K))\n    # tail of ~N/2 friends then a cycle of ~N/2 friends, labels shuffled, friend 1 at the tail start\n    perm = list(range(1, N + 1))\n    rng.shuffle(perm)\n    pos1 = perm.index(1)\n    perm[0], perm[pos1] = perm[pos1], perm[0]\n    half = N // 2\n    recv = [0] * N\n    for i in range(N - 1):\n        recv[perm[i] - 1] = perm[i + 1]\n    recv[perm[N - 1] - 1] = perm[half]\n    tests.append(fmt(recv, K - 12345))\n    return tests\n\n\ndef rand_recv_big(rng, n):\n    out = []\n    for i in range(1, n + 1):\n        j = rng.randint(1, n - 1)\n        out.append(j if j < i else j + 1)\n    return out\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef ball_holder(receiver: List[int], k: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    receiver = [int(x) for x in data[1:1 + n]]\n    k = int(data[1 + n])\n    print(ball_holder(receiver, k))\n\n\nmain()\n",
+  "javascript": "function ballHolder(receiver, k) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst receiver = []\nfor (let i = 0; i < n; i++) receiver.push(t[1 + i])\nconst k = t[1 + n]\nconsole.log(String(ballHolder(receiver, k)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint ballHolder(vector<int>& receiver, long long k) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> receiver(n);\n    for (int i = 0; i < n; i++) cin >> receiver[i];\n    long long k;\n    cin >> k;\n    cout << ballHolder(receiver, k) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int ballHolder(int[] receiver, long k) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] receiver = new int[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); receiver[i] = (int) in.nval; }\n        in.nextToken();\n        long k = (long) in.nval;\n        System.out.println(ballHolder(receiver, k));\n    }\n}\n"
+ }
+}

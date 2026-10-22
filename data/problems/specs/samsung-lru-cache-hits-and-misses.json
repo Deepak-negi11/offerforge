@@ -1,0 +1,49 @@
+{
+ "pid": "samsung-lru-cache-hits-and-misses",
+ "title": "LRU Cache Hits and Misses",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A cache can hold at most `capacity` distinct keys and uses the **Least Recently Used (LRU)** replacement policy. It starts empty. You are given the sequence of keys that are accessed, in order. Simulate the cache and report how many accesses are **hits** and how many are **misses**.\n\nFor each accessed key `k`:\n\n- If `k` is currently in the cache, the access is a **hit**, and `k` becomes the most recently used key.\n- Otherwise the access is a **miss**. If the cache already holds `capacity` keys, first evict the least recently used key. Then insert `k` as the most recently used key.\n\nOnly accesses count as use: evicting or inserting does not count as a separate access.\n\n**Follow-up:** Implement the cache as a reusable class with `get` and `put` operations that run in O(1) time each.",
+ "input_format": "The first line contains two integers `capacity` and `n`.\nThe second line contains `n` integers: the accessed keys in order.",
+ "output_format": "Print two integers separated by a space: the number of hits and the number of misses.",
+ "constraints": [
+  "1 ≤ capacity ≤ 10^5",
+  "1 ≤ n ≤ 2 * 10^5",
+  "1 ≤ key ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "2 5\n1 2 1 3 2",
+   "output": "1 4",
+   "explanation": "1 is a miss, 2 is a miss, 1 is a hit (the cache order is now 2, 1 from oldest to newest). 3 is a miss and evicts 2, leaving 1, 3. 2 is a miss and evicts 1. Hits = 1, misses = 4."
+  },
+  {
+   "input": "3 4\n5 5 5 5",
+   "output": "3 1",
+   "explanation": "Only the first access is a miss; the next three hit the same key."
+  },
+  {
+   "input": "1 4\n1 2 1 2",
+   "output": "0 4",
+   "explanation": "With capacity 1, every access evicts the previous key, so there are no hits."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(capacity)"
+ },
+ "hints": [
+  "You need to find a key quickly and also know which key was used least recently. One structure for each job.",
+  "A hash map from key to its node in a doubly linked list (ordered by recency) gives O(1) lookup, move-to-front and eviction from the tail.",
+  "In Python an OrderedDict with move_to_end and popitem(last=False) plays the same role."
+ ],
+ "reference": "import sys\nfrom collections import OrderedDict\n\ndef main():\n    data = sys.stdin.read().split()\n    cap = int(data[0])\n    n = int(data[1])\n    cache = OrderedDict()\n    hits = misses = 0\n    for i in range(n):\n        k = data[2 + i]\n        if k in cache:\n            hits += 1\n            cache.move_to_end(k)\n        else:\n            misses += 1\n            if len(cache) >= cap:\n                cache.popitem(last=False)\n            cache[k] = 1\n    print(hits, misses)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\ncap = int(data[0])\nn = int(data[1])\nkeys = [int(x) for x in data[2:2 + n]]\nlst = []\nhits = misses = 0\nfor k in keys:\n    if k in lst:\n        hits += 1\n        lst.remove(k)\n        lst.append(k)\n    else:\n        misses += 1\n        if len(lst) == cap:\n            lst.pop(0)\n        lst.append(k)\nprint(hits, misses)\n",
+ "generator": "def gen(rng):\n    def fmt(c, keys):\n        return f'{c} {len(keys)}\\n' + ' '.join(map(str, keys))\n    tests = [fmt(1, [1]), fmt(1, [1, 1, 1]), fmt(1, [1, 2, 1, 2]), fmt(5, [1, 2, 3]), fmt(2, [1, 2, 3, 1, 2, 3]),\n             fmt(3, [10**9, 1, 10**9, 2, 3, 4, 1]), fmt(2, [1, 2, 1, 3, 2])]\n    for n in (5, 8, 12, 20, 30, 45):\n        for _ in range(3):\n            c = rng.randint(1, 6)\n            tests.append(fmt(c, [rng.randint(1, 8) for _ in range(n)]))\n    N = 200000\n    pool = rng.sample(range(1, 10**9 + 1), 150000)\n    tests.append(fmt(100000, [rng.choice(pool) for _ in range(N)]))\n    c = 50000\n    tests.append(fmt(c, [rng.randint(1, 60000) for _ in range(N)]))\n    c = 100000\n    tests.append(fmt(c, [(i % (c + 1)) + 1 for i in range(N)]))\n    c = 70000\n    tests.append(fmt(c, [(i % c) + 1 for i in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef lru_hits_misses(capacity: int, keys: List[int]) -> List[int]:\n    # Write your solution here\n    return [0, 0]\n\n\ndef main():\n    data = sys.stdin.read().split()\n    capacity = int(data[0])\n    n = int(data[1])\n    keys = [int(x) for x in data[2:2 + n]]\n    print(' '.join(map(str, lru_hits_misses(capacity, keys))))\n\n\nmain()\n",
+  "javascript": "function lruHitsMisses(capacity, keys) {\n  // Write your solution here\n  return [0, 0]\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst capacity = t[0], n = t[1]\nconsole.log(lruHitsMisses(capacity, t.slice(2, 2 + n)).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> lruHitsMisses(int capacity, vector<long long>& keys) {\n    // Write your solution here\n    return {0, 0};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int capacity, n;\n    cin >> capacity >> n;\n    vector<long long> keys(n);\n    for (int i = 0; i < n; i++) cin >> keys[i];\n    vector<long long> res = lruHitsMisses(capacity, keys);\n    cout << res[0] << \" \" << res[1] << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] lruHitsMisses(int capacity, long[] keys) {\n        // Write your solution here\n        return new long[]{0, 0};\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int capacity = (int) in.nval;\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] keys = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            keys[i] = (long) in.nval;\n        }\n        long[] res = lruHitsMisses(capacity, keys);\n        System.out.println(res[0] + \" \" + res[1]);\n    }\n}\n"
+ }
+}

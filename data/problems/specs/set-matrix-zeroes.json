@@ -1,0 +1,48 @@
+{
+ "pid": "set-matrix-zeroes",
+ "title": "Set Matrix Zeroes",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given an `r × c` integer matrix. Whenever a cell holds the value `0`, every cell in **its entire row and its entire column** must become `0`.\n\nThe decision is based only on the zeros of the **original** matrix: zeros that appear because of this process do not trigger further changes (otherwise the whole matrix would usually turn to zeros). Print the resulting matrix.\n\n**Follow-up:** interviewers usually ask for the update to be done in place. Can you do it with `O(1)` extra space instead of an `O(r + c)` set of marked rows and columns?",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains `c` space-separated integers: one row of the matrix.",
+ "output_format": "Print `r` lines, each with `c` space-separated integers: the matrix after the update.",
+ "constraints": [
+  "1 ≤ r, c ≤ 500",
+  "-10^4 ≤ matrix[i][j] ≤ 10^4"
+ ],
+ "examples": [
+  {
+   "input": "3 3\n8 3 5\n1 2 4\n6 0 9",
+   "output": "8 0 5\n1 0 4\n0 0 0",
+   "explanation": "The only zero is at row 2, column 1. Row 2 and column 1 become all zeros; the other cells keep their values."
+  },
+  {
+   "input": "3 4\n5 1 0 7\n2 3 4 6\n0 8 9 1",
+   "output": "0 0 0 0\n0 3 0 6\n0 0 0 0",
+   "explanation": "Zeros are at (0, 2) and (2, 0), so rows 0 and 2 and columns 0 and 2 are cleared. Only the cells (1, 1) and (1, 3) survive."
+  },
+  {
+   "input": "2 2\n1 2\n3 4",
+   "output": "1 2\n3 4",
+   "explanation": "There are no zeros, so the matrix is unchanged."
+  }
+ ],
+ "complexity": {
+  "time": "O(r · c)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "You must not zero cells while scanning, or the new zeros will cause more rows and columns to be cleared. First find out which rows and columns need clearing.",
+  "Record the rows and columns that contain a zero (two boolean arrays), then clear them in a second pass.",
+  "To save space, reuse the first row and first column of the matrix as those markers, remembering separately whether the first row and the first column themselves originally contained a zero."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    vals = data[2:2 + r * c]\n    m = [[int(vals[i * c + j]) for j in range(c)] for i in range(r)]\n    rows, cols = set(), set()\n    for i in range(r):\n        row = m[i]\n        for j in range(c):\n            if row[j] == 0:\n                rows.add(i)\n                cols.add(j)\n    out = []\n    for i in range(r):\n        if i in rows:\n            out.append(' '.join(['0'] * c))\n        else:\n            row = m[i]\n            out.append(' '.join('0' if j in cols else str(row[j]) for j in range(c)))\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\nm = [[int(data[2 + i * c + j]) for j in range(c)] for i in range(r)]\nout = []\nfor i in range(r):\n    cells = []\n    for j in range(c):\n        zero_row = any(m[i][k] == 0 for k in range(c))\n        zero_col = any(m[k][j] == 0 for k in range(r))\n        cells.append('0' if zero_row or zero_col else str(m[i][j]))\n    out.append(' '.join(cells))\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    def fmt(m):\n        return str(len(m)) + ' ' + str(len(m[0])) + '\\n' + '\\n'.join(' '.join(map(str, row)) for row in m)\n    def rnd(r, c, pz, lo=-9, hi=9):\n        return [[0 if rng.random() < pz else rng.choice([v for v in range(lo, hi + 1) if v != 0]) for _ in range(c)] for _ in range(r)]\n    tests = [fmt([[0]]), fmt([[5]]), fmt([[1, 0, 3]]), fmt([[1], [0], [3]]),\n             fmt([[8, 3, 5], [1, 2, 4], [6, 0, 9]]), fmt([[5, 1, 0, 7], [2, 3, 4, 6], [0, 8, 9, 1]]),\n             fmt([[1, 2], [3, 4]]), fmt([[0, 0], [0, 0]]), fmt([[0, 1], [1, 1]]), fmt([[1, 1], [1, 0]])]\n    for r, c in ((2, 3), (3, 2), (3, 3), (4, 4), (5, 3), (1, 6), (6, 1), (7, 7), (8, 5)):\n        for pz in (0.0, 0.05, 0.15, 0.3):\n            tests.append(fmt(rnd(r, c, pz)))\n    R = C = 500\n    def big(pz, lo=-10000, hi=10000):\n        return [[0 if rng.random() < pz else rng.choice([lo, hi, rng.randint(lo, hi) or 1, 1]) for _ in range(C)] for _ in range(R)]\n    tests.append(fmt(big(0.0)))\n    tests.append(fmt(big(0.0002)))\n    tests.append(fmt(big(0.002)))\n    tests.append(fmt(big(0.2)))\n    m = big(0.0)\n    m[250][250] = 0\n    tests.append(fmt(m))\n    tests.append(fmt([[rng.randint(-10000, 10000) or 1 for _ in range(500)]]))\n    tests.append(fmt([[rng.randint(-10000, 10000) or 1] for _ in range(500)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef set_zeroes(matrix: List[List[int]]) -> List[List[int]]:\n    # Write your solution here\n    return matrix\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    matrix = [[int(data[2 + i * c + j]) for j in range(c)] for i in range(r)]\n    result = set_zeroes(matrix)\n    print('\\n'.join(' '.join(map(str, row)) for row in result))\n\n\nmain()\n",
+  "javascript": "function setZeroes(matrix) {\n  // Write your solution here\n  return matrix\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst r = t[0], c = t[1]\nconst matrix = []\nfor (let i = 0; i < r; i++) matrix.push(t.slice(2 + i * c, 2 + (i + 1) * c))\nconst result = setZeroes(matrix)\nconsole.log(result.map(row => row.join(' ')).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<vector<int>> setZeroes(vector<vector<int>>& matrix) {\n    // Write your solution here\n    return matrix;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<vector<int>> matrix(r, vector<int>(c));\n    for (int i = 0; i < r; i++)\n        for (int j = 0; j < c; j++) cin >> matrix[i][j];\n    vector<vector<int>> result = setZeroes(matrix);\n    for (int i = 0; i < r; i++) {\n        for (int j = 0; j < c; j++) cout << result[i][j] << (j + 1 < c ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[][] setZeroes(int[][] matrix) {\n        // Write your solution here\n        return matrix;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int r = (int) in.nval;\n        in.nextToken();\n        int c = (int) in.nval;\n        int[][] matrix = new int[r][c];\n        for (int i = 0; i < r; i++) {\n            for (int j = 0; j < c; j++) {\n                in.nextToken();\n                matrix[i][j] = (int) in.nval;\n            }\n        }\n        int[][] result = setZeroes(matrix);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < r; i++) {\n            for (int j = 0; j < c; j++) sb.append(result[i][j]).append(j + 1 < c ? \" \" : \"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

@@ -1,0 +1,50 @@
+{
+ "pid": "diameter-of-n-ary-tree",
+ "title": "Diameter of N-ary Tree",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given a tree with `n` nodes numbered `0` to `n - 1`, where node `0` is the root. Each node may have any number of children. The tree is given as `n - 1` undirected edges.\n\nThe **diameter** of the tree is the number of edges on the longest path between any two nodes. The path does not have to pass through the root.\n\nPrint the diameter.\n\nIf you already know how to do this for a binary tree, think about what changes when a node has more than two children: you now need to keep track of the two tallest child branches, not just a left and a right one.",
+ "input_format": "The first line contains the integer `n`.\nEach of the next `n - 1` lines contains two integers `u` and `v`, meaning there is an edge between nodes `u` and `v`.",
+ "output_format": "Print a single integer: the number of edges on the longest path in the tree.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ u, v < n",
+  "The edges form a tree",
+  "The number of nodes on any root-to-leaf path (rooted at node 0) is at most 5000, so recursive solutions fit in the call stack"
+ ],
+ "examples": [
+  {
+   "input": "6\n0 1\n1 2\n1 3\n2 4\n3 5",
+   "output": "4",
+   "explanation": "The path 4 - 2 - 1 - 3 - 5 uses 4 edges and does not touch the root 0. No longer path exists."
+  },
+  {
+   "input": "5\n0 1\n0 2\n0 3\n4 0",
+   "output": "2",
+   "explanation": "Node 0 is connected to every other node, so any path between two leaves goes leaf - 0 - leaf, which is 2 edges."
+  },
+  {
+   "input": "1",
+   "output": "0",
+   "explanation": "A single node has no edges, so the diameter is 0."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Start with the binary-tree idea: the longest path whose highest node is v goes down through two different children of v, so its length is the sum of the two longest downward branches at v.",
+  "For every node compute the height of its tallest branch. For an N-ary node you only need the two largest child heights, so you do not need to sort the children.",
+  "Combine the two largest child heights at each node and take the maximum over all nodes. Because the edges are undirected, first figure out each node's parent by walking from node 0."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    adj = [[] for _ in range(n)]\n    for i in range(n - 1):\n        u, v = int(data[1 + 2 * i]), int(data[2 + 2 * i])\n        adj[u].append(v)\n        adj[v].append(u)\n    parent = [-1] * n\n    order = [0]\n    for u in order:\n        for w in adj[u]:\n            if w != parent[u]:\n                parent[w] = u\n                order.append(w)\n    h1 = [0] * n  # tallest downward path (in edges) from each node\n    h2 = [0] * n  # second tallest, through a different child\n    best = 0\n    for u in reversed(order):\n        best = max(best, h1[u] + h2[u])\n        p = parent[u]\n        if p >= 0:\n            d = h1[u] + 1\n            if d > h1[p]:\n                h2[p] = h1[p]\n                h1[p] = d\n            elif d > h2[p]:\n                h2[p] = d\n    print(best)\n\nmain()\n",
+ "brute": "import sys\nfrom collections import deque\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nadj = [[] for _ in range(n)]\nfor i in range(n - 1):\n    u, v = int(data[1 + 2 * i]), int(data[2 + 2 * i])\n    adj[u].append(v)\n    adj[v].append(u)\nbest = 0\nfor s in range(n):\n    dist = [-1] * n\n    dist[s] = 0\n    q = deque([s])\n    while q:\n        u = q.popleft()\n        for w in adj[u]:\n            if dist[w] < 0:\n                dist[w] = dist[u] + 1\n                q.append(w)\n    best = max(best, max(dist))\nprint(best)\n",
+ "generator": "def gen(rng):\n    def build(n, parent, relabel=True):\n        labels = list(range(n))\n        if relabel:\n            rest = labels[1:]\n            rng.shuffle(rest)\n            labels = [0] + rest\n        edges = []\n        for i in range(1, n):\n            a, b = labels[parent[i]], labels[i]\n            if rng.random() < 0.5:\n                a, b = b, a\n            edges.append((a, b))\n        rng.shuffle(edges)\n        return str(n) + (\"\\n\" if edges else \"\") + \"\\n\".join(f\"{a} {b}\" for a, b in edges)\n\n    def rand_parent(n, window=None):\n        par = [0] * n\n        for i in range(1, n):\n            lo = 0 if window is None else max(0, i - window)\n            par[i] = rng.randint(lo, i - 1)\n        return par\n\n    def deep_parent(n, depth):\n        par = [0] * n\n        for i in range(1, n):\n            if i < depth:\n                par[i] = i - 1\n            else:\n                par[i] = rng.randint(0, depth - 2)\n        return par\n\n    def two_arms(n, arm):\n        # root in the middle of a long path, plus a few extra nodes hanging off the arms\n        par = [0] * n\n        for i in range(1, n):\n            if i <= arm:\n                par[i] = i - 1 if i > 1 else 0\n            elif i <= 2 * arm:\n                par[i] = i - 1 if i > arm + 1 else 0\n            else:\n                par[i] = rng.randint(0, 2 * arm - 1)\n        return par\n\n    tests = [\n        \"1\",\n        \"2\\n0 1\",\n        \"3\\n0 1\\n2 0\",\n        \"6\\n0 1\\n1 2\\n1 3\\n2 4\\n3 5\",\n        \"5\\n0 1\\n0 2\\n0 3\\n4 0\",\n        \"4\\n0 1\\n1 2\\n2 3\",\n        \"4\\n3 2\\n2 1\\n1 0\",\n        \"7\\n0 1\\n0 2\\n1 3\\n1 4\\n2 5\\n2 6\",\n    ]\n    for n in (4, 5, 6, 8, 10, 12, 15, 20, 30):\n        for _ in range(3):\n            tests.append(build(n, rand_parent(n, rng.choice([None, 2, 1]))))\n    tests.append(build(2000, rand_parent(2000, 3)))\n    tests.append(build(3000, rand_parent(3000)))\n    tests.append(build(1000, two_arms(1000, 300)))\n    # max-size cases\n    n = 100000\n    tests.append(build(n, rand_parent(n)))\n    tests.append(build(n, [0] * n))\n    tests.append(build(n, deep_parent(n, 5000)))\n    tests.append(build(n, two_arms(n, 2400)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef tree_diameter(n: int, edges: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    edges = [[int(data[1 + 2 * i]), int(data[2 + 2 * i])] for i in range(n - 1)]\n    print(tree_diameter(n, edges))\n\n\nmain()\n",
+  "javascript": "function treeDiameter(n, edges) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst edges = []\nfor (let i = 0; i < n - 1; i++) {\n  edges.push([t[1 + 2 * i], t[2 + 2 * i]])\n}\nconsole.log(String(treeDiameter(n, edges)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint treeDiameter(int n, vector<pair<int, int>>& edges) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<pair<int, int>> edges(n - 1);\n    for (int i = 0; i < n - 1; i++) cin >> edges[i].first >> edges[i].second;\n    cout << treeDiameter(n, edges) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int treeDiameter(int n, int[][] edges) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[][] edges = new int[Math.max(n - 1, 0)][2];\n        for (int i = 0; i < n - 1; i++) {\n            in.nextToken(); edges[i][0] = (int) in.nval;\n            in.nextToken(); edges[i][1] = (int) in.nval;\n        }\n        System.out.println(treeDiameter(n, edges));\n    }\n}\n"
+ }
+}

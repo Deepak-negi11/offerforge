@@ -1,0 +1,17 @@
+{
+ "qid": "3a679fc91a",
+ "question": "CRED SDE-1 Backend (new grad), second round brainstorm on the code written in the project round. It started with the approach used in Round 1 and its scope for improvement, then similar functions were to be implemented. Reported topics: **how do you handle concurrency and multithreading** (be clear on DBMS basics such as **ACID and CAP**, and the basics of threading), and many problems involving **data-structure knowledge and clear algorithmic approaches**.",
+ "lookingFor": [
+  "Understanding of race conditions and how to prevent them.",
+  "Knowledge of locks, atomic operations and thread-safe collections.",
+  "Link between application-level concurrency and database transactions.",
+  "Ability to improve an existing design and justify choices."
+ ],
+ "answer": "Assume the project is something like a booking or ledger system, where two threads may update the same data.\n\n**1. Identify shared mutable state and invariants.** A race condition appears when two threads do check-then-act on shared data (for example, \"if seat free then book\"). The fix starts with naming the invariant (\"a seat is booked at most once\").\n\n**2. Application-level tools.**\n- **Mutual exclusion**: `synchronized` or `ReentrantLock` around the critical section. Prefer fine-grained locks (per seat or per account) over one global lock to preserve throughput.\n- **Atomic operations**: `AtomicInteger`, `compareAndSet`, `ConcurrentHashMap.computeIfAbsent`, to avoid explicit locks.\n- **Thread-safe structures**: concurrent collections, immutable objects, thread confinement.\n- **Avoid deadlock**: acquire locks in a consistent order, keep critical sections short, use `tryLock` with timeouts.\n- **Executors** instead of manually creating threads; know the difference between a thread and a process, and visibility (`volatile`, happens-before).\n\n**3. Database-level concurrency.** Locks inside one process do not help with multiple servers. Use the database as the arbiter:\n- **Transactions (ACID)**: Atomicity, Consistency, Isolation, Durability.\n- **Pessimistic locking**: `SELECT ... FOR UPDATE`.\n- **Optimistic locking**: a version column, `UPDATE ... WHERE id=? AND version=?`, retry on failure.\n- **Unique constraints** to enforce \"one booking per seat\" as the final safety net.\n- Know isolation levels and anomalies (dirty read, non-repeatable read, phantom).\n\n**4. CAP in this context.** Once data is replicated across nodes, a partition forces a choice between consistency and availability; bookings should favour consistency.\n\n**5. Improvements to propose.** Idempotency keys for retried requests, a queue to serialise writes per entity, and tests that run concurrent threads to expose races.\n\nBe ready to write a thread-safe version of one function live.",
+ "followUps": [
+  "How do you test code for race conditions?",
+  "Optimistic vs pessimistic locking: when do you prefer each?",
+  "What causes deadlock and how do you prevent it?",
+  "How would this change when running on multiple servers?"
+ ]
+}

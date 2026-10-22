@@ -1,0 +1,17 @@
+{
+ "qid": "30aad44521",
+ "question": "Goldman Sachs Compliance Software Engineer, Round 4 (fully LLD/HLD): **design an interface that deals with utility payments, such as paying electricity bills, mobile data and internet, similar to Paytm or Amazon Pay.** The candidate was expected to produce the **low-level design with classes for the entities**, and to mention **services and APIs for functionalities like authentication and payment**. A few **high-level design** questions followed, touching on **caching, auth tokens and scalability**.",
+ "lookingFor": [
+  "Domain modelling of users, billers, bills and payments.",
+  "Designing reliable payment flows (idempotency, state machine, failures).",
+  "API design and authentication with tokens.",
+  "Scalability basics: caching, queues, stateless services."
+ ],
+ "answer": "**Requirements:** a user logs in, picks a category (electricity, mobile, internet), selects a biller, fetches the bill (by consumer number), pays from a wallet, card or UPI, gets a receipt and history. Non-functional: payments must never be charged twice or silently lost; secure; scalable.\n\n**Entities:** `User`, `Biller` (id, category, region, adapter config), `BillerCategory`, `Bill` (consumer number, amount, due date), `PaymentMethod`, `Payment`/`Transaction` (id, user, bill, amount, status), `Receipt`. Payment status is a state machine: CREATED, PENDING, SUCCESS, FAILED, REFUNDED.\n\n**Services:** `AuthService` (login, issue and refresh tokens), `BillerService` (catalog, fetch bill through biller-specific **adapters**, one per biller API), `PaymentService` (orchestrates), `NotificationService`, `TransactionService` (history).\n\n**Key APIs:**\n- `POST /auth/login` returns a short-lived access token (JWT) and a refresh token.\n- `GET /billers?category=`, `GET /bills?biller=&consumerNo=`.\n- `POST /payments` with an **Idempotency-Key** header; returns the payment id and status.\n- `GET /payments/{id}`, `GET /users/me/transactions`.\n\n**Payment flow:** validate the bill, create a payment record (PENDING), debit the payment method, call the biller to settle, update status. If the biller call times out, do not assume failure: mark it PENDING and **reconcile** via status polling or callbacks, and refund if needed. Use **Strategy** for payment methods and **Adapter** for billers.\n\n**HLD points:**\n- *Auth:* validate the token at an API gateway, short expiry, refresh tokens, HTTPS; never log secrets.\n- *Caching:* cache the biller catalog and category data (changes rarely); do not cache balances or bill amounts for long.\n- *Scalability:* stateless services behind a load balancer; a database with replicas for reads and partitioning by user; an async queue for notifications and reconciliation; retries with backoff and circuit breakers around billers.\n- *Consistency:* use a database transaction for the ledger entry and an outbox pattern for events.",
+ "followUps": [
+  "How do you prevent charging a customer twice if the client retries?",
+  "What do you do when the biller API times out after the money was debited?",
+  "How would you store and rotate JWT secrets and refresh tokens?",
+  "How would you design the biller adapters so a new biller is a small change?"
+ ]
+}

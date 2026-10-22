@@ -1,0 +1,17 @@
+{
+ "qid": "b9cd486a86",
+ "question": "Two SQL questions were reported from Walmart Labs interviews:\n\n1. Find the third-highest salary from a typical employee table (the candidate used the `TOP` clause).\n2. Given a table of employee IDs with their manager IDs, print each employee's name and ID along with their manager's ID as the output (the candidate said they fumbled this one).",
+ "lookingFor": [
+  "Correct top-N logic that handles duplicate salaries",
+  "Knowing the self join for hierarchical data in one table",
+  "Handling employees without a manager (LEFT JOIN, NULLs)",
+  "Awareness of SQL dialect differences (TOP, LIMIT, FETCH)"
+ ],
+ "answer": "**Third-highest salary.** Decide first whether ties count as one value. For the third-highest *distinct* salary, `DENSE_RANK` is portable:\n\n    SELECT DISTINCT salary FROM (\n      SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk\n      FROM Employee\n    ) t\n    WHERE rnk = 3;\n\nA dialect-specific alternative in SQL Server using `TOP`:\n\n    SELECT TOP 1 salary FROM (\n      SELECT DISTINCT TOP 3 salary FROM Employee ORDER BY salary DESC\n    ) t ORDER BY salary ASC;\n\nThe inner query takes the three highest distinct salaries; the outer takes the smallest of those, which is the third-highest. In MySQL/PostgreSQL use `ORDER BY salary DESC LIMIT 1 OFFSET 2` on distinct values. Forgetting `DISTINCT` is the common mistake: it returns the third row, not the third value. If fewer than three distinct salaries exist the result is empty or NULL.\n\n**Employee with manager.** The manager is another row in the same table, so use a **self join** with two aliases. Assume `Employee(id, name, manager_id)`:\n\n    SELECT e.id, e.name, e.manager_id, m.name AS manager_name\n    FROM Employee e\n    LEFT JOIN Employee m ON e.manager_id = m.id;\n\n`e` plays the employee and `m` plays the manager. The join condition links the employee's `manager_id` to the manager's `id`. Use a **LEFT** join so employees with no manager (for example the CEO, whose `manager_id` is NULL) are still listed; an inner join would drop them. If the question asks only for the manager's ID, the join is not needed at all: `SELECT id, name, manager_id FROM Employee`. State that out loud, then show the join version for the manager's name.\n\n**Extension:** to list the whole chain up to the top, use a recursive CTE.",
+ "followUps": [
+  "How would you find employees who earn more than their manager?",
+  "How would you find the third-highest salary in each department?",
+  "How do you list all employees reporting directly or indirectly to a given manager?",
+  "What differs between TOP, LIMIT and FETCH FIRST across databases?"
+ ]
+}

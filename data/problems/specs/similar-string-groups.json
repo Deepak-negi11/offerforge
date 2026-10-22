@@ -1,0 +1,49 @@
+{
+ "pid": "similar-string-groups",
+ "title": "Similar String Groups",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given `n` strings, all of the same length and all **anagrams** of one another (they contain the same letters with the same multiplicities).\n\nTwo strings `a` and `b` are **similar** if they are identical, or if you can make them identical by swapping exactly two characters (at two different positions) in `a`.\n\nSimilarity is applied transitively to form groups: two strings belong to the same group if they are similar, or if there is a chain of strings from one to the other in which each consecutive pair is similar. A string similar to nothing else forms a group of its own.\n\nCount the number of groups. Equal strings may appear more than once in the input; they are similar to each other.",
+ "input_format": "The first line contains an integer `n`.\nThe next `n` tokens (one per line) are the strings.",
+ "output_format": "Print one integer: the number of groups.",
+ "constraints": [
+  "1 ≤ n ≤ 300",
+  "1 ≤ length of each string ≤ 300",
+  "All strings have the same length, consist of lowercase English letters, and are anagrams of each other"
+ ],
+ "examples": [
+  {
+   "input": "4\ntars\nrats\narts\nstar",
+   "output": "2",
+   "explanation": "\"tars\" and \"rats\" differ by swapping positions 0 and 2, and \"rats\" and \"arts\" differ by swapping positions 0 and 1, so these three form one group. \"star\" differs from every other string in all 4 positions, so it is alone. Total 2 groups."
+  },
+  {
+   "input": "4\nabc\nacb\nbac\ncba",
+   "output": "1",
+   "explanation": "\"abc\" is one swap away from each of the other three strings, so all four are connected through it."
+  },
+  {
+   "input": "4\nabcd\nbcda\ncdab\ndabc",
+   "output": "4",
+   "explanation": "Any two of these rotations differ in all four positions, so no pair is similar and every string is its own group."
+  }
+ ],
+ "complexity": {
+  "time": "O(n^2 · L · α(n))",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Think of the strings as nodes of a graph, with an edge between similar strings. The answer is the number of connected components.",
+  "Because the strings are anagrams, two of them are similar exactly when they differ in 0 or 2 positions (differing in exactly 1 position is impossible).",
+  "Use a union-find (or DFS) over all pairs. Skip pairs that are already in the same component, and stop comparing characters once you see a third difference."
+ ],
+ "reference": "import sys\nfrom operator import ne\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    s = data[1:1 + n]\n    p = list(range(n))\n\n    def find(x):\n        while p[x] != x:\n            p[x] = p[p[x]]\n            x = p[x]\n        return x\n\n    groups = n\n    for i in range(n):\n        a = s[i]\n        for j in range(i + 1, n):\n            ri, rj = find(i), find(j)\n            if ri == rj:\n                continue\n            if sum(map(ne, a, s[j])) <= 2:\n                p[ri] = rj\n                groups -= 1\n    print(groups)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\ns = data[1:1 + n]\n\ndef similar(a, b):\n    if a == b:\n        return True\n    L = len(a)\n    for i in range(L):\n        for j in range(i + 1, L):\n            t = list(a)\n            t[i], t[j] = t[j], t[i]\n            if ''.join(t) == b:\n                return True\n    return False\n\nseen = [False] * n\ncount = 0\nfor i in range(n):\n    if seen[i]:\n        continue\n    count += 1\n    seen[i] = True\n    stack = [i]\n    while stack:\n        u = stack.pop()\n        for v in range(n):\n            if not seen[v] and similar(s[u], s[v]):\n                seen[v] = True\n                stack.append(v)\nprint(count)\n",
+ "generator": "def gen(rng):\n    def fmt(ss):\n        return str(len(ss)) + '\\n' + '\\n'.join(ss)\n    def shuffled(base):\n        t = list(base)\n        rng.shuffle(t)\n        return ''.join(t)\n    def swapped(a):\n        t = list(a)\n        i, j = rng.sample(range(len(t)), 2)\n        t[i], t[j] = t[j], t[i]\n        return ''.join(t)\n    tests = [\n        fmt(['a']),\n        fmt(['ab', 'ba']),\n        fmt(['ab', 'ab', 'ab']),\n        fmt(['tars', 'rats', 'arts', 'star']),\n        fmt(['abc', 'acb', 'bac', 'cba']),\n        fmt(['abcd', 'bcda', 'cdab', 'dabc']),\n        fmt(['aabb', 'abab', 'baba', 'bbaa', 'abba', 'baab']),\n    ]\n    for _ in range(30):\n        L = rng.randint(2, 6)\n        alpha = 'abcdef'[:rng.randint(2, 4)]\n        base = ''.join(rng.choice(alpha) for _ in range(L))\n        n = rng.randint(1, 8)\n        if rng.random() < 0.5:\n            ss = [shuffled(base) for _ in range(n)]\n        else:\n            ss = [base]\n            for _ in range(n - 1):\n                ss.append(swapped(rng.choice(ss)) if L > 1 else base)\n            rng.shuffle(ss)\n        tests.append(fmt(ss))\n    letters = 'abcdefghijklmnopqrstuvwxyz'\n    # n = 300, L = 300: random shuffles (mostly isolated), chains (one group),\n    # and strings sharing a long common prefix (slow comparisons).\n    base = ''.join(rng.choice(letters) for _ in range(300))\n    tests.append(fmt([shuffled(base) for _ in range(300)]))\n    ss = [base]\n    for _ in range(299):\n        ss.append(swapped(rng.choice(ss)))\n    rng.shuffle(ss)\n    tests.append(fmt(ss))\n    prefix = 'a' * 250\n    tail = list('bcdefghijk' * 5)\n    ss = []\n    for _ in range(300):\n        rng.shuffle(tail)\n        ss.append(prefix + ''.join(tail))\n    tests.append(fmt(ss))\n    tests.append(fmt(['z' * 299 + 'y'] * 150 + ['y' + 'z' * 299] * 150))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_groups(strs: List[str]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    strs = data[1:1 + n]\n    print(count_groups(strs))\n\n\nmain()\n",
+  "javascript": "function countGroups(strs) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0])\nconst strs = t.slice(1, 1 + n)\nconsole.log(countGroups(strs))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint countGroups(vector<string>& strs) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<string> strs(n);\n    for (int i = 0; i < n; i++) cin >> strs[i];\n    cout << countGroups(strs) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int countGroups(String[] strs) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        Scanner sc = new Scanner(System.in);\n        int n = sc.nextInt();\n        String[] strs = new String[n];\n        for (int i = 0; i < n; i++) strs[i] = sc.next();\n        System.out.println(countGroups(strs));\n    }\n}\n"
+ }
+}

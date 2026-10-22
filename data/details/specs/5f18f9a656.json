@@ -1,0 +1,18 @@
+{
+ "qid": "5f18f9a656",
+ "question": "Atlassian software engineer (P40) system design round. Design a **top-K popular feeds** feature in Confluence. Follow-ups covered: **popularity score calculation strategies**, support for **querying in time windows**, and **updating dashboards of users in real time**.",
+ "lookingFor": [
+  "Scoring design: which signals count and how to age them.",
+  "Efficient top-K computation under heavy write load.",
+  "Windowed queries (last hour, day, week) and storage structures.",
+  "Real-time delivery to dashboards and its cost.",
+  "Scaling, caching and consistency trade-offs."
+ ],
+ "answer": "**Requirements.** Functional: record engagement events (view, like, comment, share) on content (pages or feeds); return the top K by popularity globally, per space or per team, and over a window (last hour, day, week); update dashboards live. Non-functional: high write throughput, low-latency reads, approximate freshness (seconds) is acceptable. Assume millions of events per minute and K around 10 to 100.\n\n**Popularity score.** A weighted sum of event types, for example `score = w_view*views + w_like*likes + w_comment*comments`, with **time decay** so old activity fades: either an exponential decay `score * e^(-lambda * age)` or windowed counts. Consider unique-user counting (HyperLogLog), anti-spam, and permission-aware ranking (users should only see content they can access).\n\n**High-level architecture.**\n1. Clients and services emit events to a log (Kafka-style).\n2. A stream processor (Flink or Spark Streaming style) aggregates events per content id into **time buckets** (for example 1-minute buckets).\n3. Aggregated counts go to a store: a key-value store or a time-series table `(contentId, bucket, counts)`; recent top lists go to Redis **sorted sets** (`ZINCRBY`, `ZREVRANGE`).\n4. A read API serves top K from cached results.\n\n**Windows.** A sliding window is the sum of buckets in range. Keep per-window sorted sets (hour, day, week) built from buckets, and expire old buckets; or precompute top-K per window every few seconds. Heavy hitters can use a **count-min sketch plus a size-K heap** to save memory at the cost of approximation.\n\n**Top-K at scale.** Partition by content id, compute a local top-K per partition, then merge local lists into a global top-K (merging K-sized lists is cheap).\n\n**Real-time dashboards.** WebSocket or server-sent events through a gateway, subscribed by scope (space/team). Push only when the top-K list changes, throttled (for example every few seconds), to avoid chatty updates. Fall back to polling.\n\n**Trade-offs and bottlenecks.** Hot content causing hot keys (shard counters), exactness versus approximation, freshness versus cost, cache invalidation, and permission filtering after ranking (over-fetch then filter).",
+ "followUps": [
+  "How would you implement time decay efficiently?",
+  "Why use a count-min sketch, and what error does it introduce?",
+  "How do you handle permission-restricted content in a shared top-K list?",
+  "How would you avoid pushing updates to dashboards on every event?"
+ ]
+}

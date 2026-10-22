@@ -1,0 +1,17 @@
+{
+ "qid": "65a00a6f71",
+ "question": "In a one-hour hiring manager interview for a Software Engineer Intern role on NVIDIA's Robot Learning Platform team, half of the time was a presentation and discussion of the candidate's past work, and the other half was coding exercises on PyTorch and general robotics concepts.\n\nThe reported tasks: **present three relevant projects**, and **implement forward and inverse kinematics with PyTorch.** The robot model was not reported; a planar two-link arm is the standard starting example.",
+ "lookingFor": [
+  "Do you understand what forward and inverse kinematics are and how they differ?",
+  "Can you write vectorised, differentiable PyTorch code for them?",
+  "Do you know that IK can have zero, one or many solutions, and singularities?",
+  "Can you connect to Jacobians and optimisation, and present projects clearly?"
+ ],
+ "answer": "**Definitions.** **Forward kinematics (FK)** maps joint angles to the end-effector pose; it is a deterministic composition of transforms. **Inverse kinematics (IK)** finds joint angles that reach a target pose; it may have no solution (out of reach), a unique one, or several (elbow-up and elbow-down), or infinitely many for redundant arms.\n\n**FK for a planar 2-link arm** (link lengths `l1`, `l2`, angles `t1`, `t2`, supporting a batch):\n\n```python\nimport torch\ndef fk(t, l1=1.0, l2=1.0):                  # t: [B,2]\n    a, b = t[:, 0], t[:, 0] + t[:, 1]\n    x = l1 * torch.cos(a) + l2 * torch.cos(b)\n    y = l1 * torch.sin(a) + l2 * torch.sin(b)\n    return torch.stack([x, y], dim=-1)      # [B,2]\n```\n\nFor general chains, build a 4x4 homogeneous transform per joint (for example from Denavit-Hartenberg parameters) and multiply them in order with `torch.matmul`.\n\n**IK, analytic (2-link):**\n\n```python\ndef ik(p, l1=1.0, l2=1.0, elbow_up=True):\n    x, y = p[:, 0], p[:, 1]\n    c2 = ((x**2 + y**2 - l1**2 - l2**2) / (2 * l1 * l2)).clamp(-1, 1)\n    t2 = torch.acos(c2) * (1 if elbow_up else -1)\n    t1 = torch.atan2(y, x) - torch.atan2(l2 * torch.sin(t2), l1 + l2 * torch.cos(t2))\n    return torch.stack([t1, t2], dim=-1)\n```\n\nCheck that the target is reachable (`|l1 - l2| <= r <= l1 + l2`) and verify with `fk(ik(p))`.\n\n**IK, numerical (works for any chain).** Because FK is differentiable, minimise `||fk(theta) - target||^2` with gradient descent or Adam via autograd; or use the Jacobian: `delta_theta = J^+ * error` (pseudo-inverse) or damped least squares, `J^T (J J^T + lambda^2 I)^-1 e`, which stays stable near singularities. Use several random initial guesses to find different solutions, and respect joint limits.\n\n**For the project presentation:** pick three projects, give each a one-minute structure (problem, your role, technical decision, result with a metric), and prefer ones relevant to robotics, simulation or ML.",
+ "followUps": [
+  "What is a singularity, and why does it cause trouble for the Jacobian-based IK?",
+  "How would you handle joint limits?",
+  "How does IK change for a 6-DoF arm?",
+  "How could learning be used to solve IK, and what are the downsides compared with analytic methods?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "9445be9afb",
+ "question": "Razorpay system design round (Senior Software Engineer, about one hour): **design a scalable notification delivery system for a payment processing platform.** The discussion covered **how Kafka is used, how to handle system failures and fault tolerance, how to scale the system, and observability and monitoring.**",
+ "lookingFor": [
+  "Reliability with money-related events: no loss, controlled duplicates, ordering where needed.",
+  "Sound use of a log or queue: topics, partitions, consumer groups.",
+  "Handling slow or failing downstream channels and providers.",
+  "Scaling and capacity reasoning.",
+  "Observability and operational thinking."
+ ],
+ "answer": "**Requirements.** Functional: send notifications (webhooks to merchants, email, SMS, push) triggered by payment events such as payment captured, failed, refunded; templates and user preferences; retries; delivery status. Non-functional: high availability, at-least-once delivery with idempotency (no lost payment notifications), low latency for critical events, scale to for example thousands of events per second with spikes. Say these are assumptions.\n\n**High-level flow.**\n1. Payment services publish events to **Kafka** (topic per event domain, key = merchant or payment id so ordering holds per entity). A transactional outbox in the payment database avoids \"DB committed but event lost\".\n2. A *notification service* consumes events, applies preferences and templates, and writes a notification record (`id`, `status`, `attempts`, `channel`) with a unique key on event id to deduplicate.\n3. It publishes per-channel messages to channel topics (webhook, email, SMS, push), so a slow SMS provider cannot block webhooks.\n4. *Channel workers* (consumer groups) call providers or merchant endpoints with timeouts and update status.\n\n**Failure handling.**\n- Retry with exponential backoff and jitter via retry topics (1m, 5m, 30m...), then a dead-letter topic and alerting.\n- Circuit breakers and per-destination rate limits so one failing merchant endpoint does not exhaust workers; fall back to a secondary provider for SMS or email.\n- Commit Kafka offsets only after the record is processed (at-least-once); make sends idempotent using a notification id as the idempotency key. Replication factor 3 and `acks=all` for durability.\n- Priority lanes: separate topics for critical (payment success) and bulk (marketing) traffic.\n\n**Scaling.** Add partitions and consumers (parallelism is bounded by partition count), scale workers on consumer lag, shard the notification store by merchant id, and cache templates and preferences.\n\n**Observability.** Metrics: consumer lag, end-to-end latency, success/failure rate per channel and provider, retry and DLQ depth. Structured logs and traces carrying the notification id and a correlation id. Alerts on lag and DLQ growth, and a replay tool for DLQ messages.",
+ "followUps": [
+  "How do you guarantee ordering of notifications for one payment?",
+  "What happens if a merchant's webhook endpoint is down for a day?",
+  "Exactly-once vs at-least-once: which would you choose and why?",
+  "How would you handle a sudden 10x traffic spike, such as a sale event?"
+ ]
+}

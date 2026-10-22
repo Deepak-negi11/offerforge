@@ -1,0 +1,19 @@
+{
+ "qid": "d851b0b93a",
+ "question": "Meesho Data Scientist-1, Round 3 (ML breadth, case study). **How would you build a visual search system for Meesho?** The interviewer focused on model building: **explain how a Vision Transformer (ViT) works, which model you would select and why, how you would train it, and which evaluation and business metrics you would track.**",
+ "lookingFor": [
+  "Can you frame the problem (retrieval, embeddings, ranking) and state requirements?",
+  "Do you pick a reasonable model and training objective with justification?",
+  "Do you consider data, labels and negatives, and serving at scale?",
+  "Do you pair offline retrieval metrics with online business metrics?",
+  "Do you anticipate failure modes (domain shift, near duplicates, cold start)?"
+ ],
+ "answer": "**Problem framing.** A shopper uploads or taps a photo and gets visually similar (or the same) products from a large catalogue of images. This is **image retrieval**: map every image to an embedding, then do nearest-neighbour search. Clarify latency (for example a few hundred milliseconds), catalogue size, whether exact-match and similar-style both matter, and cold start for new products.\n\n**How ViT works.** Split the image into fixed patches (for example 16x16), flatten and linearly project each to a token, add positional embeddings and a class token, then pass through standard transformer encoder layers (self-attention plus MLP). The class token or pooled output is the image representation. ViT lacks CNN inductive biases, so it needs large-scale pretraining but then scales well and captures global context.\n\n**Model choice.** Start from a **pretrained backbone**, either a ViT or a CNN such as ResNet/EfficientNet, ideally a CLIP-style or self-supervised model (such as DINO) that gives strong general features. Trade-off: ViT gives better quality; a smaller CNN or distilled model gives lower latency and cost. Baseline first: pretrained embeddings with no fine-tuning.\n\n**Training.** Fine-tune with **metric learning**: contrastive or triplet loss so that images of the same product (different photos, user photos vs catalogue shots) are close and different products are far, with hard-negative mining. Positives come from multiple images of one product, augmentations and click/purchase pairs from logs. Add category or attribute heads as auxiliary tasks. Use cropping or detection to isolate the item from the background.\n\n**Serving.** Compute embeddings offline for the catalogue, store them in an approximate nearest-neighbour index (HNSW, IVF-PQ), embed the query at request time, retrieve top-K, then re-rank using category, price, availability and personalisation.\n\n**Evaluation.** Offline: recall@K, precision@K, mAP, NDCG on a labelled query set, sliced by category. Online: A/B test on click-through rate, add-to-cart, conversion, search abandonment, plus latency and revenue per session.\n\n**Risks.** Domain gap between user photos and studio images, near-duplicate listings, index drift as catalogue changes, bias towards popular items.",
+ "followUps": [
+  "Why use contrastive or triplet loss instead of classification?",
+  "How do you mine hard negatives?",
+  "How would you evaluate if there is no labelled relevance data?",
+  "How would you handle new products added every hour?",
+  "ViT vs CNN: when would you choose each?"
+ ]
+}

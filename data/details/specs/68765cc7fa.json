@@ -1,0 +1,18 @@
+{
+ "qid": "68765cc7fa",
+ "question": "Reported from a Meta software engineer (Data Collection team) design round: **design an ad aggregation service.** Follow-ups asked **how the system scales with the number of servers** and for **back-of-envelope database estimates**.\n\nThe report does not define \"ad aggregation\". A common reading, which you should confirm with the interviewer, is a service that collects ad events (impressions and clicks) from many servers and aggregates them into counts and metrics per ad, campaign and time window for reporting and billing.",
+ "lookingFor": [
+  "Clarifying the ambiguous prompt and committing to explicit assumptions",
+  "High-throughput ingestion pipeline design (queues, partitioning, batching)",
+  "Aggregation strategy: stream versus batch, windowing, exactly-once or deduplication",
+  "Back-of-envelope estimates for throughput and storage",
+  "Scaling story: partitioning, hot keys, replication and failure handling"
+ ],
+ "answer": "**Clarify.** Which events (impression, click, conversion)? Query needs: counts per ad per minute/hour/day, by country or device? Freshness: seconds for dashboards, exact numbers for billing? Assume 10 billion ad events per day.\n\n**Estimates.** 10B/day is about 115,000 events/sec on average, perhaps 3x at peak (about 350k/sec). If an event is about 200 bytes, raw ingest is about 2 TB per day, and about 700 TB per year, so keep raw events in cheap storage (object store, columnar files) with a retention limit. Aggregated data is far smaller: for 10 million ads x 1,440 minutes would be 14 billion rows per day if every ad were active every minute, so aggregate at coarser granularity (hourly and daily) for older data and only roll up active ads.\n\n**Architecture.**\n1. *Collectors* (stateless, behind a load balancer) receive events from ad servers, validate and write to a partitioned log (**Kafka**), keyed by ad id so one ad's events land on the same partition.\n2. *Stream processors* (Flink or Spark Streaming style) consume, deduplicate by event id (using a keyed state or a short-window cache), and compute **windowed aggregates** (tumbling one-minute windows per ad).\n3. Aggregates are written to a store that supports fast writes and range reads, such as a wide-column store or an OLAP database (partition by ad id, sort by time). A **batch job** reprocesses the raw log nightly to correct late or lost events (a lambda-style approach), which matters for billing.\n4. *Query API* serves dashboards from the aggregate store with caching.\n\n**Scaling with the number of servers.** Add collectors behind the load balancer for ingestion capacity. Add Kafka partitions and stream consumers for processing, as throughput scales roughly linearly with partitions. Shard the aggregate database by ad id (consistent hashing). Replicate for availability.\n\n**Bottlenecks and trade-offs.** *Hot keys*: a viral ad can overload a partition, so pre-aggregate locally in the collectors or the first stage and split the key (ad id + random suffix), then merge. *Delivery guarantees*: at-least-once plus idempotent dedupe is simpler than exactly-once. *Late data*: use watermarks and allow corrections. Back-pressure and monitoring of consumer lag are essential.",
+ "followUps": [
+  "How would you handle a single ad that receives 100x more traffic than others?",
+  "How do you guarantee click counts used for billing are accurate?",
+  "What happens when a stream processor crashes mid-window?",
+  "How would you choose the database for the aggregated results?"
+ ]
+}

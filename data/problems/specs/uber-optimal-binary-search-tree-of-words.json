@@ -1,0 +1,44 @@
+{
+ "pid": "uber-optimal-binary-search-tree-of-words",
+ "title": "Optimal Binary Search Tree of Words",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given `n` **distinct** words, each with a positive integer access cost. The words are given in arbitrary order.\n\nYou must arrange all the words in a **binary search tree** (BST) ordered lexicographically: for every node, all words in its left subtree are lexicographically smaller than the node's word and all words in its right subtree are larger. Words are compared character by character using the usual dictionary order of lowercase letters (a proper prefix is smaller than the longer word).\n\nThe root of the tree is at level `0`, its children are at level `1`, and so on. A word placed at level `L` contributes `(L + 1) × cost` to the total cost of the tree.\n\nPrint the **minimum possible total cost** over all valid BSTs that contain every word exactly once.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` space-separated words.\nThe third line contains `n` space-separated integers: the cost of each word, in the same order as the words.",
+ "output_format": "Print a single integer: the minimum total cost.",
+ "constraints": [
+  "1 ≤ n ≤ 250",
+  "Each word has 1 to 10 lowercase English letters, and all words are distinct",
+  "1 ≤ cost ≤ 1000"
+ ],
+ "examples": [
+  {
+   "input": "3\napple banana cherry\n3 2 4",
+   "output": "16",
+   "explanation": "Putting `banana` at the root gives `1 × 2`, and `apple` and `cherry` at level 1 give `2 × 3` and `2 × 4`: 2 + 6 + 8 = 16. Rooting at `apple` costs 19 and rooting at `cherry` costs 18 or more, so 16 is the minimum."
+  },
+  {
+   "input": "4\nfig date kiwi plum\n1 10 1 10",
+   "output": "37",
+   "explanation": "Sorted, the words are `date`, `fig`, `kiwi`, `plum` with costs 10, 1, 1, 10. The heavy words should sit near the top: `date` at the root (1 × 10), `plum` as its right child (2 × 10), `kiwi` as the left child of `plum` (3 × 1) and `fig` as the left child of `kiwi` (4 × 1), for 10 + 20 + 3 + 4 = 37. A balanced tree rooted at `fig` or `kiwi` costs 44."
+  }
+ ],
+ "complexity": {
+  "time": "O(n^3)",
+  "space": "O(n^2)"
+ },
+ "hints": [
+  "Sort the words (together with their costs) first. Any BST over the sorted list uses a contiguous range of words in every subtree.",
+  "Let `dp[i][j]` be the minimum cost of a tree built from the sorted words `i..j`. Try every word `r` in that range as the root.",
+  "Placing a root pushes every other word in the range one level deeper, which adds the sum of all costs in `i..j` once. Use prefix sums for that."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    words = data[1:1 + n]\n    costs = list(map(int, data[1 + n:1 + 2 * n]))\n    order = sorted(range(n), key=lambda i: words[i])\n    c = [costs[i] for i in order]\n    pre = [0] * (n + 1)\n    for i in range(n):\n        pre[i + 1] = pre[i] + c[i]\n    # dp[i][j] = best cost for words i..j-1 (half open)\n    dp = [[0] * (n + 1) for _ in range(n + 2)]\n    for length in range(1, n + 1):\n        for i in range(0, n - length + 1):\n            j = i + length\n            best = min(dp[i][r] + dp[r + 1][j] for r in range(i, j))\n            dp[i][j] = best + pre[j] - pre[i]\n    print(dp[0][n])\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nwords = data[1:1 + n]\ncosts = list(map(int, data[1 + n:1 + 2 * n]))\npairs = sorted(zip(words, costs))\nc = [p[1] for p in pairs]\n\ndef best(lo, hi, depth):\n    # minimum cost of a tree over c[lo:hi] whose root is at the given level\n    if lo >= hi:\n        return 0\n    res = None\n    for r in range(lo, hi):\n        v = (depth + 1) * c[r] + best(lo, r, depth + 1) + best(r + 1, hi, depth + 1)\n        if res is None or v < res:\n            res = v\n    return res\n\nprint(best(0, n, 0))\n",
+ "generator": "def gen(rng):\n    letters = 'abcdefghijklmnopqrstuvwxyz'\n\n    def words(n, lo, hi, alpha=letters):\n        seen = set()\n        out = []\n        while len(out) < n:\n            w = ''.join(rng.choice(alpha) for _ in range(rng.randint(lo, hi)))\n            if w not in seen:\n                seen.add(w)\n                out.append(w)\n        return out\n\n    def fmt(ws, cs):\n        return str(len(ws)) + '\\n' + ' '.join(ws) + '\\n' + ' '.join(map(str, cs))\n\n    tests = [\n        fmt(['apple', 'banana', 'cherry'], [3, 2, 4]),\n        fmt(['a'], [1]),\n        fmt(['zz', 'z'], [5, 5]),\n        fmt(['b', 'a'], [1, 1000]),\n        fmt(['ab', 'a', 'abc', 'b'], [1, 1, 1, 1]),\n    ]\n    for n in (2, 3, 4, 5, 6, 7, 8, 9):\n        for _ in range(3):\n            ws = words(n, 1, 4, 'abc')\n            tests.append(fmt(ws, [rng.randint(1, 20) for _ in range(n)]))\n    for n in (7, 8):\n        ws = words(n, 1, 3)\n        tests.append(fmt(ws, [rng.randint(1, 1000) for _ in range(n)]))\n        tests.append(fmt(ws, [1000] * n))\n    n = 250\n    ws = words(n, 1, 10)\n    tests.append(fmt(ws, [rng.randint(1, 1000) for _ in range(n)]))\n    tests.append(fmt(ws, [1000] * n))\n    tests.append(fmt(sorted(ws), [rng.randint(1, 5) for _ in range(n)]))\n    tests.append(fmt(sorted(ws, reverse=True), [1 + (i * 37) % 1000 for i in range(n)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_total_cost(words: List[str], costs: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    words = data[1:1 + n]\n    costs = [int(x) for x in data[1 + n:1 + 2 * n]]\n    print(min_total_cost(words, costs))\n\n\nmain()\n",
+  "javascript": "function minTotalCost(words, costs) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0])\nconst words = t.slice(1, 1 + n)\nconst costs = t.slice(1 + n, 1 + 2 * n).map(Number)\nconsole.log(minTotalCost(words, costs))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minTotalCost(vector<string>& words, vector<long long>& costs) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<string> words(n);\n    vector<long long> costs(n);\n    for (int i = 0; i < n; i++) cin >> words[i];\n    for (int i = 0; i < n; i++) cin >> costs[i];\n    cout << minTotalCost(words, costs) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minTotalCost(String[] words, long[] costs) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder sb = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) sb.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(sb.toString());\n        int n = Integer.parseInt(st.nextToken());\n        String[] words = new String[n];\n        long[] costs = new long[n];\n        for (int i = 0; i < n; i++) words[i] = st.nextToken();\n        for (int i = 0; i < n; i++) costs[i] = Long.parseLong(st.nextToken());\n        System.out.println(minTotalCost(words, costs));\n    }\n}\n"
+ }
+}

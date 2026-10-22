@@ -1,0 +1,43 @@
+{
+ "pid": "check-if-point-is-reachable",
+ "title": "Check if Point Is Reachable",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You walk on an enormous grid of blocks whose rows and columns are numbered from `1`. You start on block `(1, 1)`. When you stand on block `(i, j)` you may step to exactly one of these blocks:\n\n- `(2i, j)`\n- `(i, 2j)`\n- `(i - j, j)`\n- `(i, j - i)`\n\nBoth coordinates must always be positive integers, so a subtraction step is allowed only when it leaves a coordinate of at least `1`. There is no upper limit on the coordinates of the blocks you pass through on the way, and you may take as many steps as you like.\n\nYou are given `t` queries. For each query `(m, n)`, decide whether block `(m, n)` can be reached from `(1, 1)`. Print `Yes` if it can and `No` otherwise.",
+ "input_format": "The first line contains an integer `t`.\nEach of the next `t` lines contains two integers `m` and `n`.",
+ "output_format": "Print `t` lines, one per query, each `Yes` or `No`.",
+ "constraints": [
+  "1 ≤ t ≤ 5·10^4",
+  "1 ≤ m, n ≤ 10^18"
+ ],
+ "examples": [
+  {
+   "input": "3\n1 2\n4 7\n10 10",
+   "output": "Yes\nYes\nNo",
+   "explanation": "(1,2) is one doubling of the column. (4,7) is reached by (1,1) -> (1,2) -> (1,4) -> (1,8) -> (1,7) -> (2,7) -> (4,7); note that the path goes through (1,8), beyond the target. (10,10) has an odd factor 5 in common, and no move can create one."
+  },
+  {
+   "input": "4\n1 1\n8 8\n6 9\n12 18",
+   "output": "Yes\nYes\nNo\nNo",
+   "explanation": "(1,1) is the start. (8,8) is reached by (1,1) -> (2,1) -> (2,2) -> (4,2) -> (4,4) -> (8,4) -> (8,8). The pairs (6,9) and (12,18) have gcd 3 and 6, which contain an odd factor greater than 1, so they are unreachable."
+  }
+ ],
+ "complexity": {
+  "time": "O(t · log(max(m, n)))",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Try small cases by hand or with a short search. Which pairs can you reach? Look at what the greatest common divisor of the two coordinates does under each of the four moves.",
+  "Subtracting one coordinate from the other keeps the gcd unchanged, while doubling a coordinate multiplies the gcd by 1 or 2. Starting from gcd 1, what values can the gcd take?",
+  "The answer depends only on whether gcd(m, n) is a power of two (including 1). Think about why every such pair can be reached: reverse the process and reduce the pair to (1, 1)."
+ ],
+ "reference": "import sys\nfrom math import gcd\n\ndef main():\n    d = sys.stdin.read().split()\n    t = int(d[0])\n    out = []\n    for i in range(t):\n        g = gcd(int(d[1 + 2 * i]), int(d[2 + 2 * i]))\n        out.append('Yes' if g & (g - 1) == 0 else 'No')\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\nd = sys.stdin.read().split()\nt = int(d[0])\nB = 300\nseen = {(1, 1)}\nst = [(1, 1)]\nwhile st:\n    i, j = st.pop()\n    for a in ((2 * i, j), (i, 2 * j), (i - j, j), (i, j - i)):\n        if 1 <= a[0] <= B and 1 <= a[1] <= B and a not in seen:\n            seen.add(a)\n            st.append(a)\nprint('\\n'.join('Yes' if (int(d[1 + 2 * i]), int(d[2 + 2 * i])) in seen else 'No' for i in range(t)))\n",
+ "generator": "import math\n\ndef gen(rng):\n    def fmt(qs):\n        return str(len(qs)) + \"\\n\" + \"\\n\".join(f\"{a} {b}\" for a, b in qs)\n    N = 10 ** 18\n    def pad(qs):\n        # pad past 400 characters so the (bounded) brute force is not run on huge values\n        qs = list(qs)\n        while len(fmt(qs)) <= 400:\n            qs.append((rng.randint(10 ** 17, N), rng.randint(10 ** 17, N)))\n        return fmt(qs)\n    tests = [\n        fmt([(1, 1)]),\n        fmt([(1, 2), (4, 7), (10, 10)]),\n        fmt([(3, 3)]),\n        fmt([(8, 8), (6, 6), (2, 2), (4, 12)]),\n        pad([(1, N), (N, 1), (N, N)]),\n        pad([(2 ** 59, 2 ** 59), (2 ** 59, 3 * 2 ** 58), (2 ** 59, 5 * 2 ** 57), (3 * 2 ** 58, 3 * 2 ** 58)]),\n        pad([(N - 1, N), (N, N - 2), (2 ** 59, 1), (999999999999999989, 2 ** 59)]),\n    ]\n    # every pair up to 5, then random small queries (checked against the bounded search)\n    tests.append(fmt([(a, b) for a in range(1, 6) for b in range(1, 6)]))\n    for _ in range(14):\n        tests.append(fmt([(rng.randint(1, 20), rng.randint(1, 20)) for _ in range(rng.randint(1, 30))]))\n    def big(size):\n        qs = []\n        for _ in range(size):\n            kind = rng.randint(0, 3)\n            if kind == 0:\n                qs.append((rng.randint(1, N), rng.randint(1, N)))\n            elif kind == 1:\n                p = rng.randint(0, 40)\n                qs.append((rng.randint(1, N >> p) << p, rng.randint(1, N >> p) << p))\n            elif kind == 2:\n                p = rng.randint(0, 40)\n                a = rng.randint(1, N >> p) | 1\n                b = rng.randint(1, N >> p) | 1\n                g = math.gcd(a, b)\n                a //= g\n                b //= g\n                qs.append((a << p, b << p))\n            else:\n                o = rng.choice([3, 5, 7, 9, 15, 21, 33])\n                p = rng.randint(0, 50)\n                qs.append((o * rng.randint(1, max(1, (N >> p) // o)) << p, o * rng.randint(1, max(1, (N >> p) // o)) << p))\n        qs = [(min(a, N), min(b, N)) for a, b in qs]\n        return qs\n    tests.append(fmt(big(50000)))\n    tests.append(fmt(big(40000)))\n    tests.append(fmt(big(30000)))\n    tests.append(fmt(big(5000)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef is_reachable(m: int, n: int) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    t = int(data[0])\n    out = []\n    for i in range(t):\n        m, n = int(data[1 + 2 * i]), int(data[2 + 2 * i])\n        out.append('Yes' if is_reachable(m, n) else 'No')\n    print('\\n'.join(out))\n\n\nmain()\n",
+  "javascript": "function isReachable(m, n) {\n  // m and n are BigInt values (they can be as large as 10^18)\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst q = Number(t[0])\nconst out = []\nfor (let i = 0; i < q; i++) {\n  const m = BigInt(t[1 + 2 * i]), n = BigInt(t[2 + 2 * i])\n  out.push(isReachable(m, n) ? 'Yes' : 'No')\n}\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool isReachable(long long m, long long n) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int t;\n    cin >> t;\n    while (t--) {\n        long long m, n;\n        cin >> m >> n;\n        cout << (isReachable(m, n) ? \"Yes\" : \"No\") << \"\\n\";\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean isReachable(long m, long n) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int t = Integer.parseInt(st.nextToken());\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < t; i++) {\n            long m = Long.parseLong(st.nextToken());\n            long n = Long.parseLong(st.nextToken());\n            sb.append(isReachable(m, n) ? \"Yes\" : \"No\").append('\\n');\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

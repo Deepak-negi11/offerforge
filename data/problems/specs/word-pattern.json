@@ -1,0 +1,50 @@
+{
+ "pid": "word-pattern",
+ "title": "Word Pattern",
+ "difficulty": "Easy",
+ "source_note": "standard",
+ "statement": "You are given a string `pattern` made of lowercase letters and a list of `m` words.\n\nThe words **follow the pattern** if there is a **bijection** (a one-to-one and onto mapping) between the letters of `pattern` and the words, such that replacing every letter of `pattern` by its mapped word gives exactly the given list. In particular:\n\n- `pattern` and the list must have the same length.\n- The same letter must always map to the same word.\n- Two different letters must never map to the same word.\n\nPrint `true` if the words follow the pattern and `false` otherwise.",
+ "input_format": "The first line contains the string `pattern`.\nThe second line contains the integer `m`, the number of words.\nThe third line contains `m` words separated by single spaces.",
+ "output_format": "Print `true` or `false`.",
+ "constraints": [
+  "1 ≤ |pattern| ≤ 10^5",
+  "1 ≤ m ≤ 10^5",
+  "pattern consists of lowercase English letters",
+  "each word consists of 1 to 10 lowercase English letters"
+ ],
+ "examples": [
+  {
+   "input": "abba\n4\nred blue blue red",
+   "output": "true",
+   "explanation": "Map a to red and b to blue. Substituting gives red blue blue red."
+  },
+  {
+   "input": "abab\n4\ngo go stop stop",
+   "output": "false",
+   "explanation": "Letter a would have to map to both go and stop."
+  },
+  {
+   "input": "ab\n2\ncat cat",
+   "output": "false",
+   "explanation": "Different letters a and b would both map to the word cat, which breaks the one-to-one rule."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + total word length)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "First compare the length of the pattern with the number of words. If they differ, the answer is immediately false.",
+  "A single dictionary from letter to word catches a letter that maps to two words, but not two letters that share a word.",
+  "Keep a second dictionary in the opposite direction (word to letter), or compare the index of first occurrence of each letter and each word."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    p = data[0]\n    m = int(data[1])\n    words = data[2:2 + m]\n    if len(p) != m:\n        print('false')\n        return\n    fwd, back = {}, {}\n    for c, w in zip(p, words):\n        if fwd.setdefault(c, w) != w or back.setdefault(w, c) != c:\n            print('false')\n            return\n    print('true')\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\np = data[0]\nm = int(data[1])\nw = data[2:2 + m]\nok = len(p) == m\nif ok:\n    for i in range(m):\n        for j in range(m):\n            if (p[i] == p[j]) != (w[i] == w[j]):\n                ok = False\nprint('true' if ok else 'false')\n",
+ "generator": "def gen(rng):\n    def fmt(p, ws):\n        return f\"{p}\\n{len(ws)}\\n\" + ' '.join(ws)\n    tests = [fmt('a', ['dog']), fmt('a', ['dog', 'cat']), fmt('ab', ['dog']), fmt('aa', ['dog', 'dog']),\n             fmt('ab', ['dog', 'dog']), fmt('aa', ['dog', 'cat']), fmt('abba', ['x', 'y', 'y', 'x']),\n             fmt('abba', ['dog', 'cat', 'cat', 'fish']), fmt('abc', ['b', 'c', 'a'])]\n    pool = ['dog', 'cat', 'red', 'blue', 'sun', 'moon', 'sky']\n    for _ in range(50):\n        n = rng.randint(1, 8)\n        letters = 'abcdef'[:rng.randint(1, 4)]\n        p = ''.join(rng.choice(letters) for _ in range(n))\n        distinct = sorted(set(p))\n        names = rng.sample(pool, len(distinct))\n        bij = dict(zip(distinct, names))\n        ws = [bij[c] for c in p]\n        mode = rng.randint(0, 3)\n        if mode == 1:\n            ws[rng.randrange(n)] = rng.choice(pool + ['zzz'])\n        elif mode == 2:\n            ws = [rng.choice(pool[:3]) for _ in range(n)]\n        elif mode == 3:\n            if n > 1 and rng.random() < 0.5:\n                ws = ws[:-1]\n            else:\n                ws = ws + ['dog']\n        tests.append(fmt(p, ws))\n    N = 100000\n    def rword():\n        return ''.join(rng.choice('abcdefghijklmnopqrstuvwxyz') for _ in range(10))\n    names = []\n    seen = set()\n    while len(names) < 26:\n        w = rword()\n        if w not in seen:\n            seen.add(w)\n            names.append(w)\n    letters = 'abcdefghijklmnopqrstuvwxyz'\n    p = ''.join(rng.choice(letters) for _ in range(N))\n    mp = dict(zip(letters, names))\n    good = [mp[c] for c in p]\n    tests.append(fmt(p, good))\n    bad = list(good)\n    bad[-1] = good[0] if p[-1] != p[0] else names[(names.index(good[-1]) + 1) % 26]\n    tests.append(fmt(p, bad))\n    tests.append(fmt(p, good[:-1]))\n    tests.append(fmt('a' * N, [names[0]] * N))\n    tests.append(fmt('a' * N, [names[0]] * (N - 1) + [names[1]]))\n    # all 26 letters present but two letters share one word (never repeated in prefix)\n    sh = dict(mp)\n    sh['z'] = sh['y']\n    tests.append(fmt(p, [sh[c] for c in p]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef follows_pattern(pattern: str, words: List[str]) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    pattern = data[0]\n    m = int(data[1])\n    words = data[2:2 + m]\n    print('true' if follows_pattern(pattern, words) else 'false')\n\n\nmain()\n",
+  "javascript": "function followsPattern(pattern, words) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst pattern = t[0]\nconst m = parseInt(t[1])\nconst words = t.slice(2, 2 + m)\nconsole.log(followsPattern(pattern, words) ? 'true' : 'false')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool followsPattern(const string& pattern, const vector<string>& words) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string pattern;\n    int m;\n    cin >> pattern >> m;\n    vector<string> words(m);\n    for (int i = 0; i < m; i++) cin >> words[i];\n    cout << (followsPattern(pattern, words) ? \"true\" : \"false\") << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean followsPattern(String pattern, String[] words) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder sb = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) sb.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(sb.toString());\n        String pattern = st.nextToken();\n        int m = Integer.parseInt(st.nextToken());\n        String[] words = new String[m];\n        for (int i = 0; i < m; i++) words[i] = st.nextToken();\n        System.out.println(followsPattern(pattern, words) ? \"true\" : \"false\");\n    }\n}\n"
+ }
+}

@@ -1,0 +1,49 @@
+{
+ "pid": "amazon-top-k-frequent-elements-in-a-stream",
+ "title": "Top K Frequent Elements in a Stream",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "Numbers arrive one at a time in a stream, and you are given a value `K`. After **each** arrival, print the `K` most frequent numbers seen so far (counting all numbers that have arrived up to and including the current one).\n\nOrder them by frequency, highest first; numbers with the same frequency are ordered by **smaller value first**. If fewer than `K` distinct numbers have arrived, print all of them.\n\nYou start from a brute force that recounts and sorts everything after every arrival; the goal is to update the answer incrementally instead.\n\n**Follow-up:** the interviewer steered the optimisation toward an LFU-cache-style structure: a doubly linked list of frequency buckets where each number moves from the bucket for `f` to the bucket for `f + 1` on arrival. Discuss how that structure gives the same answers.",
+ "input_format": "The first line contains two integers `n` and `K`.\nThe second line contains `n` space-separated integers, the stream in arrival order.",
+ "output_format": "Print `n` lines. Line `i` contains the (up to) `K` most frequent numbers after the `i`-th arrival, space-separated, in the order described above.",
+ "constraints": [
+  "1 ≤ n ≤ 5 · 10^4",
+  "1 ≤ K ≤ 10",
+  "1 ≤ value ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "5 2\n1 1 2 2 3",
+   "output": "1\n1\n1 2\n1 2\n1 2",
+   "explanation": "After 1: only 1. After 1 1: only 1. After 1 1 2: 1 (2 times) then 2 (1 time). After 1 1 2 2: counts tie at 2, so the smaller value 1 comes first. After adding 3 (count 1), it is outside the top 2."
+  },
+  {
+   "input": "7 3\n1 2 3 4 1 4 4",
+   "output": "1\n1 2\n1 2 3\n1 2 3\n1 2 3\n1 4 2\n4 1 2",
+   "explanation": "After the first four numbers every count is 1, so the three smallest values are listed. After the fifth arrival 1 has count 2. The sixth arrival makes 4 count 2 as well; it ties with 1, and 1 is smaller, so the list is 1 4 2. The seventh arrival gives 4 a count of 3, which puts it first."
+  },
+  {
+   "input": "3 1\n3 1 2",
+   "output": "3\n1\n1",
+   "explanation": "After 3: 3. After 3 1: both have count 1, the smaller value 1 wins. After 3 1 2: still a three-way tie and 1 is the smallest."
+  }
+ ],
+ "complexity": {
+  "time": "O(n · K)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Recounting and sorting all distinct numbers after every arrival costs O(n) per step or worse. Which numbers can actually change position when one number arrives?",
+  "Only the arriving number's count increases by one. Keep a hash map of counts and a list of the current best K numbers.",
+  "When `x` arrives: if it is already in the list, bubble it toward the front while it beats its left neighbour (higher count, or equal count and smaller value). If it is not in the list, it can only replace the last entry, and only if it beats it."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, K = int(data[0]), int(data[1])\n    cnt = {}\n    top = []\n    out = []\n    for idx in range(n):\n        x = int(data[2 + idx])\n        c = cnt.get(x, 0) + 1\n        cnt[x] = c\n        if x in top:\n            i = top.index(x)\n        elif len(top) < K:\n            top.append(x)\n            i = len(top) - 1\n        else:\n            last = top[-1]\n            cl = cnt[last]\n            if c > cl or (c == cl and x < last):\n                top[-1] = x\n                i = K - 1\n            else:\n                out.append(' '.join(map(str, top)))\n                continue\n        while i > 0:\n            p = top[i - 1]\n            cp = cnt[p]\n            if c > cp or (c == cp and x < p):\n                top[i] = p\n                top[i - 1] = x\n                i -= 1\n            else:\n                break\n        out.append(' '.join(map(str, top)))\n    sys.stdout.write('\\n'.join(out) + '\\n')\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, K = int(data[0]), int(data[1])\ncnt = {}\nfor idx in range(n):\n    x = int(data[2 + idx])\n    cnt[x] = cnt.get(x, 0) + 1\n    items = sorted(cnt.items(), key=lambda kv: (-kv[1], kv[0]))\n    print(' '.join(str(k) for k, _ in items[:K]))\n",
+ "generator": "def gen(rng):\n    def fmt(K, a):\n        return f\"{len(a)} {K}\\n{' '.join(map(str, a))}\"\n\n    tests = [fmt(1, [5]), fmt(3, [5]), fmt(2, [1, 1, 2, 2, 3]), fmt(1, [3, 1, 2]), fmt(3, [1, 2, 3, 4, 1, 4, 4]),\n             fmt(2, [10**9, 1, 10**9, 1, 1]), fmt(5, [7, 7, 7, 7])]\n    for _ in range(24):\n        n = rng.randint(1, 30)\n        K = rng.randint(1, 5)\n        hi = rng.choice([2, 4, 6, 10])\n        tests.append(fmt(K, [rng.randint(1, hi) for _ in range(n)]))\n    N = 50000\n    tests.append(fmt(10, [rng.randint(1, 30) for _ in range(N)]))\n    tests.append(fmt(10, [rng.randint(1, 1000) for _ in range(N)]))\n    pool = [rng.randint(1, 10**9) for _ in range(200)]\n    tests.append(fmt(3, [pool[min(int(rng.expovariate(0.05)), 199)] for _ in range(N)]))\n    tests.append(fmt(3, [rng.randint(1, 10**9) for _ in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef top_k_stream(a: List[int], k: int) -> List[List[int]]:\n    # Write your solution here\n    # Return one list per arrival: the (up to) k most frequent values so far.\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    for row in top_k_stream(a, k):\n        print(' '.join(map(str, row)))\n\n\nmain()\n",
+  "javascript": "function topKStream(a, k) {\n  // Write your solution here\n  // Return one array per arrival: the (up to) k most frequent values so far.\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst a = t.slice(2, 2 + n)\nconsole.log(topKStream(a, k).map(r => r.join(' ')).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<vector<long long>> topKStream(vector<long long>& a, int k) {\n    // Write your solution here\n    // Return one vector per arrival: the (up to) k most frequent values so far.\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    vector<vector<long long>> res = topKStream(a, k);\n    for (auto& row : res) {\n        for (size_t i = 0; i < row.size(); i++) cout << row[i] << (i + 1 < row.size() ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<long[]> topKStream(long[] a, int k) {\n        // Write your solution here\n        // Return one array per arrival: the (up to) k most frequent values so far.\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); a[i] = (long) in.nval;\n        }\n        StringBuilder sb = new StringBuilder();\n        for (long[] row : topKStream(a, k)) {\n            for (int i = 0; i < row.length; i++) sb.append(row[i]).append(i + 1 < row.length ? \" \" : \"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

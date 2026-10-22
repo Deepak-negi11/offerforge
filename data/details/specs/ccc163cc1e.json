@@ -1,0 +1,19 @@
+{
+ "qid": "ccc163cc1e",
+ "question": "PayPal Software Engineer 2, system design round (45 minutes). **Design a payment service that handles sending money** between users: functional and non-functional requirements, a high-level design, APIs, the database schema, and a flowchart of the overall flow. A second question in the same round: **design an elevator system for an 8-story building with 10 lifts**, including the scheduling algorithm used and the multithreading concepts involved. A related PayPal report mentions ledger design for consistency and traceability.",
+ "lookingFor": [
+  "Clarifying requirements and stating assumptions before drawing boxes.",
+  "Money-correctness: idempotency, atomicity, double-entry ledger, no lost or duplicated payments.",
+  "Clean APIs and a sensible schema with constraints.",
+  "Failure handling: retries, timeouts, reconciliation, partial failures with external systems.",
+  "For the elevator: scheduling policy, state modelling and concurrency control."
+ ],
+ "answer": "## Part 1: Send-money service\n\n**Requirements.** Functional: send money from user A to user B (wallet or bank), check status, transaction history, refunds/reversals, notifications. Non-functional: **correctness over speed** (never lose or double-spend), strong consistency for balances, idempotent APIs, high availability, auditability, security (authn/z, encryption, fraud checks). Assume e.g. 10M users, a few thousand TPS peak.\n\n**API.** `POST /v1/payments` with header `Idempotency-Key`, body `{from, to, amount, currency}`; `GET /v1/payments/{id}`; `GET /v1/users/{id}/transactions?cursor=`.\n\n**Components.** API gateway (auth, rate limit) -> Payment service -> Risk/fraud check -> Ledger/wallet service -> Notification via queue; for external funding, a bank/card-network connector. A state machine: `CREATED -> RISK_CHECKED -> DEBITED -> CREDITED -> COMPLETED` (or `FAILED/REVERSED`).\n\n**Data model (relational, e.g. SQL).**\n- `payments(id, idempotency_key UNIQUE, from_acct, to_acct, amount, currency, status, created_at)`\n- `accounts(id, user_id, currency, balance, version)`\n- `ledger_entries(id, payment_id, account_id, direction, amount, created_at)` append-only, double-entry: every payment writes a debit and a credit that sum to zero.\n\n**Key points.**\n- Debit and credit in **one DB transaction** when in the same store; across services, use a saga with compensations, or an outbox plus queue.\n- **Idempotency:** unique key per request, return the stored result on retry.\n- Concurrent debits: row lock or optimistic version check to prevent overdraft.\n- External calls: timeouts, retries with backoff, and a **reconciliation job** against bank reports.\n- Scale by sharding on account id; reads from replicas for history only.\n\n## Part 2: Elevator system (8 floors, 10 lifts)\n\n**Entities:** `Elevator(id, floor, direction, state, stops)`, `Request` (hall call: floor and direction; car call: destination), `Dispatcher/Controller`.\n**Scheduling:** the SCAN/LOOK idea: keep moving in the current direction serving stops, then reverse. For a hall call, choose the lift with the lowest estimated cost (distance, direction match, current load), and fall back to the nearest idle lift.\n**Concurrency:** one thread (or event loop) per lift, a thread-safe request queue, and a lock around dispatch decisions. Use a state machine for the lifts. Handle door and overload as edge cases.",
+ "followUps": [
+  "How do you guarantee a payment is not applied twice if the client retries after a timeout?",
+  "What happens if the debit succeeds but the credit call fails?",
+  "How would you design the ledger to support audit and refunds?",
+  "How would you shard the accounts table and what is the cost of cross-shard transfers?",
+  "For the elevator, how do you avoid starvation of far floors?"
+ ]
+}

@@ -1,0 +1,42 @@
+{
+ "pid": "zoho-tower-of-hanoi",
+ "title": "Tower of Hanoi",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "There are three pegs numbered `1`, `2` and `3`. Peg `1` holds `n` disks of different sizes, stacked with the largest at the bottom and the smallest on top. The disks are numbered by size, from `1` (smallest) to `n` (largest).\n\nMove the whole stack to peg `3`, obeying these rules:\n\n- Only one disk can be moved at a time, and it must be the top disk of some peg.\n- A disk may only be placed on an empty peg or on top of a **larger** disk.\n\nPrint the **minimum possible number of moves**, followed by the moves themselves in order. Each move is written as `from to`: the peg the top disk is taken from and the peg it is placed on. The shortest sequence of moves is unique, so there is exactly one correct output.\n\n**Follow-up:** Explain the recursive idea behind your solution: to move `k` disks from a source peg to a target peg, what must you do with the top `k - 1` disks, and why does the move count satisfy `T(k) = 2 * T(k - 1) + 1`?",
+ "input_format": "A single line containing the integer `n`.",
+ "output_format": "The first line contains the minimum number of moves `m`. Each of the next `m` lines contains two integers `from to` describing one move.",
+ "constraints": [
+  "1 ≤ n ≤ 16"
+ ],
+ "examples": [
+  {
+   "input": "2",
+   "output": "3\n1 2\n1 3\n2 3",
+   "explanation": "Park the small disk on peg 2, move the large disk to peg 3, then put the small disk on top of it."
+  },
+  {
+   "input": "3",
+   "output": "7\n1 3\n1 2\n3 2\n1 3\n2 1\n2 3\n1 3",
+   "explanation": "First move the top two disks to peg 2 (using peg 3 as the spare): three moves. Then move the largest disk to peg 3. Finally move the two disks from peg 2 onto peg 3 (using peg 1 as the spare)."
+  }
+ ],
+ "complexity": {
+  "time": "O(2^n)",
+  "space": "O(2^n)"
+ },
+ "hints": [
+  "To move the largest disk, every other disk must already be out of the way on a single peg. Which peg?",
+  "Solve it recursively: move the top n - 1 disks to the spare peg, move disk n to the target, then move the n - 1 disks from the spare peg onto the target.",
+  "Write a function move(k, source, target, spare). In the recursive case, the roles of the pegs swap between the two recursive calls."
+ ],
+ "reference": "import sys\n\ndef main():\n    n = int(sys.stdin.read().split()[0])\n    moves = []\n\n    def go(k, a, b, c):\n        if k == 0:\n            return\n        go(k - 1, a, c, b)\n        moves.append(str(a) + ' ' + str(c))\n        go(k - 1, b, a, c)\n\n    go(n, 1, 2, 3)\n    print(len(moves))\n    print('\\n'.join(moves))\n\nmain()\n",
+ "brute": "import sys\nfrom collections import deque\n\nn = int(sys.stdin.read().split()[0])\nmoves = []\nif n <= 6:\n    # BFS over states; state[i] = peg (1..3) of disk i+1. The shortest solution is unique.\n    start = tuple([1] * n)\n    goal = tuple([3] * n)\n    prev = {start: None}\n    q = deque([start])\n    while q:\n        s = q.popleft()\n        if s == goal:\n            break\n        for d in range(n):\n            p = s[d]\n            if any(s[e] == p for e in range(d)):\n                continue  # disk d is not on top of its peg\n            for t in (1, 2, 3):\n                if t == p or any(s[e] == t for e in range(d)):\n                    continue\n                ns = s[:d] + (t,) + s[d + 1:]\n                if ns not in prev:\n                    prev[ns] = (s, p, t)\n                    q.append(ns)\n    cur = goal\n    while prev[cur] is not None:\n        s, p, t = prev[cur]\n        moves.append(str(p) + ' ' + str(t))\n        cur = s\n    moves.reverse()\nelse:\n    # iterative method: alternate between moving the smallest disk in a fixed cycle and the only other legal move\n    pegs = {1: list(range(n, 0, -1)), 2: [], 3: []}\n    cycle = [1, 3, 2] if n % 2 == 1 else [1, 2, 3]\n    pos = 0\n    total = 2 ** n - 1\n    for step in range(total):\n        if step % 2 == 0:\n            a = cycle[pos]\n            b = cycle[(pos + 1) % 3]\n            pos = (pos + 1) % 3\n        else:\n            sm = cycle[pos]\n            x, y = [p for p in (1, 2, 3) if p != sm]\n            if not pegs[x]:\n                a, b = y, x\n            elif not pegs[y]:\n                a, b = x, y\n            elif pegs[x][-1] < pegs[y][-1]:\n                a, b = x, y\n            else:\n                a, b = y, x\n        pegs[b].append(pegs[a].pop())\n        moves.append(str(a) + ' ' + str(b))\nprint(len(moves))\nprint('\\n'.join(moves))\n",
+ "generator": "def gen(rng):\n    return [str(n) for n in range(1, 17)]\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef solve_hanoi(n: int) -> List[Tuple[int, int]]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    n = int(sys.stdin.read().split()[0])\n    moves = solve_hanoi(n)\n    print(len(moves))\n    print('\\n'.join(f'{a} {b}' for a, b in moves))\n\n\nmain()\n",
+  "javascript": "function solveHanoi(n) {\n  // Write your solution here\n  // return an array of [from, to] pairs\n  return []\n}\n\nconst n = Number(input.trim().split(/\\s+/)[0])\nconst moves = solveHanoi(n)\nconsole.log(moves.length + '\\n' + moves.map(m => m[0] + ' ' + m[1]).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<pair<int, int>> solveHanoi(int n) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<pair<int, int>> moves = solveHanoi(n);\n    cout << moves.size() << \"\\n\";\n    for (auto& m : moves) cout << m.first << \" \" << m.second << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<int[]> solveHanoi(int n) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        Scanner sc = new Scanner(System.in);\n        int n = sc.nextInt();\n        List<int[]> moves = solveHanoi(n);\n        StringBuilder sb = new StringBuilder();\n        sb.append(moves.size()).append(\"\\n\");\n        for (int[] m : moves) sb.append(m[0]).append(\" \").append(m[1]).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

@@ -1,0 +1,19 @@
+{
+ "qid": "b6effbef15",
+ "question": "High-level design round for a Senior Software Engineer at ServiceNow: **design a notification system**. The interviewer asked many deep follow-up questions about the technologies used in the proposed design, including technologies that were not on the candidate's resume, because the interviewer wanted to probe the tech used in their own system.",
+ "lookingFor": [
+  "Can you scope the system (channels, volume, latency, guarantees)?",
+  "Do you choose queues, stores and delivery providers with reasons, and know their trade-offs?",
+  "Can you handle retries, idempotency, ordering, rate limiting and user preferences?",
+  "Do you understand failure modes and monitoring?",
+  "Can you go deeper on the tools you name (Kafka, Redis, databases) without bluffing?"
+ ],
+ "answer": "**Requirements.** Send notifications over push, SMS, email and in-app; triggered by events (an incident assigned) or scheduled; respect user preferences and quiet hours. Assume 10M users and 100M notifications a day, with peaks of a few thousand per second. At-least-once delivery, low latency for urgent items, no duplicates visible to the user.\n\n**API.** `POST /notifications` (user or segment, template id, params, channel hints, priority, idempotency key), `GET /users/{id}/notifications`, `PUT /users/{id}/preferences`.\n\n**Components.**\n- **Notification service**: validates, deduplicates by idempotency key, loads preferences, renders templates, then publishes to a message queue.\n- **Queue** (Kafka, SQS, RabbitMQ as examples): separate topics or queues per channel and priority so a flood of marketing mail cannot delay urgent alerts.\n- **Channel workers**: consume, call providers (APNs/FCM, an SMS gateway, an email service), and record the outcome.\n- **Scheduler** for delayed and recurring sends.\n- **Stores**: preferences and templates in a relational DB; notification log in a wide-column or time-partitioned store; Redis for dedupe keys and rate limits.\n\n**Reliability.** Retry with exponential backoff and jitter, then a dead-letter queue. Workers must be idempotent because the queue is at-least-once. Fall back to another channel if the provider is down (circuit breaker). Rate-limit per user and per provider.\n\n**Trade-offs.** Push versus pull for in-app feeds; fan-out on write for small audiences, batched jobs for large broadcasts. Ordering is only needed per user, so partition by user id.\n\n**Observability.** Metrics for queue lag, delivery rate, provider errors, and end-to-end latency; delivery status callbacks update the log.\n\n**Be ready** to explain the technologies you name: how partitions and consumer groups work, what happens on a consumer crash, why Redis is fast, and consistency guarantees.",
+ "followUps": [
+  "Why Kafka over a traditional queue here, and how do consumer groups work?",
+  "How do you guarantee a notification is not sent twice?",
+  "How would you send a notification to 10 million users at once?",
+  "How do you handle user preferences and unsubscribes in real time?",
+  "What happens when the SMS provider is down?"
+ ]
+}

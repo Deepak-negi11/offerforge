@@ -1,0 +1,49 @@
+{
+ "pid": "minimum-moves-to-spread-stones-over-grid",
+ "title": "Minimum Moves to Spread Stones",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A `3 x 3` grid holds exactly `9` stones in total, spread over its cells. A cell may contain any number of stones, including none.\n\nIn one move you take a single stone from a cell and place it in a cell that shares an edge with it (up, down, left or right). Diagonal moves are not allowed, and a cell may hold any number of stones at any moment.\n\nFind the minimum number of moves needed so that every cell contains exactly one stone.",
+ "input_format": "Three lines, each with three integers: the number of stones in each cell of that row.",
+ "output_format": "Print one integer: the minimum number of moves.",
+ "constraints": [
+  "The grid is 3 x 3",
+  "0 ≤ grid[i][j] ≤ 9",
+  "The nine values sum to 9"
+ ],
+ "examples": [
+  {
+   "input": "1 1 0\n1 1 1\n1 1 2",
+   "output": "2",
+   "explanation": "The bottom-right cell has one stone too many and the top-right cell is empty. They are two steps apart, so one stone travels 2 cells."
+  },
+  {
+   "input": "0 0 0\n0 9 0\n0 0 0",
+   "output": "12",
+   "explanation": "Eight stones must leave the centre. Four go to the edge-middle cells, 1 move each (4 total), and four go to the corners, 2 moves each (8 total): 12."
+  },
+  {
+   "input": "0 2 0\n2 1 2\n0 2 0",
+   "output": "4",
+   "explanation": "Each of the four edge-middle cells has one spare stone and each corner is empty. Every corner touches two edge-middle cells, so the four spare stones can each step into a different corner: 4 moves, which is the minimum since 4 cells need a stone."
+  }
+ ],
+ "complexity": {
+  "time": "O(k!) with k ≤ 8 spare stones",
+  "space": "O(k)"
+ },
+ "hints": [
+  "The total is always 9, so the number of spare stones (cells with more than one) equals the number of empty cells. Each spare stone has to end up in some empty cell.",
+  "A stone travelling between two cells needs exactly their Manhattan distance in moves, and moves of different stones do not interfere.",
+  "There are at most 8 spare stones, so try every assignment of spare stones to empty cells and keep the smallest total distance. Alternatively, run a BFS over grid states."
+ ],
+ "reference": "import sys\nfrom itertools import permutations\n\ndata = sys.stdin.read().split()\ng = [int(x) for x in data[:9]]\nspare = []\nempty = []\nfor c in range(9):\n    r, k = divmod(c, 3)\n    for _ in range(g[c] - 1):\n        spare.append((r, k))\n    if g[c] == 0:\n        empty.append((r, k))\nbest = 0 if not spare else min(\n    sum(abs(a[0] - b[0]) + abs(a[1] - b[1]) for a, b in zip(spare, p))\n    for p in permutations(empty)\n)\nprint(best)\n",
+ "brute": "import sys\nfrom collections import deque\n\ndata = sys.stdin.read().split()\nstart = tuple(int(x) for x in data[:9])\ngoal = (1,) * 9\nadj = []\nfor c in range(9):\n    r, k = divmod(c, 3)\n    nb = []\n    for dr, dk in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n        nr, nk = r + dr, k + dk\n        if 0 <= nr < 3 and 0 <= nk < 3:\n            nb.append(nr * 3 + nk)\n    adj.append(nb)\ndist = {start: 0}\ndq = deque([start])\nwhile dq:\n    s = dq.popleft()\n    if s == goal:\n        break\n    for c in range(9):\n        if s[c] > 0:\n            for d in adj[c]:\n                t = list(s)\n                t[c] -= 1\n                t[d] += 1\n                t = tuple(t)\n                if t not in dist:\n                    dist[t] = dist[s] + 1\n                    dq.append(t)\nprint(dist[goal])\n",
+ "generator": "def gen(rng):\n    def fmt(c):\n        return '\\n'.join(' '.join(map(str, c[3 * i:3 * i + 3])) for i in range(3))\n    tests = [fmt([1] * 9)]\n    for pos in range(9):\n        c = [0] * 9\n        c[pos] = 9\n        tests.append(fmt(c))\n    tests.append(fmt([3, 0, 0, 0, 3, 0, 0, 0, 3]))\n    tests.append(fmt([1, 1, 0, 1, 1, 1, 1, 1, 2]))\n    tests.append(fmt([2, 0, 2, 0, 1, 0, 2, 0, 2]))\n    tests.append(fmt([0, 4, 0, 4, 1, 0, 0, 0, 0]))\n    for _ in range(40):\n        mode = rng.randint(0, 2)\n        c = [0] * 9\n        if mode == 0:\n            for _ in range(9):\n                c[rng.randrange(9)] += 1\n        elif mode == 1:\n            cells = rng.sample(range(9), rng.randint(1, 3))\n            for _ in range(9):\n                c[rng.choice(cells)] += 1\n        else:\n            c = [1] * 9\n            for _ in range(rng.randint(1, 6)):\n                a = rng.randrange(9)\n                b = rng.randrange(9)\n                if c[a] > 0:\n                    c[a] -= 1\n                    c[b] += 1\n        tests.append(fmt(c))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_moves(grid: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    grid = [[int(data[3 * i + j]) for j in range(3)] for i in range(3)]\n    print(min_moves(grid))\n\n\nmain()\n",
+  "javascript": "function minMoves(grid) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst grid = []\nfor (let i = 0; i < 3; i++) grid.push([t[3 * i], t[3 * i + 1], t[3 * i + 2]])\nconsole.log(minMoves(grid))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minMoves(vector<vector<int>>& grid) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    vector<vector<int>> grid(3, vector<int>(3));\n    for (int i = 0; i < 3; i++)\n        for (int j = 0; j < 3; j++) cin >> grid[i][j];\n    cout << minMoves(grid) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minMoves(int[][] grid) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        int[][] grid = new int[3][3];\n        for (int i = 0; i < 3; i++)\n            for (int j = 0; j < 3; j++) {\n                in.nextToken();\n                grid[i][j] = (int) in.nval;\n            }\n        System.out.println(minMoves(grid));\n    }\n}\n"
+ }
+}

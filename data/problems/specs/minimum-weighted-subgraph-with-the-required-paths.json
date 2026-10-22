@@ -1,0 +1,50 @@
+{
+ "pid": "minimum-weighted-subgraph-with-the-required-paths",
+ "title": "Minimum Weighted Subgraph with Required Paths",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given a **directed** weighted graph with `n` nodes numbered `0` to `n - 1` and `m` edges. Edge `i` goes from `u` to `v` and has a positive weight `w`. Parallel edges may exist.\n\nYou are also given three **distinct** nodes: two source nodes `src1` and `src2`, and a destination node `dest`.\n\nChoose a set of edges (a subgraph) such that, using only the chosen edges, you can reach `dest` from `src1` **and** you can reach `dest` from `src2`. The weight of the subgraph is the sum of the weights of the chosen edges; each edge counts once even if both paths use it.\n\nPrint the minimum possible weight of such a subgraph, or `-1` if no subgraph makes both sources reach `dest`.",
+ "input_format": "The first line contains `n` and `m`.\nThe second line contains `src1`, `src2` and `dest`.\nEach of the next `m` lines contains three integers `u v w`: a directed edge from `u` to `v` with weight `w`.",
+ "output_format": "Print a single integer: the minimum weight of a valid subgraph, or `-1` if none exists.",
+ "constraints": [
+  "3 ≤ n ≤ 10^5",
+  "0 ≤ m ≤ 10^5",
+  "0 ≤ u, v, src1, src2, dest < n, and src1, src2, dest are pairwise distinct",
+  "1 ≤ w ≤ 10^5"
+ ],
+ "examples": [
+  {
+   "input": "6 6\n0 1 5\n0 2 2\n1 2 3\n2 3 4\n3 4 1\n4 5 1\n0 5 10",
+   "output": "11",
+   "explanation": "Here src1 = 0, src2 = 1 and dest = 5. Both sources can go to node 2 and then share the path 2 -> 3 -> 4 -> 5. The chosen edges are 0->2 (2), 1->2 (3), 2->3 (4), 3->4 (1) and 4->5 (1), total 11. Using the direct edge 0->5 of weight 10 would cost 19 overall."
+  },
+  {
+   "input": "4 5\n0 1 3\n0 3 4\n1 3 5\n0 2 1\n1 2 1\n2 3 10",
+   "output": "9",
+   "explanation": "Merging at node 2 costs 1 + 1 + 10 = 12, but the two direct edges 0->3 (4) and 1->3 (5) cost only 9, so sharing a path is not always better."
+  },
+  {
+   "input": "3 1\n0 1 2\n0 2 5",
+   "output": "-1",
+   "explanation": "Node 1 has no outgoing edge, so it can never reach node 2."
+  }
+ ],
+ "complexity": {
+  "time": "O((n + m) log n)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "In the best subgraph the two paths (from src1 and from src2) are separate for a while, may then meet at some node, and from there on share a single path to dest.",
+  "For every node x, the cost of this shape is dist(src1, x) + dist(src2, x) + dist(x, dest). How can you get all three distance arrays without running a search from every x?",
+  "Run Dijkstra from src1, from src2, and from dest on the graph with every edge reversed. Then take the minimum over all x of the sum, skipping nodes that are unreachable."
+ ],
+ "reference": "import sys, heapq\n\ndef dijkstra(n, adj, s):\n    INF = float('inf')\n    dist = [INF] * n\n    dist[s] = 0\n    h = [(0, s)]\n    while h:\n        d, u = heapq.heappop(h)\n        if d > dist[u]:\n            continue\n        for v, w in adj[u]:\n            nd = d + w\n            if nd < dist[v]:\n                dist[v] = nd\n                heapq.heappush(h, (nd, v))\n    return dist\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    s1, s2, t = int(data[2]), int(data[3]), int(data[4])\n    adj = [[] for _ in range(n)]\n    radj = [[] for _ in range(n)]\n    pos = 5\n    for _ in range(m):\n        u, v, w = int(data[pos]), int(data[pos + 1]), int(data[pos + 2])\n        pos += 3\n        adj[u].append((v, w))\n        radj[v].append((u, w))\n    d1 = dijkstra(n, adj, s1)\n    d2 = dijkstra(n, adj, s2)\n    d3 = dijkstra(n, radj, t)\n    best = float('inf')\n    for x in range(n):\n        c = d1[x] + d2[x] + d3[x]\n        if c < best:\n            best = c\n    print(-1 if best == float('inf') else best)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\ns1, s2, t = int(data[2]), int(data[3]), int(data[4])\nedges = []\npos = 5\nfor _ in range(m):\n    edges.append((int(data[pos]), int(data[pos + 1]), int(data[pos + 2])))\n    pos += 3\n\ndef reaches(chosen, s):\n    seen = {s}\n    stack = [s]\n    while stack:\n        u = stack.pop()\n        for i in chosen:\n            a, b, _ = edges[i]\n            if a == u and b not in seen:\n                seen.add(b)\n                stack.append(b)\n    return t in seen\n\nbest = -1\nfor mask in range(1 << m):\n    chosen = [i for i in range(m) if mask >> i & 1]\n    cost = sum(edges[i][2] for i in chosen)\n    if best != -1 and cost >= best:\n        continue\n    if reaches(chosen, s1) and reaches(chosen, s2):\n        best = cost\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(n, s1, s2, t, edges):\n        return '%d %d\\n%d %d %d\\n%s' % (n, len(edges), s1, s2, t, '\\n'.join('%d %d %d' % e for e in edges))\n    tests = [\n        fmt(3, 0, 1, 2, []),\n        fmt(3, 0, 1, 2, [(0, 2, 5)]),\n        fmt(3, 0, 1, 2, [(0, 2, 5), (1, 2, 7)]),\n        fmt(3, 0, 1, 2, [(0, 1, 4), (1, 2, 3)]),\n        fmt(3, 0, 1, 2, [(2, 0, 1), (2, 1, 1)]),\n        fmt(4, 0, 1, 3, [(0, 3, 4), (1, 3, 5), (0, 2, 1), (1, 2, 1), (2, 3, 10)]),\n        fmt(3, 0, 1, 2, [(0, 2, 5), (0, 2, 3), (1, 2, 9), (1, 2, 2)]),\n    ]\n    for _ in range(80):\n        n = rng.randint(3, 7)\n        m = rng.randint(0, 12)\n        s1, s2, t = rng.sample(range(n), 3)\n        edges = [(rng.randrange(n), rng.randrange(n), rng.randint(1, 8)) for _ in range(m)]\n        tests.append(fmt(n, s1, s2, t, edges))\n    def backbone(n, m, wmax, extra_only=False):\n        p = list(range(n))\n        rng.shuffle(p)\n        edges = [(p[i], p[i + 1], rng.randint(1, wmax)) for i in range(n - 1)]\n        # a few shortcuts and random edges\n        while len(edges) < m:\n            edges.append((rng.randrange(n), rng.randrange(n), rng.randint(1, wmax)))\n        rng.shuffle(edges)\n        return p, edges\n    n = 100000\n    p, edges = backbone(n, 100000, 100000)\n    tests.append(fmt(n, p[0], p[1], p[-1], edges))\n    n = 30000\n    p, edges = backbone(n, 100000, 100000)\n    tests.append(fmt(n, p[5], p[100], p[-3], edges))\n    n = 100000\n    edges = [(rng.randrange(n), rng.randrange(n), rng.randint(1, 100000)) for _ in range(100000)]\n    tests.append(fmt(n, 0, 1, 2, edges))\n    n = 50000\n    p, edges = backbone(n, 100000, 100)\n    tests.append(fmt(n, p[0], p[2], p[-1], edges))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_weight(n: int, edges: List[List[int]], src1: int, src2: int, dest: int) -> int:\n    # edges[i] = [u, v, w]\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    src1, src2, dest = int(data[2]), int(data[3]), int(data[4])\n    edges = []\n    for i in range(m):\n        edges.append([int(data[5 + 3 * i]), int(data[6 + 3 * i]), int(data[7 + 3 * i])])\n    print(min_weight(n, edges, src1, src2, dest))\n\n\nmain()\n",
+  "javascript": "function minWeight(n, edges, src1, src2, dest) {\n  // edges[i] = [u, v, w]\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst src1 = t[2], src2 = t[3], dest = t[4]\nconst edges = []\nfor (let i = 0; i < m; i++) {\n  edges.push([t[5 + 3 * i], t[6 + 3 * i], t[7 + 3 * i]])\n}\nconsole.log(String(minWeight(n, edges, src1, src2, dest)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minWeight(int n, vector<array<int, 3>>& edges, int src1, int src2, int dest) {\n    // edges[i] = {u, v, w}\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m, src1, src2, dest;\n    cin >> n >> m >> src1 >> src2 >> dest;\n    vector<array<int, 3>> edges(m);\n    for (int i = 0; i < m; i++) cin >> edges[i][0] >> edges[i][1] >> edges[i][2];\n    cout << minWeight(n, edges, src1, src2, dest) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    // edges[i] = {u, v, w}\n    static long minWeight(int n, int[][] edges, int src1, int src2, int dest) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        in.nextToken();\n        int src1 = (int) in.nval;\n        in.nextToken();\n        int src2 = (int) in.nval;\n        in.nextToken();\n        int dest = (int) in.nval;\n        int[][] edges = new int[m][3];\n        for (int i = 0; i < m; i++) {\n            for (int j = 0; j < 3; j++) {\n                in.nextToken();\n                edges[i][j] = (int) in.nval;\n            }\n        }\n        System.out.println(minWeight(n, edges, src1, src2, dest));\n    }\n}\n"
+ }
+}

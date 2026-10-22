@@ -1,0 +1,18 @@
+{
+ "qid": "05751b1228",
+ "question": "TCS Prime (NQT) technical interview, SQL section: **What is the difference between DELETE, DROP and TRUNCATE? Also write a query to drop a column.** (Another candidate was asked the same three-way comparison.)",
+ "lookingFor": [
+  "Do you know which is DML and which is DDL?",
+  "Understanding of rollback, locks, speed and effect on structure.",
+  "Correct ALTER TABLE syntax.",
+  "Awareness of WHERE usage and identity reset.",
+  "Knowing differences across databases without overclaiming."
+ ],
+ "answer": "**DELETE** removes rows from a table, optionally filtered with `WHERE`.\n```sql\nDELETE FROM employee WHERE id = 5;   -- one row\nDELETE FROM employee;                -- all rows, table remains\n```\nIt is a DML command, logs row-by-row, fires row-level triggers, and can be rolled back inside a transaction. It is slower on large tables.\n\n**TRUNCATE** removes all rows quickly, keeping the table structure.\n```sql\nTRUNCATE TABLE employee;\n```\nIt is DDL (in most databases), has no `WHERE`, usually deallocates data pages instead of logging each row, and typically resets auto-increment counters. It does not fire row-level DELETE triggers. Rollback support varies: PostgreSQL and SQL Server allow it inside a transaction, while in MySQL and Oracle it causes an implicit commit and cannot be rolled back. It may be blocked on tables referenced by foreign keys.\n\n**DROP** removes the *entire object*: the table's data, structure, indexes and privileges disappear.\n```sql\nDROP TABLE employee;\n```\nIt is DDL, and generally cannot be undone without a backup (the same word also drops databases, views and indexes).\n\n**Summary table (in words).**\n- Scope: DELETE removes chosen rows; TRUNCATE all rows; DROP the whole table.\n- Table structure after: kept, kept, gone.\n- Filtering: `WHERE` allowed only for DELETE.\n- Speed: DROP and TRUNCATE are faster than a full-table DELETE.\n- Type: DML, DDL, DDL.\n\n**Query to drop a column** (the question said \"column\", not row):\n```sql\nALTER TABLE employee DROP COLUMN salary;\n```\nThis removes the column and its data from every row. SQLite supports it in newer versions; MySQL also accepts `DROP salary`. Check for dependencies such as indexes, constraints and views before running it, and take a backup because the data cannot be restored.\n\n**Mistake to avoid.** Calling TRUNCATE \"always unrollbackable\" or \"always DML\"; the behaviour depends on the database, so say \"in most databases\" and name the examples you know.",
+ "followUps": [
+  "Which of these can be rolled back, and why does it vary by database?",
+  "What happens to auto-increment values after TRUNCATE versus DELETE?",
+  "What are DDL, DML, DCL and TCL commands?",
+  "How do you add a column or change its type?"
+ ]
+}

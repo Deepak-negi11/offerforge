@@ -1,0 +1,48 @@
+{
+ "pid": "split-array-largest-sum",
+ "title": "Split Array Largest Sum",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given an array `a` of `n` non-negative integers and an integer `k`. Think of `a[i]` as the time needed by the `i`-th task (or the number of pages in the `i`-th book).\n\nThe tasks must be handed out **in the given order** to `k` servers (or students): split the array into exactly `k` **non-empty contiguous** parts, and give each part to one server. A server's total time is the sum of its part.\n\nAmong all ways to split the array, find the smallest possible value of the **largest** part sum, and print it.\n\nThe parts must be contiguous, so you cannot rearrange tasks. For example, with `[10, 20, 30, 40]` and `k = 2`, the split `[10, 40]` and `[20, 30]` (maximum 50) is **not** allowed.\n\nThis is the same idea as the \"allocate minimum number of pages\" and \"painter's partition\" problems.",
+ "input_format": "The first line contains `n` and `k`.\nThe second line contains `n` space-separated integers `a[i]`.",
+ "output_format": "Print a single integer: the minimum possible value of the largest part sum.",
+ "constraints": [
+  "1 ≤ k ≤ n ≤ 5 * 10^4",
+  "0 ≤ a[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "4 2\n10 10 10 10",
+   "output": "20",
+   "explanation": "Splitting into `[10, 10]` and `[10, 10]` gives sums 20 and 20, so the largest is 20. Any other split has a part with at least 30."
+  },
+  {
+   "input": "4 2\n10 20 30 40",
+   "output": "60",
+   "explanation": "The splits are `[10] | [20,30,40]` (largest 90), `[10,20] | [30,40]` (70) and `[10,20,30] | [40]` (60). The best is 60."
+  },
+  {
+   "input": "5 3\n7 2 5 10 8",
+   "output": "14",
+   "explanation": "Splitting into `[7, 2, 5]`, `[10]` and `[8]` gives sums 14, 10 and 8. No split can bring the largest part below 14."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log(sum a))",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Turn the question around: given a limit L, can you split the array into at most k parts that each sum to at most L?",
+  "Check a limit L greedily: extend the current part while its sum stays within L, and start a new part only when the next element would exceed L.",
+  "The answer lies between max(a) and sum(a), and feasibility is monotone in L, so binary search on L. Because k ≤ n and the values are non-negative, using fewer than k parts is never a problem."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    lo, hi = max(a), sum(a)\n    while lo < hi:\n        mid = (lo + hi) // 2\n        parts = 1\n        cur = 0\n        for x in a:\n            if cur + x > mid:\n                parts += 1\n                cur = x\n            else:\n                cur += x\n        if parts <= k:\n            hi = mid\n        else:\n            lo = mid + 1\n    print(lo)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, k = int(data[0]), int(data[1])\na = [int(x) for x in data[2:2 + n]]\npre = [0]\nfor x in a:\n    pre.append(pre[-1] + x)\nINF = float('inf')\n# dp[j][i] = best largest sum splitting the first i elements into j non-empty parts\ndp = [[INF] * (n + 1) for _ in range(k + 1)]\ndp[0][0] = 0\nfor j in range(1, k + 1):\n    for i in range(j, n + 1):\n        for p in range(j - 1, i):\n            if dp[j - 1][p] < INF:\n                dp[j][i] = min(dp[j][i], max(dp[j - 1][p], pre[i] - pre[p]))\nprint(dp[k][n])\n",
+ "generator": "def gen(rng):\n    def fmt(a, k):\n        return f\"{len(a)} {k}\\n\" + ' '.join(map(str, a))\n    tests = [fmt([5], 1), fmt([0], 1), fmt([10, 10, 10, 10], 2), fmt([10, 20, 30, 40], 2), fmt([7, 2, 5, 10, 8], 3),\n             fmt([1, 2, 3, 4, 5], 5), fmt([1, 2, 3, 4, 5], 1), fmt([0, 0, 0, 0], 2), fmt([0, 5, 0, 5, 0], 3),\n             fmt([10**9, 10**9, 10**9], 2)]\n    for n in (2, 3, 4, 5, 6, 8, 10, 12):\n        for _ in range(3):\n            a = [rng.randint(0, 20) for _ in range(n)]\n            tests.append(fmt(a, rng.randint(1, n)))\n    for _ in range(4):\n        n = rng.randint(4, 9)\n        a = [rng.choice([0, 0, 1, 100, 1000]) for _ in range(n)]\n        tests.append(fmt(a, rng.randint(1, n)))\n    n = 50000\n    tests.append(fmt([rng.randint(0, 10**9) for _ in range(n)], 7))\n    tests.append(fmt([rng.randint(0, 10**9) for _ in range(n)], 20000))\n    tests.append(fmt([rng.choice([0, rng.randint(0, 10**9)]) for _ in range(n)], 3))\n    tests.append(fmt([10**9] * n, 1234))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef split_array(a: List[int], k: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    print(split_array(a, k))\n\n\nmain()\n",
+  "javascript": "function splitArray(a, k) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst k = t[1]\nconsole.log(String(splitArray(t.slice(2, 2 + n), k)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long splitArray(vector<long long>& a, int k) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    cout << splitArray(a, k) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long splitArray(long[] a, int k) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (long) in.nval;\n        }\n        System.out.println(splitArray(a, k));\n    }\n}\n"
+ }
+}

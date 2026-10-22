@@ -1,0 +1,48 @@
+{
+ "pid": "stamping-the-grid",
+ "title": "Stamping the Grid",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given an `r × c` grid of cells. A cell is either **empty** (`0`) or **blocked** (`1`). You also have a rectangular stamp of height `h` and width `w`.\n\nYou may place any number of copies of the stamp on the grid, subject to these rules:\n\n- Every stamp must lie completely inside the grid.\n- A stamp may not cover any blocked cell.\n- Stamps may overlap each other.\n- Stamps may not be rotated: each one covers exactly `h` rows and `w` columns.\n\nDecide whether it is possible to place stamps so that **every empty cell is covered by at least one stamp**. If the grid has no empty cell, the answer is `true` (place no stamps).\n\nPrint `true` if it is possible and `false` otherwise.\n\nA brute force that tries every stamp position and checks all `h * w` cells costs `O(r * c * h * w)`. The intended solution needs only `O(r * c)`.",
+ "input_format": "The first line contains four integers `r`, `c`, `h` and `w`.\nEach of the next `r` lines contains a string of `c` characters, each `0` (empty) or `1` (blocked), with no spaces.",
+ "output_format": "Print `true` or `false`.",
+ "constraints": [
+  "1 ≤ r, c and r * c ≤ 2 * 10^5",
+  "1 ≤ h ≤ r and 1 ≤ w ≤ c"
+ ],
+ "examples": [
+  {
+   "input": "3 4 2 2\n0000\n0000\n1100",
+   "output": "true",
+   "explanation": "Stamps at the top-left corner `(0,0)`, at `(0,2)` and at `(1,2)` are all legal. Together they cover rows 0 and 1 completely and the two empty cells of row 2 (columns 2 and 3)."
+  },
+  {
+   "input": "2 3 2 2\n000\n001",
+   "output": "false",
+   "explanation": "The only legal placement is at columns 0-1. A stamp at columns 1-2 would cover the blocked bottom-right cell, so the empty top-right cell can never be covered."
+  },
+  {
+   "input": "2 2 1 1\n11\n11",
+   "output": "true",
+   "explanation": "There is no empty cell to cover, so no stamp is needed."
+  }
+ ],
+ "complexity": {
+  "time": "O(r * c)",
+  "space": "O(r * c)"
+ },
+ "hints": [
+  "A stamp position is legal exactly when its `h × w` rectangle holds no blocked cell. How can you test that in O(1) per position?",
+  "A 2D prefix sum of the blocked cells answers the question 'how many blocked cells are in this rectangle' in constant time.",
+  "Once you know the legal positions, you do not need to paint each stamp cell by cell. Add each legal stamp to a 2D difference array, then take a 2D prefix sum to see how many stamps cover each cell, and check every empty cell."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c, h, w = int(data[0]), int(data[1]), int(data[2]), int(data[3])\n    g = data[4:4 + r]\n    W = c + 1\n    S = [0] * ((r + 1) * W)\n    for i in range(r):\n        row = g[i]\n        rs = 0\n        base = (i + 1) * W\n        prev = i * W\n        for j in range(c):\n            if row[j] == '1':\n                rs += 1\n            S[base + j + 1] = S[prev + j + 1] + rs\n    W2 = c + 2\n    D = [0] * ((r + 2) * W2)\n    for i in range(r - h + 1):\n        top = i * W\n        bot = (i + h) * W\n        d0 = i * W2\n        d1 = (i + h) * W2\n        for j in range(c - w + 1):\n            if S[bot + j + w] - S[top + j + w] - S[bot + j] + S[top + j] == 0:\n                D[d0 + j] += 1\n                D[d0 + j + w] -= 1\n                D[d1 + j] -= 1\n                D[d1 + j + w] += 1\n    col = [0] * (c + 1)\n    for i in range(r):\n        run = 0\n        d0 = i * W2\n        row = g[i]\n        for j in range(c):\n            col[j] += D[d0 + j]\n            run += col[j]\n            if run == 0 and row[j] == '0':\n                print('false')\n                return\n    print('true')\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c, h, w = int(data[0]), int(data[1]), int(data[2]), int(data[3])\ng = data[4:4 + r]\ncov = [[False] * c for _ in range(r)]\nfor i in range(r - h + 1):\n    for j in range(c - w + 1):\n        ok = True\n        for a in range(i, i + h):\n            for b in range(j, j + w):\n                if g[a][b] == '1':\n                    ok = False\n        if ok:\n            for a in range(i, i + h):\n                for b in range(j, j + w):\n                    cov[a][b] = True\nres = True\nfor i in range(r):\n    for j in range(c):\n        if g[i][j] == '0' and not cov[i][j]:\n            res = False\nprint('true' if res else 'false')\n",
+ "generator": "def gen(rng):\n    def fmt(r, c, h, w, rows):\n        return f'{r} {c} {h} {w}\\n' + '\\n'.join(rows)\n    def from_stamps(r, c, h, w, k, extra_open=0):\n        cov = [[0] * c for _ in range(r)]\n        for _ in range(k):\n            i = rng.randint(0, r - h)\n            j = rng.randint(0, c - w)\n            for a in range(i, i + h):\n                row = cov[a]\n                for b in range(j, j + w):\n                    row[b] = 1\n        rows = [[('0' if cov[i][j] else '1') for j in range(c)] for i in range(r)]\n        for _ in range(extra_open):\n            rows[rng.randrange(r)][rng.randrange(c)] = '0'\n        return [''.join(x) for x in rows]\n    tests = [\n        fmt(3, 4, 2, 2, ['0000', '0000', '1100']),\n        fmt(2, 3, 2, 2, ['000', '001']),\n        fmt(2, 2, 1, 1, ['11', '11']),\n        fmt(1, 1, 1, 1, ['0']),\n        fmt(1, 1, 1, 1, ['1']),\n        fmt(2, 2, 2, 2, ['00', '00']),\n        fmt(2, 2, 2, 2, ['00', '01']),\n        fmt(1, 5, 1, 5, ['00000']),\n        fmt(1, 5, 1, 5, ['00100']),\n        fmt(5, 1, 3, 1, ['0', '0', '0', '1', '0']),\n    ]\n    for _ in range(50):\n        r = rng.randint(1, 6)\n        c = rng.randint(1, 6)\n        h = rng.randint(1, r)\n        w = rng.randint(1, c)\n        mode = rng.random()\n        if mode < 0.35:\n            rows = [''.join('1' if rng.random() < 0.2 else '0' for _ in range(c)) for _ in range(r)]\n        elif mode < 0.7:\n            rows = from_stamps(r, c, h, w, rng.randint(0, 4))\n        else:\n            rows = from_stamps(r, c, h, w, rng.randint(1, 4), rng.randint(0, 1))\n        tests.append(fmt(r, c, h, w, rows))\n    # large\n    r, c = 447, 447\n    for (h, w, k, ex) in ((12, 9, 6000, 0), (5, 5, 9000, 1), (30, 30, 400, 0)):\n        tests.append(fmt(r, c, h, w, from_stamps(r, c, h, w, k, ex)))\n    r, c = 1, 200000\n    tests.append(fmt(r, c, 1, 1000, from_stamps(r, c, 1, 1000, 400, 0)))\n    tests.append(fmt(r, c, 1, 100000, ['0' * 200000]))\n    r, c = 200000, 1\n    tests.append(fmt(r, c, 700, 1, from_stamps(r, c, 700, 1, 500, 0)))\n    r, c = 400, 500\n    tests.append(fmt(r, c, 200, 250, ['0' * 500] * 400))\n    tests.append(fmt(r, c, 200, 250, from_stamps(r, c, 200, 250, 30, 0)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef can_stamp(grid: List[str], h: int, w: int) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c, h, w = int(data[0]), int(data[1]), int(data[2]), int(data[3])\n    grid = data[4:4 + r]\n    print('true' if can_stamp(grid, h, w) else 'false')\n\n\nmain()\n",
+  "javascript": "function canStamp(grid, h, w) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst r = parseInt(t[0]), c = parseInt(t[1]), h = parseInt(t[2]), w = parseInt(t[3])\nconst grid = t.slice(4, 4 + r)\nconsole.log(canStamp(grid, h, w) ? 'true' : 'false')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool canStamp(vector<string>& grid, int h, int w) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c, h, w;\n    cin >> r >> c >> h >> w;\n    vector<string> grid(r);\n    for (int i = 0; i < r; i++) cin >> grid[i];\n    cout << (canStamp(grid, h, w) ? \"true\" : \"false\") << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean canStamp(String[] grid, int h, int w) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.lines().collect(java.util.stream.Collectors.joining(\" \")));\n        int r = Integer.parseInt(st.nextToken());\n        int c = Integer.parseInt(st.nextToken());\n        int h = Integer.parseInt(st.nextToken());\n        int w = Integer.parseInt(st.nextToken());\n        String[] grid = new String[r];\n        for (int i = 0; i < r; i++) grid[i] = st.nextToken();\n        System.out.println(canStamp(grid, h, w) ? \"true\" : \"false\");\n    }\n}\n"
+ }
+}

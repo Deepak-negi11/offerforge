@@ -1,0 +1,18 @@
+{
+ "qid": "9b2efb382a",
+ "question": "JPMorgan Chase, SDE-3 (7 YOE), second round with a VP. The candidate was given a design scenario in which the **entire process was synchronous** and had to **make it fault tolerant**, justifying the decision at each step; the candidate said they could not do it. The round also asked about the **deployment process** in the candidate's current company and how it compares with the interviewer's. The exact process was not reported, so assume a multi-step request flow (for example payment or order processing) across several services.",
+ "lookingFor": [
+  "Identifying each failure point in a chain of synchronous calls.",
+  "Knowing the toolbox: timeouts, retries with backoff, idempotency, queues, sagas, circuit breakers.",
+  "Justifying every change with a trade-off, not just listing patterns.",
+  "Thinking about consistency, ordering and user-visible behaviour.",
+  "Linking design to deployment and operations (rollouts, observability)."
+ ],
+ "answer": "**Start by mapping the flow.** Draw the chain: client, service A, B, C, database, third-party API. For each hop ask: what if it is slow, down, or fails after doing its work? A synchronous chain's availability is the product of its parts, and latency adds up, so one slow dependency blocks everything.\n\n**Step-by-step hardening, with the reason for each.**\n1. **Timeouts everywhere.** Without them, threads pile up behind a slow dependency. Choose them from observed p99 latency.\n2. **Retries with exponential backoff and jitter,** only for transient errors and only for **idempotent** operations. Otherwise retries cause duplicates and retry storms.\n3. **Idempotency keys.** The client or caller sends a unique request ID; the service stores the result and returns it for repeats. This makes retries safe.\n4. **Circuit breaker and bulkheads.** Stop calling a failing service and fail fast or use a fallback; isolate thread pools per dependency so one failure does not exhaust all capacity.\n5. **Break the synchronous chain where the user does not need an immediate answer.** Accept the request, persist it, return `202 Accepted` with an ID, and process steps via a **queue or log** (Kafka, SQS). Consumers retry independently, and failures go to a **dead-letter queue**. Use the **outbox pattern** so the database write and the message publish do not diverge.\n6. **Multi-step consistency:** use a **saga** with compensating actions (for example refund after a failed shipment) instead of a distributed transaction.\n7. **Visibility:** a status endpoint or callback so users can see progress; metrics, tracing and alerts on queue depth and DLQ size.\n\n**What you give up:** simplicity and immediate consistency; you gain resilience, with eventual consistency and more moving parts to monitor.\n\n**Deployment comparison.** Be ready to describe your own: CI pipeline, automated tests, canary or blue-green rollout, feature flags, health checks, quick rollback, and who is on call. Compare honestly, without criticising either side.",
+ "followUps": [
+  "Which steps must stay synchronous, and why?",
+  "How do you guarantee a message is processed exactly once?",
+  "What happens if the compensating action itself fails?",
+  "How would you roll out this change with no downtime?"
+ ]
+}

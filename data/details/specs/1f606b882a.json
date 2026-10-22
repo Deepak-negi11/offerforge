@@ -1,0 +1,19 @@
+{
+ "qid": "1f606b882a",
+ "question": "Dream11 SDE-2, Database round (about 60 minutes, focused on datastores and their internals). Reported topics: **database sharding strategies** and how to **choose the number of shards**; how to **increase read throughput**; **single-leader replication**, replication lag and **handling leader failure**; **strong versus eventual consistency**; and how to **speed up a slow SQL query** with the right indexes (what kinds of indexes, unique constraints, index internals).",
+ "lookingFor": [
+  "Depth on partitioning and replication fundamentals.",
+  "Ability to reason about trade-offs between consistency and availability.",
+  "Practical performance tuning: reading query plans and picking indexes.",
+  "Failure handling: failover, split brain, data loss window.",
+  "Capacity-based reasoning rather than guessing numbers."
+ ],
+ "answer": "**Sharding strategies.** Range (simple, good for range scans, risk of hot shards), hash (even spread, bad range scans, resharding pain unless you use consistent hashing or many virtual buckets), and directory/lookup (flexible, adds a lookup service). Choose the shard key by access pattern: it should appear in most queries and spread load evenly (user_id is often better than timestamp). Cross-shard joins and transactions become hard, so keep related data on one shard.\n\n**How many shards?** Estimate from data size per node (for example keep each shard within what one machine stores and backs up comfortably), peak write throughput versus per-node capacity, and growth for 1-2 years. Start with more logical shards than physical nodes so you can rebalance by moving whole shards.\n\n**Increasing read throughput.** In order: fix queries and indexes, add caching (Redis), add read replicas, partition or shard. Accept replica staleness or route sensitive reads to the leader.\n\n**Single-leader replication.** Writes go to the leader and are streamed to followers. *Replication lag* causes stale reads. Mitigations: read-your-writes by routing a user's reads to the leader for a short time, monotonic reads by pinning a user to one replica, or use synchronous or semi-synchronous replication for important data at a latency cost. *Leader failure:* detect with heartbeats, promote the most up-to-date follower, repoint clients, and fence the old leader to avoid **split brain**. Asynchronous replication can lose recent writes.\n\n**Strong versus eventual consistency.** Strong: reads see the latest committed write (needs coordination, higher latency). Eventual: replicas converge but may serve stale data (higher availability, lower latency). Choose per use case: wallet balance needs strong; like counts can be eventual.\n\n**Speeding up SQL.** Run `EXPLAIN`, look for full scans. Add B+ tree indexes on filter and join columns, use composite indexes following the leftmost-prefix rule, covering indexes to avoid table lookups, and unique indexes for constraints. Avoid functions on indexed columns and excessive indexes, which slow writes.",
+ "followUps": [
+  "How would you reshard a live database with no downtime?",
+  "What is a hot shard and how would you fix it?",
+  "How does a composite index on (a, b, c) help a query on a and b?",
+  "How would you prevent split brain during failover?",
+  "When is eventual consistency acceptable in a fantasy-sports product?"
+ ]
+}

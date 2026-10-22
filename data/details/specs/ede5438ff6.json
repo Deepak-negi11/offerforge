@@ -1,0 +1,18 @@
+{
+ "qid": "ede5438ff6",
+ "question": "Microsoft SDE-2, technical deep-dive round (60 minutes). After discussing past projects and architectural trade-offs, the interviewer asked: **design a distributed, highly available unique identifier generation system capable of handling massive throughput.** The discussion covered ensuring absolute uniqueness, maintaining time-based ordering, and scaling to extreme transaction volumes.",
+ "lookingFor": [
+  "Clear requirements: uniqueness, ordering, size, throughput, availability.",
+  "Knowledge of ID schemes (UUID, ticket server, Snowflake) and their trade-offs.",
+  "Handling clock skew and node-ID assignment.",
+  "Failure handling and availability without a single point of failure.",
+  "Reasoned scaling and capacity numbers."
+ ],
+ "answer": "**Requirements.** IDs must be globally unique, roughly time-sortable (k-sortable), compact (64-bit if possible), generated without a central bottleneck, highly available, low latency (sub-millisecond). Assume, say, millions of IDs per second across many data centres. Clarify whether strict global ordering is required (usually not; roughly sorted by time is enough).\n\n**Options.**\n- **UUIDv4:** no coordination, 128-bit, but random and bad for index locality. UUIDv7 / ULID add a time prefix.\n- **DB auto-increment / ticket server:** simple, ordered, but a single point of failure and a throughput limit. Multiple servers with different offsets (step N) help, at the cost of ordering.\n- **Snowflake-style (recommended):** a 64-bit ID = 1 sign bit + 41 bits timestamp (ms since a custom epoch, about 69 years) + 10 bits worker ID + 12 bits sequence (4096 IDs per ms per worker). Each worker generates locally with no network call, giving about 4 million IDs per second per worker.\n\n**Components.**\n- ID generator service (or library embedded in services), stateless except for last timestamp and sequence.\n- Worker-ID assignment through ZooKeeper/etcd leases or a config registry; ensures no two live workers share an ID.\n- NTP for clock sync; monitoring for drift.\n\n**Key problems.**\n- **Clock going backwards:** refuse to issue (or wait) until the clock catches up, or fall back to the last timestamp and keep incrementing; alert.\n- **Sequence overflow in one ms:** spin until the next ms.\n- **Worker restart:** persist the last timestamp, or wait out the clock gap.\n- **Availability:** run many workers per region; clients retry another one; no shared state on the hot path.\n\n**Scaling.** Add workers (more bits for data centre and worker if needed), batch-allocate ID ranges per client (a Flickr-style or Twitter-style trade-off), and tune bit allocation to the workload.\n\n**Trade-off summary.** Snowflake gives ordering and speed but depends on clocks; UUIDs avoid coordination but are large and unordered.",
+ "followUps": [
+  "What happens if two nodes accidentally get the same worker ID?",
+  "How do you handle clock skew between data centres?",
+  "How would you guarantee strict monotonic ordering, and what would it cost?",
+  "How would you change the bit layout for 100 data centres?"
+ ]
+}

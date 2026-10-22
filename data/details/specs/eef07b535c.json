@@ -1,0 +1,18 @@
+{
+ "qid": "eef07b535c",
+ "question": "Reported from a Paytm low-level design round: **design the classes, interfaces and entities for a hotel invoice notification system**. The exact requirements were not shared, so state your assumptions: when an invoice is generated or changes state for a hotel booking, the guest (and possibly the hotel) should be notified through one or more channels such as email, SMS or push.",
+ "lookingFor": [
+  "Can you clarify an ambiguous prompt and fix scope before designing?",
+  "Do you identify the right entities and keep them cohesive (Invoice, Booking, Notification, Channel)?",
+  "Do you apply fitting patterns: Strategy or Factory for channels, Observer for events, Template for messages?",
+  "Do you think about failure and extensibility: retries, new channels, user preferences?",
+  "Is the code design SOLID and easy to test?"
+ ],
+ "answer": "**Clarify and assume.** Triggers: invoice created, paid, overdue, cancelled/refunded. Recipients: guest, hotel admin. Channels: email, SMS, push, WhatsApp. Needs: user preferences, templates, retry on failure, no duplicate notifications, an audit trail.\n\n**Core entities.**\n- `Guest(id, name, email, phone, preferences)`, `Hotel(id, name, contact)`, `Booking(id, guestId, hotelId, dates)`.\n- `Invoice(id, bookingId, lineItems, totalAmount, status [CREATED|PAID|OVERDUE|CANCELLED], dueDate)`.\n- `Notification(id, recipientId, channelType, templateType, payload, status [PENDING|SENT|FAILED], attempts, createdAt)`.\n- `NotificationTemplate(type, subject, body with placeholders)`.\n\n**Interfaces and classes.**\n- `NotificationChannel` interface: `send(Notification)`. Implementations `EmailChannel`, `SmsChannel`, `PushChannel`. Add a channel without changing existing code (open/closed). A `ChannelFactory` or registry returns the implementation for a type.\n- `InvoiceEvent` (type, invoice) published when state changes; `InvoiceEventListener` / observer interface so the invoice module does not know about notifications (Observer pattern).\n- `NotificationService.notify(event)`: loads recipient and preferences, picks channels, renders a template via `TemplateRenderer`, creates `Notification` records and passes them to a dispatcher.\n- `NotificationRepository` for persistence; `RetryPolicy` (max attempts, exponential backoff).\n\n**Flow.** Invoice state changes -> publish `InvoiceEvent` -> `NotificationService` builds notifications per channel -> `Dispatcher` sends asynchronously through the channel -> success marks `SENT`; failure increments attempts and reschedules; after the maximum goes to `FAILED` for review.\n\n**Design points.**\n- Make sending **asynchronous** (queue plus workers) so invoice creation never waits for an SMS provider.\n- **Idempotency:** a unique key (invoiceId + eventType + channel + recipient) prevents duplicates when events are redelivered.\n- Respect **preferences** and opt-outs, and rate-limit.\n- Keep templates separate from code so text changes need no deploy.\n\n**Patterns summary:** Strategy (channels), Observer (events), Factory (channel lookup), Template Method or builder (message rendering). Mention testing with a fake channel.",
+ "followUps": [
+  "How would you add WhatsApp as a new channel?",
+  "How do you guarantee a notification is not sent twice when the event is retried?",
+  "How would you support scheduled reminders for overdue invoices?",
+  "Where would you place user notification preferences in this design?"
+ ]
+}

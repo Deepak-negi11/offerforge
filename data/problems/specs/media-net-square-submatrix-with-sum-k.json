@@ -1,0 +1,49 @@
+{
+ "pid": "media-net-square-submatrix-with-sum-k",
+ "title": "Square Submatrix With Sum k",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given an `n × m` matrix of **positive** integers and an integer `k`. Decide whether the matrix contains a **square submatrix** whose elements sum to exactly `k`.\n\nA square submatrix is a block of consecutive rows and consecutive columns with the same number of rows as columns (a single cell counts as a `1 × 1` square). Rectangles that are not squares do not count.\n\nPrint `YES` if such a square exists, otherwise `NO`.\n\n**Follow-up:** the original interview started from an `O(n · m · log(min(n, m)))` solution, which was not good enough; the interviewer expected `O(n · m)`. Positivity of the values is the key hint.",
+ "input_format": "The first line contains three integers `n`, `m` and `k`.\nEach of the next `n` lines contains `m` space-separated integers: one row of the matrix.",
+ "output_format": "Print `YES` if some square submatrix sums to `k`, otherwise print `NO`.",
+ "constraints": [
+  "1 ≤ n, m ≤ 500",
+  "1 ≤ matrix[i][j] ≤ 100",
+  "1 ≤ k ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3 3 28\n1 2 3\n4 5 6\n7 8 9",
+   "output": "YES",
+   "explanation": "The bottom-right 2 × 2 square contains 5, 6, 8, 9, which sum to 28."
+  },
+  {
+   "input": "3 3 10\n1 2 3\n4 5 6\n7 8 9",
+   "output": "NO",
+   "explanation": "The 1 × 1 squares hold single values (1 to 9), the four 2 × 2 squares sum to 12, 16, 24 and 28, and the 3 × 3 square sums to 45. None equals 10."
+  },
+  {
+   "input": "2 3 10\n1 5 1\n1 5 1",
+   "output": "NO",
+   "explanation": "The two 5s in the middle column sum to 10, but they form a 2 × 1 rectangle, not a square. The squares sum to 1, 5, 12 or 12."
+  }
+ ],
+ "complexity": {
+  "time": "O(n · m)",
+  "space": "O(n · m)"
+ },
+ "hints": [
+  "A 2D prefix-sum table lets you read the sum of any square in O(1). A square is fixed by its top-left corner and its side length.",
+  "Because every value is positive, growing a square (extending its bottom-right corner along the diagonal) strictly increases its sum, and moving its top-left corner down the diagonal strictly decreases it.",
+  "Both corners of a square lie on the same diagonal. For each diagonal run a two-pointer sweep over (top-left, bottom-right): advance the bottom-right while the sum is too small, then advance the top-left. Each diagonal is scanned in linear time and the diagonals together hold n · m cells."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m, k = int(data[0]), int(data[1]), int(data[2])\n    W = m + 1\n    P = [0] * ((n + 1) * W)\n    pos = 3\n    for i in range(n):\n        run = 0\n        base = (i + 1) * W\n        up = i * W\n        for j in range(m):\n            run += int(data[pos])\n            pos += 1\n            P[base + j + 1] = P[up + j + 1] + run\n    found = False\n    for d in range(-(n - 1), m):\n        i0 = 0 if d >= 0 else -d\n        j0 = d if d >= 0 else 0\n        L = min(n - i0, m - j0)\n        r = 0\n        for l in range(L):\n            if r < l:\n                r = l\n            while r < L:\n                s = P[(i0 + r + 1) * W + j0 + r + 1] - P[(i0 + l) * W + j0 + r + 1] - P[(i0 + r + 1) * W + j0 + l] + P[(i0 + l) * W + j0 + l]\n                if s < k:\n                    r += 1\n                else:\n                    break\n            if r >= L:\n                break\n            if s == k:\n                found = True\n                break\n        if found:\n            break\n    print('YES' if found else 'NO')\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m, k = int(data[0]), int(data[1]), int(data[2])\na = [[int(data[3 + i * m + j]) for j in range(m)] for i in range(n)]\nok = False\nfor i in range(n):\n    for j in range(m):\n        for s in range(1, min(n - i, m - j) + 1):\n            tot = 0\n            for x in range(i, i + s):\n                for y in range(j, j + s):\n                    tot += a[x][y]\n            if tot == k:\n                ok = True\nprint('YES' if ok else 'NO')\n",
+ "generator": "def gen(rng):\n    def fmt(a, k):\n        return f'{len(a)} {len(a[0])} {k}\\n' + '\\n'.join(' '.join(map(str, r)) for r in a)\n    def sq(a, i, j, s):\n        return sum(a[x][y] for x in range(i, i + s) for y in range(j, j + s))\n    def rnd(n, m, vmax):\n        return [[rng.randint(1, vmax) for _ in range(m)] for _ in range(n)]\n    tests = [fmt([[5]], 5), fmt([[5]], 6), fmt([[1, 2, 3], [4, 5, 6], [7, 8, 9]], 28),\n             fmt([[1, 2, 3], [4, 5, 6], [7, 8, 9]], 10), fmt([[1, 5, 1], [1, 5, 1]], 10),\n             fmt([[1, 2, 3, 4, 5]], 9), fmt([[1], [2], [3]], 3), fmt([[1, 1], [1, 1]], 4), fmt([[1, 1], [1, 1]], 3)]\n    for _ in range(40):\n        n = rng.randint(1, 6)\n        m = rng.randint(1, 6)\n        a = rnd(n, m, rng.choice([2, 5, 9]))\n        mode = rng.randint(0, 2)\n        if mode == 0:\n            s = rng.randint(1, min(n, m))\n            k = sq(a, rng.randint(0, n - s), rng.randint(0, m - s), s)\n        elif mode == 1:\n            k = rng.randint(1, 40)\n        else:\n            k = sq(a, 0, 0, min(n, m)) + rng.choice([-1, 1])\n            k = max(k, 1)\n        tests.append(fmt(a, k))\n    N = 500\n    a = rnd(N, N, 100)\n    tests.append(fmt(a, sq(a, 123, 77, 200)))\n    tests.append(fmt(a, sq(a, 0, 0, N) + 1))\n    tests.append(fmt(a, 10 ** 9))\n    tests.append(fmt(a, sq(a, N - 3, N - 3, 3)))\n    b = [[1] * N for _ in range(N)]\n    tests.append(fmt(b, N * N))\n    tests.append(fmt(b, N * N + 1))\n    c = rnd(200, 500, 100)\n    tests.append(fmt(c, sq(c, 10, 250, 190)))\n    d = rnd(500, 100, 100)\n    tests.append(fmt(d, 10 ** 9))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef has_square_with_sum(matrix: List[List[int]], k: int) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m, k = int(data[0]), int(data[1]), int(data[2])\n    matrix = [[int(data[3 + i * m + j]) for j in range(m)] for i in range(n)]\n    print('YES' if has_square_with_sum(matrix, k) else 'NO')\n\n\nmain()\n",
+  "javascript": "function hasSquareWithSum(matrix, k) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1], k = t[2]\nconst matrix = []\nfor (let i = 0; i < n; i++) matrix.push(t.slice(3 + i * m, 3 + (i + 1) * m))\nconsole.log(hasSquareWithSum(matrix, k) ? 'YES' : 'NO')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool hasSquareWithSum(vector<vector<int>>& matrix, long long k) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    long long k;\n    cin >> n >> m >> k;\n    vector<vector<int>> matrix(n, vector<int>(m));\n    for (int i = 0; i < n; i++)\n        for (int j = 0; j < m; j++) cin >> matrix[i][j];\n    cout << (hasSquareWithSum(matrix, k) ? \"YES\" : \"NO\") << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean hasSquareWithSum(int[][] matrix, long k) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        in.nextToken();\n        long k = (long) in.nval;\n        int[][] matrix = new int[n][m];\n        for (int i = 0; i < n; i++)\n            for (int j = 0; j < m; j++) {\n                in.nextToken();\n                matrix[i][j] = (int) in.nval;\n            }\n        System.out.println(hasSquareWithSum(matrix, k) ? \"YES\" : \"NO\");\n    }\n}\n"
+ }
+}

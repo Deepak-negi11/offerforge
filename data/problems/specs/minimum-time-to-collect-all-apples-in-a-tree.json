@@ -1,0 +1,50 @@
+{
+ "pid": "minimum-time-to-collect-all-apples-in-a-tree",
+ "title": "Visit Target Nodes and Return",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given an undirected tree with `n` nodes numbered `0` to `n - 1`, rooted at node `0`. The tree need not be binary: a node may have any number of children. Every edge has length `1`. Some of the nodes are **target** nodes.\n\nYou start at the root (node `0`). Moving along an edge, in either direction, costs `1`. You must visit **every** target node and finish back at the root.\n\nReturn the minimum total cost of such a walk. If there are no target nodes the cost is `0`. The root itself may be a target; it is visited at the very start.\n\n**Follow-up:** what changes if you may start at any node of your choice (and you must still visit all target nodes and return to where you started)? This variant is not tested here.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n - 1` lines contains two integers `u` and `v`, an edge of the tree.\nThe next line contains an integer `k`, the number of target nodes, followed by a line with the `k` distinct target node indices (this line is empty when `k = 0`).",
+ "output_format": "Print a single integer: the minimum cost of a walk that starts at node `0`, visits every target node and returns to node `0`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ u, v < n, and the edges form a tree",
+  "0 ≤ k ≤ n, target indices are distinct",
+  "The tree rooted at node 0 has depth at most 5000"
+ ],
+ "examples": [
+  {
+   "input": "7\n0 1\n0 2\n1 4\n1 5\n2 3\n2 6\n3\n3 4 5",
+   "output": "10",
+   "explanation": "The walk must reach 3 (via 0-2-3), and 4 and 5 (via 0-1, then 1-4 and 1-5). The edges 0-2, 2-3, 0-1, 1-4, 1-5 are all needed and each is walked twice (down and back), so the cost is 5 * 2 = 10. Node 6 is never visited."
+  },
+  {
+   "input": "4\n0 1\n1 2\n2 3\n1\n2",
+   "output": "4",
+   "explanation": "Only node 2 is a target. Walk 0-1-2 and back: 4 edge traversals. Node 3 is not needed."
+  },
+  {
+   "input": "3\n1 0\n2 0\n1\n0",
+   "output": "0",
+   "explanation": "The only target is the root, where we already are."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "In a tree, a closed walk from the root that reaches a set of nodes has to cross every edge on the way to those nodes exactly twice (once down, once back) and never needs any other edge.",
+  "An edge between a node and its parent is needed exactly when that node's subtree contains at least one target node.",
+  "Compute for every node whether its subtree contains a target, bottom-up (an iterative traversal avoids deep recursion), count the needed edges and double the count."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    adj = [[] for _ in range(n)]\n    pos = 1\n    for _ in range(n - 1):\n        u = int(data[pos]); v = int(data[pos + 1]); pos += 2\n        adj[u].append(v)\n        adj[v].append(u)\n    k = int(data[pos]); pos += 1\n    need = [False] * n\n    for _ in range(k):\n        need[int(data[pos])] = True\n        pos += 1\n    parent = [-1] * n\n    order = [0]\n    seen = [False] * n\n    seen[0] = True\n    for u in order:\n        for w in adj[u]:\n            if not seen[w]:\n                seen[w] = True\n                parent[w] = u\n                order.append(w)\n    edges = 0\n    for u in reversed(order):\n        if u != 0 and need[u]:\n            edges += 1\n            need[parent[u]] = True\n    print(2 * edges)\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import permutations\nfrom collections import deque\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nadj = [[] for _ in range(n)]\npos = 1\nfor _ in range(n - 1):\n    u = int(data[pos]); v = int(data[pos + 1]); pos += 2\n    adj[u].append(v)\n    adj[v].append(u)\nk = int(data[pos]); pos += 1\ntargets = [int(data[pos + i]) for i in range(k)]\n\ndef bfs(s):\n    d = [-1] * n\n    d[s] = 0\n    q = deque([s])\n    while q:\n        u = q.popleft()\n        for w in adj[u]:\n            if d[w] < 0:\n                d[w] = d[u] + 1\n                q.append(w)\n    return d\n\ndist = [bfs(s) for s in range(n)]\nbest = None\nfor perm in permutations(targets):\n    cur = 0\n    cost = 0\n    for t in perm:\n        cost += dist[cur][t]\n        cur = t\n    cost += dist[cur][0]\n    if best is None or cost < best:\n        best = cost\nprint(best)\n",
+ "generator": "def gen(rng):\n    def build(n, maxd, mode):\n        par = [-1] * n\n        dep = [0] * n\n        for i in range(1, n):\n            if mode == 'chain' and dep[i - 1] < maxd:\n                p = i - 1\n            elif mode == 'star':\n                p = rng.randrange(min(i, 3))\n            elif mode == 'wide':\n                p = rng.randrange(max(0, i - 40), i)\n            else:\n                p = rng.randrange(i)\n            while dep[p] >= maxd:\n                p = rng.randrange(i)\n            par[i] = p\n            dep[i] = dep[p] + 1\n        label = list(range(1, n))\n        rng.shuffle(label)\n        label = [0] + label\n        edges = []\n        for i in range(1, n):\n            a, b = label[i], label[par[i]]\n            if rng.random() < 0.5:\n                a, b = b, a\n            edges.append((a, b))\n        rng.shuffle(edges)\n        return edges\n\n    def fmt(n, edges, targets):\n        s = str(n) + '\\n'\n        for a, b in edges:\n            s += f'{a} {b}\\n'\n        s += str(len(targets)) + '\\n' + ' '.join(map(str, targets))\n        return s\n\n    def pick(n, k):\n        t = rng.sample(range(n), k)\n        return t\n\n    tests = []\n    tests.append(fmt(1, [], []))\n    tests.append(fmt(1, [], [0]))\n    tests.append(fmt(2, [(1, 0)], [1]))\n    tests.append(fmt(2, [(0, 1)], []))\n    tests.append(fmt(5, [(0, 1), (1, 2), (2, 3), (3, 4)], [4]))\n    tests.append(fmt(5, [(0, 1), (0, 2), (0, 3), (0, 4)], [1, 2, 3, 4]))\n    for _ in range(40):\n        n = rng.randint(2, 11)\n        mode = rng.choice(['rand', 'chain', 'star', 'wide'])\n        e = build(n, 20, mode)\n        k = rng.randint(0, min(n, 6))\n        tests.append(fmt(n, e, pick(n, k)))\n    N = 100000\n    tests.append(fmt(N, build(N, 5000, 'rand'), pick(N, 50)))\n    tests.append(fmt(N, build(N, 4999, 'chain'), pick(N, 30000)))\n    tests.append(fmt(N, build(N, 5000, 'star'), pick(N, N)))\n    tests.append(fmt(N, build(N, 5000, 'wide'), pick(N, 3)))\n    tests.append(fmt(5000, build(5000, 4999, 'chain'), pick(5000, 100)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_time(n: int, edges: List[List[int]], targets: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    pos = 1\n    edges = []\n    for _ in range(n - 1):\n        edges.append([int(data[pos]), int(data[pos + 1])])\n        pos += 2\n    k = int(data[pos])\n    pos += 1\n    targets = [int(data[pos + i]) for i in range(k)]\n    print(min_time(n, edges, targets))\n\n\nmain()\n",
+  "javascript": "function minTime(n, edges, targets) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nlet pos = 1\nconst edges = []\nfor (let i = 0; i < n - 1; i++) {\n  edges.push([t[pos], t[pos + 1]])\n  pos += 2\n}\nconst k = t[pos++]\nconst targets = []\nfor (let i = 0; i < k; i++) targets.push(t[pos++])\nconsole.log(String(minTime(n, edges, targets)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minTime(int n, vector<pair<int,int>>& edges, vector<int>& targets) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<pair<int,int>> edges(n - 1);\n    for (auto& e : edges) cin >> e.first >> e.second;\n    int k;\n    cin >> k;\n    vector<int> targets(k);\n    for (int i = 0; i < k; i++) cin >> targets[i];\n    cout << minTime(n, edges, targets) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minTime(int n, int[][] edges, int[] targets) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[][] edges = new int[n - 1][2];\n        for (int i = 0; i < n - 1; i++) {\n            in.nextToken(); edges[i][0] = (int) in.nval;\n            in.nextToken(); edges[i][1] = (int) in.nval;\n        }\n        in.nextToken();\n        int k = (int) in.nval;\n        int[] targets = new int[k];\n        for (int i = 0; i < k; i++) {\n            in.nextToken(); targets[i] = (int) in.nval;\n        }\n        System.out.println(minTime(n, edges, targets));\n    }\n}\n"
+ }
+}

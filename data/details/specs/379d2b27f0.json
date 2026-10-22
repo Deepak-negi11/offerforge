@@ -1,0 +1,18 @@
+{
+ "qid": "379d2b27f0",
+ "question": "Goldman Sachs Summer Analyst (Engineering), final technical round. After a short \"why Goldman Sachs\" question, the interviewer asked a system design question: **build a system that calculates the number of people in a building at each point in time, so that the amount of resources required can be assessed**. The candidate proposed using security logins at the gate to count people present. The follow-up questions moved from that answer into **memory usage**, including how to minimise the memory the system needs.",
+ "lookingFor": [
+  "Turning a vague problem into events, a data model and queries.",
+  "Recognising the prefix-sum / running-counter idea.",
+  "Memory-conscious thinking: what you store, at what granularity.",
+  "Handling messy real data: missing exits, multiple gates, concurrency.",
+  "Communicating assumptions and trade-offs."
+ ],
+ "answer": "**Clarify first.** Is it live occupancy, historical occupancy per minute/hour, or both? How many gates and people, and how accurate does it need to be? I will assume badge swipes at several gates produce entry and exit events (timestamp, person id, direction), about 10,000 people per day.\n\n**Core idea.** Occupancy at time t = (entries up to t) minus (exits up to t). That is a running sum over events, so store *changes*, not people.\n\n**Live count.** Keep one atomic counter per building. Each entry does +1, each exit -1. Memory O(1). With several gates, either one shared atomic counter or per-gate counters summed on read.\n\n**History at each moment.** Bucket time (say one minute) and store only `delta[bucket] = entries - exits`. Occupancy for a bucket is the prefix sum of deltas. Store buckets in a sparse map or sorted array so quiet periods cost nothing, and keep periodic snapshots (e.g. the absolute count each hour) so a query sums only a few buckets instead of the full history. Memory is O(number of buckets), independent of the number of people. For exact per-event timestamps, keep a sorted list of (time, +1/-1) and answer a query with a sweep/binary search over cumulative counts.\n\n**Do not store per-person data** unless needed for correctness. If you must reconcile missing exits, keep a set of people currently inside (O(current occupancy)) and drop entries when they leave; an end-of-day or timeout rule closes stale entries.\n\n**Resource planning output.** Aggregate to peak per hour, average per weekday, and so on, then retain coarse history (older minute buckets rolled up to hours).\n\n**Trade-offs and issues:** tailgating (two people on one swipe), duplicate or out-of-order events (use idempotent event ids, process by event time), concurrency (atomic increments or a single event consumer), and persistence (append events to a log so counters can be rebuilt). To scale, partition by building and consume events from a queue.",
+ "followUps": [
+  "How would you handle people who enter but never swipe out?",
+  "How would the design change for 10,000 buildings sending events concurrently?",
+  "How would you answer 'what was the peak occupancy last month' quickly?",
+  "How much memory does per-minute bucketing use for a year of data?"
+ ]
+}

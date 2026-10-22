@@ -1,0 +1,18 @@
+{
+ "qid": "a312ab94fe",
+ "question": "Hiring manager round for an Associate Software Engineer at ServiceNow: **design Netflix**, with the main focus on the **database schema implementation**. The candidate was also asked which **data structures** they might use for the various services offered on the platform. The interviewer gave hints and mainly wanted to see the candidate's approach.",
+ "lookingFor": [
+  "Can you identify the core entities and relationships of a streaming service?",
+  "Can you design tables with keys, constraints and indexes that match queries?",
+  "Do you pick suitable data structures for features like recommendations, search and watch history?",
+  "Do you separate metadata from large media storage?",
+  "Do you reason about scale and approach the problem in a structured way?"
+ ],
+ "answer": "**Scope.** Users sign up with a subscription, browse titles, play videos, keep a watch list and a watch history, and get recommendations. I will focus on the schema.\n\n**Core tables.**\n- `user(id, email UNIQUE, password_hash, created_at)` and `profile(id, user_id, name, maturity_level)`; one account has several profiles\n- `subscription_plan(id, name, price, max_screens)` and `subscription(user_id, plan_id, start_date, end_date, status)`\n- `title(id, type: MOVIE or SERIES, name, description, release_year, maturity_rating)`\n- `season(id, title_id, number)` and `episode(id, season_id, number, name, duration)`\n- `genre(id, name)` and `title_genre(title_id, genre_id)` (many-to-many)\n- `cast_member(id, name)` and `title_cast(title_id, person_id, role)`\n- `video_asset(id, title_or_episode_id, resolution, codec, storage_url)`, because the actual bytes are in object storage behind a CDN\n- `watch_history(profile_id, video_id, last_position_seconds, updated_at)` with primary key `(profile_id, video_id)`\n- `watchlist(profile_id, title_id, added_at)`, `rating(profile_id, title_id, score)`\n\n**Indexes.** Index foreign keys; `title(name)` or a search engine for text search; `watch_history(profile_id, updated_at)` for \"continue watching\".\n\n**Data structures per service.**\n- Search: an inverted index (Elasticsearch-like) or a trie for autocomplete.\n- Recommendations: precomputed lists per profile in a key-value store, user-item matrices offline.\n- Continue watching and top-N lists: sorted sets or a heap.\n- Caching popular titles: hash map with LRU eviction.\n- Session and rate limits: hash maps and counters.\n\n**Scale.** Videos in object storage plus CDN; metadata cached; watch-history writes are frequent so use a write-friendly store; partition by profile id.",
+ "followUps": [
+  "How would you store a user's watch position and make it update frequently without overloading the database?",
+  "How does search with autocomplete work?",
+  "How would you design recommendations at a basic level?",
+  "SQL or NoSQL for each part of this system, and why?"
+ ]
+}

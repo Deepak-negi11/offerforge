@@ -1,0 +1,18 @@
+{
+ "qid": "31b3c59275",
+ "question": "Reported from the Technical + Behavioral round of a Paytm Senior Software Engineer interview. After project discussion, the system design part covered **scalability, monitoring and handling high traffic**, including how to **calculate the resources needed to absorb load spikes**.",
+ "lookingFor": [
+  "Can you turn a traffic expectation into a concrete capacity number using back-of-envelope maths?",
+  "Do you know the levers: horizontal scaling, caching, queues, rate limiting and graceful degradation?",
+  "Do you understand autoscaling limits such as warm-up time, cold start and downstream bottlenecks?",
+  "Do you monitor the right signals and have a plan before the spike, not during?",
+  "Do you consider cost versus headroom?"
+ ],
+ "answer": "**Step 1: quantify the load.** Start from the business number: say a sale expects 1M active users, each making ~10 requests over 10 minutes. That is 10M requests over 600 s, about 17k requests per second average. Spikes are rarely average: use a **peak factor** (2 to 5x) from past events, so plan around 50k to 80k rps, and ask what the historical peak was.\n\n**Step 2: measure per-instance capacity.** Load test one server to find its maximum sustainable throughput at an acceptable latency (for example 1,000 rps at p99 under 200 ms on 4 vCPU). Then:\n\n`servers = peak rps / rps per server / target utilisation`\n\nWith 60k rps, 1,000 rps per server and a target utilisation of about 60% (keeping headroom for failures and variance): 60,000 / 1,000 / 0.6 = 100 servers. Add N+1 or an extra availability zone's worth of redundancy. Do the same for each tier (app, cache, database connections, message broker); the **weakest tier sets the limit**. Check database connection pool size, write throughput and cache hit ratio.\n\n**Step 3: design for the spike.**\n- **Horizontal scaling** with stateless services behind a load balancer.\n- **Autoscaling** on CPU, requests per instance or queue depth, but pre-scale ahead of a known event because new instances take minutes to start and warm up.\n- **Caching** (CDN for static content, Redis for hot reads) so the database sees a small fraction of traffic.\n- **Queues** to absorb write bursts and smooth them to what the database can handle.\n- **Rate limiting and load shedding**: reject or queue lower-priority requests so critical flows (payments) survive; turn off non-essential features (graceful degradation).\n- Timeouts, circuit breakers and bulkheads to stop one slow dependency from cascading.\n\n**Step 4: monitor and rehearse.** Track the four golden signals (latency, traffic, errors, saturation), p95/p99 not just averages, queue depth, DB CPU and connections. Set alerts on saturation before errors. Run load tests at 1.5 to 2x expected peak and rehearse a rollback.\n\n**Trade-off.** Over-provisioning costs money; under-provisioning loses revenue. Use autoscaling for the unpredictable part and scheduled scaling for known events.",
+ "followUps": [
+  "How does Little's Law help estimate the number of concurrent requests or threads needed?",
+  "Why might autoscaling fail to save you in a sudden spike?",
+  "How do you find which tier will break first?",
+  "What would you shed first when the system is overloaded, and how do you decide?"
+ ]
+}

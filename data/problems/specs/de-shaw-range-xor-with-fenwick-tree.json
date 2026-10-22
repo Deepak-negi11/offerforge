@@ -1,0 +1,46 @@
+{
+ "pid": "de-shaw-range-xor-with-fenwick-tree",
+ "title": "Range XOR With Fenwick Tree",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `a` of `n` non-negative integers (0-indexed) and then `q` operations, processed in order. Each operation is one of:\n\n- `1 i v`: set `a[i] = v`.\n- `2 l r`: report the bitwise XOR of `a[l], a[l+1], ..., a[r]` (both ends inclusive) with the current contents of the array.\n\nFor every operation of type 2, print its answer on its own line, in order.\n\nA plain prefix-XOR array answers queries quickly but cannot absorb updates; rebuilding it costs `O(n)` per update. The interviewer expected a **Fenwick tree (binary indexed tree)**: since `x ^ x = 0`, XOR is its own inverse, so a Fenwick tree over XOR supports point updates and prefix queries in `O(log n)`, and `xor(l..r) = prefix(r) ^ prefix(l - 1)`.\n\n**Follow-up:** To update `a[i]` to `v`, apply the delta `a[i] ^ v` to the Fenwick tree rather than rebuilding anything.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` integers `a[0], ..., a[n-1]`.\nThe third line contains an integer `q`.\nEach of the next `q` lines is either `1 i v` or `2 l r`.",
+ "output_format": "For each operation of type 2, print one line containing the XOR of the requested range.",
+ "constraints": [
+  "1 ≤ n, q ≤ 10^5",
+  "0 ≤ a[i], v ≤ 10^9",
+  "0 ≤ i < n",
+  "0 ≤ l ≤ r < n",
+  "at least one operation is of type 2"
+ ],
+ "examples": [
+  {
+   "input": "5\n1 2 3 4 5\n4\n2 0 4\n1 2 7\n2 1 3\n2 2 2",
+   "output": "1\n1\n7",
+   "explanation": "1^2^3^4^5 = 1. After setting a[2] = 7 the array is [1,2,7,4,5]. The XOR of a[1..3] is 2^7^4 = 1, and the XOR of the single element a[2] is 7."
+  },
+  {
+   "input": "3\n8 8 8\n3\n2 0 1\n2 0 2\n2 1 2",
+   "output": "0\n8\n0",
+   "explanation": "8^8 = 0, 8^8^8 = 8, and 8^8 = 0."
+  }
+ ],
+ "complexity": {
+  "time": "O((n + q) log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "A prefix-XOR array makes a range query `prefix[r+1] ^ prefix[l]`, but one update changes up to `n` prefixes. You need a structure with cheaper updates.",
+  "XOR is its own inverse, so a Fenwick tree where each node stores the XOR of its block works exactly like the sum version, with `^` in place of `+`.",
+  "For a set operation, compute `d = a[i] ^ v`, store `a[i] = v`, and XOR `d` into the Fenwick tree at position `i + 1` and every ancestor `p += p & -p`."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    q = int(data[1 + n])\n    tree = [0] * (n + 1)\n    for i in range(n):\n        tree[i + 1] ^= a[i]\n        j = (i + 1) + ((i + 1) & -(i + 1))\n        if j <= n:\n            tree[j] ^= tree[i + 1]\n    pos = 2 + n\n    out = []\n    for _ in range(q):\n        t = data[pos]\n        x = int(data[pos + 1])\n        y = int(data[pos + 2])\n        pos += 3\n        if t == '1':\n            d = a[x] ^ y\n            a[x] = y\n            p = x + 1\n            while p <= n:\n                tree[p] ^= d\n                p += p & -p\n        else:\n            r = 0\n            p = y + 1\n            while p > 0:\n                r ^= tree[p]\n                p -= p & -p\n            p = x\n            while p > 0:\n                r ^= tree[p]\n                p -= p & -p\n            out.append(r)\n    print('\\n'.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + n]]\nq = int(data[1 + n])\npos = 2 + n\nout = []\nfor _ in range(q):\n    t, x, y = data[pos], int(data[pos + 1]), int(data[pos + 2])\n    pos += 3\n    if t == '1':\n        a[x] = y\n    else:\n        r = 0\n        for k in range(x, y + 1):\n            r ^= a[k]\n        out.append(r)\nprint('\\n'.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def fmt(a, ops):\n        return f'{len(a)}\\n' + ' '.join(map(str, a)) + f'\\n{len(ops)}\\n' + '\\n'.join(' '.join(map(str, o)) for o in ops)\n    def rand_ops(n, q, vmax, pupd):\n        ops = []\n        for _ in range(q):\n            if rng.random() < pupd:\n                ops.append((1, rng.randrange(n), rng.randint(0, vmax)))\n            else:\n                l = rng.randrange(n)\n                r = rng.randrange(n)\n                if l > r:\n                    l, r = r, l\n                ops.append((2, l, r))\n        if all(o[0] == 1 for o in ops):\n            ops[-1] = (2, 0, n - 1)\n        return ops\n    def rand_case(n, q, vmax, pupd=0.5):\n        return fmt([rng.randint(0, vmax) for _ in range(n)], rand_ops(n, q, vmax, pupd))\n    M = 10**9\n    tests = [\n        fmt([5], [(2, 0, 0)]),\n        fmt([5], [(1, 0, 9), (2, 0, 0)]),\n        fmt([1, 2, 3, 4, 5], [(2, 0, 4), (1, 2, 7), (2, 1, 3), (2, 2, 2)]),\n        fmt([8, 8, 8], [(2, 0, 1), (2, 0, 2), (2, 1, 2)]),\n        fmt([M, M, 0, M], [(2, 0, 3), (1, 2, M), (2, 0, 3), (1, 0, 0), (2, 0, 3)]),\n        fmt([0, 0, 0, 0], [(2, 0, 3), (1, 3, 1), (2, 0, 3), (2, 0, 2)]),\n    ]\n    for n, q in ((2, 5), (3, 8), (5, 10), (8, 15), (10, 20), (16, 25), (30, 20)):\n        for _ in range(2):\n            tests.append(rand_case(n, q, rng.choice([3, 15, 255]), rng.choice([0.2, 0.5, 0.8])))\n    tests.append(rand_case(5000, 20000, M, 0.5))\n    tests.append(rand_case(100000, 100000, 10**4, 0.5))\n    tests.append(rand_case(100000, 100000, 10**4, 0.2))\n    tests.append(rand_case(100000, 100000, 10**4, 0.8))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef process(a: List[int], ops: List[Tuple[int, int, int]]) -> List[int]:\n    # ops entries are (1, i, v) for \"set a[i] = v\" and (2, l, r) for \"xor of a[l..r]\".\n    # Return the answers to the type 2 operations in order.\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    q = int(data[1 + n])\n    pos = 2 + n\n    ops = []\n    for _ in range(q):\n        ops.append((int(data[pos]), int(data[pos + 1]), int(data[pos + 2])))\n        pos += 3\n    print('\\n'.join(map(str, process(a, ops))))\n\n\nmain()\n",
+  "javascript": "function process(a, ops) {\n  // ops entries are [1, i, v] for \"set a[i] = v\" and [2, l, r] for \"xor of a[l..r]\".\n  // Return the answers to the type 2 operations in order.\n  // Write your solution here\n  return []\n}\n\nconst tk = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = tk[0]\nconst a = tk.slice(1, 1 + n)\nconst q = tk[1 + n]\nlet pos = 2 + n\nconst ops = []\nfor (let i = 0; i < q; i++) {\n  ops.push([tk[pos], tk[pos + 1], tk[pos + 2]])\n  pos += 3\n}\nconsole.log(process(a, ops).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\n// ops[k] = {1, i, v} sets a[i] = v; ops[k] = {2, l, r} asks for the xor of a[l..r].\n// Return the answers to the type 2 operations in order.\nvector<long long> process(vector<long long>& a, vector<array<long long, 3>>& ops) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    int q;\n    cin >> q;\n    vector<array<long long, 3>> ops(q);\n    for (int i = 0; i < q; i++) cin >> ops[i][0] >> ops[i][1] >> ops[i][2];\n    vector<long long> res = process(a, ops);\n    for (long long x : res) cout << x << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    // ops[k] = {1, i, v} sets a[i] = v; ops[k] = {2, l, r} asks for the xor of a[l..r].\n    // Return the answers to the type 2 operations in order.\n    static long[] process(long[] a, long[][] ops) {\n        // Write your solution here\n        return new long[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (long) in.nval;\n        }\n        in.nextToken();\n        int q = (int) in.nval;\n        long[][] ops = new long[q][3];\n        for (int i = 0; i < q; i++) {\n            for (int j = 0; j < 3; j++) {\n                in.nextToken();\n                ops[i][j] = (long) in.nval;\n            }\n        }\n        long[] res = process(a, ops);\n        StringBuilder sb = new StringBuilder();\n        for (long x : res) sb.append(x).append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

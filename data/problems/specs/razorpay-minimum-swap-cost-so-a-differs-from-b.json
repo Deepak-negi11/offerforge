@@ -1,0 +1,48 @@
+{
+ "pid": "razorpay-minimum-swap-cost-so-a-differs-from-b",
+ "title": "Minimum Swap Cost So A Differs From B",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given two arrays `A` and `B`, each of length `n`, using **1-based** indexing. Array `B` never changes. You may perform the following operation on `A` any number of times: choose two indices `i ≠ j` and swap `A[i]` with `A[j]`. This operation costs `i + j`.\n\nFind the **minimum total cost** needed to transform `A` so that `A[i] ≠ B[i]` for every index `i` from `1` to `n`. If it is impossible, print `-1`.\n\nIf `A` already satisfies the condition, the cost is `0`.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` integers `A[1] ... A[n]`.\nThe third line contains `n` integers `B[1] ... B[n]`.",
+ "output_format": "Print a single integer: the minimum total cost, or `-1` if it is impossible.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ A[i], B[i] ≤ n"
+ ],
+ "examples": [
+  {
+   "input": "5\n1 5 3 5 5\n1 2 3 4 5",
+   "output": "10",
+   "explanation": "Positions 1, 3 and 5 are bad (A[i] = B[i]). Swap(1, 3) costs 4 and gives A = [3, 5, 1, 5, 5]; swap(1, 5) costs 6 and gives A = [5, 5, 1, 5, 3]. Now A differs from B everywhere, and the total cost is 4 + 6 = 10, which is the minimum."
+  },
+  {
+   "input": "5\n2 2 1 3 3\n2 2 3 1 3",
+   "output": "11",
+   "explanation": "Bad positions are 1, 2 and 5, holding the values 2, 2 and 3. Two 2s cannot fix each other, so one of them needs a helper from a good position whose A and B are both different from 2: position 3 qualifies (A = 1, B = 3). Swap(1, 3) costs 4 and swap(2, 5) costs 7, for a total of 11."
+  },
+  {
+   "input": "3\n1 1 1\n1 1 1",
+   "output": "-1",
+   "explanation": "Every position is bad and every swap exchanges two equal values, so A can never change."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Call an index bad if A[i] = B[i]. Every bad index must take part in at least one swap, so the cost is at least the sum of the bad indices. A good index only needs to be touched if it helps.",
+  "Two bad indices holding different values can fix each other with one swap. Trouble only arises when one value x occupies more than half of the bad indices: those extra copies of x need helpers from good indices p with A[p] ≠ x and B[p] ≠ x. Take the cheapest (smallest index) helpers.",
+  "If the bad indices are balanced but there is an odd number of them, one index is left without a partner. Check what the cheapest way to absorb it is; index 1 plays a special role because it is the cheapest index there is."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    A = data[1:1 + n]\n    B = data[1 + n:1 + 2 * n]\n    cnt = {}\n    base = 0\n    m = 0\n    for i in range(n):\n        if A[i] == B[i]:\n            m += 1\n            base += i + 1\n            cnt[A[i]] = cnt.get(A[i], 0) + 1\n    if m == 0:\n        print(0)\n        return\n    x = max(cnt, key=lambda v: cnt[v])\n    e = 2 * cnt[x] - m\n    if e <= 0:\n        print(base if m % 2 == 0 else base + 1)\n        return\n    tot = 0\n    for i in range(n):\n        if A[i] != B[i] and A[i] != x and B[i] != x:\n            tot += i + 1\n            e -= 1\n            if e == 0:\n                print(base + tot)\n                return\n    print(-1)\n\nmain()\n",
+ "brute": "import sys, heapq\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nA = tuple(int(v) for v in data[1:1 + n])\nB = [int(v) for v in data[1 + n:1 + 2 * n]]\ndist = {A: 0}\npq = [(0, A)]\nans = -1\nwhile pq:\n    d, s = heapq.heappop(pq)\n    if dist[s] < d:\n        continue\n    if all(s[i] != B[i] for i in range(n)):\n        ans = d\n        break\n    for i in range(n):\n        for j in range(i + 1, n):\n            t = list(s)\n            t[i], t[j] = t[j], t[i]\n            t = tuple(t)\n            nd = d + i + j + 2\n            if nd < dist.get(t, 1 << 60):\n                dist[t] = nd\n                heapq.heappush(pq, (nd, t))\nprint(ans)\n",
+ "generator": "def gen(rng):\n    def fmt(A, B):\n        return str(len(A)) + '\\n' + ' '.join(map(str, A)) + '\\n' + ' '.join(map(str, B))\n    tests = [fmt([1], [1]), fmt([1], [2]), fmt([1, 2], [1, 2]), fmt([1, 2], [2, 1]), fmt([1, 1], [1, 1]),\n             fmt([1, 5, 3, 5, 5], [1, 2, 3, 4, 5]), fmt([2, 2, 1, 3, 3], [2, 2, 3, 1, 3]), fmt([1, 1, 1], [1, 1, 1]),\n             fmt([1, 1, 2, 3], [1, 1, 2, 3]), fmt([1, 2, 3], [1, 2, 3]), fmt([3, 2, 1], [1, 2, 3])]\n    cnt = 0\n    while cnt < 90:\n        n = rng.randint(2, 7)\n        k = rng.randint(1, min(n, 4))\n        A = [rng.randint(1, k) for _ in range(n)]\n        B = [rng.randint(1, k) for _ in range(n)]\n        mode = rng.random()\n        x = rng.randint(1, k)\n        for i in range(n):\n            r = rng.random()\n            if mode < 0.4:\n                if r < 0.6:\n                    B[i] = A[i]\n            elif mode < 0.8:\n                if r < 0.5:\n                    A[i] = B[i] = x\n                elif r < 0.7:\n                    B[i] = A[i]\n                elif r < 0.85:\n                    B[i] = x\n            else:\n                if r < 0.35:\n                    A[i] = B[i]\n        tests.append(fmt(A, B))\n        cnt += 1\n    n = 100000\n    perm = list(range(1, n + 1))\n    rng.shuffle(perm)\n    tests.append(fmt(perm, perm))\n    perm2 = list(range(1, n))\n    rng.shuffle(perm2)\n    tests.append(fmt(perm2, perm2))\n    tests.append(fmt([rng.randint(1, n) for _ in range(n)], [rng.randint(1, n) for _ in range(n)]))\n    A = [rng.randint(1, 3) for _ in range(n)]\n    B = [rng.randint(1, 3) for _ in range(n)]\n    tests.append(fmt(A, B))\n    # dominant value 1 on half of the positions, helpers scattered\n    A = [1] * n\n    B = [1] * n\n    for i in range(n):\n        if rng.random() < 0.3:\n            A[i] = rng.randint(2, n)\n            B[i] = rng.randint(2, n)\n            if A[i] == B[i]:\n                B[i] = 2 if A[i] != 2 else 3\n    tests.append(fmt(A, B))\n    # exactly enough / not enough helpers\n    A = [1] * n\n    B = [1] * n\n    for i in range(0, n, 2):\n        A[i] = 2\n        B[i] = 1 if i < n // 2 else 3\n    tests.append(fmt(A, B))\n    tests.append(fmt([1] * n, [1] * n))\n    A = [1] * 60000 + [2] * 40000\n    B = [1] * 60000 + [2] * 40000\n    tests.append(fmt(A, B))\n    A = [1] * 70000 + [2] * 30000\n    B = [1] * 70000 + [3] * 30000\n    tests.append(fmt(A, B))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_cost(a: List[int], b: List[int]) -> int:\n    # Write your solution here\n    # Indices are 1-based when computing the cost of a swap\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    b = [int(x) for x in data[1 + n:1 + 2 * n]]\n    print(min_cost(a, b))\n\n\nmain()\n",
+  "javascript": "function minCost(a, b) {\n  // Write your solution here\n  // Indices are 1-based when computing the cost of a swap\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst a = t.slice(1, 1 + n)\nconst b = t.slice(1 + n, 1 + 2 * n)\nconsole.log(String(minCost(a, b)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minCost(vector<int>& a, vector<int>& b) {\n    // Write your solution here\n    // Indices are 1-based when computing the cost of a swap\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> a(n), b(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    for (int i = 0; i < n; i++) cin >> b[i];\n    cout << minCost(a, b) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minCost(int[] a, int[] b) {\n        // Write your solution here\n        // Indices are 1-based when computing the cost of a swap\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] a = new int[n], b = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (int) in.nval;\n        }\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            b[i] = (int) in.nval;\n        }\n        System.out.println(minCost(a, b));\n    }\n}\n"
+ }
+}

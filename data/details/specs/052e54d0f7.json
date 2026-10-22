@@ -1,0 +1,19 @@
+{
+ "qid": "052e54d0f7",
+ "question": "In the high-level design round of an SDE-3 loop at Swiggy, the candidate was asked to build a **Driver Assignment System for a food delivery platform (similar to Swiggy or Uber Eats)**.\n\nThe system needs to **automatically assign delivery drivers to orders in real time while optimising for multiple objectives**. The reported prompt did not list the objectives or scale, so the candidate is expected to clarify them.",
+ "lookingFor": [
+  "Do you clarify objectives, constraints and scale before designing?",
+  "Can you formulate assignment as an optimisation problem with a cost function?",
+  "Do you understand real-time location ingestion and geospatial lookup?",
+  "Do you handle batching versus greedy assignment trade-offs and failure cases?",
+  "Do you design for consistency of assignments and for peak load?"
+ ],
+ "answer": "**Clarify.** Objectives (minimise delivery time, minimise driver idle or travel distance, fairness of earnings, restaurant prep time, batching multiple orders per driver)? Scale (for example orders per second at peak, drivers online)? Latency target for an assignment (seconds)? Hard constraints (driver capacity, vehicle type, max distance)?\n\n**High-level components.**\n- *Order service* emits `OrderReady/Placed` events.\n- *Driver location service*: drivers send GPS pings every few seconds; keep the latest position in a geospatial index (Redis GEO or a geohash/H3 grid), with state `AVAILABLE | ASSIGNED | BUSY`.\n- *Assignment (matching) service*: for each order, generates candidates, scores them, assigns.\n- *Dispatch/notification*: offers the order to the driver, handles accept, reject and timeout.\n- *ETA service* predicts travel and restaurant prep time.\n- Message queue between components; a database for assignment state.\n\n**Matching approach.**\n1. *Candidate generation:* query drivers within a radius of the restaurant (expand radius if none).\n2. *Scoring:* cost = weighted sum of pickup ETA, detour for batched orders, driver idle time, fairness penalty. Weights are product decisions.\n3. *Assignment:* greedy (assign each order to the best driver immediately) is simple and low latency. Better global quality comes from **batching orders over a short window** (for example a few seconds) and solving an assignment problem (Hungarian algorithm or min-cost matching) across all pending orders and free drivers. Trade-off: slightly higher latency for fewer poor matches.\n\n**Consistency.** A driver must not receive two conflicting assignments: use an atomic state change (compare-and-set on driver state, or a per-driver lock/lease) before sending the offer. Offers expire with a timeout, then the order returns to the pool.\n\n**Scale.** Partition by city or geographic cell so each matching worker handles a region; this also bounds the matching problem size. Autoscale on order rate.\n\n**Failure modes.** Driver rejects or goes offline, stale locations, no drivers available (widen radius, raise incentives, queue), matching service crash (stateless workers, state in store, idempotent assignment by orderId).\n\n**Metrics.** Assignment latency, acceptance rate, pickup time, delivery time, driver utilisation.",
+ "followUps": [
+  "Greedy versus batched matching: when would you choose each?",
+  "How do you prevent the same driver being offered to two orders?",
+  "How would you support order batching (one driver, two orders)?",
+  "How would you partition the system by geography?",
+  "How would you evaluate that a new matching algorithm is better?"
+ ]
+}

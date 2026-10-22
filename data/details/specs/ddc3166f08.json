@@ -1,0 +1,17 @@
+{
+ "qid": "ddc3166f08",
+ "question": "JPMorgan Chase Software Engineer III (Bengaluru, April 2026), Round 1, object-oriented design and immutability. Reported: **how do you make a Java class immutable** (access modifiers, `final`, and so on)? Then: **if the `Person` class contains a reference to a mutable class like `Address`, how do you ensure `Person` stays immutable?** Discuss **deep copying versus shallow copying**.",
+ "lookingFor": [
+  "Knowing the full recipe, not just 'make fields final'.",
+  "Understanding that final protects the reference, not the object it points to.",
+  "Defensive copying on input and output, and the deep versus shallow copy distinction.",
+  "Awareness of benefits: thread safety, safe hash keys, simpler reasoning."
+ ],
+ "answer": "**Recipe for an immutable class.**\n1. Declare the class `final` (or make constructors private) so subclasses cannot add mutable state or break the contract.\n2. Make all fields `private final`.\n3. Provide **no setters**, and no methods that modify state (return new instances instead, as `String` and `LocalDate` do).\n4. Initialise everything in the constructor.\n5. Do not let mutable internals escape: **defensively copy** mutable arguments in and mutable fields out.\n\n**The trap.** `final` only fixes the *reference*. If `Person` holds `private final Address address` and `Address` has setters, then `person.getAddress().setCity(\"X\")` changes the person even though the field is final. The same happens if the constructor stores the caller's `Address` object, because the caller can still mutate it.\n\n**Fixes (choose one or combine).**\n- Best: make `Address` immutable too (a record or a final class with final fields).\n- Otherwise copy defensively:\n\n```java\npublic final class Person {\n    private final String name;\n    private final Address address;\n\n    public Person(String name, Address address) {\n        this.name = name;\n        this.address = new Address(address);           // copy on the way in\n    }\n    public Address getAddress() { return new Address(address); }   // copy on the way out\n}\n\nclass Address {                                    // mutable\n    private String city;\n    Address(Address other) { this.city = other.city; }   // copy constructor\n    // getters and setters\n}\n```\n\nFor collections: `List.copyOf(list)` or `Collections.unmodifiableList(new ArrayList<>(list))`; for dates use `java.time` types, which are immutable. Records are shallowly immutable only: their component references are final but mutable components still leak.\n\n**Shallow vs deep copy.** A **shallow copy** duplicates the object but shares the objects it references (`clone()` default); changing the nested object is visible through both. A **deep copy** recursively copies the nested objects so the two graphs are independent. Immutability needs copies deep enough that no mutable state is shared; copy constructors or copy factories are clearer than `Cloneable`.\n\n**Why bother:** thread safety without locks, safe use as map keys and set elements, easy caching and reasoning.",
+ "followUps": [
+  "Why is `String` immutable, and what does that enable (string pool, hashing, security)?",
+  "Is a Java record fully immutable? What if a component is a `List`?",
+  "What is the cost of defensive copying, and how do persistent data structures reduce it?",
+  "How would you build an immutable class with many optional fields (hint: Builder)?"
+ ]
+}

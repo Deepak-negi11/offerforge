@@ -1,0 +1,18 @@
+{
+ "qid": "8efda5461e",
+ "question": "Atlassian Senior Software Engineer (P50) **Code Design / coding round**. Implement a **rate limiter** where each user can make at most **X requests in Y seconds**. The interviewer asked you to explain **fixed window versus sliding window** (and token bucket as an alternative) and to implement a sliding-window version. Follow-ups: extend it with a **credit system for a user's unused requests**, and make it **thread-safe**, with discussion of why you used `ConcurrentHashMap` instead of `HashMap` and what `synchronized` does.",
+ "lookingFor": [
+  "Understanding the main rate-limiting algorithms and their trade-offs.",
+  "Correct per-user state and time-window handling.",
+  "Clean, extensible API (for example an interface so algorithms can be swapped).",
+  "Concurrency correctness: atomicity of check-then-update, lock granularity.",
+  "Handling the credits extension without breaking the base design."
+ ],
+ "answer": "**API:** `boolean allowRequest(String userId)` (pass timestamps from an injectable `Clock` for tests). Configuration: `limit X`, `window Y`.\n\n**Algorithms**\n- **Fixed window:** counter per user per window bucket (`now / Y`). O(1) and simple, but allows a burst of up to 2X across a boundary.\n- **Sliding window log:** keep a deque of request timestamps per user. On each request, drop timestamps older than `now - Y`, allow if size < X, then append. Accurate; memory is O(X) per user.\n- **Sliding window counter:** weight the previous and current window counts; approximate and O(1).\n- **Token bucket:** tokens refill at X/Y per second up to a capacity; each request takes one. O(1) state (token count and last refill time) and it allows controlled bursts.\n\n**Sliding window sketch**\n```java\nMap<String, Deque<Long>> logs = new ConcurrentHashMap<>();\nboolean allow(String user) {\n  long now = clock.millis();\n  Deque<Long> q = logs.computeIfAbsent(user, k -> new ArrayDeque<>());\n  synchronized (q) {\n    while (!q.isEmpty() && q.peekFirst() <= now - windowMs) q.pollFirst();\n    if (q.size() < limit) { q.addLast(now); return true; }\n    return false;\n  }\n}\n```\n\n**Thread safety:** `HashMap` is not safe for concurrent `put`; `ConcurrentHashMap` makes map operations safe. But \"check size then add\" is a compound action, so it needs a lock. Locking *per user* (as above) keeps different users from blocking each other, unlike a single global lock.\n\n**Credits extension:** when a window ends with unused capacity, add a credit up to a cap (for example the unused count, max C). A request is allowed if the window has capacity, otherwise consume a credit. Keep the credit state in the same per-user object and update it inside the same lock. Define clearly whether credits expire.\n\n**Beyond one process:** use a shared store (for example Redis with atomic scripts), and clean up idle users to avoid memory leaks.",
+ "followUps": [
+  "Why does the fixed window allow bursts at the boundary?",
+  "How would you evict state for inactive users?",
+  "How would you distribute this across many servers?",
+  "What changes if limits differ per user tier?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "97113d7b34",
+ "question": "Flipkart-group startup, Senior Software Engineer, problem-solving round. Reported: **walk through, in depth, how you would debug an API with high latency**, then **implement an LRU cache**.",
+ "lookingFor": [
+  "A systematic, hypothesis-driven debugging method rather than guessing.",
+  "Knowledge of observability tools and the typical latency culprits.",
+  "Ability to separate symptom from root cause.",
+  "Correct and efficient LRU design (O(1) operations).",
+  "Awareness of concurrency and edge cases."
+ ],
+ "answer": "**Debugging a high-latency API.** Work from measurement to cause.\n\n1. **Define and scope it.** What is slow: all endpoints or one, all users or some, p50 or only p99? Since when (a deploy, traffic change, dependency)? Compare against a baseline and check recent releases, config changes and traffic patterns.\n2. **Use the data.** Look at dashboards (rate, errors, latency percentiles), distributed traces to see which span dominates, and logs for slow requests. Check infrastructure: CPU, memory, GC pauses, thread pool and connection pool saturation, queue depths, network.\n3. **Locate the layer.** Client or network (DNS, TLS, payload size), load balancer, application code, downstream services, database, cache, or external APIs.\n4. **Typical causes.** Slow or unindexed queries and N+1 calls (check `EXPLAIN`), lock contention, connection pool exhaustion, cache misses or a cold or stampeding cache, synchronous calls to slow dependencies without timeouts, retry storms, large payloads, GC pauses, noisy neighbours, a hot partition.\n5. **Fix and verify.** Mitigate first (roll back, scale out, shed load, enable a circuit breaker), then fix the root cause (index, caching, batching, async work, timeouts and retries with backoff). Confirm in metrics and add alerts and a regression test or load test.\n\n**LRU cache.** Use a hash map for O(1) lookup plus a doubly linked list ordered by recency. `get(key)`: find the node, move it to the head, return the value. `put(key, value)`: update and move to head, or insert at head; if size exceeds capacity, remove the tail node and delete its key from the map. Both operations are O(1); space O(capacity). In Java, `LinkedHashMap` with `accessOrder=true` and `removeEldestEntry` gives this quickly, but implement the list by hand in an interview. For concurrency, guard with a lock or shard the cache.",
+ "followUps": [
+  "How would you tell whether the database or the application code is the bottleneck?",
+  "How do p50, p95 and p99 latency differ in what they tell you?",
+  "How would you make the LRU cache thread-safe without a single global lock?",
+  "What is a cache stampede and how do you prevent it?"
+ ]
+}

@@ -1,0 +1,48 @@
+{
+ "pid": "gas-station",
+ "title": "Gas Station",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "There are `n` gas stations arranged on a circular route, numbered `0` to `n - 1`. Station `i` has `gas[i]` units of fuel available. Driving from station `i` to the next station (station `i + 1`, and from station `n - 1` back to station `0`) uses `cost[i]` units of fuel.\n\nYou have a car with an unlimited tank that starts **empty**. You choose a starting station, take all the fuel available there, and then drive around the circle in the **increasing index direction** (clockwise), collecting the fuel at every station you reach. You complete the circuit if you get back to your starting station without the tank ever going below zero on any leg. Arriving at a station with exactly 0 fuel is allowed.\n\nPrint the **smallest starting index** from which the full circuit can be completed, or `-1` if no starting station works.\n\nChecking every starting station by simulation takes `O(n^2)` time; the target is `O(n)` time and `O(1)` extra space.\n\n**Follow-up:** one interviewer allowed the car to drive in *either* direction (clockwise or anticlockwise) and asked whether any start exists. How would you adapt the solution?",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` space-separated integers `gas[0] ... gas[n-1]`.\nThe third line contains `n` space-separated integers `cost[0] ... cost[n-1]`.",
+ "output_format": "Print the smallest valid starting index, or `-1` if the circuit cannot be completed from any station.",
+ "constraints": [
+  "1 ≤ n ≤ 5 * 10^4",
+  "0 ≤ gas[i], cost[i] ≤ 10^4"
+ ],
+ "examples": [
+  {
+   "input": "4\n2 3 1 5\n3 2 4 1",
+   "output": "3",
+   "explanation": "Starting at 0: you collect 2 but need 3, so you fail. Start 1: tank 3, pay 2 (1 left), reach station 2 and add 1 (2), but need 4, so fail. Start 2: you collect 1 but need 4, so fail. Start 3: collect 5, pay 1 (4), at station 0 add 2 and pay 3 (3), at station 1 add 3 and pay 2 (4), at station 2 add 1 and pay 4 (1), and you are back home. The answer is 3."
+  },
+  {
+   "input": "3\n1 1 1\n1 1 2",
+   "output": "-1",
+   "explanation": "The total fuel is 3 but the total cost is 4, so no starting station can ever work: -1."
+  },
+  {
+   "input": "3\n3 3 3\n3 3 3",
+   "output": "0",
+   "explanation": "Every leg costs exactly the fuel collected, so every start works; the smallest index is 0."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "If the total gas is less than the total cost, no start works. Otherwise, think about when a particular start fails: at which point does the running tank first go negative?",
+  "If starting at `s` fails at station `k`, then no start between `s` and `k` can succeed either, because each of them would reach `k` with even less fuel than starting at `s` did.",
+  "Scan once keeping `tank` (fuel since the current candidate start) and `total`. When `tank < 0`, set the candidate start to `i + 1` and reset `tank`. If `total ≥ 0` at the end, the candidate is the answer."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    gas = list(map(int, data[1:1 + n]))\n    cost = list(map(int, data[1 + n:1 + 2 * n]))\n    total = 0\n    tank = 0\n    start = 0\n    for i in range(n):\n        d = gas[i] - cost[i]\n        total += d\n        tank += d\n        if tank < 0:\n            start = i + 1\n            tank = 0\n    print(start if total >= 0 else -1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\ngas = list(map(int, data[1:1 + n]))\ncost = list(map(int, data[1 + n:1 + 2 * n]))\nans = -1\nfor s in range(n):\n    tank = 0\n    ok = True\n    for k in range(n):\n        i = (s + k) % n\n        tank += gas[i] - cost[i]\n        if tank < 0:\n            ok = False\n            break\n    if ok:\n        ans = s\n        break\nprint(ans)\n",
+ "generator": "def gen(rng):\n    def fmt(g, c):\n        return str(len(g)) + '\\n' + ' '.join(map(str, g)) + '\\n' + ' '.join(map(str, c))\n    def solvable(n, hi):\n        # build differences with total >= 0, rotate to start at the minimum prefix, then split into gas/cost\n        d = [rng.randint(-hi // 2, hi // 2) for _ in range(n)]\n        s = sum(d)\n        if s < 0:\n            k = (-s + n - 1) // n\n            d = [x + k for x in d]\n            d = [min(x, hi // 2) for x in d]\n        pre, best, bi = 0, 0, 0\n        for i in range(n):\n            if pre < best:\n                best, bi = pre, i\n            pre += d[i]\n        d = d[bi:] + d[:bi]\n        g, c = [], []\n        for x in d:\n            extra = rng.randint(0, hi - abs(x))\n            gi = max(x, 0) + extra\n            g.append(gi)\n            c.append(gi - x)\n        sh = rng.randint(0, n - 1)\n        return g[sh:] + g[:sh], c[sh:] + c[:sh]\n    tests = [fmt([5], [5]), fmt([4], [5]), fmt([0], [0]), fmt([3, 3, 3], [3, 3, 3]), fmt([1, 1, 1], [1, 1, 2]),\n             fmt([2, 3, 1, 5], [3, 2, 4, 1]), fmt([5, 1, 2, 3, 4], [4, 4, 1, 5, 1]), fmt([0, 0, 9], [1, 1, 1]),\n             fmt([9, 0, 0], [1, 1, 1]), fmt([1, 2, 3], [3, 2, 1])]\n    for _ in range(20):\n        n = rng.randint(1, 10)\n        if rng.random() < 0.6:\n            g, c = solvable(n, 10)\n        else:\n            g = [rng.randint(0, 10) for _ in range(n)]\n            c = [rng.randint(0, 10) for _ in range(n)]\n        tests.append(fmt(g, c))\n    N = 50000\n    for _ in range(2):\n        g, c = solvable(N, 10**4)\n        tests.append(fmt(g, c))\n    g = [rng.randint(0, 10**4) for _ in range(N)]\n    c = [rng.randint(0, 10**4) for _ in range(N)]\n    tests.append(fmt(g, c))\n    g = [10**4] * N\n    c = [10**4] * (N - 1) + [10**4]\n    tests.append(fmt(g, c))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef can_complete_circuit(gas: List[int], cost: List[int]) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    gas = [int(x) for x in data[1:1 + n]]\n    cost = [int(x) for x in data[1 + n:1 + 2 * n]]\n    print(can_complete_circuit(gas, cost))\n\n\nmain()\n",
+  "javascript": "function canCompleteCircuit(gas, cost) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst gas = t.slice(1, 1 + n)\nconst cost = t.slice(1 + n, 1 + 2 * n)\nconsole.log(String(canCompleteCircuit(gas, cost)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint canCompleteCircuit(vector<long long>& gas, vector<long long>& cost) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> gas(n), cost(n);\n    for (int i = 0; i < n; i++) cin >> gas[i];\n    for (int i = 0; i < n; i++) cin >> cost[i];\n    cout << canCompleteCircuit(gas, cost) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int canCompleteCircuit(long[] gas, long[] cost) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] gas = new long[n], cost = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            gas[i] = (long) in.nval;\n        }\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            cost[i] = (long) in.nval;\n        }\n        System.out.println(canCompleteCircuit(gas, cost));\n    }\n}\n"
+ }
+}

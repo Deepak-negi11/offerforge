@@ -1,0 +1,19 @@
+{
+ "qid": "98699590c8",
+ "question": "Microsoft Low Level Design round (SDE 2). Write working code for a parking lot. Cars come in sizes S, M and L; the lot has a limited number of spots of each size (for example 200 S, 100 M, 50 L). When a car enters, check its size; if no spot of that size is free, use the next larger size, and so on. There is a price sheet per spot size per hour, and on exit the customer is charged the right amount.",
+ "lookingFor": [
+  "Translating requirements into classes and a working allocation algorithm.",
+  "Correct fallback logic to larger spot sizes.",
+  "Billing calculation including rounding of hours.",
+  "Clean design with room for extension (pricing, new vehicle types).",
+  "Edge-case handling: lot full, invalid ticket, exit twice."
+ ],
+ "answer": "**Clarify.** Is the charge based on the spot size occupied or the car size? (The report says price depends on spot size, so a small car in an L spot pays the L rate; confirm this assumption.) How is time rounded (each started hour is billed)? Multiple entry gates? Concurrency?\n\n**Entities.**\n- `enum Size {S, M, L}` ordered so that `next larger` is easy.\n- `Vehicle(plate, size)`.\n- `ParkingSpot(id, size, occupied)`.\n- `Ticket(id, vehicle, spot, entryTime)`.\n- `PricingPolicy` with `price(spotSize, duration)`; implementation `HourlyPricing` using a `Map<Size, Double>` rate card.\n- `ParkingLot` with `Map<Size, Deque<ParkingSpot>> freeSpots` and `Map<String, Ticket> active`.\n\n**Algorithm.**\n- `enter(vehicle)`: for `size = vehicle.size` upward through `L`, take the first non-empty free list `freeSpots.get(size)`; pop a spot, create a ticket, store it by ticket id; if none, report that the lot is full. This is O(1) per entry because each size keeps a free deque.\n- `exit(ticketId)`: look up and remove the ticket (reject if unknown or already used), compute `hours = ceil(minutes / 60)` (minimum 1), `fee = hours * rate[spot.size]`, push the spot back to the free deque, return the fee. Inject a `Clock` so tests control time.\n\n**Design points.** Keep the allocation rule in a `SpotAllocationStrategy` (nearest to the entrance, cheapest-first) and pricing in `PricingPolicy`, so each can change without touching the lot (open/closed). Use `double` only for demo; prefer `BigDecimal` or integer cents for money.\n\n**Concurrency.** With multiple gates, guard `enter` and `exit` with a lock (or lock per size), otherwise two cars may get the same spot or the deques may be corrupted.\n\n**Tests.** Fill all S spots, then the next S car goes to M; all sizes full gives a rejection; exit after 61 minutes bills 2 hours; invalid or repeated ticket exit is rejected.",
+ "followUps": [
+  "How would you support multiple floors and entrance-based allocation?",
+  "How would you add vehicle types such as motorbikes and trucks?",
+  "How would you implement pricing that changes by time of day?",
+  "How would you make entry and exit safe with many gates?",
+  "Should a small car be allowed to take a larger spot when its own size is free?"
+ ]
+}

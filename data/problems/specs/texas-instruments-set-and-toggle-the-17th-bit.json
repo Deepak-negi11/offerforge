@@ -1,0 +1,49 @@
+{
+ "pid": "texas-instruments-set-and-toggle-the-17th-bit",
+ "title": "Set and Toggle the 17th Bit",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "Bits of an unsigned 32-bit integer are numbered from `1` (the least significant bit) to `32` (the most significant bit), so the `k`-th bit has the value `2^(k-1)`.\n\n- **Set** the `k`-th bit means making it `1`, whatever it was before.\n- **Toggle** the `k`-th bit means flipping it: `0` becomes `1` and `1` becomes `0`.\n\nYou are given `q` queries, each with an unsigned 32-bit integer `x` and a bit number `k`. For each query, compute two results, **both starting from the original `x`**: the value of `x` after setting its `k`-th bit, and the value of `x` after toggling its `k`-th bit. The original interview asked for `x = 0x0000abcd` (`43981`) and `k = 17`; this problem generalises it to any `x` and `k`.\n\nPrint both values in decimal.",
+ "input_format": "The first line contains the integer `q`.\nEach of the next `q` lines contains two integers `x` and `k`.",
+ "output_format": "Print `q` lines. Line `i` contains two integers separated by a space: the value after setting bit `k`, then the value after toggling bit `k`.",
+ "constraints": [
+  "1 ≤ q ≤ 10^5",
+  "0 ≤ x ≤ 2^32 - 1",
+  "1 ≤ k ≤ 32"
+ ],
+ "examples": [
+  {
+   "input": "1\n43981 17",
+   "output": "109517 109517",
+   "explanation": "`43981 = 0xABCD` has bit 17 (value 65536) equal to 0. Setting it gives 43981 + 65536 = 109517, and toggling turns a 0 into 1, so it is also 109517."
+  },
+  {
+   "input": "2\n109517 17\n0 32",
+   "output": "109517 43981\n2147483648 2147483648",
+   "explanation": "In the first query bit 17 is already 1: setting leaves 109517, toggling clears it and gives 43981. In the second, bit 32 has value 2147483648, which both operations produce from 0."
+  },
+  {
+   "input": "1\n4294967295 1",
+   "output": "4294967295 4294967294",
+   "explanation": "Every bit is already 1. Setting bit 1 changes nothing; toggling it clears the lowest bit and gives 4294967294."
+  }
+ ],
+ "complexity": {
+  "time": "O(q)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Build a mask with a single 1 bit at the right place. If the bits are numbered from 1, the mask for bit `k` is `1 << (k - 1)`.",
+  "OR with the mask forces the bit to 1 and leaves every other bit alone.",
+  "XOR with the mask flips exactly that bit. Be careful in languages with signed 32-bit shifts: bit 32 is the sign bit, so use 64-bit integers or unsigned types."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    out = []\n    for i in range(q):\n        x = int(data[1 + 2 * i])\n        k = int(data[2 + 2 * i])\n        mask = 1 << (k - 1)\n        out.append('%d %d' % (x | mask, x ^ mask))\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nq = int(data[0])\nfor i in range(q):\n    x = int(data[1 + 2 * i])\n    k = int(data[2 + 2 * i])\n    bits = [(x >> j) & 1 for j in range(32)]\n    s = bits[:]\n    s[k - 1] = 1\n    t = bits[:]\n    t[k - 1] = 1 - t[k - 1]\n    print(sum(b << j for j, b in enumerate(s)), sum(b << j for j, b in enumerate(t)))\n",
+ "generator": "def gen(rng):\n    def fmt(qs):\n        return str(len(qs)) + '\\n' + '\\n'.join('%d %d' % p for p in qs)\n\n    M = 2 ** 32 - 1\n    tests = [fmt([(0xabcd, 17)]), fmt([(0, 1)]), fmt([(0, 32)]), fmt([(M, 1)]), fmt([(M, 32)]),\n             fmt([(0xabcd, 1), (0xabcd, 2), (0xabcd, 16), (0xabcd, 17), (0xabcd, 18)]),\n             fmt([(0x1abcd, 17)]), fmt([(0x80000000, 32), (0x80000000, 31)])]\n    for _ in range(30):\n        tests.append(fmt([(rng.randint(0, M), rng.randint(1, 32)) for _ in range(rng.randint(1, 12))]))\n    for _ in range(5):\n        tests.append(fmt([(rng.randint(0, 2 ** rng.randint(1, 32) - 1), rng.randint(1, 32)) for _ in range(rng.randint(1, 12))]))\n    tests.append(fmt([(rng.randint(0, M), rng.randint(1, 32)) for _ in range(100000)]))\n    tests.append(fmt([(M - rng.randint(0, 3), 32) for _ in range(100000)]))\n    tests.append(fmt([(rng.randint(0, 2 ** 20), 17) for _ in range(100000)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import Tuple\n\n\ndef set_and_toggle(x: int, k: int) -> Tuple[int, int]:\n    # Write your solution here\n    return (0, 0)\n\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    out = []\n    for i in range(q):\n        x = int(data[1 + 2 * i])\n        k = int(data[2 + 2 * i])\n        a, b = set_and_toggle(x, k)\n        out.append('%d %d' % (a, b))\n    print('\\n'.join(out))\n\n\nmain()\n",
+  "javascript": "function setAndToggle(x, k) {\n  // Write your solution here\n  return [0, 0]\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst q = t[0]\nconst out = []\nfor (let i = 0; i < q; i++) {\n  const r = setAndToggle(t[1 + 2 * i], t[2 + 2 * i])\n  out.push(r[0] + ' ' + r[1])\n}\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\npair<long long, long long> setAndToggle(long long x, int k) {\n    // Write your solution here\n    return {0, 0};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int q;\n    cin >> q;\n    while (q--) {\n        long long x;\n        int k;\n        cin >> x >> k;\n        pair<long long, long long> r = setAndToggle(x, k);\n        cout << r.first << \" \" << r.second << \"\\n\";\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] setAndToggle(long x, int k) {\n        // Write your solution here\n        return new long[]{0, 0};\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int q = (int) in.nval;\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < q; i++) {\n            in.nextToken();\n            long x = (long) in.nval;\n            in.nextToken();\n            int k = (int) in.nval;\n            long[] r = setAndToggle(x, k);\n            sb.append(r[0]).append(' ').append(r[1]).append(\"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

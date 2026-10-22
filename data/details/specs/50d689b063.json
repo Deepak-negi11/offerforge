@@ -1,0 +1,18 @@
+{
+ "qid": "50d689b063",
+ "question": "PhonePe machine coding evaluation, for a Senior Software Engineer: after you submit your code, there is a review in which the interviewer goes through the whole solution and discusses what you did right and wrong. You are expected to justify design choices, including **assumptions** you were told to make where the problem was silent.\n\nThen you are asked how you would implement parts of it **in a real-world system**. Most of those questions were about **concurrency and locking**: be specific about **what kind of locking you would use and why**.",
+ "lookingFor": [
+  "Do you understand the locking options (mutex, read-write, optimistic, pessimistic, distributed) and their costs?",
+  "Can you match the lock granularity and type to the access pattern of the problem?",
+  "Do you recognise pitfalls like deadlock, contention, lost updates and lock ordering?",
+  "Can you move from in-process locking to a multi-server production setting (database or distributed locks)?",
+  "Can you justify your choice with trade-offs rather than naming a lock?"
+ ],
+ "answer": "**How to answer:** pick the locking scheme from the data's access pattern, say what you are protecting (the invariant), and say what you give up.\n\n**Options and when to use them:**\n- **Single mutex / `synchronized`:** simplest and correct, but it serialises everything. Good for a small critical section or low contention.\n- **Fine-grained (per-entity) locks:** lock the booking slot, the account, the order, not the whole service. More parallelism, but you must **acquire locks in a fixed order** (for example by id) to avoid deadlock when an operation needs two.\n- **Read-write lock:** many readers, one writer. Worth it only when reads greatly outnumber writes and the critical section is not tiny; otherwise its overhead is higher than a plain mutex.\n- **Optimistic locking (version or compare-and-set):** read, compute, write only if the version has not changed, else retry. Best under **low contention** and for multiple servers sharing a database (`UPDATE ... WHERE version = ?`). Under high contention retries waste work.\n- **Pessimistic row locks (`SELECT ... FOR UPDATE`):** use when conflicts are frequent and a retry is expensive, such as decrementing a scarce inventory count.\n- **Atomic primitives / lock-free:** `AtomicInteger`, `LongAdder` for counters.\n- **Distributed lock (Redis, ZooKeeper):** only when you must coordinate across processes and cannot express it in the database; needs expiry, fencing tokens and care about clock and failover issues.\n\n**Example answer:** \"For booking a limited slot, I would use a per-slot lock in my in-memory version. In production with several servers, I would not rely on in-process locks; I would use a single conditional update in the database (`UPDATE slots SET available = available - 1 WHERE id = ? AND available > 0`), which is atomic and needs no explicit lock, with an idempotency key so retries are safe.\"\n\n**Keep the critical section small**, never call remote services while holding a lock, and use timeouts (`tryLock`) so a stuck thread does not block everyone.\n\n**Mistake to avoid:** answering \"use synchronized\" without explaining the scope, the contention, or what happens across multiple instances.",
+ "followUps": [
+  "How do you avoid deadlock when an operation needs two locks?",
+  "When would optimistic locking perform worse than pessimistic locking?",
+  "Why is an in-process lock not enough when you run several instances?",
+  "What problems can a distributed lock have, and how do fencing tokens help?"
+ ]
+}

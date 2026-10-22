@@ -1,0 +1,17 @@
+{
+ "qid": "c15b5421b4",
+ "question": "Razorpay system design round (SDE-2 / Lead Software Engineer, about 45 minutes): **design a job scheduler.** The system should **accept a job (a file or executable unit) together with a time or cron expression, and run it on schedule.** The sources give no further numbers, so state your own scale assumptions.",
+ "lookingFor": [
+  "Requirement gathering and sensible scale assumptions.",
+  "Reliable scheduling: no missed jobs, no duplicate runs, or an explicit at-least-once vs exactly-once position.",
+  "Distributed design: partitioning, leader election or locking, worker pools.",
+  "Failure handling: retries, backoff, dead-letter, monitoring."
+ ],
+ "answer": "**Requirements.** Functional: submit a job (payload or artifact plus schedule: one-off time or cron), update or cancel it, run it at the right time, retry on failure, view status and history. Non-functional: high availability, no lost jobs, bounded lateness (say, run within a few seconds of schedule), scale to for example 10 million registered jobs and several thousand executions per second at peaks. State your delivery semantics: at-least-once with idempotent jobs is the realistic target.\n\n**API.** `POST /jobs {artifactRef, schedule, retryPolicy, timeout}`, `GET /jobs/{id}`, `DELETE /jobs/{id}`, `GET /jobs/{id}/runs`. Store the job file in object storage (S3-like) and reference it, rather than putting blobs in the database.\n\n**Components.**\n- *API service* validates the cron expression and stores job metadata.\n- *Job store* (a relational or NoSQL database) holds the job definition and `next_run_time`, indexed on it, partitioned by job id.\n- *Scheduler/dispatcher* instances scan their partitions for jobs due in the next window (`next_run_time <= now + delta`), put them in a delay queue or a time-bucketed queue, and publish an execution message when due. After enqueueing, compute and persist the next fire time from the cron expression.\n- *Message queue* (for example Kafka or SQS) decouples dispatch from execution.\n- *Worker fleet* pulls tasks, downloads the artifact, runs it in a sandbox (container) with a timeout, and writes the run record and status.\n\n**Avoiding duplicates and misses.** Partition ownership by consistent hashing or a lease (database row lock, `SELECT ... FOR UPDATE SKIP LOCKED`, or ZooKeeper/etcd leader election). Dispatch idempotently using a deterministic run id (`jobId + scheduledTime`) with a unique constraint. Workers heartbeat; a run without a heartbeat is re-queued.\n\n**Failures.** Retries with exponential backoff and jitter, a maximum attempt count, then a dead-letter queue and an alert. Misfire policy after downtime: run once now, skip, or catch up, configurable per job.\n\n**Scaling and bottlenecks.** Hot time slots (many jobs at minute boundaries) call for sharding by job id, spreading with jitter, and autoscaling workers on queue depth. Observability: lateness metrics, queue depth, failure rate.",
+ "followUps": [
+  "How do you guarantee a job is not run twice if two schedulers pick it up?",
+  "How do you handle a job that runs longer than its schedule interval?",
+  "How would you support job dependencies or priorities?",
+  "What happens if the scheduler is down for an hour?"
+ ]
+}

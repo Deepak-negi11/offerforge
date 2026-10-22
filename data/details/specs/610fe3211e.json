@@ -1,0 +1,17 @@
+{
+ "qid": "610fe3211e",
+ "question": "Asked in a Paytm Senior Software Engineer interview (Java round): compare HashMap, ConcurrentHashMap and Hashtable. The same round asked what the `volatile` keyword does and how the JVM manages heap, stack and metaspace.",
+ "lookingFor": [
+  "Knowledge of thread-safety mechanisms in the Java collections",
+  "Ability to explain internal differences (locking granularity, null handling)",
+  "Understanding of the Java memory model basics (volatile, visibility)",
+  "Knowing JVM memory areas and what each stores"
+ ],
+ "answer": "**HashMap.** Not thread-safe, allows one null key and many null values, fastest in single-threaded use. Buckets hold linked lists, converted to red-black trees once a bucket grows past 8 entries (Java 8+). Concurrent modification can corrupt it (lost updates, and historically infinite loops during resize), and iterators are fail-fast.\n\n**Hashtable.** Legacy class. Every method is `synchronized` on the whole table, so only one thread at a time can use it, which is thread-safe but slow under contention. It forbids null keys and values. It is considered obsolete.\n\n**ConcurrentHashMap.** Thread-safe with much better scalability. In Java 8+ it uses CAS for empty bins and `synchronized` on the head node of one bin for updates, so threads touching different bins do not block each other. Reads are mostly lock-free. It forbids null keys and values (because `get` returning null would be ambiguous in concurrent use). Iterators are weakly consistent and do not throw `ConcurrentModificationException`. It offers atomic compound operations: `putIfAbsent`, `compute`, `merge`. Note that `if (!map.containsKey(k)) map.put(k, v)` is still a race even on a concurrent map.\n\n**volatile.** Guarantees visibility (a write by one thread is seen by other threads reading the variable) and prevents reordering around the access (happens-before). It does not give atomicity: `count++` on a volatile is still a race. Use it for flags, or `AtomicInteger` and locks for compound operations.\n\n**JVM memory.**\n\n- **Heap:** all objects and arrays, shared by threads and managed by the garbage collector (young and old generations).\n- **Stack:** one per thread, holding frames with local variables, operand stack and references. Deep recursion causes `StackOverflowError`.\n- **Metaspace:** class metadata (since Java 8, in native memory, replacing PermGen). It grows as needed unless capped with `-XX:MaxMetaspaceSize`; leaks usually come from class loader leaks.\n\nPick the right one: single thread use HashMap; concurrent access use ConcurrentHashMap; avoid Hashtable and `Collections.synchronizedMap` for hot paths.",
+ "followUps": [
+  "How does ConcurrentHashMap achieve thread safety in Java 7 vs Java 8?",
+  "Why can ConcurrentHashMap not store null?",
+  "What is the difference between volatile and synchronized?",
+  "What causes an OutOfMemoryError for heap vs metaspace, and how would you debug it?"
+ ]
+}

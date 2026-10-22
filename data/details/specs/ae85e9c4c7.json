@@ -1,0 +1,19 @@
+{
+ "question": "Adobe Noida, technical round 3 (design round, reported for an experienced Software Engineer; another candidate reported the same question in an LLD+HLD round that drilled into concurrency, failure cases, DB design, bottlenecks, horizontal scaling and data consistency): **\"Design a rate limiter.\"** Start with a small system, then scale it to millions of users, with follow-ups on optimisations and edge cases.",
+ "lookingFor": [
+  "Clarifying requirements: what is limited, per whom, where it sits.",
+  "Knowing and comparing the standard algorithms.",
+  "Concurrency and atomicity in a distributed counter store.",
+  "Scaling, failure handling and trade-offs (accuracy versus cost).",
+  "Moving from LLD (classes, API) to HLD (infrastructure)."
+ ],
+ "answer": "**Requirements.** Limit requests per client (user ID, API key or IP) per time window, return HTTP 429 with `Retry-After`, add low latency overhead (a few ms), work across many servers, degrade gracefully. Assume e.g. millions of users and 100k+ checks per second.\n\n**Algorithms (and trade-offs).**\n- *Fixed window counter:* simple, but bursts at window boundaries can allow 2x the limit.\n- *Sliding window log:* exact, stores a timestamp per request (memory heavy).\n- *Sliding window counter:* weighted blend of two windows; cheap and close to accurate.\n- *Token bucket:* refill rate plus bucket size; allows controlled bursts; the most common choice.\n- *Leaky bucket:* smooths output to a constant rate.\n\n**Small system (LLD).** An interface `RateLimiter.allow(key) -> bool` with strategy implementations (token bucket, sliding window). A map from key to bucket state (tokens, last refill time); refill lazily on each call (`tokens = min(cap, tokens + elapsed * rate)`). Guard each bucket with a lock or atomic ops. Add a background eviction for idle keys. Rules (limit per route, per tier) come from config.\n\n**Scaling (HLD).**\n- Place it at the API gateway or as middleware/sidecar so every request is checked once.\n- Keep shared state in a fast store such as Redis, keyed by client and window. Make the check-and-decrement **atomic** with a Lua script or atomic `INCR`/`EXPIRE`, otherwise concurrent requests race.\n- Shard keys by consistent hashing across Redis nodes; replicate for availability.\n- Reduce load by keeping a small local counter per server and syncing in batches (approximate, eventually consistent).\n- Multi-region: per-region limits, or accept slight over-admission.\n\n**Edge cases.** Redis down: choose fail-open (availability) or fail-closed (protection) by endpoint; clock skew (use the store's time); hot keys; distributed attackers rotating IPs; different limits per plan; returning clear headers; observability (rejection rate, latency).",
+ "followUps": [
+  "Compare token bucket and sliding window counter. When would you pick each?",
+  "How do you make the counter update atomic across concurrent requests?",
+  "What happens if Redis goes down: fail open or fail closed?",
+  "How would you rate limit across multiple data centres?",
+  "How do you handle a single very hot key?"
+ ],
+ "qid": "ae85e9c4c7"
+}

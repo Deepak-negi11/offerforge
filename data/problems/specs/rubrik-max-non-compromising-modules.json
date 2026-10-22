@@ -1,0 +1,44 @@
+{
+ "pid": "rubrik-max-non-compromising-modules",
+ "title": "Max Non-Compromising Modules",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A data-center security system has `N` modules. Module `i` has a storage capacity `S[i]` and an exposure threshold `E[i]`, with `S[i] > E[i]`.\n\nA module with exposure threshold `E` **compromises** every module whose storage capacity is less than or equal to `E`. So module `a` compromises module `b` exactly when `S[b] <= E[a]`.\n\nChoose a subset of modules to activate so that **no selected module compromises another selected module** (a module never compromises itself, because `S > E`). Find the largest possible size of such a subset.\n\nThe input contains several independent test cases.",
+ "input_format": "The first line contains an integer `T`, the number of test cases.\nFor each test case: a line with an integer `N`, followed by `N` lines each containing two integers `S[i]` and `E[i]`.",
+ "output_format": "For each test case print one line with a single integer: the maximum number of modules that can be activated.",
+ "constraints": [
+  "1 ≤ T ≤ 10^4",
+  "1 ≤ N and the sum of N over all test cases ≤ 2 · 10^5",
+  "1 ≤ E[i] < S[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "1\n3\n4 1\n5 4\n7 3",
+   "output": "2",
+   "explanation": "Modules (4,1) and (5,4) cannot both be active: the second has E = 4, which compromises the first because its capacity 4 ≤ 4. Modules (4,1) and (7,3) are safe together (7 > 1 and 4 > 3), and so are (5,4) and (7,3). All three together fail, so the answer is 2."
+  },
+  {
+   "input": "2\n4\n10 1\n6 2\n8 5\n3 2\n2\n5 4\n9 6",
+   "output": "3\n1",
+   "explanation": "In the first case, modules (10,1), (6,2) and (8,5) are pairwise safe. Adding (3,2) fails: module (8,5) has E = 5, which compromises any capacity up to 5, including 3. So the answer is 3. In the second case, (9,6) compromises capacity 5, so only one module can be kept."
+  }
+ ],
+ "complexity": {
+  "time": "O(N log N)",
+  "space": "O(N)"
+ },
+ "hints": [
+  "Write down when two modules a and b can coexist: S[b] > E[a] and S[a] > E[b]. What does that say about the ranges [E[a], S[a]) and [E[b], S[b])?",
+  "Two ranges satisfy both inequalities exactly when they overlap. A set of ranges that pairwise overlap on a line always shares one common point.",
+  "So the answer is the largest number of ranges [E, S) that contain one common integer point. Sort the 2N endpoints and sweep, processing the end of a range before the start of another at the same coordinate."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    t = int(data[0])\n    pos = 1\n    out = []\n    for _ in range(t):\n        n = int(data[pos]); pos += 1\n        ev = []\n        for i in range(n):\n            s = int(data[pos]); e = int(data[pos + 1]); pos += 2\n            ev.append((e, 1))\n            ev.append((s, -1))\n        ev.sort()\n        cur = best = 0\n        for _, d in ev:\n            cur += d\n            if cur > best:\n                best = cur\n        out.append(best)\n    print('\\n'.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nt = int(data[0])\npos = 1\nout = []\nfor _ in range(t):\n    n = int(data[pos]); pos += 1\n    S = []\n    E = []\n    for i in range(n):\n        S.append(int(data[pos])); E.append(int(data[pos + 1])); pos += 2\n    best = 0\n    for mask in range(1 << n):\n        idx = [i for i in range(n) if mask >> i & 1]\n        ok = True\n        for a in idx:\n            for b in idx:\n                if a != b and S[b] <= E[a]:\n                    ok = False\n        if ok and len(idx) > best:\n            best = len(idx)\n    out.append(best)\nprint('\\n'.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def fmt(cases):\n        lines = [str(len(cases))]\n        for c in cases:\n            lines.append(str(len(c)))\n            for s, e in c:\n                lines.append(f\"{s} {e}\")\n        return '\\n'.join(lines)\n\n    def rc(n, hi):\n        res = []\n        for _ in range(n):\n            e = rng.randint(1, hi - 1)\n            s = rng.randint(e + 1, hi)\n            res.append((s, e))\n        return res\n\n    tests = [\n        fmt([[(4, 1), (5, 4), (7, 3)]]),\n        fmt([[(2, 1)]]),\n        fmt([[(2, 1), (4, 3)], [(5, 4), (9, 6)]]),\n        fmt([[(10, 1), (10, 1), (10, 1)]]),\n        fmt([[(i + 2, i + 1) for i in range(6)]]),\n        fmt([[(10 ** 9, 1), (10 ** 9, 2), (10 ** 9 - 1, 5)]]),\n    ]\n    for n in (1, 2, 3, 5, 7, 9, 11):\n        for hi in (4, 8, 30):\n            tests.append(fmt([rc(n, hi) for _ in range(2)]))\n    for _ in range(6):\n        tests.append(fmt([rc(rng.randint(1, 12), rng.choice([5, 12, 40])) for _ in range(3)]))\n    big = 200000\n    tests.append(fmt([rc(big, 10 ** 9)]))\n    tests.append(fmt([rc(big, 1000)]))\n    tests.append(fmt([[(10 ** 9 - i, 1 + i) for i in range(big)]]))\n    tests.append(fmt([rc(big // 10, 10 ** 9) for _ in range(10)]))\n    tests.append(fmt([[(i + 2, i + 1) for i in range(big)]]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_modules(S: List[int], E: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    t = int(data[0])\n    pos = 1\n    out = []\n    for _ in range(t):\n        n = int(data[pos])\n        pos += 1\n        S = [int(data[pos + 2 * i]) for i in range(n)]\n        E = [int(data[pos + 2 * i + 1]) for i in range(n)]\n        pos += 2 * n\n        out.append(max_modules(S, E))\n    print('\\n'.join(map(str, out)))\n\n\nmain()\n",
+  "javascript": "function maxModules(S, E) {\n  // Write your solution here\n  return 0\n}\n\nconst tok = input.split(/\\s+/).filter(Boolean).map(Number)\nlet pos = 0\nconst t = tok[pos++]\nconst out = []\nfor (let c = 0; c < t; c++) {\n  const n = tok[pos++]\n  const S = [], E = []\n  for (let i = 0; i < n; i++) {\n    S.push(tok[pos++])\n    E.push(tok[pos++])\n  }\n  out.push(maxModules(S, E))\n}\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint maxModules(vector<long long>& S, vector<long long>& E) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int t;\n    cin >> t;\n    while (t--) {\n        int n;\n        cin >> n;\n        vector<long long> S(n), E(n);\n        for (int i = 0; i < n; i++) cin >> S[i] >> E[i];\n        cout << maxModules(S, E) << \"\\n\";\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int maxModules(long[] S, long[] E) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int t = (int) in.nval;\n        StringBuilder sb = new StringBuilder();\n        while (t-- > 0) {\n            in.nextToken();\n            int n = (int) in.nval;\n            long[] S = new long[n], E = new long[n];\n            for (int i = 0; i < n; i++) {\n                in.nextToken(); S[i] = (long) in.nval;\n                in.nextToken(); E[i] = (long) in.nval;\n            }\n            sb.append(maxModules(S, E)).append(\"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

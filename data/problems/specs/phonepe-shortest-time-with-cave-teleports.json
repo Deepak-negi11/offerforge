@@ -1,0 +1,50 @@
+{
+ "pid": "phonepe-shortest-time-with-cave-teleports",
+ "title": "Shortest Time With Cave Teleports",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "In the Grand Kingdom of Arithma, the capital city is laid out as an `n × m` grid. Every cell has one of these properties:\n\n- `-1`: an **impassable** cell (forbidden zone) that cannot be entered.\n- `0`: a **free** cell that can be walked through.\n- `x` with `1 ≤ x ≤ 10^9`: a **cave** with activation cost `x`. A cave is also an ordinary free cell when you are not using it to teleport.\n\nRema starts in the top-left cell `(0, 0)` and wants to reach the bottom-right cell `(n - 1, m - 1)` as fast as possible. He has two ways to move:\n\n- **Walk** from his cell to a side-adjacent cell (up, down, left or right) that is not impassable. Each step takes `w` units of time.\n- **Teleport** from a cave to any **other** cave. Teleporting from the cave at `(i, j)` to the cave at `(x, y)` takes `a[i][j] + a[x][y]` units of time, the sum of the two activation costs. He may teleport any number of times.\n\nPrint the minimum time needed to get from the start to the destination, or `-1` if it cannot be done. The start and destination cells are never impassable.",
+ "input_format": "The first line contains three integers `n`, `m` and `w`.\nEach of the next `n` lines contains `m` space-separated integers: the values of the cells in that row.",
+ "output_format": "Print a single integer: the minimum time, or `-1` if the destination is unreachable.",
+ "constraints": [
+  "1 ≤ n, m ≤ 400",
+  "1 ≤ w ≤ 10^9",
+  "each cell is -1, 0, or an integer in [1, 10^9]",
+  "cells (0, 0) and (n - 1, m - 1) are not -1"
+ ],
+ "examples": [
+  {
+   "input": "3 3 10\n0 -1 0\n0 -1 0\n5 -1 7",
+   "output": "32",
+   "explanation": "The middle column is blocked, so walking to the right side is impossible. Walk down to the cave at (2,0) in 2 steps (20), then teleport to the cave at (2,2): 5 + 7 = 12. Total 32."
+  },
+  {
+   "input": "2 3 1\n0 4 0\n0 0 4",
+   "output": "3",
+   "explanation": "Walking right and down takes 3 steps. Reaching the other cave by teleporting costs 1 + 4 + 4 = 9 already, so walking is better."
+  },
+  {
+   "input": "2 2 5\n0 -1\n-1 0",
+   "output": "-1",
+   "explanation": "Both neighbours of the start are blocked and there are no caves, so the destination cannot be reached."
+  }
+ ],
+ "complexity": {
+  "time": "O(n · m)",
+  "space": "O(n · m)"
+ },
+ "hints": [
+  "Compute the walking distance (in steps) from the start to every cell, and also from the destination to every cell, using BFS.",
+  "Teleporting between caves u and v costs a[u] + a[v] no matter how far apart they are, and every cost is positive. Is it ever worth teleporting twice in a row, or teleporting to a cave and back?",
+  "So there are two candidates: walk the whole way, or walk to some cave u, teleport to some other cave v, and walk to the destination. Minimise over u and v separately instead of trying all pairs."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    d = sys.stdin.read().split()\n    n, m, w = int(d[0]), int(d[1]), int(d[2])\n    W = m + 2\n    cell = [-1] * ((n + 2) * W)\n    p = 3\n    for i in range(n):\n        base = (i + 1) * W + 1\n        for j in range(m):\n            cell[base + j] = int(d[p])\n            p += 1\n    s = W + 1\n    t = n * W + m\n    def bfs(src):\n        dist = [-1] * len(cell)\n        dist[src] = 0\n        q = deque([src])\n        pop = q.popleft\n        push = q.append\n        while q:\n            x = pop()\n            nd = dist[x] + 1\n            for y in (x + 1, x - 1, x + W, x - W):\n                if cell[y] >= 0 and dist[y] < 0:\n                    dist[y] = nd\n                    push(y)\n        return dist\n    ds = bfs(s)\n    dt = bfs(t)\n    INF = float('inf')\n    ans = INF\n    if ds[t] >= 0:\n        ans = w * ds[t]\n    bs = INF\n    bt = INF\n    for x in range(len(cell)):\n        a = cell[x]\n        if a > 0:\n            if ds[x] >= 0:\n                bs = min(bs, w * ds[x] + a)\n            if dt[x] >= 0:\n                bt = min(bt, w * dt[x] + a)\n    ans = min(ans, bs + bt)\n    print(-1 if ans == INF else ans)\n\nmain()\n",
+ "brute": "import sys\nimport heapq\n\nd = sys.stdin.read().split()\nn, m, w = int(d[0]), int(d[1]), int(d[2])\ng = [[int(d[3 + i * m + j]) for j in range(m)] for i in range(n)]\ncaves = [(i, j) for i in range(n) for j in range(m) if g[i][j] > 0]\nINF = float('inf')\ndist = {(0, 0): 0}\nh = [(0, 0, 0)]\nwhile h:\n    c, i, j = heapq.heappop(h)\n    if dist.get((i, j), INF) < c:\n        continue\n    nxt = []\n    for ni, nj in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)):\n        if 0 <= ni < n and 0 <= nj < m and g[ni][nj] >= 0:\n            nxt.append((c + w, ni, nj))\n    if g[i][j] > 0:\n        for (x, y) in caves:\n            if (x, y) != (i, j):\n                nxt.append((c + g[i][j] + g[x][y], x, y))\n    for nc, ni, nj in nxt:\n        if nc < dist.get((ni, nj), INF):\n            dist[(ni, nj)] = nc\n            heapq.heappush(h, (nc, ni, nj))\nprint(dist.get((n - 1, m - 1), -1))\n",
+ "generator": "def gen(rng):\n    def fmt(n, m, w, g):\n        return f\"{n} {m} {w}\\n\" + \"\\n\".join(\" \".join(map(str, row)) for row in g)\n    tests = [\n        fmt(1, 1, 5, [[0]]),\n        fmt(1, 1, 5, [[7]]),\n        fmt(1, 2, 3, [[0, 0]]),\n        fmt(1, 3, 2, [[0, -1, 0]]),\n        fmt(1, 3, 2, [[4, -1, 6]]),\n        fmt(1, 3, 100, [[4, -1, 6]]),\n        fmt(2, 2, 5, [[0, -1], [-1, 0]]),\n        fmt(2, 3, 1, [[0, 4, 0], [0, 0, 4]]),\n        fmt(3, 3, 10, [[0, -1, 0], [0, -1, 0], [5, -1, 7]]),\n        fmt(3, 3, 1, [[3, 0, -1], [-1, -1, 0], [0, 0, 3]]),\n    ]\n    for _ in range(40):\n        n = rng.randint(1, 6)\n        m = rng.randint(1, 6)\n        w = rng.randint(1, 6)\n        pb = rng.choice([0.1, 0.3, 0.45])\n        pc = rng.choice([0.1, 0.3, 0.5])\n        g = []\n        for i in range(n):\n            row = []\n            for j in range(m):\n                r = rng.random()\n                if r < pb:\n                    row.append(-1)\n                elif r < pb + pc:\n                    row.append(rng.randint(1, 12))\n                else:\n                    row.append(0)\n            g.append(row)\n        g[0][0] = max(g[0][0], 0)\n        g[n - 1][m - 1] = max(g[n - 1][m - 1], 0)\n        tests.append(fmt(n, m, w, g))\n    S = 400\n    # every cell is a cave\n    tests.append(fmt(S, S, 10 ** 9, [[rng.randint(1, 10 ** 9) for _ in range(S)] for _ in range(S)]))\n    # a wall splits start and end; caves on both sides, teleporting is the only way\n    g = [[0] * S for _ in range(S)]\n    for i in range(S):\n        g[i][S // 2] = -1\n    for _ in range(3000):\n        g[rng.randrange(S)][rng.randrange(S)] = rng.randint(1, 10 ** 9)\n    for i in range(S):\n        g[i][S // 2] = -1\n    tests.append(fmt(S, S, 7, g))\n    # sparse caves, random obstacles\n    g = [[(-1 if rng.random() < 0.25 else (rng.randint(1, 1000) if rng.random() < 0.05 else 0)) for _ in range(S)] for _ in range(S)]\n    g[0][0] = 0\n    g[S - 1][S - 1] = 0\n    tests.append(fmt(S, S, 3, g))\n    # a long snake corridor with cheap caves at both ends of the grid\n    g = [[-1] * S for _ in range(S)]\n    for i in range(0, S, 2):\n        for j in range(S):\n            g[i][j] = 0\n    for i in range(1, S, 2):\n        g[i][S - 1 if (i // 2) % 2 == 0 else 0] = 0\n    g[0][1] = 5\n    g[S - 1][S - 2] = 5\n    g[S // 2][S // 2] = 0\n    tests.append(fmt(S, S, 1000, g))\n    tests.append(fmt(S, S, 1, g))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_time(n: int, m: int, w: int, grid: List[List[int]]) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m, w = int(data[0]), int(data[1]), int(data[2])\n    grid = [[int(data[3 + i * m + j]) for j in range(m)] for i in range(n)]\n    print(min_time(n, m, w, grid))\n\n\nmain()\n",
+  "javascript": "function minTime(n, m, w, grid) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1], w = t[2]\nconst grid = []\nfor (let i = 0; i < n; i++) grid.push(t.slice(3 + i * m, 3 + (i + 1) * m))\nconsole.log(String(minTime(n, m, w, grid)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minTime(int n, int m, long long w, vector<vector<long long>>& grid) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    long long w;\n    cin >> n >> m >> w;\n    vector<vector<long long>> grid(n, vector<long long>(m));\n    for (int i = 0; i < n; i++)\n        for (int j = 0; j < m; j++) cin >> grid[i][j];\n    cout << minTime(n, m, w, grid) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minTime(int n, int m, long w, long[][] grid) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        in.nextToken();\n        long w = (long) in.nval;\n        long[][] grid = new long[n][m];\n        for (int i = 0; i < n; i++)\n            for (int j = 0; j < m; j++) {\n                in.nextToken();\n                grid[i][j] = (long) in.nval;\n            }\n        System.out.println(minTime(n, m, w, grid));\n    }\n}\n"
+ }
+}

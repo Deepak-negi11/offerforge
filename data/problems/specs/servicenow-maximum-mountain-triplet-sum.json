@@ -1,0 +1,48 @@
+{
+ "pid": "servicenow-maximum-mountain-triplet-sum",
+ "title": "Maximum Mountain Triplet Sum",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `a` of `n` positive integers in no particular order. A **mountain triplet** is a subsequence of three elements `a[i], a[j], a[k]` with `i < j < k` (they keep their original order in the array) such that `a[i] < a[j]` and `a[j] > a[k]`: the middle element is strictly larger than both of its neighbours in the triplet.\n\nReturn the maximum possible value of `a[i] + a[j] + a[k]` over all mountain triplets. If the array contains no mountain triplet, return `-1`.",
+ "input_format": "The first line contains the integer `n`.\nThe second line contains `n` integers `a[0], ..., a[n - 1]`.",
+ "output_format": "Print a single integer: the maximum mountain triplet sum, or `-1` if there is none.",
+ "constraints": [
+  "3 ≤ n ≤ 10^5",
+  "1 ≤ a[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "5\n2 9 4 7 3",
+   "output": "18",
+   "explanation": "Take 9 as the middle. The best smaller value before it is 2 and the best smaller value after it is 7, giving 2 + 9 + 7 = 18. Other peaks give less: 7 gives 4 + 7 + 3 = 14."
+  },
+  {
+   "input": "3\n5 4 3",
+   "output": "-1",
+   "explanation": "No element has a strictly smaller element before it, so there is no mountain triplet."
+  },
+  {
+   "input": "6\n1 3 2 3 5 4",
+   "output": "12",
+   "explanation": "With 5 as the middle, the largest smaller value before it is 3 and after it is 4, so the sum is 3 + 5 + 4 = 12. Using the first 3 as the middle only reaches 1 + 3 + 2 = 6."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Fix the middle element `a[j]`. The left and right choices are independent: you want the largest value smaller than `a[j]` among the elements before it, and the same among the elements after it.",
+  "Computing the 'largest smaller value so far' for each position needs an ordered structure: a balanced BST / ordered set, or a Fenwick tree for prefix maximum over compressed values.",
+  "Do one left-to-right pass for the left best and one right-to-left pass for the right best, then combine them for every middle index that has both."
+ ],
+ "reference": "import sys\n\ndef smaller_before(a, key):\n    # For each j, the largest a[i] < a[j] among i < j (0 if none).\n    n = len(a)\n    order = sorted(range(n), key=key)\n    rk = [0] * n\n    for r, i in enumerate(order):\n        rk[i] = r\n    prv = list(range(-1, n - 1))\n    nxt = list(range(1, n + 1))\n    res = [0] * n\n    for j in range(n - 1, -1, -1):\n        r = rk[j]\n        p = prv[r]\n        if p != -1:\n            res[j] = a[order[p]]\n            nxt[p] = nxt[r]\n        if nxt[r] < n:\n            prv[nxt[r]] = p\n    return res\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    left = smaller_before(a, key=lambda i: (a[i], -i))\n    b = a[::-1]\n    right = smaller_before(b, key=lambda i: (b[i], -i))[::-1]\n    best = -1\n    for j in range(n):\n        if left[j] and right[j]:\n            s = left[j] + a[j] + right[j]\n            if s > best:\n                best = s\n    print(best)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + n]]\nbest = -1\nfor i in range(n):\n    for j in range(i + 1, n):\n        for k in range(j + 1, n):\n            if a[i] < a[j] and a[j] > a[k]:\n                best = max(best, a[i] + a[j] + a[k])\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return f\"{len(a)}\\n\" + \" \".join(map(str, a))\n\n    tests = [fmt([1, 2, 1]), fmt([1, 2, 3]), fmt([3, 2, 1]), fmt([5, 5, 5]), fmt([2, 9, 4, 7, 3]),\n             fmt([5, 4, 3]), fmt([1, 3, 2, 3, 5, 4]), fmt([10**9, 10**9, 10**9, 10**9]),\n             fmt([1, 10**9, 1]), fmt([4, 4, 9, 4, 4]), fmt([7, 1, 8, 2, 6, 6, 3])]\n    for _ in range(40):\n        n = rng.randint(3, 12)\n        hi = rng.choice([3, 6, 10, 50])\n        tests.append(fmt([rng.randint(1, hi) for _ in range(n)]))\n    for _ in range(6):\n        n = rng.randint(20, 40)\n        tests.append(fmt([rng.randint(1, 60) for _ in range(n)]))\n    N = 100000\n    tests.append(fmt([rng.randint(1, 10**9) for _ in range(N)]))\n    tests.append(fmt([rng.randint(1, 5) for _ in range(N)]))\n    tests.append(fmt(list(range(1, N + 1))))\n    tests.append(fmt([(i % 1000) * 1000 + 1 + (i % 7) for i in range(N)]))\n    tests.append(fmt([rng.randint(1, 10**9) if i % 2 == 0 else rng.randint(1, 1000) for i in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_mountain_sum(a: List[int]) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    print(max_mountain_sum(a))\n\n\nmain()\n",
+  "javascript": "function maxMountainSum(a) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst a = t.slice(1, 1 + n)\nconsole.log(maxMountainSum(a))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxMountainSum(vector<long long>& a) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    cout << maxMountainSum(a) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxMountainSum(long[] a) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (long) in.nval;\n        }\n        System.out.println(maxMountainSum(a));\n    }\n}\n"
+ }
+}

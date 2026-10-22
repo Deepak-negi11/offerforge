@@ -1,0 +1,18 @@
+{
+ "qid": "c57f9ca076",
+ "question": "Razorpay machine coding round (Product Development Engineer 1). Design and implement a **vehicle parking system** with two vehicle types, Sedan/SUV and Compact/Hatchback. Requirements as reported: track how many vehicles of each type enter; charge by the hour per type (one report: Compact Rs 10/hour, Sedan Rs 20/hour); **if compact slots are full, a compact car may use a sedan slot at the compact rate**; on exit, **notify the user of the total charge**; an **admin can list all parked vehicles**. Candidates used the Factory and Singleton patterns, confirmed requirements first and discussed the design in a shared doc before coding. Edge cases were walked through afterwards.",
+ "lookingFor": [
+  "Requirement clarification before coding.",
+  "Clean object model and sensible use of patterns, not pattern name-dropping.",
+  "Correct handling of the overflow rule (compact into sedan slot).",
+  "Extensibility: new vehicle types or pricing rules.",
+  "Working, tested code within the time limit, including edge cases."
+ ],
+ "answer": "**Clarify first:** capacity per slot type, how time is measured (inject a clock for tests), rounding of partial hours (round up is common), what happens when the lot is full, whether the charge uses the *vehicle* type or the *slot* type (per the requirement: vehicle type, so a compact car in a sedan slot pays the compact rate), and whether the admin needs only a list or also filters.\n\n**Entities:**\n- `VehicleType` enum (SEDAN, COMPACT) and `Vehicle(regNo, type)`.\n- `Slot(id, type, occupiedBy)`.\n- `Ticket(id, vehicle, slot, entryTime)`.\n- `PricingStrategy` with `rate(vehicleType)`; a `HourlyPricing` implementation holds a rate map.\n- `ParkingLot` (the **Singleton**, or just one injected instance, which is easier to test) owning slots, active tickets and counters.\n- `VehicleFactory` creating vehicles from a type, if you use the **Factory** pattern; keep it small and justified.\n\n**Flow:**\n- `enter(vehicle)`: find a free slot of the same type; if none and the vehicle is compact, take a free sedan slot; otherwise reject. Create a ticket, increment the per-type entry counter, and mark the slot occupied.\n- `exit(regNo)`: look up the ticket by reg number (a map, O(1)), compute `hours = ceil((now - entry) / 1h)` with a minimum of one hour, charge `hours * rate(vehicleType)`, free the slot, remove the ticket, and notify (an `Observer` or a simple callback or return value).\n- `listParked()` for the admin returns the active tickets.\n\n**Data structures:** a free-slot queue or set per slot type, and a `Map<regNo, Ticket>`.\n\n**Edge cases:** duplicate entry of the same reg number, exit of an unknown vehicle, lot full, concurrent entries (guard allocation with a lock if multi-threaded), and a clock that moves backwards.\n\n**Extensions:** more vehicle types, peak pricing as a new strategy, persistence, multiple levels.",
+ "followUps": [
+  "How would you add a bike or truck type without changing existing classes?",
+  "Make slot allocation thread-safe for concurrent entries. What do you lock?",
+  "How would you change pricing to be slab-based or time-of-day based?",
+  "Is Singleton a good choice here? What are its downsides for testing?"
+ ]
+}

@@ -1,0 +1,48 @@
+{
+ "pid": "google-remove-one-element-to-split-equally",
+ "title": "Remove One Element to Split Equally",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `a` of `n` integers (values may be negative or zero). You must first remove **exactly one** element of the array; the remaining `n - 1` elements keep their original order.\n\nAfter the removal, decide whether the remaining array can be cut at a single position into two **non-empty contiguous subarrays** (a prefix and the suffix that follows it) whose sums are equal. Every element of the remaining array belongs to exactly one of the two parts.\n\nPrint `YES` if there is some element whose removal makes such an equal split possible, and `NO` otherwise. Note that the element to remove is your choice, and the removal is mandatory: even if the original array could already be split equally, you still have to delete one element first.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` space-separated integers `a[0] ... a[n-1]`.",
+ "output_format": "Print `YES` or `NO`.",
+ "constraints": [
+  "2 ≤ n ≤ 10^5",
+  "-10^9 ≤ a[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "4\n1 2 3 6",
+   "output": "YES",
+   "explanation": "Remove `6`: the array becomes `[1, 2, 3]`, which splits into `[1, 2]` and `[3]`, both with sum 3."
+  },
+  {
+   "input": "3\n1 2 4",
+   "output": "NO",
+   "explanation": "Whichever element is removed, two numbers remain and they are different (`[2,4]`, `[1,4]`, `[1,2]`), so no equal split exists."
+  },
+  {
+   "input": "5\n4 1 3 9 2",
+   "output": "YES",
+   "explanation": "Remove `9`: the array becomes `[4, 1, 3, 2]`, which splits into `[4, 1]` and `[3, 2]`, both with sum 5. Negative values are allowed too: `[5, -3, 2, 4]` works by removing `4` and cutting into `[5, -3]` and `[2]`."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Fix the cut position `s` (a prefix of length `s`). Let `P` be the prefix sum and `S` the total. The element removed lies either in the prefix or in the suffix.",
+  "If the removed element `x` is in the prefix, the two sides are `P - x` and `S - P`, so you need `x = 2P - S`. If it is in the suffix, you need `x = S - 2P`.",
+  "Sweep the cut left to right, keeping a hash set of values seen in the prefix and a hash map of counts for the suffix, and look up the required value in O(1). Remember both parts must stay non-empty."
+ ],
+ "reference": "import sys\nfrom collections import Counter\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    S = sum(a)\n    left = set()\n    right = Counter(a)\n    p = 0\n    ok = False\n    for s in range(1, n):\n        x = a[s - 1]\n        p += x\n        left.add(x)\n        right[x] -= 1\n        if s >= 2 and (2 * p - S) in left:\n            ok = True\n            break\n        if n - s >= 2 and right.get(S - 2 * p, 0) > 0:\n            ok = True\n            break\n    print('YES' if ok else 'NO')\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + n]]\nok = False\nfor k in range(n):\n    b = a[:k] + a[k + 1:]\n    for s in range(1, len(b)):\n        if sum(b[:s]) == sum(b[s:]):\n            ok = True\nprint('YES' if ok else 'NO')\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n    tests = [fmt([1, 1]), fmt([5, 5, 5]), fmt([0, 0]), fmt([0, 0, 0]), fmt([1, 2, 4]), fmt([7, -7, 3]),\n             fmt([-4, 2, 2, 9]), fmt([10**9, 10**9, -10**9]), fmt([3, 1, 2, 100, 3, 3])]\n    for n in (2, 3, 4, 5, 6, 8, 10, 14, 20):\n        for _ in range(3):\n            tests.append(fmt([rng.randint(-3, 5) for _ in range(n)]))\n    for n in (5, 9, 15, 25):\n        tests.append(fmt([rng.randint(-10**9, 10**9) for _ in range(n)]))\n\n    def constructed(n, lo, hi):\n        # two parts with equal sum plus one extra element at a random position\n        m = n - 1\n        k = rng.randint(1, m - 1)\n        L = [rng.randint(lo, hi) for _ in range(k)]\n        R = [rng.randint(lo, hi) for _ in range(m - k - 1)]\n        R.append(sum(L) - sum(R))\n        b = L + R\n        b.insert(rng.randint(0, m), rng.randint(lo, hi))\n        return b\n\n    for n in (6, 12, 30):\n        tests.append(fmt(constructed(n, -5, 9)))\n    N = 100000\n    tests.append(fmt([rng.randint(-10**9, 10**9) for _ in range(N)]))\n    tests.append(fmt([0] * N))\n    tests.append(fmt(constructed(N, -10**9 + 1, 10**9 - 1)))\n    tests.append(fmt([rng.randint(1, 10**9) for _ in range(N)]))\n    big = [rng.randint(1, 10**9) for _ in range(N - 1)]\n    tests.append(fmt([x for x in big] + [sum(big)]))\n    tests.append(fmt([rng.randint(-2, 2) for _ in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef can_split_after_removal(a: List[int]) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    print('YES' if can_split_after_removal(a) else 'NO')\n\n\nmain()\n",
+  "javascript": "function canSplitAfterRemoval(a) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst a = t.slice(1, 1 + n)\nconsole.log(canSplitAfterRemoval(a) ? 'YES' : 'NO')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool canSplitAfterRemoval(vector<long long>& a) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> a(n);\n    for (auto& x : a) cin >> x;\n    cout << (canSplitAfterRemoval(a) ? \"YES\" : \"NO\") << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean canSplitAfterRemoval(long[] a) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (long) in.nval;\n        }\n        System.out.println(canSplitAfterRemoval(a) ? \"YES\" : \"NO\");\n    }\n}\n"
+ }
+}

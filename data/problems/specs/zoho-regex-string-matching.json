@@ -1,0 +1,50 @@
+{
+ "pid": "zoho-regex-string-matching",
+ "title": "Regex String Matching",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given a text `s` and a pattern `p`. Decide whether `p` matches the **entire** string `s` (not just a part of it).\n\nThe pattern is built from these pieces:\n\n- a lowercase letter, which matches exactly that letter;\n- `.`, which matches any single lowercase letter;\n- `x*`, where `x` is a letter or `.`: matches **zero or more** characters, each of which `x` matches;\n- `x+`, where `x` is a letter or `.`: matches **one or more** characters, each of which `x` matches.\n\nWhen `x` is `.`, every repeated character is chosen independently, so `.*` matches any string and `.+` any non-empty string. A `*` or `+` always applies only to the single letter or `.` right before it. The pattern never starts with `*` or `+`, and `*` and `+` never follow another `*` or `+`.",
+ "input_format": "The first line contains the string `s`.\nThe second line contains the pattern `p`.",
+ "output_format": "Print `true` if `p` matches the whole of `s`, otherwise print `false`.",
+ "constraints": [
+  "1 ≤ |s| ≤ 1000",
+  "1 ≤ |p| ≤ 1000",
+  "s consists of lowercase letters",
+  "p consists of lowercase letters, `.`, `*` and `+`, arranged as described above"
+ ],
+ "examples": [
+  {
+   "input": "aaab\na*b",
+   "output": "true",
+   "explanation": "`a*` matches the three a's and `b` matches the last letter."
+  },
+  {
+   "input": "ac\nab+c",
+   "output": "false",
+   "explanation": "`b+` needs at least one `b`, but the text has none between `a` and `c`."
+  },
+  {
+   "input": "abcab\n.+b",
+   "output": "true",
+   "explanation": "`.+` matches `abca` (one or more characters of any kind) and `b` matches the final letter."
+  }
+ ],
+ "complexity": {
+  "time": "O(|s| · |p|)",
+  "space": "O(|s|)"
+ },
+ "hints": [
+  "Define a state (i, j): do the first i characters of s match the first j pattern items? Think about what each kind of item can contribute to that state.",
+  "For `x*` you either use it zero times (move to the previous item) or let it absorb one more character (stay on the same item). `x+` is the same except that it must absorb at least one character.",
+  "Plain backtracking explodes on patterns like `a*a*a*a*c` against a long run of a's. Cache the results per (i, j), or fill a table row by row; only the previous row is ever needed."
+ ],
+ "reference": "import sys\n\ndef main():\n    s, p = sys.stdin.read().split()\n    toks = []\n    i = 0\n    while i < len(p):\n        if i + 1 < len(p) and p[i + 1] in '*+':\n            toks.append((p[i], p[i + 1]))\n            i += 2\n        else:\n            toks.append((p[i], ''))\n            i += 1\n    n = len(s)\n    prev = [False] * (n + 1)\n    prev[0] = True\n    for c, op in toks:\n        cur = [False] * (n + 1)\n        if op == '*':\n            cur[0] = prev[0]\n        for i in range(1, n + 1):\n            m = c == '.' or c == s[i - 1]\n            if op == '':\n                cur[i] = prev[i - 1] and m\n            elif op == '*':\n                cur[i] = prev[i] or (m and cur[i - 1])\n            else:\n                cur[i] = m and (prev[i - 1] or cur[i - 1])\n        prev = cur\n    print('true' if prev[n] else 'false')\n\nmain()\n",
+ "brute": "import sys\n\ndef match(s, p):\n    if not p:\n        return not s\n    first = bool(s) and (p[0] == '.' or p[0] == s[0])\n    if len(p) >= 2 and p[1] == '*':\n        return match(s, p[2:]) or (first and match(s[1:], p))\n    if len(p) >= 2 and p[1] == '+':\n        return first and match(s[1:], p[0] + '*' + p[2:])\n    return first and match(s[1:], p[1:])\n\ns, p = sys.stdin.read().split()\nprint('true' if match(s, p) else 'false')\n",
+ "generator": "def gen(rng):\n    def fmt(s, p):\n        return s + '\\n' + p\n    def rand_pat(k, alpha):\n        out = []\n        for _ in range(k):\n            c = rng.choice(alpha + '.')\n            op = rng.choice(['', '', '*', '+'])\n            out.append(c + op)\n        return ''.join(out)\n    tests = [fmt('aaab', 'a*b'), fmt('a', 'a'), fmt('a', 'b'), fmt('a', '.'), fmt('a', 'a+'), fmt('a', 'b*a'), fmt('ab', 'a'),\n             fmt('aa', 'a'), fmt('a', 'a*a+'), fmt('abc', '.*'), fmt('abc', '.+c'), fmt('ab', 'a+b+c*'), fmt('a', 'b*'),\n             fmt('aab', 'c*a*b'), fmt('abab', '.*b'), fmt('abab', '.+a'), fmt('b', 'a*b*')]\n    for _ in range(40):\n        s = ''.join(rng.choice('ab') for _ in range(rng.randint(1, 8)))\n        if rng.random() < 0.4:\n            p = rand_pat(rng.randint(1, 6), 'ab')\n        else:\n            p = ''\n            i = 0\n            while i < len(s):\n                j = i\n                while j < len(s) and s[j] == s[i]:\n                    j += 1\n                r = rng.random()\n                if r < 0.3:\n                    p += s[i:j]\n                elif r < 0.55:\n                    p += s[i] + '+'\n                elif r < 0.7:\n                    p += s[i] + '*'\n                elif r < 0.85:\n                    p += '.' * (j - i)\n                else:\n                    p += '.+'\n                if rng.random() < 0.3:\n                    p += rng.choice('ab.') + '*'\n                i = j\n            if rng.random() < 0.3 and len(p) > 1:\n                k = rng.randrange(len(p))\n                if p[k] in 'ab.':\n                    p = p[:k] + rng.choice('ab.') + p[k + 1:]\n        tests.append(fmt(s, p))\n    # max-size cases\n    tests.append(fmt('a' * 1000, 'a*' * 499 + 'c'))\n    tests.append(fmt('a' * 1000, 'a*' * 500))\n    tests.append(fmt('a' * 1000, 'a+' * 500))\n    tests.append(fmt('a' * 999 + 'b', 'a*' * 498 + 'c*b'))\n    tests.append(fmt('a' * 1000, '.' * 1000))\n    tests.append(fmt('a' * 1000, '.' * 999 + 'b'))\n    s = ''.join(rng.choice('ab') for _ in range(1000))\n    tests.append(fmt(s, rand_pat(450, 'ab')))\n    tests.append(fmt(s, '.*'))\n    s2 = ''.join(rng.choice('ab') for _ in range(400))\n    p2 = ''\n    i = 0\n    while i < len(s2):\n        j = i\n        while j < len(s2) and s2[j] == s2[i]:\n            j += 1\n        p2 += rng.choice([s2[i:j], s2[i] + '+', '.' * (j - i)])\n        p2 += rng.choice(['', '', 'a*', 'b*'])\n        i = j\n    tests.append(fmt(s2, p2))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef is_match(s: str, p: str) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    s, p = data[0], data[1]\n    print('true' if is_match(s, p) else 'false')\n\n\nmain()\n",
+  "javascript": "function isMatch(s, p) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconsole.log(isMatch(t[0], t[1]) ? 'true' : 'false')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool isMatch(const string& s, const string& p) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s, p;\n    cin >> s >> p;\n    cout << (isMatch(s, p) ? \"true\" : \"false\") << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean isMatch(String s, String p) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String s = br.readLine().trim();\n        String p = br.readLine().trim();\n        System.out.println(isMatch(s, p) ? \"true\" : \"false\");\n    }\n}\n"
+ }
+}

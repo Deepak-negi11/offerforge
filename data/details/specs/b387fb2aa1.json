@@ -1,0 +1,18 @@
+{
+ "qid": "b387fb2aa1",
+ "question": "Nutanix SRE intern, Technical Interview 1. **Explain virtualization and the hypervisor types used in data centres versus on laptops.** A follow-up from the same company's interviews: **can a guest virtual machine have more memory than its host, and how?**",
+ "lookingFor": [
+  "Clear definition of virtualization and what a hypervisor does.",
+  "Type 1 versus type 2 with real examples.",
+  "Understanding of memory overcommit and its costs.",
+  "Ability to reason about resource sharing instead of reciting.",
+  "Knowing when virtualization is the right tool."
+ ],
+ "answer": "**Virtualization** lets one physical machine run several isolated virtual machines (VMs) by abstracting CPU, memory, storage and network. The software layer that does this is the **hypervisor**.\n\n**Type 1 (bare-metal).** Runs directly on the hardware, with no host OS underneath. Used in data centres and clouds for performance, density and isolation. Examples: VMware ESXi, Microsoft Hyper-V, Xen, and KVM (a Linux kernel module that turns Linux into a hypervisor; Nutanix AHV is KVM-based).\n\n**Type 2 (hosted).** Runs as an application on top of a normal OS. Convenient on laptops and desktops for testing and development. Examples: Oracle VirtualBox, VMware Workstation/Fusion. Slightly more overhead because I/O passes through the host OS.\n\nBenefits: server consolidation, isolation, snapshots, live migration, fast provisioning. Related: containers share the host kernel and are lighter, but isolate less strongly.\n\n**Can a guest have more memory than the host?** Yes, through **memory overcommit**. The memory shown to the guest is virtual: the hypervisor only backs pages with real RAM when the guest actually touches them. Techniques:\n- **Overcommit with host swap/paging**: cold guest pages are swapped to host disk.\n- **Ballooning**: a driver in the guest asks the guest OS to release unused pages so the host can reuse them.\n- **Page sharing/deduplication** of identical pages and **memory compression**.\n- Guests also use their own virtual memory and swap internally.\n\nIt works because VMs rarely use all the memory they are assigned at the same time. The cost: if the guests really need all of it, the host swaps heavily and performance collapses. Monitor ballooning and swap activity, and avoid overcommit for latency-sensitive workloads.",
+ "followUps": [
+  "What is the difference between a VM and a container?",
+  "What is live migration of a VM and what does it require?",
+  "What does a hypervisor do about CPU scheduling between VMs?",
+  "How would you detect that a host is overcommitted?"
+ ]
+}

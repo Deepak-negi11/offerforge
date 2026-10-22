@@ -1,0 +1,19 @@
+{
+ "qid": "9acea528ae",
+ "question": "Take-home LLD assignment (Node.js or Go allowed) for a Swiggy Associate SDE role: **create a \"Magical Arena\"**.\n\n- Every player has **health**, **strength** and **attack** attributes, all positive integers. A player dies when health reaches 0.\n- Any two players can fight a match. Players attack in turns. The attacker rolls the **attacking dice** and the defender rolls the **defending dice**.\n- Damage created = attacker's `attack` times the attacking dice roll. Damage defended = defender's `strength` times the defending dice roll.\n- Any damage in excess of the defended damage reduces the defender's health.\n- The game ends when any player's health reaches 0. The player with **lower health attacks first**.\n\nA later round discussed the submitted project for about 15 minutes.",
+ "lookingFor": [
+  "Can you turn a rule-heavy spec into a clean object model?",
+  "Is randomness injectable so the game can be tested deterministically?",
+  "Do you handle edge cases (ties, negative damage, equal health) and state assumptions?",
+  "Do you write meaningful tests and structure the project well?",
+  "Can you defend your design and extend it?"
+ ],
+ "answer": "**Entities**\n- `Player`: name, health, strength, attack; `isAlive()`, `takeDamage(n)`.\n- `Dice`: interface `roll() -> int` (standard 6-sided). A real implementation uses a random source; tests use a **fake dice with a scripted sequence**. This is the key to deterministic tests.\n- `Match`/`Arena`: runs the fight loop. Optionally a `Logger` for turn output.\n\n**Turn logic**\n```\nattacker = lowerHealthPlayer(a, b)   // tie: state assumption, e.g. first player\nwhile (a.isAlive() && b.isAlive()) {\n  dmg = attacker.attack * dice.roll()\n  def = defender.strength * dice.roll()\n  defender.takeDamage(max(0, dmg - def))\n  swap(attacker, defender)\n}\nwinner = whoever has health > 0\n```\n\nHealth is floored at 0 (`max(0, health - damage)`), and excess damage is only counted when `dmg > def`. A defender's block never heals them.\n\n**Design points**\n- **Dependency injection** of `Dice` into `Match` (separation of rules from randomness). Two dice instances (attack and defence) or one shared are both fine; state which.\n- Validate inputs: positive integers, not the same player twice.\n- Keep rules in one place so new rules (critical hits, weapons, different dice) extend by adding strategies rather than editing the loop (open/closed principle).\n- Termination: since damage can be 0 forever in theory, guarantee progress probabilistically, or discuss a max-round safeguard. Mention that it terminates with probability 1 if some rolls can produce positive damage.\n\n**Tests:** scripted dice to cover (a) attacker wins in one hit, (b) full defence yields no damage, (c) lower health goes first, (d) health never negative, (e) tie on health, (f) exactly 0 health ends the match.\n\n**Document your assumptions** (tie-breaking, one dice object or two) in the README, since the spec is silent.",
+ "followUps": [
+  "How would you add new player types or special abilities?",
+  "How do you make the randomness testable?",
+  "What if both players have equal health at the start?",
+  "How would you run many matches in parallel or build a tournament?",
+  "Which SOLID principles does your design follow?"
+ ]
+}

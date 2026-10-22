@@ -1,0 +1,18 @@
+{
+ "qid": "0f80bd13d2",
+ "question": "Rubrik software engineer (SDE-2) phone screen. Given only a file API with **open(name) -> fd, pread/read(fd, buf, offset), pwrite/write(fd, buf, offset)** and **close(fd)** (pread returns the number of bytes read, with 0 or EOF at the end; write fails if not all bytes are written), **implement `copy(dst, src)`**, the Linux `cp` command. **Follow-up:** the source is a slow floppy disk and the destination is an SSD. How would you optimise the copy with multiple threads, **without using ExecutorService / thread pools**? Candidates noted they were also probed on which exceptions they catch and on interrupts and shutdown.",
+ "lookingFor": [
+  "A correct basic copy loop: offsets, partial reads, EOF, and closing both files on every path.",
+  "Error handling and resource cleanup.",
+  "Reasoning about where the bottleneck is (slow device) before adding threads.",
+  "Correct thread design with raw threads: chunks, joins, shared state, error propagation.",
+  "Awareness of SSD write cost and ordering/offset semantics."
+ ],
+ "answer": "**Basic copy.**\n\n```\ncopy(dst, src):\n  in  = open(src)\n  out = open(dst)            // assume it creates/truncates\n  try:\n    buf = new byte[64 * 1024]\n    offset = 0\n    while true:\n      n = pread(in, buf, offset)\n      if n == 0 (EOF): break\n      if n < 0: raise error\n      pwrite(out, buf[0:n], offset)   // write exactly n bytes\n      offset += n\n  finally:\n    close(in); close(out)\n```\n\nPoints: use a reasonably large buffer (amortises call overhead); a read may return fewer bytes than requested, so always advance by the returned count and write only `n` bytes; close both files in `finally` even on errors; decide what to do with a partial destination on failure (delete it).\n\n**Optimising for a slow floppy source and fast SSD.**\nFirst reason about the bottleneck: the **floppy read is the slow part**. Reading it in parallel from many threads does not make the device faster and random seeks make it slower, so the real gains come from **overlapping read and write** and keeping the slow device always busy:\n- A **reader** thread reads large sequential chunks and puts `(offset, bytes)` into a **bounded queue**.\n- One or more **writer** threads take chunks and `pwrite` them at their offsets. Because writes carry explicit offsets, order does not matter and writers can run concurrently on the SSD.\n- Bounded queue size limits memory and applies back-pressure.\n\nIf the interviewer wants multiple reader threads (e.g. the source supports parallel access), split the file into fixed-size chunks `[i*C, (i+1)*C)`, give each thread a chunk range, and have each thread read then write its chunk directly with its own offsets. This removes the need to merge in memory and keeps SSD writes sequential per chunk, which minimises write cost.\n\n**Without ExecutorService.** Create `Thread` objects, start them, and `join()` them. Share a `BlockingQueue` or a lock with condition variables for the producer-consumer part. Each worker catches exceptions and stores the first failure in a shared atomic/volatile field; after join, rethrow. Handle `InterruptedException` by restoring the interrupt flag and stopping cleanly.\n\n**Further ideas.** Larger chunk size, double-buffering, checksum verification, and a final `fsync` equivalent on the destination.",
+ "followUps": [
+  "What if pread can return fewer bytes than requested? What if pwrite fails midway?",
+  "How do you pick the buffer and chunk size?",
+  "How would you propagate an exception from a worker thread to the caller?",
+  "How would you add progress reporting and cancellation?"
+ ]
+}

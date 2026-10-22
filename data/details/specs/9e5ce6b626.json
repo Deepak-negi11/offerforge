@@ -1,0 +1,18 @@
+{
+ "qid": "9e5ce6b626",
+ "question": "How would you **design the Myntra app**: which **design patterns** would you follow, and which **microservices** would you create? (Hiring manager round, SDE-1 Backend, 1-2 years of experience, Myntra.) The same round ended with a DSA question on **cycle detection in a directed graph**.",
+ "lookingFor": [
+  "Can you decompose an e-commerce app into sensible service boundaries?",
+  "Do you know which patterns help in microservices (API gateway, saga, circuit breaker, CQRS)?",
+  "Can you describe communication between services (sync vs async) and data ownership?",
+  "Do you recognise the cost of microservices and avoid splitting too finely?",
+  "Can you solve and explain cycle detection in a directed graph?"
+ ],
+ "answer": "**Start with scope.** Core flows of a fashion e-commerce app: browse and search, product detail, cart, checkout and payment, orders, shipping, returns, reviews, notifications.\n\n**Candidate microservices (split by business capability, each owning its own data):**\n- User/Auth service (accounts, login, addresses)\n- Catalog service (products, sizes, images) plus Search service (Elasticsearch-style index)\n- Inventory service (stock per SKU)\n- Cart service\n- Pricing/Promotion service (discounts, coupons)\n- Order service\n- Payment service (gateway integration, COD)\n- Shipping/Logistics and Returns services\n- Review/Rating service\n- Notification service\n- Recommendation service\n\n**Edge and communication.** An **API Gateway** (or a backend-for-frontend per web/mobile) handles routing, authentication and rate limiting. Use synchronous REST/gRPC for queries that need an immediate answer (price, stock check) and asynchronous events through a message broker (order placed, payment succeeded) for everything that can be eventually consistent.\n\n**Patterns that matter.**\n- **Database per service**, no shared tables.\n- **Saga** (choreography or orchestration) for placing an order across inventory, payment and shipping, with compensating actions (release stock, refund) instead of distributed transactions.\n- **Circuit breaker, retry with backoff, timeout** to stop one slow service from cascading.\n- **Idempotency keys** for payments and order creation.\n- **CQRS and caching** for the read-heavy catalog.\n- Inside a service: layered architecture, repository, strategy (payment methods), factory.\n\n**Trade-offs.** Microservices bring independent scaling and deployment but also network failures, harder debugging and data consistency problems. A team of one to few might start with a modular monolith.\n\n**Cycle detection in a directed graph.** DFS with three states per node (unvisited, in current recursion stack, done): reaching an in-stack node means a cycle. Time O(V+E). Alternative: Kahn's algorithm; if a topological sort cannot process all nodes, a cycle exists.",
+ "followUps": [
+  "How do you keep stock correct when two users buy the last item at once?",
+  "Orchestration or choreography for the order saga, and why?",
+  "How do you trace one request across many services?",
+  "How would you detect cycles in an undirected graph, and how does that differ?"
+ ]
+}

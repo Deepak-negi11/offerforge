@@ -1,0 +1,18 @@
+{
+ "qid": "9966bd68c7",
+ "question": "In the Cognizant GenC technical interview you are asked to **write a SQL query for the second highest salary** from an employee table. One candidate reported being asked to do it **without using LIMIT** and answered with `MAX(salary)` on rows below the overall maximum. Assume a table `Employee(id, name, salary)`.",
+ "lookingFor": [
+  "Comfort with subqueries and aggregate functions.",
+  "Awareness of duplicates and NULLs (edge cases).",
+  "Knowing more than one approach and their trade-offs.",
+  "Ability to generalise to the Nth highest salary."
+ ],
+ "answer": "**Approach 1: MAX below the overall MAX (no LIMIT, works on every database)**\n\n```sql\nSELECT MAX(salary) AS second_highest\nFROM Employee\nWHERE salary < (SELECT MAX(salary) FROM Employee);\n```\n\nThe inner query finds the top salary. The outer query ignores rows with that salary and takes the maximum of the rest. Because of the `<`, duplicates of the top salary are handled: if two people earn the maximum, the second highest *distinct* value is still returned. If there is no second distinct value, `MAX` over zero rows returns NULL, which is usually the desired result.\n\n**Approach 2: LIMIT with OFFSET (MySQL, PostgreSQL)**\n\n```sql\nSELECT DISTINCT salary FROM Employee\nORDER BY salary DESC LIMIT 1 OFFSET 1;\n```\n\n`DISTINCT` is needed for duplicate salaries. If there is no second value this returns zero rows rather than NULL, so wrap it in a subquery if you need NULL.\n\n**Approach 3: window function (generalises to Nth)**\n\n```sql\nSELECT salary FROM (\n  SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk\n  FROM Employee\n) t\nWHERE rnk = 2;\n```\n\n`DENSE_RANK` gives tied salaries the same rank without gaps, so rank 2 is the second distinct salary. Use `RANK` and you would break with ties; use `ROW_NUMBER` and you would return a duplicate of the top value. Change 2 to N for the Nth highest. Add `LIMIT 1` or `DISTINCT` if you want one row.\n\n**Employees earning the second highest salary** (a common variant):\n\n```sql\nSELECT name FROM Employee\nWHERE salary = (SELECT MAX(salary) FROM Employee\n                WHERE salary < (SELECT MAX(salary) FROM Employee));\n```\n\n**Which to choose:** Approach 1 is portable and easy to explain. Approach 3 is clearest for Nth. A correlated subquery (`COUNT(DISTINCT salary) >= N`) also works but is slow on large tables.\n\n**Edge cases to mention:** NULL salaries (ignored by MAX and by `<` comparisons), an empty or single-row table, and ties.",
+ "followUps": [
+  "How would you find the Nth highest salary?",
+  "What is the difference between RANK, DENSE_RANK and ROW_NUMBER?",
+  "How would you find the second highest salary per department?",
+  "What happens to your query if two employees share the highest salary?",
+  "How would an index on salary change the performance?"
+ ]
+}

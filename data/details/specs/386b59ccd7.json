@@ -1,0 +1,18 @@
+{
+ "qid": "386b59ccd7",
+ "question": "Apple Software Engineer (IS&T), Low Level Design round. **Design a coffee vending machine** that executes a series of steps (pour milk, add sugar, add water, and so on) until the coffee is made, such that **a step can easily be replaced** (for example swapping sugar for coffee). Name the design principle or pattern you use, and write the code. The candidate said the interviewer wanted the exact named design.",
+ "lookingFor": [
+  "Spotting the underlying pattern (Template Method, Strategy or Command pipeline).",
+  "Applying open/closed so steps are swappable.",
+  "Clear class design with interfaces and composition.",
+  "Naming the design and its trade-offs precisely.",
+  "Extending to inventory and error handling."
+ ],
+ "answer": "**Name the design.** Two valid answers, and it helps to say both and choose one.\n\n1. **Template Method** (inheritance): a base class defines the fixed algorithm `makeBeverage()` that calls abstract steps in order; subclasses override the steps. Simple, but the sequence is fixed at compile time and you get a subclass per drink.\n2. **Strategy / Command pipeline with composition** (preferred here): each step is an object behind a common interface, and a recipe is an ordered list of steps. Swapping sugar for coffee means replacing one list element, without touching any other class. This follows the open/closed principle and the dependency inversion principle.\n\n**Code sketch.**\n```java\ninterface Step { void execute(Machine m); }\n\nclass PourMilk implements Step { public void execute(Machine m) { m.dispense(\"milk\", 50); } }\nclass AddSugar implements Step { public void execute(Machine m) { m.dispense(\"sugar\", 5); } }\nclass AddWater implements Step { public void execute(Machine m) { m.dispense(\"water\", 100); } }\n\nclass Recipe {\n    private final String name;\n    private final List<Step> steps;\n    Recipe(String name, List<Step> steps) { this.name = name; this.steps = List.copyOf(steps); }\n    void run(Machine m) { for (Step s : steps) s.execute(m); }\n}\n\nclass Machine {\n    private final Map<String,Integer> stock = new HashMap<>();\n    void dispense(String item, int qty) {\n        if (stock.getOrDefault(item, 0) < qty) throw new OutOfStockException(item);\n        stock.merge(item, -qty, Integer::sum);\n    }\n    void make(Recipe r) { r.run(this); }\n}\n```\nA new drink is a new `Recipe` built from existing steps; replacing sugar is `new Recipe(\"latte\", List.of(new PourMilk(), new AddCoffee(), new AddWater()))`. A `RecipeFactory` or builder keeps recipe definitions in one place; reading recipes from configuration makes them changeable without code changes.\n\n**Extensions to cover.** Check ingredient availability before starting (validate the whole recipe first so a partial drink is never made), a state machine for the machine (idle, selecting, brewing, error), payment as another strategy, and thread-safety if requests can overlap (one brew at a time via a lock).\n\n**Why it is good:** steps are independent, individually testable and reusable across recipes.",
+ "followUps": [
+  "How would you ensure the machine has enough ingredients before starting a recipe?",
+  "What are the downsides of the Template Method approach here?",
+  "How would you model the machine's states?",
+  "How would you add payment methods?"
+ ]
+}

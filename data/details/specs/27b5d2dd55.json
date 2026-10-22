@@ -1,0 +1,18 @@
+{
+ "qid": "27b5d2dd55",
+ "question": "Arcesium Senior Software Engineer (about 2.2 years of experience), low-level design round. **Design an Uber-like ride-hailing system.** Break it into core entities (User, Driver, Ride, Payment, Location, Vehicle), design a **normalized database schema**, and discuss scalability.",
+ "lookingFor": [
+  "Identifies entities, relationships and responsibilities cleanly.",
+  "Produces a normalized schema with sensible keys and indexes.",
+  "Models the ride lifecycle as a state machine.",
+  "Applies patterns (strategy, observer) where they help.",
+  "Thinks about scaling: location updates, matching and payments."
+ ],
+ "answer": "**Requirements.** Riders request a ride from A to B; the system matches a nearby available driver; the driver accepts; the ride progresses; payment is charged; both rate each other. Out of scope unless asked: pooling, surge pricing details.\n\n**Entities (classes)**\n- `User` (rider): id, name, phone, rating, payment methods.\n- `Driver`: id, name, license, status (OFFLINE, AVAILABLE, ON_TRIP), rating, current `Location`.\n- `Vehicle`: id, driver_id, plate, type (ECONOMY, XL), capacity.\n- `Location`: lat, lng, timestamp.\n- `Ride`: id, rider, driver, vehicle, pickup, dropoff, status, fare, timestamps.\n- `Payment`: id, ride_id, amount, method, status, provider reference.\n- `Rating`/`Review`.\n\n**Ride state machine:** REQUESTED, then MATCHED, DRIVER_ARRIVED, STARTED, COMPLETED (or CANCELLED from early states). Enforce legal transitions in one place.\n\n**Patterns**\n- **Strategy** for driver matching (nearest first, highest rating) and for fare calculation (base plus distance plus time, with surge).\n- **Observer** to notify rider and driver on state change.\n- **State** for ride behaviour.\n- A `RideService`, `MatchingService`, `PaymentService` and `LocationService` keep responsibilities separate.\n\n**Normalized schema (3NF)**\n- `users(id PK, name, phone UNIQUE, ...)`\n- `drivers(id PK, name, license_no UNIQUE, status, rating)`\n- `vehicles(id PK, driver_id FK, plate UNIQUE, type)`\n- `rides(id PK, rider_id FK, driver_id FK, vehicle_id FK, pickup_lat, pickup_lng, drop_lat, drop_lng, status, fare, requested_at, ...)`\n- `payments(id PK, ride_id FK UNIQUE-ish per attempt, amount, method, status)`\n- `driver_locations(driver_id PK, lat, lng, updated_at)`: kept in a geospatial store or cache, not the main relational table.\nIndexes: `rides(rider_id, requested_at)`, `rides(driver_id, status)`, a geo index for nearby search.\n\n**Scalability.** Location updates are write-heavy: use an in-memory geo index (geohash or quadtree, Redis GEO-style) and keep the relational DB for durable records. Matching queries nearby cells first. Make payments idempotent (idempotency key per ride) and process asynchronously with retries. Shard rides by city or id, and use optimistic locking so two riders cannot claim the same driver.",
+ "followUps": [
+  "How do you prevent two ride requests from being assigned the same driver?",
+  "Why keep live driver locations out of the main relational database?",
+  "How would you implement surge pricing cleanly?",
+  "What would you denormalize for read performance, and why?"
+ ]
+}

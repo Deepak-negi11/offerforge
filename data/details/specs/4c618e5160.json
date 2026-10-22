@@ -1,0 +1,17 @@
+{
+ "qid": "4c618e5160",
+ "question": "Programming question in the second technical discussion for a full-stack SMTS candidate with 5 years of experience at D. E. Shaw: **write an `ElementList` class that supports the `+`, `-` and `*` operations** (element-wise, through operator overloading). The language was not specified in the report; the candidate's discussion suggested Python, so the answer below uses Python.",
+ "lookingFor": [
+  "Knowledge of operator overloading and Python's data model (dunder methods).",
+  "Handling edge cases: unequal lengths, scalars, type errors, immutability.",
+  "Clean, readable class design and returning new objects instead of mutating.",
+  "Ability to discuss extension: more operators, performance, testing."
+ ],
+ "answer": "**Clarify first:** is the operation element-wise between two lists? What if lengths differ? Should a scalar be allowed (`list * 2`)? Assume element-wise on equal-length lists, and raise an error otherwise.\n\n```python\nclass ElementList:\n    def __init__(self, items):\n        self._items = list(items)\n\n    def _binary(self, other, op):\n        if isinstance(other, ElementList):\n            if len(other._items) != len(self._items):\n                raise ValueError(\"lists must have the same length\")\n            return ElementList(op(a, b) for a, b in zip(self._items, other._items))\n        if isinstance(other, (int, float)):          # broadcast a scalar\n            return ElementList(op(a, other) for a in self._items)\n        return NotImplemented\n\n    def __add__(self, other): return self._binary(other, lambda a, b: a + b)\n    def __sub__(self, other): return self._binary(other, lambda a, b: a - b)\n    def __mul__(self, other): return self._binary(other, lambda a, b: a * b)\n\n    __radd__ = __add__\n    __rmul__ = __mul__\n\n    def __len__(self): return len(self._items)\n    def __getitem__(self, i): return self._items[i]\n    def __eq__(self, other):\n        return isinstance(other, ElementList) and self._items == other._items\n    def __repr__(self): return f\"ElementList({self._items})\"\n```\n\nUsage: `ElementList([1,2,3]) + ElementList([4,5,6])` gives `ElementList([5, 7, 9])`.\n\n**Design points**\n- Each operator returns a **new** object, so operands are not mutated (surprise-free, safe to share).\n- Returning `NotImplemented` for unsupported types lets Python try the other operand's reflected method and raise a proper `TypeError`.\n- One helper avoids three copies of the same loop (DRY).\n- `__radd__` is needed for `2 + lst`; `__rsub__` must be written separately because subtraction is not commutative.\n- In-place variants (`__iadd__`) can be added if mutation is wanted.\n\n**Complexity:** O(n) time and space per operation.\n\n**Tests to mention:** equal lengths, empty lists, mismatched lengths, scalar broadcast, negative numbers, wrong type.\n\nIf performance matters for large data, mention NumPy arrays, which already provide vectorised element-wise operators.",
+ "followUps": [
+  "How would you add division and floor division, and what new edge case appears?",
+  "What is the difference between `__add__`, `__radd__` and `__iadd__`?",
+  "How would you support lists of different lengths (for example padding with zeros)?",
+  "How would you make it faster for a million elements?"
+ ]
+}

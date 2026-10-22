@@ -1,0 +1,18 @@
+{
+ "qid": "348165f8e4",
+ "question": "Apple, Full Stack Software Engineer loop, system design round. The candidate was asked to **design a log monitoring system**. No further constraints were reported, so clarify scope yourself: which services emit logs, the volume, how fast alerts must fire, and how long logs are retained.",
+ "lookingFor": [
+  "Clarifying requirements: ingestion volume, search latency, alerting latency, retention.",
+  "A sensible pipeline: collect, buffer, process, store, query, alert.",
+  "Why a message queue sits between producers and storage (back-pressure, burst absorption).",
+  "Storage choices for hot search versus cold archive, and the cost trade-offs.",
+  "Reliability: what happens when ingestion or storage is down, and handling duplicates or lost logs."
+ ],
+ "answer": "**Requirements.** Functional: collect logs from many services and hosts, search and filter them (by service, level, time, trace id), show dashboards, and fire alerts on patterns such as an error-rate spike. Non-functional: high write throughput, near real-time visibility (seconds), tolerate bursts, retain hot data for days and cold data for months. Assume, for example, 10k hosts and a few hundred thousand events per second.\n\n**Pipeline.**\n1. **Agents** on each host (or a logging library) tail log files, add metadata (service, host, timestamp, trace id), batch and compress, then ship. Agents buffer on disk so a network outage does not lose data.\n2. **Ingestion gateway** (stateless, horizontally scaled) authenticates and validates, then writes to a **message queue/log** such as Kafka, partitioned by service or host. The queue absorbs spikes and decouples producers from consumers.\n3. **Stream processors** consume from the queue: parse structured fields, drop or sample noisy debug logs, and compute rolling metrics (errors per minute per service) for alerting.\n4. **Storage.** Hot tier: a search index (Elasticsearch/OpenSearch style, time-based indices) for recent days. Cold tier: compressed files in object storage (S3-like), partitioned by date and service, queried on demand. Metrics go into a time-series store.\n5. **Query/UI service** for search and dashboards; **alert engine** evaluates rules over the metric stream and notifies via email or pager.\n\n**Data model.** Event: timestamp, service, host, level, message, structured key-values, trace id. Index by time first; use a retention policy that rolls hot indices to cold storage.\n\n**Trade-offs and bottlenecks.** Full-text indexing every field is expensive; index only common fields and keep the raw message cheap. At-least-once delivery means duplicates, so give events an id for dedupe. Late or out-of-order events need event-time windows. Protect the pipeline with rate limits per tenant and back-pressure.\n\n**Scaling.** Add queue partitions and consumers, shard indices by time and service, and tier data to object storage. Monitor the monitor itself: consumer lag, dropped events, ingestion latency.",
+ "followUps": [
+  "How would you guarantee no logs are lost when the ingestion service crashes?",
+  "How do you keep search fast over months of data without huge cost?",
+  "How would you design alerting so it fires quickly but does not flood on noisy services?",
+  "How would you handle one service suddenly emitting 100x log volume?"
+ ]
+}

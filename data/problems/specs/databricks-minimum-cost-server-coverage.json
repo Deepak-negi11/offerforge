@@ -1,0 +1,48 @@
+{
+ "pid": "databricks-minimum-cost-server-coverage",
+ "title": "Minimum Cost Server Coverage",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You manage a row of `n` servers numbered `1` to `n` from left to right. Server `i` has a positive cost `cost[i]`.\n\nWhen you select server `i`, you pay `cost[i]` and server `i` itself plus the next `i` servers, that is servers `i + 1` through `min(2i, n)`, are covered automatically. A server is covered if it is selected or lies inside the range covered by some selected server.\n\nYou are allowed to select a server that is already covered. Sometimes this is worthwhile: a cheap server further along may extend the covered range much further than the servers before it. Note that server `1` is never covered by anything else, so it must always be selected.\n\nReturn the **minimum total cost** of a set of selected servers such that all `n` servers are covered.\n\n**Follow-up:** a solution that keeps the candidates in a heap runs in `O(n log n)`. Can you bring it down to `O(n)`?",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` integers `cost[1], cost[2], ..., cost[n]`.",
+ "output_format": "Print a single integer: the minimum total cost.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ cost[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3\n3 1 2",
+   "output": "4",
+   "explanation": "Server 1 must be selected (cost 3) and covers server 2. Server 3 is still uncovered. Selecting server 2 as well (cost 1, although it is already covered) covers servers 3 and 4, so everything is covered for 3 + 1 = 4. Selecting server 3 instead costs 3 + 2 = 5."
+  },
+  {
+   "input": "5\n4 5 1 2 8",
+   "output": "5",
+   "explanation": "Selecting server 1 (cost 4) covers servers 1 and 2. Server 3 is not covered, but it is cheap: selecting it (cost 1) covers servers 3 through 6, which includes servers 4 and 5. Total 4 + 1 = 5."
+  },
+  {
+   "input": "4\n1 10 1 1",
+   "output": "2",
+   "explanation": "Select server 1 (cost 1), which covers server 2. Select server 3 (cost 1), which covers servers 3 and 4. Total 2; the expensive server 2 is never needed."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Let f[i] be the cheapest way to cover servers i..n if you select server i and servers 1..i-1 are already covered. What can the next selected server be?",
+  "After selecting i, servers up to 2i are covered, so the next selected server j must satisfy i < j ≤ 2i + 1. If 2i ≥ n you are done. Otherwise f[i] = cost[i] + min f[j] over that range.",
+  "The window i+1..2i+1 slides leftwards as i decreases, and both ends only move left. A monotonic deque gives each window minimum in amortised O(1)."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    c = [0] + [int(x) for x in data[1:1 + n]]\n    f = [0] * (n + 2)\n    d = deque()\n    for i in range(n, 0, -1):\n        if i + 1 <= n:\n            while d and f[d[-1]] >= f[i + 1]:\n                d.pop()\n            d.append(i + 1)\n        if 2 * i >= n:\n            f[i] = c[i]\n        else:\n            while d[0] > 2 * i + 1:\n                d.popleft()\n            f[i] = c[i] + f[d[0]]\n    print(f[1])\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nc = [0] + [int(x) for x in data[1:1 + n]]\nif n <= 16:\n    best = None\n    for mask in range(1, 1 << n):\n        covered = [False] * (n + 2)\n        cost = 0\n        for i in range(1, n + 1):\n            if mask >> (i - 1) & 1:\n                cost += c[i]\n                for j in range(i, min(2 * i, n) + 1):\n                    covered[j] = True\n        if all(covered[1:n + 1]) and (best is None or cost < best):\n            best = cost\n    print(best)\nelse:\n    f = [0] * (n + 2)\n    for i in range(n, 0, -1):\n        if 2 * i >= n:\n            f[i] = c[i]\n        else:\n            f[i] = c[i] + min(f[j] for j in range(i + 1, 2 * i + 2))\n    print(f[1])\n",
+ "generator": "def gen(rng):\n    def fmt(c):\n        return str(len(c)) + '\\n' + ' '.join(map(str, c))\n    tests = [fmt([7]), fmt([5, 9]), fmt([3, 1, 2]), fmt([4, 5, 1, 2, 8]), fmt([1, 10, 1, 1]),\n             fmt([1] * 12), fmt([10 ** 9] * 9), fmt([5, 1, 1, 1, 1, 1, 1, 1])]\n    for n in (2, 3, 4, 5, 6, 7, 8, 10, 12, 14):\n        for _ in range(2):\n            tests.append(fmt([rng.randint(1, 20) for _ in range(n)]))\n    for n in (6, 9, 12):\n        tests.append(fmt([rng.randint(1, 3) for _ in range(n)]))\n    tests.append(fmt([rng.randint(1000, 10 ** 9) for _ in range(300)]))\n    tests.append(fmt([rng.randint(1, 10 ** 9) for _ in range(3000)]))\n    tests.append(fmt(sorted(rng.randint(1, 10 ** 9) for _ in range(5000))))\n    N = 100000\n    tests.append(fmt([rng.randint(1, 10 ** 9) for _ in range(N)]))\n    tests.append(fmt([rng.randint(1, 10) for _ in range(N)]))\n    tests.append(fmt(sorted((rng.randint(1, 10 ** 9) for _ in range(N)), reverse=True)))\n    tests.append(fmt([10 ** 9] * N))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_cost(cost: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    cost = [int(x) for x in data[1:1 + n]]\n    print(min_cost(cost))\n\n\nmain()\n",
+  "javascript": "function minCost(cost) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconsole.log(String(minCost(t.slice(1, 1 + n))))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minCost(vector<long long>& cost) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> cost(n);\n    for (int i = 0; i < n; i++) cin >> cost[i];\n    cout << minCost(cost) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minCost(long[] cost) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] cost = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            cost[i] = (long) in.nval;\n        }\n        System.out.println(minCost(cost));\n    }\n}\n"
+ }
+}

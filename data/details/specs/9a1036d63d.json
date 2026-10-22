@@ -1,0 +1,18 @@
+{
+ "qid": "9a1036d63d",
+ "question": "A concurrency challenge in a hiring-manager round, solved in **Go**: there are 100 survey slots and **99 are already filled**. Two people try to submit the last one at the same time. Guarantee that **exactly 100 submissions are accepted** and no extra one gets through.\n\nThe candidate wrote a clean Go solution; the discussion also covered advanced Go topics, past projects and system design.",
+ "lookingFor": [
+  "Recognising a check-then-act race condition",
+  "Choosing a correct primitive (mutex, atomic CAS, channel) and justifying it",
+  "Reasoning about what the losing request should receive",
+  "Extending the idea beyond one process (database-level guarantees)",
+  "Testing with the race detector and many goroutines"
+ ],
+ "answer": "**The bug.** A naive handler does `if count < 100 { count++ ; accept }`. Both goroutines read 99, both pass the check, and both increment, giving 101. The check and the update must be one atomic step.\n\n**Solution 1: mutex.**\n\n```go\ntype Survey struct {\n    mu    sync.Mutex\n    count int\n    max   int\n}\n\nfunc (s *Survey) TrySubmit() bool {\n    s.mu.Lock()\n    defer s.mu.Unlock()\n    if s.count >= s.max {\n        return false\n    }\n    s.count++\n    return true\n}\n```\n\nOnly one goroutine is inside the critical section, so exactly one of the two sees 99 and the other sees 100 and is rejected. Do the real save (DB write) after reserving the slot, and release the slot if the save fails.\n\n**Solution 2: lock-free CAS.** Loop: `c := atomic.LoadInt64(&count); if c >= max {return false}; if atomic.CompareAndSwapInt64(&count, c, c+1) {return true}`. A failed CAS means someone else won, so retry and re-check.\n\n**Solution 3: channel as semaphore.** A buffered channel of capacity 100 where each submit does a non-blocking send (`select { case slots <- struct{}{}: ok; default: reject }`).\n\n**Across multiple servers.** In-process locks are not enough. Use the database: `UPDATE surveys SET count = count + 1 WHERE id = ? AND count < 100` and check rows affected (1 means accepted, 0 means full). Or a unique constraint on (survey_id, slot_number), or a Redis `INCR` with a rollback if the result exceeds 100.\n\n**Verification.** Spawn many goroutines with a `sync.WaitGroup`, assert accepted count equals 100, and run with `go test -race`.\n\nMention what the rejected caller gets: a clear \"survey full\" response, not a retry loop.",
+ "followUps": [
+  "What is the difference between a mutex and atomic operations in Go, and when do you pick each?",
+  "How would you make this correct across several application servers?",
+  "What if the database write fails after you reserved a slot?",
+  "How do you detect data races in Go?"
+ ]
+}

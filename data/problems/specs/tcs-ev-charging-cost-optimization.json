@@ -1,0 +1,45 @@
+{
+ "pid": "tcs-ev-charging-cost-optimization",
+ "title": "EV Charging Cost Optimization",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "A charging station serves `n` electric vehicles. Vehicle `i` needs `vehicles[i]` units of energy. The total requirement is the sum of all vehicle requirements, and the energy can be distributed among the vehicles in any manner, so only the total matters.\n\nThere are `t` charging slots. Every slot can supply **at most `mc` units** of energy, and slot `j` charges `costs[j]` per unit supplied. You may use any whole number of units from `0` to `mc` from each slot.\n\nAny energy that remains **unfulfilled** costs a penalty of `penalty` per unit. This means a slot whose cost per unit is greater than the penalty should be skipped, because paying the penalty is cheaper.\n\nFind the **minimum total cost**: the sum over slots of units supplied times that slot's cost, plus the penalty for unfulfilled energy.",
+ "input_format": "The first line contains three integers `n`, `t` and `mc`.\nThe second line contains `n` integers `vehicles[0] ... vehicles[n-1]`.\nThe third line contains `t` integers `costs[0] ... costs[t-1]`.\nThe fourth line contains the integer `penalty`.",
+ "output_format": "Print a single integer: the minimum total cost.",
+ "constraints": [
+  "1 ≤ n, t ≤ 10^5",
+  "1 ≤ mc ≤ 10^9",
+  "1 ≤ vehicles[i] ≤ 10^4",
+  "1 ≤ costs[j], penalty ≤ 10^6"
+ ],
+ "examples": [
+  {
+   "input": "3 4 6\n5 7 3\n10 4 8 20\n9",
+   "output": "99",
+   "explanation": "The total requirement is 5 + 7 + 3 = 15. The slot with cost 4 supplies 6 units for 24, and the slot with cost 8 supplies 6 units for 48. The slots with cost 10 and 20 are skipped because they cost more than the penalty 9. The remaining 3 units cost 3 * 9 = 27, so the total is 24 + 48 + 27 = 99."
+  },
+  {
+   "input": "2 3 10\n4 3\n5 2 9\n6",
+   "output": "14",
+   "explanation": "The requirement is 7 units. The cheapest slot (cost 2) can supply up to 10 units, which covers everything, so the cost is 7 * 2 = 14."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + t log t)",
+  "space": "O(t)"
+ },
+ "hints": [
+  "Because energy can be split arbitrarily, only the total requirement matters, not the individual vehicles.",
+  "Each unit of energy is best bought from the cheapest slot that still has capacity. Sort the slot costs.",
+  "Walk through the sorted costs while a slot is strictly cheaper than the penalty and energy remains. Use min(mc, remaining) units from each, then charge the penalty for what is left."
+ ],
+ "reference": "import sys\n\ndef main():\n    d = sys.stdin.read().split()\n    n, t, mc = int(d[0]), int(d[1]), int(d[2])\n    need = sum(int(x) for x in d[3:3 + n])\n    costs = sorted(int(x) for x in d[3 + n:3 + n + t])\n    pen = int(d[3 + n + t])\n    total = 0\n    for c in costs:\n        if need == 0 or c >= pen:\n            break\n        u = min(mc, need)\n        total += u * c\n        need -= u\n    total += need * pen\n    print(total)\n\nmain()\n",
+ "brute": "import sys\n\nd = sys.stdin.read().split()\nn, t, mc = int(d[0]), int(d[1]), int(d[2])\nneed = sum(int(x) for x in d[3:3 + n])\ncosts = [int(x) for x in d[3 + n:3 + n + t]]\npen = int(d[3 + n + t])\nbest = None\nfor mask in range(1 << t):\n    chosen = sorted(costs[j] for j in range(t) if mask >> j & 1)\n    rem = need\n    cost = 0\n    for c in chosen:\n        u = min(mc, rem)\n        cost += u * c\n        rem -= u\n    cost += rem * pen\n    if best is None or cost < best:\n        best = cost\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(vs, cs, mc, pen):\n        return f\"{len(vs)} {len(cs)} {mc}\\n\" + ' '.join(map(str, vs)) + '\\n' + ' '.join(map(str, cs)) + '\\n' + str(pen)\n    tests = [fmt([5, 7, 3], [10, 4, 8, 20], 6, 9), fmt([4, 3], [5, 2, 9], 10, 6), fmt([1], [1], 1, 1),\n             fmt([10], [3], 4, 2), fmt([10], [3], 4, 3), fmt([10], [3], 4, 100), fmt([1, 1, 1], [7, 7], 1, 7),\n             fmt([5], [2, 2, 2, 2], 1, 10)]\n    for _ in range(24):\n        n = rng.randint(1, 5)\n        t = rng.randint(1, 7)\n        mc = rng.randint(1, 10)\n        tests.append(fmt([rng.randint(1, 10) for _ in range(n)], [rng.randint(1, 10) for _ in range(t)], mc, rng.randint(1, 10)))\n    N = 100000\n    tests.append(fmt([10**4] * N, [rng.randint(1, 10**6) for _ in range(N)], 10**4, 500000))\n    tests.append(fmt([rng.randint(9000, 10**4) for _ in range(N)], [rng.randint(1, 10**6) for _ in range(N)], 10**9, 10**6))\n    tests.append(fmt([10**4] * N, [rng.randint(1, 10**6) for _ in range(N)], 1, 10**6))\n    tests.append(fmt([rng.randint(1, 10**4) for _ in range(N)], [10**6] * N, 5000, 10**6))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_cost(mc: int, vehicles: List[int], costs: List[int], penalty: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, t, mc = int(data[0]), int(data[1]), int(data[2])\n    vehicles = [int(x) for x in data[3:3 + n]]\n    costs = [int(x) for x in data[3 + n:3 + n + t]]\n    penalty = int(data[3 + n + t])\n    print(min_cost(mc, vehicles, costs, penalty))\n\n\nmain()\n",
+  "javascript": "function minCost(mc, vehicles, costs, penalty) {\n  // Write your solution here\n  return 0\n}\n\nconst d = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = d[0], t = d[1], mc = d[2]\nconst vehicles = d.slice(3, 3 + n)\nconst costs = d.slice(3 + n, 3 + n + t)\nconst penalty = d[3 + n + t]\nconsole.log(String(minCost(mc, vehicles, costs, penalty)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minCost(long long mc, vector<long long>& vehicles, vector<long long>& costs, long long penalty) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, t;\n    long long mc, penalty;\n    cin >> n >> t >> mc;\n    vector<long long> vehicles(n), costs(t);\n    for (int i = 0; i < n; i++) cin >> vehicles[i];\n    for (int j = 0; j < t; j++) cin >> costs[j];\n    cin >> penalty;\n    cout << minCost(mc, vehicles, costs, penalty) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minCost(long mc, long[] vehicles, long[] costs, long penalty) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int t = (int) in.nval;\n        in.nextToken();\n        long mc = (long) in.nval;\n        long[] vehicles = new long[n], costs = new long[t];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            vehicles[i] = (long) in.nval;\n        }\n        for (int j = 0; j < t; j++) {\n            in.nextToken();\n            costs[j] = (long) in.nval;\n        }\n        in.nextToken();\n        long penalty = (long) in.nval;\n        System.out.println(minCost(mc, vehicles, costs, penalty));\n    }\n}\n"
+ }
+}

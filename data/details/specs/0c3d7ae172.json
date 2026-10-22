@@ -1,0 +1,18 @@
+{
+ "qid": "0c3d7ae172",
+ "question": "AMD, Technical Interview 3 for a senior software system designer role (about 5 years of experience, Bengaluru). This round covered a deep dive into the candidate's current project, the producer-consumer problem, and C/C++ fundamentals. One reported question: **what are the differences between `malloc`/`free` and `new`/`delete` in C and C++?** The round also touched high-performance and system-level programming.",
+ "lookingFor": [
+  "Whether you know that `new` and `delete` run constructors and destructors while `malloc` and `free` only manage raw bytes.",
+  "Awareness of type safety, failure behaviour (NULL versus exception) and size calculation.",
+  "Knowledge of array forms, overloading and mixing rules (undefined behaviour).",
+  "Systems maturity: alignment, custom allocators, placement new and RAII."
+ ],
+ "answer": "**Core difference.** `malloc`/`free` are C library functions that allocate and release raw, uninitialised bytes. `new`/`delete` are C++ operators that allocate memory *and* manage object lifetime.\n\n- **Construction:** `new T(args)` allocates then runs the constructor. `delete p` runs the destructor then frees. `malloc` and `free` never call constructors or destructors, so using them for non-trivial types (e.g. `std::string`, classes with virtual functions) is undefined behaviour or leaks resources.\n- **Type safety:** `new T` returns `T*`. `malloc` returns `void*`, which C++ requires you to cast, and you must compute the size yourself (`n * sizeof(T)`).\n- **Failure:** `malloc` returns `NULL`. `new` throws `std::bad_alloc` (or returns `nullptr` with `new (std::nothrow)`).\n- **Arrays:** `new T[n]` pairs with `delete[]`, which runs n destructors. Mixing `new[]` with `delete`, or `malloc` with `delete`, is undefined behaviour.\n- **Resizing:** `realloc` exists for `malloc`; there is no `new` equivalent, so you allocate and move (and `std::vector` does this for you).\n- **Customisation:** `operator new`/`operator delete` can be overloaded per class or globally, and **placement new** (`new (buf) T(...)`) constructs an object in memory you already own. `malloc` cannot be overloaded.\n- **Implementation:** `new` is usually built on `malloc` internally, but that is not guaranteed.\n\n```cpp\nstruct Buf { Buf(){ /* acquire */ } ~Buf(){ /* release */ } };\nBuf* a = new Buf;                         // constructor runs\ndelete a;                                 // destructor runs\nBuf* b = (Buf*)malloc(sizeof(Buf));       // no constructor: b is not a valid object\nfree(b);                                  // no destructor\n```\n\n**Practical guidance.** In modern C++ avoid raw `new`/`delete` altogether: use `std::unique_ptr`, `std::make_unique`, containers and RAII so cleanup is automatic and exception-safe. Use `malloc`/`free` only when interfacing with C APIs, and keep each allocation paired with its matching deallocation function.\n\n**Systems angle for this role.** Frequent small allocations are costly (lock contention, fragmentation), so performance code uses pools, arenas or alignment-aware allocators (`aligned_alloc`, `alignas`).",
+ "followUps": [
+  "What happens if you call `delete` on memory obtained from `malloc`?",
+  "What is placement new and when would you use it?",
+  "Why must `new[]` be matched with `delete[]`?",
+  "How would you implement a simple memory pool to avoid repeated allocations?",
+  "What is a memory leak and how do you detect one (valgrind, ASan)?"
+ ]
+}

@@ -1,0 +1,48 @@
+{
+ "pid": "open-the-lock",
+ "title": "Open the Lock",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A combination lock has 4 circular wheels, each showing a digit from `0` to `9`. The digits wrap around: turning a wheel up from `9` shows `0`, and turning it down from `0` shows `9`. In one **turn** you rotate exactly one wheel by one position, up or down.\n\nThe lock starts at `0000`. You are given a list of **deadends**: combinations that jam the lock. If the lock ever shows a deadend, it cannot be turned any more, so you must never pass through one. The list may contain duplicates.\n\nGiven the `target` combination, return the minimum number of turns needed to show the target, or `-1` if it is impossible. If `0000` itself is a deadend the lock is stuck from the start, so the answer is `-1` (even when the target is `0000`). A target that is a deadend is also unreachable.",
+ "input_format": "The first line contains an integer `d`, the number of deadends. The second line contains the `d` deadend combinations separated by spaces (it is empty when `d = 0`). The third line contains the `target` combination. Every combination is a string of exactly 4 digits.",
+ "output_format": "Print a single integer: the minimum number of turns, or `-1`.",
+ "constraints": [
+  "0 ≤ d ≤ 10^4",
+  "Every deadend and the target is a string of exactly 4 digits (`0`-`9`)"
+ ],
+ "examples": [
+  {
+   "input": "2\n0100 0010\n0102",
+   "output": "3",
+   "explanation": "Turn the last wheel up twice (0001, 0002) and then the second wheel up once (0102). None of 0001, 0002 or 0102 is a deadend, and 3 turns is the minimum since the target differs from 0000 by 3 wheel positions."
+  },
+  {
+   "input": "2\n9000 0100\n9100",
+   "output": "4",
+   "explanation": "The direct routes (via 9000 or via 0100) are blocked, so go 0000, 0010, 0110, 9110, 9100: a detour of two extra turns, 4 in total."
+  },
+  {
+   "input": "8\n0001 0009 0010 0090 0100 0900 1000 9000\n0202",
+   "output": "-1",
+   "explanation": "All 8 combinations one turn away from 0000 are deadends, so the lock cannot leave its starting position."
+  }
+ ],
+ "complexity": {
+  "time": "O(10^4 * 4 * 2) in the worst case: every combination is visited once with 8 neighbours",
+  "space": "O(10^4)"
+ },
+ "hints": [
+  "Think of the 10^4 combinations as nodes of a graph, with an edge between combinations that are one turn apart. You want the shortest path from 0000 to the target.",
+  "Use breadth-first search from 0000. Each combination has exactly 8 neighbours (4 wheels, up or down).",
+  "Put the deadends in a hash set, treat them as already visited, and handle the cases where 0000 or the target is a deadend before searching."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    d = int(data[0])\n    dead = set(data[1:1 + d])\n    target = data[1 + d]\n    if '0000' in dead or target in dead:\n        print(-1)\n        return\n    if target == '0000':\n        print(0)\n        return\n    dist = {'0000': 0}\n    dq = deque(['0000'])\n    while dq:\n        s = dq.popleft()\n        for i in range(4):\n            v = int(s[i])\n            for nv in ((v + 1) % 10, (v - 1) % 10):\n                t = s[:i] + str(nv) + s[i + 1:]\n                if t not in dist and t not in dead:\n                    dist[t] = dist[s] + 1\n                    if t == target:\n                        print(dist[t])\n                        return\n                    dq.append(t)\n    print(-1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nd = int(data[0])\ndead = set(data[1:1 + d])\ntarget = data[1 + d]\nfrontier = set()\nif '0000' not in dead:\n    frontier.add('0000')\nseen = set(frontier)\nsteps = 0\nans = -1\nwhile frontier:\n    if target in frontier:\n        ans = steps\n        break\n    nxt = set()\n    for s in frontier:\n        for i in range(4):\n            for delta in (1, 9):\n                t = s[:i] + str((int(s[i]) + delta) % 10) + s[i + 1:]\n                if t not in seen and t not in dead:\n                    nxt.add(t)\n    seen |= nxt\n    frontier = nxt\n    steps += 1\nprint(ans)\n",
+ "generator": "def gen(rng):\n    def fmt(dead, target):\n        return str(len(dead)) + '\\n' + ' '.join(dead) + '\\n' + target\n    def neigh(s):\n        res = []\n        for i in range(4):\n            for delta in (1, 9):\n                res.append(s[:i] + str((int(s[i]) + delta) % 10) + s[i + 1:])\n        return res\n    def rs():\n        return ''.join(rng.choice('0123456789') for _ in range(4))\n    tests = [\n        fmt([], '0000'), fmt([], '5555'), fmt(['0000'], '1111'), fmt(['0000'], '0000'), fmt(['1111'], '1111'),\n        fmt(['0100', '0010'], '0102'), fmt(['9000', '0100'], '9100'),\n        fmt(neigh('0000'), '0202'), fmt(neigh('3333'), '3333'), fmt(neigh('3333'), '3334'),\n        fmt(['0001'], '0002'), fmt([], '9999'), fmt(['0001', '0009'], '0005'),\n    ]\n    for _ in range(14):\n        k = rng.randint(0, 8)\n        dead = [rs() for _ in range(k)]\n        if rng.random() < 0.3:\n            dead += neigh(rs())[:rng.randint(1, 4)]\n        tests.append(fmt(dead, rs()))\n    # target walled in, start free\n    tgt = '4567'\n    tests.append(fmt(neigh(tgt), tgt))\n    tests.append(fmt(neigh(tgt)[:7], tgt))\n    # walls over wheel 0\n    wall = [f'{a}{b}{c}{e}' for a in '19' for b in range(10) for c in range(10) for e in range(10)]\n    tests.append(fmt(wall, '0555'))\n    tests.append(fmt(wall, '5555'))\n    # dense random deadends reaching the maximum count\n    states = [f'{i:04d}' for i in range(10000)]\n    for frac in (0.35, 0.5):\n        dead_set = rng.sample(states, int(10000 * frac))\n        dead_set = [s for s in dead_set if s != '0000']\n        dead = (dead_set * 3)[:10000]\n        tests.append(fmt(dead, rng.choice(states)))\n    dead_set = [s for s in states if s != '0000' and (int(s[0]) + int(s[1])) % 5 != 2]\n    tests.append(fmt(dead_set[:10000], '6666' if '6666' not in dead_set else '6667'))\n    dead_set = [s for s in states if s[0] != '5' or s[1] == '0']\n    tests.append(fmt(dead_set[:10000], '5555'))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef open_lock(deadends: List[str], target: str) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    d = int(data[0])\n    print(open_lock(data[1:1 + d], data[1 + d]))\n\n\nmain()\n",
+  "javascript": "function openLock(deadends, target) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst d = Number(t[0])\nconsole.log(openLock(t.slice(1, 1 + d), t[1 + d]))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint openLock(vector<string>& deadends, const string& target) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int d;\n    cin >> d;\n    vector<string> deadends(d);\n    for (auto& s : deadends) cin >> s;\n    string target;\n    cin >> target;\n    cout << openLock(deadends, target) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int openLock(String[] deadends, String target) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        List<String> t = new ArrayList<>();\n        String line;\n        while ((line = br.readLine()) != null) {\n            StringTokenizer st = new StringTokenizer(line);\n            while (st.hasMoreTokens()) t.add(st.nextToken());\n        }\n        int d = Integer.parseInt(t.get(0));\n        String[] deadends = new String[d];\n        for (int i = 0; i < d; i++) deadends[i] = t.get(1 + i);\n        System.out.println(openLock(deadends, t.get(1 + d)));\n    }\n}\n"
+ }
+}

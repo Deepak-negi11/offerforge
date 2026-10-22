@@ -1,0 +1,17 @@
+{
+ "qid": "80ca2e648a",
+ "question": "In an NVIDIA Software Engineer interview (deep learning performance), the discussion covered **CUDA kernels and how to optimise a model under constraints**, with many back-and-forth questions. Whenever the candidate mentioned an optimisation technique, the interviewer asked them to go deeper, for example **kernel fusion** and **kernel launch overhead**.\n\nThe coding task was: **implement a Mixture-of-Experts (MoE) layer and show the tensor dimensions.**",
+ "lookingFor": [
+  "Do you understand why GPU performance is often limited by memory bandwidth and launch overhead rather than FLOPs?",
+  "Can you explain kernel fusion, its benefits and its limits?",
+  "Can you implement a top-k gated MoE layer cleanly and track tensor shapes?",
+  "Do you consider load balancing, capacity limits and efficient dispatch?"
+ ],
+ "answer": "**Kernel fusion and launch overhead.**\n\n- Every kernel launch costs a few microseconds of CPU-side and driver overhead, and each separate elementwise kernel reads its input from and writes its output to global memory (HBM). Small ops like bias add, activation and dropout are memory-bound.\n- **Fusion** combines several ops into one kernel, so intermediates stay in registers or shared memory: fewer launches, much less memory traffic. Examples: fused bias+GELU, fused softmax, FlashAttention, `torch.compile` / Triton / CUDA Graphs (CUDA Graphs cut launch overhead by replaying a recorded sequence).\n- Limits: register and shared-memory pressure lowers occupancy, and fused kernels are harder to write and debug.\n\n**MoE layer (top-k gating).** Shapes: input `x` is `[B, T, D]`, flatten to `[N, D]` with `N = B*T`. Gate weights `[D, E]` give logits `[N, E]`. Take top-k: indices `[N, k]` and weights `[N, k]` (softmax over the k selected logits). Each expert is an FFN `D -> H -> D`. Output `[N, D]` is the weighted sum of the chosen experts' outputs.\n\n```python\nclass MoE(nn.Module):\n    def __init__(s, D, H, E, k=2):\n        super().__init__()\n        s.k = k\n        s.gate = nn.Linear(D, E, bias=False)            # [D,E]\n        s.experts = nn.ModuleList(\n            nn.Sequential(nn.Linear(D, H), nn.GELU(), nn.Linear(H, D)) for _ in range(E))\n    def forward(s, x):                                   # x: [B,T,D]\n        B, T, D = x.shape\n        x = x.reshape(-1, D)                             # [N,D]\n        logits = s.gate(x)                               # [N,E]\n        w, idx = logits.topk(s.k, dim=-1)                # [N,k] each\n        w = w.softmax(-1)\n        out = torch.zeros_like(x)\n        for e, expert in enumerate(s.experts):\n            tok, slot = (idx == e).nonzero(as_tuple=True)  # tokens routed to e\n            if tok.numel():\n                out.index_add_(0, tok, expert(x[tok]) * w[tok, slot, None])\n        return out.reshape(B, T, D)\n```\n\n**Production concerns:** an auxiliary load-balancing loss to avoid expert collapse, a capacity factor that drops or reroutes overflow tokens, and batched dispatch (sort tokens by expert, grouped GEMM) instead of a Python loop. With expert parallelism, tokens move between GPUs with all-to-all communication.",
+ "followUps": [
+  "Why can the Python loop over experts be slow, and how would you batch it?",
+  "How do you prevent all tokens from choosing the same expert?",
+  "How would you profile a model to find that kernel launches are the bottleneck?",
+  "What is the difference between memory-bound and compute-bound kernels, and how do you tell?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "c04e96ce22",
+ "question": "Reported from Round 1 (Technical + System Design, face to face) of a Paytm SDE-2 interview: **design a service similar to Cleartrip with premium-member features**. The topics covered were **load-balancing algorithms, auto-scaling, database sharding, health monitoring and scaling thresholds**. Cleartrip is an online travel platform for flights, hotels and bus bookings.",
+ "lookingFor": [
+  "Can you scope a travel booking platform and identify the read-heavy search path versus the consistency-critical booking path?",
+  "Do you know load-balancing algorithms and when each helps?",
+  "Can you justify autoscaling signals and thresholds, and sharding keys?",
+  "Do you design premium-member features cleanly (tiers, benefits, pricing, priority)?",
+  "Do you handle inventory consistency and overselling?"
+ ],
+ "answer": "**Scope and scale.** Core flows: search (flights, hotels), view availability and price, book and pay, manage bookings. Premium members get benefits such as discounted fees, free cancellation, priority support and exclusive deals. Assume 10M monthly users; search is about 50x more frequent than booking.\n\n**Components.**\n- API gateway and load balancer; stateless services: **Search**, **Inventory/Pricing**, **Booking**, **Payment**, **User/Membership**, **Notification**.\n- **Search path (read-heavy):** aggregate supplier/airline data, cache results aggressively in Redis (short TTL since prices change), index in Elasticsearch.\n- **Booking path (consistency-critical):** reserve inventory temporarily (a hold with expiry), take payment, confirm; use a saga with compensations (release the hold, refund) and idempotency keys.\n- **Membership service:** `plans(id, benefits json, price)`, `memberships(user_id, plan_id, start, end, status)`. Pricing and fee rules consult the membership status through a rules/strategy layer, so premium logic stays out of the booking code.\n\n**Load-balancing algorithms.** Round robin (simple, equal servers), weighted round robin (different capacities), least connections (uneven request cost), IP/consistent hashing (stickiness or cache locality). For search with varied cost, least connections or least response time is better than round robin.\n\n**Autoscaling and thresholds.** Scale on a target such as CPU at 60-70% or requests per instance, with min/max instance counts, cooldowns to avoid flapping, and scheduled scaling ahead of known peaks (sales, holidays). Scale out earlier than you feel you need, because instances take time to start. Also scale on queue depth for async workers.\n\n**Database sharding.** Bookings sharded by `user_id` (most queries are per user) with a hash or consistent hashing; inventory sharded by supplier or route. Mention cross-shard queries and resharding cost, and use read replicas before sharding.\n\n**Health monitoring.** Liveness and readiness probes, load-balancer health checks, metrics (latency, error rate, saturation), distributed tracing and alerts (Prometheus/Grafana or similar).\n\n**Trade-offs.** Cached prices can be stale, so re-validate price at booking time; protect against overselling with the hold-and-confirm flow.",
+ "followUps": [
+  "How do you stop two users from booking the last seat at the same time?",
+  "How would you choose the autoscaling threshold and avoid scale-in flapping?",
+  "What would your shard key be for bookings, and what queries does it make hard?",
+  "How would you implement premium discounts without scattering if-statements across services?"
+ ]
+}

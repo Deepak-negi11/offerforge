@@ -1,0 +1,19 @@
+{
+ "qid": "97e23b22ad",
+ "question": "In a Technical Interview for a Software Developer (new grad) role at Tower Research, the candidate was asked to discuss **how the file system is stored on disk and how `ls` works**. The candidate explained the xv6 file system, mainly directory inodes, file inodes and data blocks, and how `ls` walks that hierarchical structure to list the files and directories in a directory.",
+ "lookingFor": [
+  "Do you know the on-disk structures: superblock, inodes, data blocks?",
+  "Can you explain what a directory is and how names map to inodes?",
+  "Can you trace path resolution and a directory listing step by step?",
+  "Do you connect it to system calls (`open`, `getdents`, `stat`) and caching?",
+  "Do you understand hard links and why the filename is not stored in the inode?"
+ ],
+ "answer": "**On-disk layout (Unix-style, e.g. xv6 or ext2).**\n\n- **Superblock**: file system metadata (block size, number of inodes and blocks).\n- **Inode table**: one **inode** per file or directory, holding type, size, permissions, owner, timestamps, link count and pointers to data blocks (direct pointers plus indirect blocks for large files). The inode does **not** contain the file's name.\n- **Bitmaps**: which inodes and data blocks are free.\n- **Data blocks**: file contents. For a **directory**, the data blocks contain **directory entries**: a list of `(name, inode number)` pairs, including `.` and `..`.\n\n**Path lookup.** To resolve `/home/user/a.txt`: start at the root inode (a well-known number), read its data blocks to find the entry `home`, get that inode, read its directory entries to find `user`, and so on until `a.txt` gives the file's inode. This is why directories are just special files and why hard links work (two entries can point to the same inode; the link count tracks them).\n\n**What `ls` does.**\n\n1. `open()` the directory (path lookup as above).\n2. Read its entries with `getdents`/`readdir` (xv6's `ls` simply reads the directory file as an array of fixed-size entries).\n3. For each entry, optionally call `stat()` on the inode number to get type, size and permissions (needed for `ls -l`); plain `ls` only needs names, and sorts them.\n4. Print the results, then close the directory.\n\n**Performance and consistency points.** The kernel caches directory entries (dentry cache) and inodes in memory, so repeated lookups avoid the disk. Large directories use hashed or B-tree directories in modern file systems. Journaling (ext4) or log-structured approaches (xv6 has a simple write-ahead log) protect metadata consistency after a crash.",
+ "followUps": [
+  "Why isn't the file name stored in the inode?",
+  "What is the difference between a hard link and a symbolic link?",
+  "How do direct, indirect and double-indirect pointers allow large files?",
+  "Why is `ls -l` slower than `ls` on a large directory?",
+  "What does journaling protect against?"
+ ]
+}

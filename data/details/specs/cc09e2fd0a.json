@@ -1,0 +1,19 @@
+{
+ "qid": "cc09e2fd0a",
+ "question": "In the LLD round of an SDE-2 interview at Swiggy, the candidate was asked to design a system with **many parking slots that can be reserved by multiple companies**, and to explain **how bookings of those slots are handled** so they do not conflict.\n\nThe candidate's own reading of the expected thinking: consider **overlapping time intervals, different slots and all edge cases**.",
+ "lookingFor": [
+  "Can you define clear entities and the reservation lifecycle?",
+  "Do you handle interval overlap correctly, including boundary cases?",
+  "Do you guarantee no double-booking under concurrent reservations?",
+  "Do you think of edge cases such as cancellation, extension, partial availability?",
+  "Is your search for a free slot efficient and explained with complexity?"
+ ],
+ "answer": "**Clarify.** Is a reservation for a specific slot or any slot? Do companies reserve fixed slot sets or ad hoc time ranges? Granularity of time (minutes, hours, days)? Are intervals half-open? Cancellation and extension allowed?\n\n**Entities.**\n- `ParkingSlot(id, location, type)`, `Company(id, name)`, `Reservation(id, slotId, companyId, start, end, status)`.\n- `ReservationService` (`reserve`, `cancel`, `findAvailableSlots(start, end)`), `SlotRepository`.\n\n**Core rule: overlap.** Treat intervals as half-open `[start, end)`. Two intervals overlap when `a.start < b.end && b.start < a.end`. This means back-to-back reservations (one ends at 10:00, next starts at 10:00) are allowed, which is the usual intended behaviour. State this assumption explicitly.\n\n**Data structure per slot.** Keep reservations in a sorted structure (a `TreeMap` keyed by start time). To check a new interval, look at the floor entry (reservation starting at or before `start`, check its end) and the ceiling entry (next reservation, check its start). That is O(log n) per slot instead of scanning all reservations.\n\n**Allocation.** For \"any free slot\" requests, iterate slots and pick the first available, or use a strategy (best fit, nearest, least-used). Keeping a per-slot lock avoids a global bottleneck.\n\n**Concurrency.** The check and insert must be atomic per slot: lock the slot (or use `synchronized` on a per-slot object), re-check overlap, then insert. In a database, use a transaction with a row lock on the slot, or an exclusion constraint on time ranges where the database supports it (for example PostgreSQL range types).\n\n**Edge cases.**\n- Start >= end, past start times, huge ranges.\n- Back-to-back reservations on the boundary.\n- Cancel then rebook the same interval.\n- Extending a reservation must re-check overlap against the next one.\n- A company's quota or priority (if mentioned by the interviewer).\n- Idempotent retries: same request twice should not create two bookings.\n\n**Complexity.** Reserve on a known slot is O(log n); finding any free slot is O(S log n) for S slots, improvable with an interval tree or indexing by date.",
+ "followUps": [
+  "How would you find the earliest available slot for a requested duration?",
+  "What changes if reservations can be recurring (every weekday)?",
+  "How would you enforce a per-company quota?",
+  "How would this work with several service instances and a shared database?",
+  "How would you handle reservation extension while another company wants the next window?"
+ ]
+}

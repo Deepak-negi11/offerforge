@@ -1,0 +1,18 @@
+{
+ "qid": "9f2ba1347d",
+ "question": "In a ServiceNow Senior Software Engineer backend round, the candidate was asked to **design the database schema and APIs for credit and debit transactions in a bank**. The same round included JavaScript output questions on Promises, `setTimeout` and the `this` keyword.\n\nThe reported detail is limited; interviewers typically add follow-up requirements as the design develops.",
+ "lookingFor": [
+  "Do you model money correctly (integer minor units or decimals, never floats)?",
+  "Do you understand ACID transactions, atomic transfers and consistency of balances?",
+  "Do you design idempotent, safe APIs (idempotency keys, retries, concurrency control)?",
+  "Do you think about auditability: immutable ledger, no updates or deletes of history?",
+  "Can you adapt the design when new requirements are added?"
+ ],
+ "answer": "**Requirements.** Accounts hold balances; users can credit (deposit), debit (withdraw) and transfer between accounts; balances must never go wrong, history must be auditable, and duplicate requests (client retries) must not apply twice. Assume moderate scale, strong consistency for balances.\n\n**Schema (relational, e.g. PostgreSQL / MySQL)**\n- `accounts(id, customer_id, currency, balance_minor BIGINT, status, version, created_at)` with `CHECK (balance_minor >= 0)` unless overdraft is allowed.\n- `transactions(id, idempotency_key UNIQUE, type, status, created_at)`: one logical operation.\n- `ledger_entries(id, transaction_id, account_id, direction ('CREDIT'/'DEBIT'), amount_minor BIGINT, balance_after, created_at)`: append-only. A transfer creates one debit and one credit entry that sum to zero (double-entry).\n- Index on `ledger_entries(account_id, created_at)` for statements.\nStore money as an integer in minor units (paise or cents) or `DECIMAL`, never floating point.\n\n**APIs**\n- `POST /accounts/{id}/credits` and `/debits`, `POST /transfers`, body with `amount`, `currency`, and an `Idempotency-Key` header.\n- `GET /accounts/{id}/balance`, `GET /accounts/{id}/transactions?cursor=...` (paginated).\n- Return clear errors: insufficient funds, account frozen, duplicate key returns the original result.\n\n**Correctness**\n- Do each operation in one DB transaction: insert the transaction and entries and update the balance together. Lock the row (`SELECT ... FOR UPDATE`) or use optimistic locking with `version`, and lock accounts in a fixed order for transfers to avoid deadlock.\n- Idempotency: the unique key means a retry hits a constraint and returns the stored result.\n- Never update or delete ledger entries; corrections are new reversing entries.\n\n**Follow-up extensions.** Daily statements and reconciliation (sum of entries equals balance), holds or pending states, multi-currency, fraud limits, sharding by account id, and moving to events for notifications.",
+ "followUps": [
+  "How do you prevent a double spend when two debits arrive concurrently?",
+  "Why use a ledger of entries instead of only updating a balance column?",
+  "How would you make a transfer between two accounts on different database shards consistent?",
+  "In JavaScript, what is the output order of a `setTimeout(0)` and a resolved Promise `.then`, and why?"
+ ]
+}

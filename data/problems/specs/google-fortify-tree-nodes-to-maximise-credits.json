@@ -1,0 +1,51 @@
+{
+ "pid": "google-fortify-tree-nodes-to-maximise-credits",
+ "title": "Fortify Tree Nodes to Maximise Credits",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "A cluster has `n` compute nodes, numbered `0` to `n - 1`, connected by `n - 1` cables so that the network forms a tree. Node `i` holds `credits[i]` credits; this value is **signed** and may be negative.\n\nBefore an outage you may choose any set of nodes to **fortify**. Fortifying node `v` costs exactly `d` credits taken from **each** node directly cabled to `v`:\n\n- The deduction applies to every neighbour of `v`, whether that neighbour is fortified or not.\n- A node's balance is allowed to become negative.\n- If two neighbouring nodes are both fortified, each of them pays `d` to the other's fortification.\n\nWhen the outage hits, every node that was not fortified is lost together with its credits. The **preserved credits** are the sum of the final balances of the fortified nodes, where the final balance of a fortified node `v` is `credits[v] - d × (number of fortified neighbours of v)`.\n\nReturn the maximum possible preserved credits. Fortifying no node at all is allowed and preserves `0` credits, so the answer is never negative.",
+ "input_format": "The first line contains two integers `n` and `d`.\nThe second line contains `n` integers `credits[0] … credits[n-1]`.\nEach of the next `n - 1` lines contains two integers `u v` (0-indexed): a cable between nodes `u` and `v`.",
+ "output_format": "Print a single integer: the maximum preserved credits.",
+ "constraints": [
+  "1 ≤ n ≤ 5 × 10^4",
+  "1 ≤ d ≤ 10^9",
+  "-10^9 ≤ credits[i] ≤ 10^9",
+  "0 ≤ u, v < n, u ≠ v",
+  "The cables form a tree (connected, no cycles)"
+ ],
+ "examples": [
+  {
+   "input": "5 2\n5 -1 4 3 6\n0 1\n0 2\n2 3\n2 4",
+   "output": "14",
+   "explanation": "Fortify nodes 0, 3 and 4. No two of them share a cable, so none of their balances drops: 5 + 3 + 6 = 14. Node 2 loses 3 × 2 = 6 credits and node 1 loses 2, but both are lost anyway. Adding node 2 to the set would add its 4 credits yet subtract 2 from each of nodes 0, 3, 4 and 3 × 2 = 6 from node 2 itself, a net change of -8."
+  },
+  {
+   "input": "4 1\n4 4 4 4\n0 1\n1 2\n2 3",
+   "output": "10",
+   "explanation": "Fortifying all four nodes gives 16 credits minus 2 × 1 for each of the 3 cables, i.e. 16 - 6 = 10. Fortifying only non-adjacent nodes (for example 0 and 2) keeps at most 8, so 10 is optimal (it can also be reached with nodes 0, 1 and 3)."
+  },
+  {
+   "input": "3 5\n-2 -7 -1\n0 1\n0 2",
+   "output": "0",
+   "explanation": "Every node has negative credits, and fortifying neighbours only lowers balances further. The best choice is to fortify nothing, preserving 0 credits."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Rewrite the objective: the total equals the sum of `credits[v]` over fortified nodes minus `2d` for every cable whose two endpoints are both fortified.",
+  "Root the tree and keep two values per node: the best total inside its subtree when the node is fortified and when it is not.",
+  "A fortified parent with a fortified child loses `2d` on that cable; otherwise the child contributes the better of its two states. Process nodes in reverse BFS/DFS order to avoid deep recursion."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.buffer.read().split()\n    n, d = int(data[0]), int(data[1])\n    c = [int(x) for x in data[2:2 + n]]\n    adj = [[] for _ in range(n)]\n    p = 2 + n\n    for _ in range(n - 1):\n        u, v = int(data[p]), int(data[p + 1])\n        p += 2\n        adj[u].append(v)\n        adj[v].append(u)\n    parent = [-1] * n\n    order = []\n    seen = [False] * n\n    seen[0] = True\n    stack = [0]\n    while stack:\n        u = stack.pop()\n        order.append(u)\n        for v in adj[u]:\n            if not seen[v]:\n                seen[v] = True\n                parent[v] = u\n                stack.append(v)\n    skip = [0] * n          # best total in subtree when the node is NOT fortified\n    take = c[:]             # best total in subtree when the node IS fortified\n    two_d = 2 * d\n    for u in reversed(order):\n        par = parent[u]\n        if par >= 0:\n            s, t = skip[u], take[u]\n            skip[par] += s if s > t else t\n            t2 = t - two_d\n            take[par] += s if s > t2 else t2\n    print(max(skip[0], take[0]))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, d = int(data[0]), int(data[1])\nc = [int(x) for x in data[2:2 + n]]\nedges = [(int(data[2 + n + 2 * i]), int(data[3 + n + 2 * i])) for i in range(n - 1)]\nbest = 0\nfor mask in range(1 << n):\n    bal = [c[i] for i in range(n)]\n    for u, v in edges:\n        if mask >> u & 1:\n            bal[v] -= d\n        if mask >> v & 1:\n            bal[u] -= d\n    total = sum(bal[i] for i in range(n) if mask >> i & 1)\n    best = max(best, total)\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(n, d, c, edges):\n        lines = [f'{n} {d}', ' '.join(map(str, c))]\n        lines += [f'{u} {v}' for u, v in edges]\n        return '\\n'.join(lines)\n\n    def relabel(n, edges):\n        perm = list(range(n))\n        rng.shuffle(perm)\n        out = []\n        for u, v in edges:\n            a, b = perm[u], perm[v]\n            if rng.random() < 0.5:\n                a, b = b, a\n            out.append((a, b))\n        rng.shuffle(out)\n        return out\n\n    def rand_tree(n):\n        return relabel(n, [(rng.randrange(i), i) for i in range(1, n)])\n\n    def path(n):\n        return relabel(n, [(i, i + 1) for i in range(n - 1)])\n\n    def star(n):\n        return relabel(n, [(0, i) for i in range(1, n)])\n\n    def caterpillar(n):\n        spine = max(1, n // 2)\n        e = [(i, i + 1) for i in range(spine - 1)]\n        e += [(rng.randrange(spine), i) for i in range(spine, n)]\n        return relabel(n, e)\n\n    tests = [\n        fmt(1, 5, [7], []),\n        fmt(1, 1, [-4], []),\n        fmt(1, 3, [0], []),\n        fmt(2, 1, [5, 5], [(0, 1)]),\n        fmt(2, 10, [-3, -8], [(1, 0)]),\n        fmt(4, 2, [3, 3, 3, 3], star(4)),\n        fmt(6, 1, [10, 10, 10, 10, 10, 10], path(6)),\n        fmt(7, 4, [9, -2, 9, -2, 9, -2, 9], path(7)),\n        fmt(8, 1000000000, [1000000000] * 8, rand_tree(8)),\n        fmt(9, 3, [5, 1, 1, 1, 1, 1, 1, 1, 1], star(9)),\n    ]\n    for n in (3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 12, 12):\n        d = rng.choice([1, 2, 3, 5, 8])\n        c = [rng.randint(-10, 15) for _ in range(n)]\n        shape = rng.choice([rand_tree, rand_tree, path, star, caterpillar])\n        tests.append(fmt(n, d, c, shape(n)))\n    # large\n    n = 5000\n    tests.append(fmt(n, rng.randint(1, 10**9), [rng.randint(-10**9, 10**9) for _ in range(n)], rand_tree(n)))\n    n = 6000\n    tests.append(fmt(n, 25, [rng.randint(-100, 100) for _ in range(n)], caterpillar(n)))\n    # max-size tests (n = 5 * 10^4); the path forces an iterative traversal\n    n = 50000\n    tests.append(fmt(n, 7, [rng.randint(-200, 400) for _ in range(n)], path(n)))\n    tests.append(fmt(n, rng.randint(1, 300), [rng.randint(-999, 999) for _ in range(n)], rand_tree(n)))\n    tests.append(fmt(n, 3, [rng.randint(-50, 500) for _ in range(n)], star(n)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_preserved_credits(n: int, d: int, credits: List[int], edges: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, d = int(data[0]), int(data[1])\n    credits = [int(x) for x in data[2:2 + n]]\n    edges = [[int(data[2 + n + 2 * i]), int(data[3 + n + 2 * i])] for i in range(n - 1)]\n    print(max_preserved_credits(n, d, credits, edges))\n\n\nmain()\n",
+  "javascript": "function maxPreservedCredits(n, d, credits, edges) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], d = t[1]\nconst credits = t.slice(2, 2 + n)\nconst edges = []\nfor (let i = 0; i < n - 1; i++) edges.push([t[2 + n + 2 * i], t[3 + n + 2 * i]])\nconsole.log(String(maxPreservedCredits(n, d, credits, edges)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxPreservedCredits(int n, long long d, vector<long long>& credits, vector<pair<int,int>>& edges) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long d;\n    cin >> n >> d;\n    vector<long long> credits(n);\n    for (auto& x : credits) cin >> x;\n    vector<pair<int,int>> edges(n - 1);\n    for (auto& e : edges) cin >> e.first >> e.second;\n    cout << maxPreservedCredits(n, d, credits, edges) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxPreservedCredits(int n, long d, long[] credits, int[][] edges) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StreamTokenizer in = new StreamTokenizer(br);\n        in.resetSyntax();\n        in.wordChars(33, 255);\n        in.whitespaceChars(0, 32);\n        in.nextToken(); int n = Integer.parseInt(in.sval);\n        in.nextToken(); long d = Long.parseLong(in.sval);\n        long[] credits = new long[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); credits[i] = Long.parseLong(in.sval); }\n        int[][] edges = new int[Math.max(0, n - 1)][2];\n        for (int i = 0; i < n - 1; i++) {\n            in.nextToken(); edges[i][0] = Integer.parseInt(in.sval);\n            in.nextToken(); edges[i][1] = Integer.parseInt(in.sval);\n        }\n        System.out.println(maxPreservedCredits(n, d, credits, edges));\n    }\n}\n"
+ }
+}

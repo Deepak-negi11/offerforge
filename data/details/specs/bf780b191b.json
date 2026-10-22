@@ -1,0 +1,17 @@
+{
+ "qid": "bf780b191b",
+ "question": "Given a table of tree nodes with columns `(id, pid)`, where `pid` is the parent's id, write SQL that labels each node as `Root`, `Inner` or `Leaf`. (Root has no parent, Leaf has no children, Inner is any other node.)",
+ "lookingFor": [
+  "Translating definitions into conditions on the table",
+  "Using `CASE` and subqueries correctly",
+  "Knowing the `NOT IN` with NULL trap",
+  "Handling edge cases such as a single-node tree"
+ ],
+ "answer": "**Definitions on this table:**\n- Root: the node whose `pid` is `NULL`.\n- Inner: has a parent and appears as some other row's `pid` (it has children).\n- Leaf: has a parent and never appears in the `pid` column.\n\n**Query:**\n\n```sql\nSELECT id,\n       CASE\n         WHEN pid IS NULL THEN 'Root'\n         WHEN id IN (SELECT pid FROM tree WHERE pid IS NOT NULL) THEN 'Inner'\n         ELSE 'Leaf'\n       END AS node_type\nFROM tree\nORDER BY id;\n```\n\n**How it works:** `CASE` evaluates conditions top to bottom and returns the first match. The root check goes first, so a root is never classified by the other branches. This is important for a single-node tree: the only node has no parent and no children, and it should be `Root`, not `Leaf`. For other nodes, the subquery produces the set of all ids that are somebody's parent; membership means at least one child.\n\n**The NULL trap:** the subquery explicitly filters `pid IS NOT NULL`. This matters most if you write the leaf test as `id NOT IN (SELECT pid FROM tree)`: if the subquery returns even one `NULL` (the root's pid), `NOT IN` evaluates to unknown for every row and returns nothing. The `IN` form above is safe, but keeping the filter is a good habit. `NOT EXISTS` is the other robust option:\n\n```sql\n... WHEN EXISTS (SELECT 1 FROM tree c WHERE c.pid = t.id) THEN 'Inner'\n```\nwith the outer table aliased as `t`.\n\n**Alternative with a self join:** `LEFT JOIN tree c ON c.pid = t.id` and group by `t.id`, then `COUNT(c.id) > 0` means inner; this is useful if you also want the number of children.\n\nIndex `pid` so the child lookup is fast. Assumptions to state: the data is a valid tree (one root, no cycles), and ids are unique.",
+ "followUps": [
+  "What does the query return for a table with one row?",
+  "Why can `NOT IN` return no rows when the subquery has NULLs?",
+  "How would you also return each node's depth?",
+  "How would you find all descendants of a given node?"
+ ]
+}

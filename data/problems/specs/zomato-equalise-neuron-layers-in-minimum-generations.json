@@ -1,0 +1,48 @@
+{
+ "pid": "zomato-equalise-neuron-layers-in-minimum-generations",
+ "title": "Equalise Neuron Layers in Minimum Generations",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A neural network has `n` layers, and layer `i` currently holds `layers[i]` neurons. The network changes in **generations**, numbered `1, 2, 3, ...`:\n\n- In every **odd** generation, `1` neuron is added to **at most one** layer.\n- In every **even** generation, `2` neurons are added to **at most one** layer.\n\nIn a generation you may also choose to add nothing. Neurons are never removed.\n\nReturn the **minimum number of generations** after which every layer holds the same number of neurons. If the layers are already equal, the answer is `0`.",
+ "input_format": "The first line contains the integer `n`.\nThe second line contains `n` integers `layers[0] ... layers[n-1]`.",
+ "output_format": "Print one integer: the minimum number of generations.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ layers[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "4\n1 1 2 4",
+   "output": "6",
+   "explanation": "Gen 1: add 1 to layer 0 (2,1,2,4). Gen 2: add 2 to layer 0 (4,1,2,4). Gen 3: add 1 to layer 1. Gen 4: add 2 to layer 1 (4,4,2,4). Gen 5: layer 2 needs exactly 2 more, so a +1 would overshoot; skip. Gen 6: add 2 to layer 2 (4,4,4,4). Five generations are not enough."
+  },
+  {
+   "input": "3\n3 3 6",
+   "output": "4",
+   "explanation": "Each of the two layers with 3 neurons needs 3 more: one odd generation (+1) and one even generation (+2) each. That uses generations 1 to 4."
+  },
+  {
+   "input": "4\n2 2 3 5",
+   "output": "6",
+   "explanation": "Make every layer 5: the deficits are 3, 3, 2, 0. That needs two +1s and three +2s, which first fit within 6 generations (3 odd, 3 even)."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log S)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Adding neurons only ever raises layers, so the final common size T is at least max(layers). Argue that T = max or T = max + 1 is always enough to consider.",
+  "For a fixed T, layer i needs d_i = T - layers[i] more neurons, built from some +1 steps and some +2 steps. With G generations you have ceil(G/2) steps of size 1 and floor(G/2) steps of size 2.",
+  "Use as many +2 steps as possible (at most sum of floor(d_i / 2), and at most floor(G/2)); the rest of the deficit must be covered by +1 steps. Feasibility only improves as G grows, so binary search on G."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    L = [int(x) for x in data[1:1 + n]]\n    M = max(L)\n    best = None\n    for T in (M, M + 1):\n        S = 0\n        Q = 0\n        for x in L:\n            d = T - x\n            S += d\n            Q += d // 2\n        lo, hi = 0, 2 * S\n        while lo < hi:\n            g = (lo + hi) // 2\n            ones = (g + 1) // 2\n            twos = g // 2\n            if S - 2 * min(twos, Q) <= ones:\n                hi = g\n            else:\n                lo = g + 1\n        if best is None or lo < best:\n            best = lo\n    print(best)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nL = tuple(int(x) for x in data[1:1 + n])\ncap = max(L) + 4\ncur = {L}\ng = 0\nwhile True:\n    if any(len(set(s)) == 1 for s in cur):\n        print(g)\n        break\n    g += 1\n    add = 1 if g % 2 == 1 else 2\n    nxt = set(cur)\n    for s in cur:\n        for i in range(n):\n            if s[i] + add <= cap:\n                t = list(s)\n                t[i] += add\n                nxt.add(tuple(t))\n    cur = nxt\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n    tests = [fmt([7]), fmt([5, 5, 5]), fmt([1, 2]), fmt([1, 3]), fmt([1, 4]), fmt([1, 5]), fmt([1, 1, 2, 4]), fmt([3, 3, 6]),\n             fmt([2, 2, 3, 5]), fmt([1, 1, 1, 6]), fmt([6, 1, 1, 1]), fmt([2, 3, 4, 5]), fmt([1, 7])]\n    for _ in range(30):\n        n = rng.randint(2, 4)\n        tests.append(fmt([rng.randint(1, 7) for _ in range(n)]))\n    # larger tests: all longer than 400 characters\n    tests.append(fmt([rng.randint(1, 1000) for _ in range(150)]))\n    tests.append(fmt([rng.randint(1, 10 ** 9) for _ in range(500)]))\n    tests.append(fmt([1] * 3000 + [10 ** 9]))\n    tests.append(fmt([10 ** 9] * 500 + [1]))\n    tests.append(fmt([rng.randint(1, 3) for _ in range(100000)]))\n    tests.append(fmt([rng.randint(1, 10 ** 9) for _ in range(100000)]))\n    tests.append(fmt([1] * 100000))\n    tests.append(fmt([1] * 99999 + [10 ** 9]))\n    tests.append(fmt([10 ** 9 - rng.randint(0, 1) for _ in range(100000)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_generations(layers: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    layers = [int(x) for x in data[1:1 + n]]\n    print(min_generations(layers))\n\n\nmain()\n",
+  "javascript": "function minGenerations(layers) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst layers = t.slice(1, 1 + n)\nconsole.log(minGenerations(layers))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minGenerations(vector<long long>& layers) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> layers(n);\n    for (int i = 0; i < n; i++) cin >> layers[i];\n    cout << minGenerations(layers) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minGenerations(long[] layers) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] layers = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            layers[i] = (long) in.nval;\n        }\n        System.out.println(minGenerations(layers));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,48 @@
+{
+ "pid": "paypal-lexicographically-smallest-palindrome-rearrangement",
+ "title": "Lexicographically Smallest Palindrome Rearrangement",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A string of lowercase English letters is a **palindrome** if it reads the same forwards and backwards. For example `a` and `abbcbba` are palindromes, while `hackerrank` and `cdec` are not.\n\nYou are given a string `s`. You may change any number of its characters (replace a character by any lowercase letter) and then rearrange the resulting characters in any order. The goal is to end with a palindrome using the **fewest possible character changes**. Among all palindromes that can be produced with that minimum number of changes, return the **lexicographically smallest** one. A string `a` is lexicographically smaller than a string `b` of the same length if, at the first position where they differ, `a` has the smaller letter.\n\nFor `s = azzzbbb`, one change is enough (turn one `z` into `a`, giving the letters `aazzbbb`). The palindromes `azbbbza` and `zabbbaz` can be built with one change, and so can `abzbzba`, which is the smallest. Turning the `a` into a `z` instead also takes one change but only leads to larger palindromes such as `zzbbbzz`.",
+ "input_format": "A single line containing the string `s`.",
+ "output_format": "Print the lexicographically smallest palindrome obtainable with the minimum number of changes.",
+ "constraints": [
+  "1 ≤ |s| ≤ 3 · 10^5",
+  "`s` consists of lowercase English letters only"
+ ],
+ "examples": [
+  {
+   "input": "azzzbbb",
+   "output": "abzbzba",
+   "explanation": "The letters `a`, `z`, `b` occur 1, 3 and 3 times, so three letters have odd counts and only one may stay odd: one change is needed. Changing a `z` to `a` gives counts a=2, z=2, b=3. The first half of the palindrome is the letters sorted, `abz`, the middle is the leftover odd letter `b`, and the second half mirrors the first: `abz` + `b` + `zba`."
+  },
+  {
+   "input": "hackerrank",
+   "output": "acekrrkeca",
+   "explanation": "Counts: a=2, c=1, e=1, h=1, k=2, n=1, r=2. Four letters (`c`, `e`, `h`, `n`) have odd counts, so 2 changes are needed. The two smallest odd letters, `c` and `e`, each gain a copy (taken from `h` and `n`), so a, c, e, k, r each appear twice. The first half is `acekr`, there is no middle letter, and the mirror is `rkeca`."
+  },
+  {
+   "input": "abc",
+   "output": "aba",
+   "explanation": "All three letters have odd counts, so one change is needed. Changing `c` to `a` leaves a=2, b=1: first half `a`, middle `b`, giving `aba`."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "A palindrome can have at most one letter with an odd count (and exactly one when the length is odd, none when it is even). Count the letters with odd frequency.",
+  "One change turns one odd-count letter down by one and another odd-count letter up by one, so it fixes two odd letters at once. The minimum number of changes is therefore half of the (excess) odd letters, and every change must pair two odd letters.",
+  "For the smallest result, the letters that gain a copy should be the smallest odd letters, because the first half of the palindrome is the sorted multiset of half the counts. The middle character (if any) is the smallest odd letter that did not gain a copy."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    s = sys.stdin.read().split()[0]\n    cnt = [0] * 26\n    for ch in s:\n        cnt[ord(ch) - 97] += 1\n    odd = [i for i in range(26) if cnt[i] & 1]\n    c = len(odd) // 2\n    half = [cnt[i] // 2 for i in range(26)]\n    for i in odd[:c]:\n        half[i] += 1\n    mid = chr(97 + odd[c]) if len(s) & 1 else ''\n    h = ''.join(chr(97 + i) * half[i] for i in range(26))\n    print(h + mid + h[::-1])\n\n\nmain()\n",
+ "brute": "import sys\n\n\ndef main():\n    s = sys.stdin.read().split()[0]\n    n = len(s)\n    L = sorted(set(s) | {'a', 'b'})\n    cs = [s.count(ch) for ch in L]\n    best = [None]\n\n    def rec(i, rem, cur):\n        if i == len(L) - 1:\n            cur = cur + [rem]\n            odd = sum(c & 1 for c in cur)\n            if odd != (n & 1):\n                return\n            cost = n - sum(min(a, b) for a, b in zip(cs, cur))\n            half = ''.join(L[j] * (cur[j] // 2) for j in range(len(L)))\n            mid = ''.join(L[j] for j in range(len(L)) if cur[j] & 1)\n            cand = (cost, half + mid + half[::-1])\n            if best[0] is None or cand < best[0]:\n                best[0] = cand\n            return\n        for c in range(rem + 1):\n            rec(i + 1, rem - c, cur + [c])\n\n    rec(0, n, [])\n    print(best[0][1])\n\n\nmain()\n",
+ "generator": "def gen(rng):\n    tests = ['a', 'ab', 'abc', 'aa', 'azzzbbb', 'hackerrank', 'zz', 'zzz', 'abcd', 'aab', 'abba', 'abcba', 'bbbbb', 'edcba']\n    for _ in range(40):\n        n = rng.randint(1, 13)\n        k = rng.randint(1, 5)\n        tests.append(''.join(rng.choice('abcde'[:k]) for _ in range(n)))\n    n = 300000\n    tests.append(''.join(rng.choice('abcdefghijklmnopqrstuvwxyz') for _ in range(n)))\n    tests.append('z' * n)\n    tests.append(''.join(rng.choice('xyz') for _ in range(n)))\n    tests.append(''.join(chr(97 + i) * (2 * rng.randint(1, 4999) + 1) for i in range(26)))\n    tests.append(''.join(chr(97 + i) * (2 * rng.randint(1, 5000)) for i in range(25)) + 'z')\n    tests.append('abcdefghijklmnopqrstuvwxyz' * 11538 + 'abcdefghijkl')\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef smallest_palindrome(s: str) -> str:\n    # Write your solution here\n    return \"\"\n\n\ndef main():\n    s = sys.stdin.read().split()[0]\n    print(smallest_palindrome(s))\n\n\nmain()\n",
+  "javascript": "function smallestPalindrome(s) {\n  // Write your solution here\n  return \"\"\n}\n\nconst s = input.trim()\nconsole.log(smallestPalindrome(s))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring smallestPalindrome(const string& s) {\n    // Write your solution here\n    return \"\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s;\n    cin >> s;\n    cout << smallestPalindrome(s) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String smallestPalindrome(String s) {\n        // Write your solution here\n        return \"\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String s = br.readLine().trim();\n        System.out.println(smallestPalindrome(s));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,49 @@
+{
+ "pid": "paytm-subset-sum-print-a-subset",
+ "title": "Subset Sum (Print a Subset)",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an array of `n` positive integers and a positive integer `target`. Decide whether some subset of the elements (each element used at most once) adds up to exactly `target`. If one exists, print one such subset; otherwise print `No subset found`.\n\nMany subsets may qualify, so the one to print is fixed as follows. Describe a subset by the increasing list of the indices of its elements. Among all subsets with sum `target`, print the one whose index list is **lexicographically smallest** (compare the lists element by element, so a subset that uses index `0` beats any subset that does not). Print its elements in their original array order.\n\nA subset with sum `target` is never empty, because `target ≥ 1`.",
+ "input_format": "The first line contains `n` and `target`.\nThe second line contains `n` integers, the array.",
+ "output_format": "Print the chosen elements, in array order, separated by spaces on one line; or print `No subset found`.",
+ "constraints": [
+  "1 ≤ n ≤ 100",
+  "1 ≤ arr[i] ≤ 10^4",
+  "1 ≤ target ≤ 10^4"
+ ],
+ "examples": [
+  {
+   "input": "6 9\n3 34 4 12 5 2",
+   "output": "3 4 2",
+   "explanation": "Several subsets add up to 9, for instance indices (2, 4) = 4 + 5. The lexicographically smallest index list is (0, 2, 5), giving 3 + 4 + 2."
+  },
+  {
+   "input": "3 6\n1 5 6",
+   "output": "1 5",
+   "explanation": "Both indices (0, 1) and (2) sum to 6. (0, 1) is lexicographically smaller because it starts with index 0."
+  },
+  {
+   "input": "4 5\n2 2 2 2",
+   "output": "No subset found",
+   "explanation": "Every subset sum is even, so 5 cannot be reached."
+  }
+ ],
+ "complexity": {
+  "time": "O(n · target)",
+  "space": "O(n · target)"
+ },
+ "hints": [
+  "Define reach[i][s] = can the elements from index i onward form sum s? Fill it from the end of the array.",
+  "reach[i][s] is true if reach[i+1][s] is true, or if arr[i] <= s and reach[i+1][s - arr[i]] is true.",
+  "To print the subset, walk from index 0 with the remaining sum: take the first index i whose element fits and from which reach[i+1][remaining - arr[i]] is true, then continue after it."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    d = sys.stdin.read().split()\n    n, T = int(d[0]), int(d[1])\n    a = list(map(int, d[2:2 + n]))\n    mask = (1 << (T + 1)) - 1\n    reach = [0] * (n + 1)\n    reach[n] = 1\n    for i in range(n - 1, -1, -1):\n        reach[i] = (reach[i + 1] | (reach[i + 1] << a[i])) & mask\n    if not (reach[0] >> T) & 1:\n        print('No subset found')\n        return\n    out = []\n    rem = T\n    i = 0\n    while rem > 0:\n        while not (a[i] <= rem and (reach[i + 1] >> (rem - a[i])) & 1):\n            i += 1\n        out.append(a[i])\n        rem -= a[i]\n        i += 1\n    print(' '.join(map(str, out)))\n\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import combinations\n\nd = sys.stdin.read().split()\nn, T = int(d[0]), int(d[1])\na = list(map(int, d[2:2 + n]))\nbest = None\nfor k in range(1, n + 1):\n    for idx in combinations(range(n), k):\n        if sum(a[i] for i in idx) == T:\n            if best is None or idx < best:\n                best = idx\nif best is None:\n    print('No subset found')\nelse:\n    print(' '.join(str(a[i]) for i in best))\n",
+ "generator": "def gen(rng):\n    def fmt(a, t):\n        return f'{len(a)} {t}\\n' + ' '.join(map(str, a))\n    tests = [fmt([5], 5), fmt([5], 4), fmt([3, 34, 4, 12, 5, 2], 9), fmt([1, 5, 6], 6), fmt([2, 2, 2, 2], 5),\n             fmt([1, 2, 3], 7), fmt([4, 4], 8), fmt([10**4], 10**4), fmt([6, 6, 6], 18)]\n    for _ in range(30):\n        n = rng.randint(1, 10)\n        a = [rng.randint(1, 15) for _ in range(n)]\n        t = rng.randint(1, max(2, sum(a) + 3)) if rng.random() < 0.7 else sum(rng.sample(a, rng.randint(1, n)))\n        tests.append(fmt(a, t))\n    # large cases\n    a = [rng.randint(50, 10**4) for _ in range(100)]\n    tests.append(fmt(a, 10**4))\n    a = [rng.randint(100, 3000) for _ in range(100)]\n    tests.append(fmt(a, 9999))\n    a = [2 * rng.randint(1, 5000) for _ in range(100)]\n    tests.append(fmt(a, 9999))\n    a = [rng.randint(5000, 9998) for _ in range(100)]\n    tests.append(fmt(a, 9999))\n    tests.append(fmt([1] * 100, 100))\n    tests.append(fmt([rng.randint(1, 10**4) for _ in range(100)], 10**4 - 1))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef find_subset(arr: List[int], target: int) -> List[int]:\n    # Return the chosen elements in array order, or an empty list if no subset exists.\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, target = int(data[0]), int(data[1])\n    arr = [int(x) for x in data[2:2 + n]]\n    res = find_subset(arr, target)\n    print(' '.join(map(str, res)) if res else 'No subset found')\n\n\nmain()\n",
+  "javascript": "function findSubset(arr, target) {\n  // Return the chosen elements in array order, or an empty array if no subset exists.\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], target = t[1]\nconst arr = t.slice(2, 2 + n)\nconst res = findSubset(arr, target)\nconsole.log(res.length ? res.join(' ') : 'No subset found')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> findSubset(vector<int>& arr, int target) {\n    // Return the chosen elements in array order, or an empty vector if no subset exists.\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, target;\n    cin >> n >> target;\n    vector<int> arr(n);\n    for (int i = 0; i < n; i++) cin >> arr[i];\n    vector<int> res = findSubset(arr, target);\n    if (res.empty()) {\n        cout << \"No subset found\" << endl;\n    } else {\n        for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] findSubset(int[] arr, int target) {\n        // Return the chosen elements in array order, or an empty array if no subset exists.\n        // Write your solution here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int target = (int) in.nval;\n        int[] arr = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); arr[i] = (int) in.nval;\n        }\n        int[] res = findSubset(arr, target);\n        if (res.length == 0) {\n            System.out.println(\"No subset found\");\n            return;\n        }\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

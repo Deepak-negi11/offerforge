@@ -1,0 +1,18 @@
+{
+ "qid": "42c5183b9b",
+ "question": "In the low level design round for a Software Engineer II (SDE-2) role at Walmart Global Tech, the question was to **design a live news feed system**.\n\nNews providers publish articles, articles are categorized by topic (sports, tech, finance and so on), users subscribe and unsubscribe to topics, and users should receive **near real-time notifications** for subscribed topics. The design should be extensible for future features.\n\nThe candidate presented core entities such as `User`, `NewsArticle`, `Topic`, `Subscription`, `NotificationService` and `FeedService`, used the publisher-subscriber (Observer) pattern, and walked through the **class diagram**, interface responsibilities, component interactions and the **database schema**.",
+ "lookingFor": [
+  "Can you clarify requirements top-down before drawing classes?",
+  "Do you apply the Observer / pub-sub pattern appropriately for topic subscriptions?",
+  "Do you keep notification delivery asynchronous so publishing is not blocked?",
+  "Is the design extensible (new channels, new filters) without modifying core classes?",
+  "Can you derive a sensible relational schema from the entities?"
+ ],
+ "answer": "**Requirements.** Publishers post articles to a topic; users subscribe/unsubscribe; subscribers get a notification soon after publication; a user can fetch a personalized feed. Out of scope unless asked: ranking, ads, auth.\n\n**Entities.**\n- `User(id, name, preferences)`, `Topic(id, name)`, `NewsArticle(id, topicId, title, body, publishedAt)`.\n- `Subscription(userId, topicId, createdAt)`, a many-to-many link.\n- `Notification(id, userId, articleId, channel, status)`.\n\n**Pattern.** Topic is the **Subject**; subscribers are **Observers**. Define `interface Subscriber { void onArticle(NewsArticle a); }`. `Topic` keeps a thread-safe set of subscribers (for example `ConcurrentHashMap.newKeySet()`), with `subscribe`, `unsubscribe` and `publish(article)`.\n\n**Services.**\n- `PublishService.publish(article)`: persist, then call `topic.publish(article)`.\n- `SubscriptionService`: follow/unfollow, list topics of a user.\n- `NotificationService`: has pluggable `NotificationChannel` implementations (push, email, in-app), chosen via Strategy. Delivery goes through an executor or queue so one slow channel does not block the publisher.\n- `FeedService.getFeed(userId, page)`: query articles of the user's subscribed topics ordered by `publishedAt` with pagination.\n\n**Schema.** Tables `users`, `topics`, `articles` (index on `(topic_id, published_at desc)`), `subscriptions` (primary key `(user_id, topic_id)`, plus an index on `topic_id` to find a topic's subscribers), `notifications`.\n\n**Trade-offs.**\n- Fan-out on write (precompute each user's feed) gives fast reads but is costly for topics with millions of subscribers; fan-out on read (query by topic) is cheaper to write. A hybrid works.\n- Use at-least-once delivery with an idempotency key (userId + articleId) to avoid duplicates.\n- Failure handling: retries with backoff, dead-letter for failed notifications.\n\n**Extensibility.** New channels or filters (keyword, region) are new classes behind interfaces, with no change to `Topic`.",
+ "followUps": [
+  "How would this change if a topic had millions of subscribers?",
+  "How do you avoid sending duplicate notifications?",
+  "How would you add per-user notification preferences or quiet hours?",
+  "How would you scale this beyond one process (message broker, workers)?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "862858e38d",
+ "question": "Microsoft SDE-2 (Windows team), AI-assisted LLD round. **Design a notification system for Windows where different applications can generate and display notifications.** The interviewer asked the candidate to use AI during the interview. The candidate discussed their thinking first, then used AI to explore alternatives where unsure; the interviewer focused on **how prompts were framed and refined and how the response was evaluated**, rather than on accepting what the AI suggested.",
+ "lookingFor": [
+  "Clear requirements and entity modelling for a multi-app notification system.",
+  "Sound decoupling: publishers, a central service, and renderers.",
+  "Use of AI as a tool: precise prompts, iteration, and critical evaluation.",
+  "Handling of edge cases: priority, throttling, do-not-disturb, persistence.",
+  "Ownership of the final design decisions."
+ ],
+ "answer": "**Clarify requirements.** Apps post notifications (title, body, icon, actions, priority, expiry); the OS shows toasts and keeps a history in an action centre; users can mute per app or enable do-not-disturb; clicking triggers a callback in the app. Ask about scale (many apps), persistence across reboot, and security (apps must not spoof others).\n\n**Core entities.**\n- `Notification` (id, appId, content, priority, createdAt, ttl, actions, state).\n- `NotificationChannel` / category per app, with user settings (muted, sound, banner).\n- `NotificationService` (public API: `post`, `update`, `cancel`, `getHistory`).\n- `NotificationStore` (repository interface), `PolicyEngine` (do-not-disturb, rate limits, grouping, dedup), `Renderer`/`Presenter` (toast, badge, sound), `ActionDispatcher` (routes clicks back to the app).\n\n**Flow.** App calls `post` via an authenticated API, the service validates the app and quota, stores it, the policy engine decides whether to show now, queue, group or suppress, and the presenter shows it. A priority queue orders pending toasts; the dispatcher invokes the app callback on interaction.\n\n**Patterns.** Observer or pub/sub for presenters, Strategy for delivery and policy rules, Command for actions, Factory for notification types. Keep presenters behind interfaces so a new surface (lock screen, wearable) needs no core changes.\n\n**Edge cases.** Burst control, duplicates, updates to an existing notification, app uninstall, expiry sweeps, concurrency, and crashes (persist before display).\n\n**Using AI well.** Decide your own design first; use AI for alternatives or a review (for example, \"list failure modes of this design\"). Give context and constraints in the prompt, ask for trade-offs, not just code, verify claims against your understanding, reject suggestions you cannot justify, and say aloud what you took and what you discarded.",
+ "followUps": [
+  "How do you prevent one app from flooding the user with notifications?",
+  "How would you support notifications that arrive when the app is not running?",
+  "What did the AI suggest that you rejected, and why?",
+  "How would you sync notifications across devices?"
+ ]
+}

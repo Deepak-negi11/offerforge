@@ -1,0 +1,45 @@
+{
+ "pid": "random-pick-with-weight",
+ "title": "Random Pick with Weight",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given an array `w` of positive integer weights, where `w[i]` is the weight of index `i`. Design a picker that returns index `i` with probability `w[i] / S`, where `S` is the sum of all weights. (Interviewers phrased this as a country generator biased by population, or a city generator.)\n\nThe usual way is to build prefix sums `p[i] = w[0] + ... + w[i]`, draw a uniform random integer `r` in `[0, S)`, and return the index `i` whose segment contains it: the smallest `i` such that `r < p[i]`. Index `i` owns exactly `w[i]` of the `S` possible draws, so it is chosen with the right probability.\n\nTo make the problem testable, the random draws are given as input. Build the picker once from `w`, then answer each of the `q` given draws `r` by printing the index it maps to.\n\n**Follow-up:** in the real interview the draw comes from a random number generator (for example `random.random() * S` or `Math.random()`), so you must also decide how to generate it, and how to adapt the idea to named items such as countries or cities with populations. Only the deterministic mapping is tested here.",
+ "input_format": "The first line contains `n`.\nThe second line contains the `n` weights.\nThe third line contains `q`.\nEach of the next `q` lines contains one draw `r`.",
+ "output_format": "Print `q` lines; line `j` is the index chosen for the `j`-th draw.",
+ "constraints": [
+  "1 ≤ n ≤ 4·10^4",
+  "1 ≤ w[i] ≤ 10^4",
+  "1 ≤ q ≤ 4·10^4",
+  "0 ≤ r < S, where S is the sum of all weights"
+ ],
+ "examples": [
+  {
+   "input": "4\n1 340 240 1428\n8\n0\n1\n340\n341\n450\n580\n581\n2008",
+   "output": "0\n1\n1\n2\n2\n2\n3\n3",
+   "explanation": "The prefix sums are 1, 341, 581, 2009. Draw 0 is below 1, so index 0. Draws 1 and 340 lie in [1, 341), index 1. Draws 341, 450 and 580 lie in [341, 581), index 2. Draws 581 and 2008 lie in [581, 2009), index 3."
+  },
+  {
+   "input": "3\n2 1 3\n6\n0\n1\n2\n3\n4\n5",
+   "output": "0\n0\n1\n2\n2\n2",
+   "explanation": "S = 6 and the prefix sums are 2, 3, 6. Index 0 owns draws 0-1, index 1 owns draw 2, index 2 owns draws 3-5."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + q log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Think of the number line from 0 to S cut into consecutive segments, one per index, with lengths equal to the weights.",
+  "Build prefix sums once. A draw r belongs to the first index whose prefix sum is strictly greater than r.",
+  "The prefix sums are sorted, so each draw can be located with binary search (`bisect_right`) instead of a linear scan."
+ ],
+ "reference": "import sys\nfrom itertools import accumulate\nfrom bisect import bisect_right\n\ndata = sys.stdin.read().split()\nn = int(data[0])\npre = list(accumulate(int(x) for x in data[1:1 + n]))\nq = int(data[1 + n])\nout = [bisect_right(pre, int(data[2 + n + j])) for j in range(q)]\nprint('\\n'.join(map(str, out)))\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nw = [int(x) for x in data[1:1 + n]]\nq = int(data[1 + n])\nout = []\nfor j in range(q):\n    r = int(data[2 + n + j])\n    acc = 0\n    for i in range(n):\n        acc += w[i]\n        if r < acc:\n            out.append(i)\n            break\nprint('\\n'.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def fmt(w, rs):\n        return str(len(w)) + '\\n' + ' '.join(map(str, w)) + '\\n' + str(len(rs)) + '\\n' + '\\n'.join(map(str, rs))\n    tests = [fmt([1], [0]), fmt([5], [0, 4, 2]), fmt([1, 1], [0, 1]), fmt([1, 10000], [0, 1, 5000, 10000])]\n    for n in (2, 3, 5, 8, 12):\n        for _ in range(3):\n            w = [rng.randint(1, 6) for _ in range(n)]\n            S = sum(w)\n            rs = [rng.randint(0, S - 1) for _ in range(rng.randint(1, 10))]\n            rs += [0, S - 1]\n            tests.append(fmt(w, rs))\n    for n in (6, 10):\n        w = [rng.randint(1, 5) for _ in range(n)]\n        tests.append(fmt(w, list(range(sum(w)))))\n    N = 40000\n    w = [rng.randint(1, 10000) for _ in range(N)]\n    S = sum(w)\n    tests.append(fmt(w, [rng.randint(0, S - 1) for _ in range(N)]))\n    w = [10000] * N\n    S = sum(w)\n    tests.append(fmt(w, [S - 1 - rng.randint(0, 1000) for _ in range(N)]))\n    w = [1] * N\n    tests.append(fmt(w, [rng.randint(0, N - 1) for _ in range(N)]))\n    w = [rng.randint(1, 10000) for _ in range(N)]\n    w[-1] = 10000\n    S = sum(w)\n    tests.append(fmt(w, [S - 1] * N))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\nclass Picker:\n    def __init__(self, w: List[int]):\n        # Write your solution here\n        pass\n\n    def pick(self, r: int) -> int:\n        # Write your solution here\n        return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    w = [int(x) for x in data[1:1 + n]]\n    q = int(data[1 + n])\n    picker = Picker(w)\n    out = [picker.pick(int(data[2 + n + j])) for j in range(q)]\n    print('\\n'.join(map(str, out)))\n\n\nmain()\n",
+  "javascript": "class Picker {\n  constructor(w) {\n    // Write your solution here\n  }\n\n  pick(r) {\n    // Write your solution here\n    return 0\n  }\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst picker = new Picker(t.slice(1, 1 + n))\nconst q = t[1 + n]\nconst out = []\nfor (let j = 0; j < q; j++) out.push(picker.pick(t[2 + n + j]))\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nclass Picker {\npublic:\n    Picker(vector<int>& w) {\n        // Write your solution here\n    }\n\n    int pick(long long r) {\n        // Write your solution here\n        return 0;\n    }\n};\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> w(n);\n    for (int i = 0; i < n; i++) cin >> w[i];\n    Picker picker(w);\n    int q;\n    cin >> q;\n    for (int j = 0; j < q; j++) {\n        long long r;\n        cin >> r;\n        cout << picker.pick(r) << '\\n';\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static class Picker {\n        Picker(int[] w) {\n            // Write your solution here\n        }\n\n        int pick(long r) {\n            // Write your solution here\n            return 0;\n        }\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] w = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            w[i] = (int) in.nval;\n        }\n        Picker picker = new Picker(w);\n        in.nextToken();\n        int q = (int) in.nval;\n        StringBuilder sb = new StringBuilder();\n        for (int j = 0; j < q; j++) {\n            in.nextToken();\n            sb.append(picker.pick((long) in.nval)).append('\\n');\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

@@ -1,0 +1,17 @@
+{
+  "qid": "d57ec86a0b",
+  "question": "Zomato on-campus Machine Learning Engineer interview (Aug 2025, Glassdoor report). One of the questions: if a **tokenizer breaks each word into multiple (excessive) tokens**, what is the effect on downstream tasks such as **sentiment analysis** and **NER**?",
+  "lookingFor": [
+    "Understanding of subword tokenisation (BPE, WordPiece, SentencePiece)",
+    "Reasoning about sequence length, context budget and cost",
+    "Token-level vs sequence-level tasks: label alignment for NER",
+    "Knowing mitigations such as better vocabularies and aggregation"
+  ],
+  "answer": "**What happens.** An over-fragmenting tokenizer (vocabulary poorly matched to the language or domain, a tiny vocabulary, or character-level splitting) turns every word into many pieces.\n\n**General effects.**\n- **Longer sequences.** The same text uses more tokens, which means higher compute (attention is quadratic in length), more memory and latency, higher API cost, and the model's fixed context window (for BERT, 512 tokens) fills up sooner, so inputs get truncated.\n- **Weaker representations.** Each piece carries little meaning and the model must reconstruct word meaning from many fragments, which needs more depth and data. Rare, domain-specific or non-English words (and code-mixed text such as Hinglish) suffer most.\n- **Training/inference mismatch** if the tokenizer differs from the one the model was pre-trained with.\n\n**Sentiment analysis (sequence-level).** The model predicts one label for the whole text, so the main impact is length and signal dilution: the sentiment-bearing words are split into uninformative pieces, long reviews get truncated and the end of a review (which often holds the verdict) may be lost. Accuracy drops moderately, but it degrades gracefully because the model can still rely on the other words and the pooled representation.\n\n**NER (token-level).** Labels are per word, but the model predicts per sub-token, so you must align labels: typically label the first sub-token (or all of them with the `I-` tag) and ignore the rest in the loss, then take the first sub-token's prediction at inference. More fragmentation means more alignment complexity, more chances for inconsistent tags within one word (a broken entity span), and a harder job recognising entity names built from rare pieces.\n\n**Mitigations.** Train or extend the tokenizer on in-domain text and adjust the model's embeddings, use a larger or multilingual vocabulary, normalise text, use byte-level BPE to avoid unknown tokens, pool sub-token embeddings back to word level, and measure tokens per word as a diagnostic.",
+  "followUps": [
+    "How does BPE build its vocabulary?",
+    "How do you align NER labels with sub-word tokens?",
+    "What would you do for code-mixed text such as Hinglish?",
+    "How does tokenisation affect the cost and context limits of LLM APIs?"
+  ]
+}

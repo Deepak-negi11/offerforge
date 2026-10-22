@@ -1,0 +1,17 @@
+{
+ "qid": "8f5034c38b",
+ "question": "In an Adobe MTS-2 low-level design round, the interviewer asked the candidate to design a **notification service** that sends notifications to multiple platforms: **SMS, WhatsApp and push**. The candidate discussed their approach and the design patterns they would use, wrote the main classes and drew a class diagram. The interviewer then asked follow-ups about **tracking user activity on notifications**.",
+ "lookingFor": [
+  "Can you model channels so a new one can be added without touching existing code (Open/Closed)?",
+  "Do you pick design patterns for a reason (Strategy, Factory, Observer) instead of listing them?",
+  "Do you think about user preferences, templates, retries and failure handling?",
+  "Can you model delivery and engagement tracking as a clean state machine and event log?"
+ ],
+ "answer": "**Requirements**: send a notification to a user over SMS, WhatsApp or push; per-user channel preferences and opt-outs; templates; retries; delivery and engagement tracking (sent, delivered, opened, clicked).\n\n**Core classes**:\n- `NotificationChannel` interface: `send(Notification)`. Implementations `SmsChannel`, `WhatsAppChannel`, `PushChannel`, each wrapping a provider client. This is the **Strategy** pattern, and adding Email is one new class.\n- `ChannelFactory`: returns the channel for a type (**Factory**).\n- `Notification { id, userId, type, channel, payload, status, createdAt }` and a `Template` that renders the payload from parameters.\n- `NotificationService.notify(userId, eventType, params)`: loads `UserPreferences`, picks channels, renders the template, and calls the channels, usually via an async queue so callers are not blocked.\n- `NotificationListener` / **Observer**: the service publishes events (`SENT`, `DELIVERED`, `OPENED`, `CLICKED`) and listeners such as `ActivityTracker` or analytics subscribe.\n- Optional: **Decorator** for cross-cutting retry, rate limiting and logging around a channel; **Chain of Responsibility** for fallback (push, then SMS).\n\n**Tracking user activity**: persist `NotificationEvent { notificationId, userId, eventType, timestamp, metadata }` as an append-only log. Delivery receipts come from provider webhooks and open/click events from the client; map them to the notification id, update a status state machine (`PENDING` to `SENT` to `DELIVERED` to `READ`), and make handlers idempotent since webhooks repeat. Use tracked links for clicks.\n\n**Reliability**: retry with exponential backoff, a dead-letter queue, an idempotency key per notification to avoid duplicates, per-channel rate limits, and respecting quiet hours and opt-outs.\n\nClose by saying how the design stays testable: channels behind interfaces, providers mocked.",
+ "followUps": [
+  "How do you avoid sending the same notification twice when a retry happens?",
+  "How would you add a new channel, such as email, and what changes?",
+  "How would you prioritise OTP messages over marketing notifications?",
+  "How would you scale this to millions of notifications per hour?"
+ ]
+}

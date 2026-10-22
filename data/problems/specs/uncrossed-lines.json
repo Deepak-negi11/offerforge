@@ -1,0 +1,48 @@
+{
+ "pid": "uncrossed-lines",
+ "title": "Max Non-Crossing Grain Bridges",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "Two neighbouring islands, the North Island and the South Island, each have a row of grain-processing factories lined up from top to bottom. The North Island has `n` factories (positions `0` to `n - 1`) and the South Island has `m` factories (positions `0` to `m - 1`). Each factory processes one type of grain, written as an uppercase letter `'A'` to `'Z'`.\n\nYou want to build bridges between the islands, subject to these rules:\n\n- A bridge connects one North factory to one South factory, and both must process the **same grain type**.\n- Each factory can take part in **at most one** bridge.\n- Bridges must **not cross**: if a bridge joins North position `i` to South position `j` and another joins `i'` to `j'` with `i < i'`, then `j < j'` must hold.\n\nPrint the maximum number of bridges that can be built. Many different bridge layouts may reach the maximum; only the count matters.\n\n**Follow-up:** In the original online assessment the rows were far longer (up to `10^6`), so the textbook table is too slow there. Because the alphabet has only 26 letters, the DP row can be kept as a bit vector over the South positions and updated with a few big-integer operations per North letter (bit-parallel LCS), giving roughly `O(n * m / w)` time for word size `w`. A related interview variation uses arrays of pillar **heights** instead of letters, where a bridge may only join pillars of equal height.",
+ "input_format": "The first line contains `n` and `m`.\nThe second line contains a string of `n` uppercase letters: the North Island, top to bottom.\nThe third line contains a string of `m` uppercase letters: the South Island, top to bottom.",
+ "output_format": "Print a single integer: the maximum number of non-crossing bridges.",
+ "constraints": [
+  "1 ≤ n, m ≤ 2000",
+  "Each row consists of uppercase letters 'A'-'Z'"
+ ],
+ "examples": [
+  {
+   "input": "5 5\nWRWCM\nRWMCW",
+   "output": "3",
+   "explanation": "One optimal layout joins North 1 (R) to South 0 (R), North 2 (W) to South 1 (W) and North 3 (C) to South 3 (C). No bridge crosses another, and no layout reaches 4."
+  },
+  {
+   "input": "6 6\nABABAB\nBABABA",
+   "output": "5",
+   "explanation": "Joining North positions 0 to 4 (A B A B A) to South positions 1 to 5 (A B A B A) gives 5 parallel bridges. All 6 is impossible because the first letters differ and the rows are shifted copies."
+  },
+  {
+   "input": "4 3\nAAAA\nBBB",
+   "output": "0",
+   "explanation": "No factory shares a grain type with any factory on the other island. The rows may have different lengths."
+  }
+ ],
+ "complexity": {
+  "time": "O(n * m)",
+  "space": "O(min(n, m))"
+ },
+ "hints": [
+  "Bridges that never cross and join equal letters correspond to a common subsequence of the two rows. You are computing the length of the longest common subsequence.",
+  "Let `dp[i][j]` be the answer for the first `i` North factories and the first `j` South factories. If the letters at `i - 1` and `j - 1` are equal, you can bridge them: `dp[i][j] = dp[i-1][j-1] + 1`. Otherwise skip one of them: `dp[i][j] = max(dp[i-1][j], dp[i][j-1])`.",
+  "Each row of the table depends only on the previous row, so two arrays of length `min(n, m) + 1` are enough."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    a, b = data[2], data[3]\n    if len(b) > len(a):\n        a, b = b, a\n    w = len(b)\n    prev = [0] * (w + 1)\n    for ch in a:\n        cur = [0] * (w + 1)\n        for j in range(1, w + 1):\n            if b[j - 1] == ch:\n                cur[j] = prev[j - 1] + 1\n            else:\n                x = prev[j]\n                y = cur[j - 1]\n                cur[j] = x if x > y else y\n        prev = cur\n    print(prev[w])\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\na, b = data[2], data[3]\n\ndef go(i, j):\n    if i == len(a) or j == len(b):\n        return 0\n    if a[i] == b[j]:\n        return 1 + go(i + 1, j + 1)\n    return max(go(i + 1, j), go(i, j + 1))\n\nprint(go(0, 0))\n",
+ "generator": "def gen(rng):\n    def fmt(a, b):\n        return f'{len(a)} {len(b)}\\n' + a + '\\n' + b\n    def rs(n, alpha):\n        return ''.join(rng.choice(alpha) for _ in range(n))\n    L = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'\n    tests = [fmt('A', 'A'), fmt('A', 'B'), fmt('WRWCM', 'RWMCW'), fmt('ABABAB', 'BABABA'), fmt('AAAA', 'BBB'),\n             fmt('ABC', 'CBA'), fmt('ABC', 'ABC'), fmt('ZZZ', 'ZAZ'), fmt('A', 'BBBA'), fmt('ABCD', 'D')]\n    for n in (2, 3, 4, 6, 8, 10, 12, 14):\n        m = rng.randint(1, 14)\n        tests.append(fmt(rs(n, 'AB'), rs(m, 'AB')))\n        tests.append(fmt(rs(n, 'ABC'), rs(m, 'ABC')))\n        tests.append(fmt(rs(n, L), rs(m, L)))\n    N = 2000\n    tests.append(fmt(rs(N, L), rs(N, L)))\n    tests.append(fmt(rs(N, 'AB'), rs(N, 'AB')))\n    s = rs(N, 'ABCD')\n    tests.append(fmt(s, s[::-1]))\n    tests.append(fmt('A' * N, 'A' * N))\n    base = rs(N, 'XYZ')\n    tests.append(fmt(base, base[1:] + 'Q'))\n    tests.append(fmt(rs(N, 'AB'), rs(1000, 'AB')))\n    tests.append(fmt(rs(N, L), 'A'))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef max_bridges(north: str, south: str) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    north, south = data[2], data[3]\n    print(max_bridges(north, south))\n\n\nmain()\n",
+  "javascript": "function maxBridges(north, south) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconsole.log(maxBridges(t[2], t[3]))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint maxBridges(const string& north, const string& south) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    string north, south;\n    cin >> n >> m >> north >> south;\n    cout << maxBridges(north, south) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int maxBridges(String north, String south) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        br.readLine();\n        String north = br.readLine().trim();\n        String south = br.readLine().trim();\n        System.out.println(maxBridges(north, south));\n    }\n}\n"
+ }
+}

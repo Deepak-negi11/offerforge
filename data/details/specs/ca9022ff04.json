@@ -1,0 +1,18 @@
+{
+ "qid": "ca9022ff04",
+ "question": "Intel Software Engineering Intern, technical interview (C++ focus). The interviewer showed this code and asked for the output:\n\n`class Base { public: virtual void show() { cout << \"Base\"; } };`\n`class Derived : public Base { public: void show() { cout << \"Derived\"; } };`\n`int main() { Base* b = new Derived(); b->show(); }`\n\n**What is printed, and why?** The same interview also covered pointers, polymorphism and its types, virtual functions and race conditions.",
+ "lookingFor": [
+  "Knowing that virtual dispatch uses the dynamic (runtime) type.",
+  "Ability to explain the vtable/vptr mechanism, not just the answer.",
+  "Spotting related pitfalls: virtual destructor, object slicing, leaks.",
+  "Distinguishing overriding from hiding and from overloading.",
+  "Clear, short explanation under interview pressure."
+ ],
+ "answer": "**Output: `Derived`.**\n\n**Why.** `show()` is declared `virtual` in `Base`. The pointer's static type is `Base*`, but it points to a `Derived` object. For a virtual call the compiler does not bind the function at compile time. Instead each object of a class with virtual functions holds a hidden pointer (the *vptr*) to that class's *vtable*, a table of function addresses. `new Derived()` sets the vptr to `Derived`'s vtable, whose `show` entry is `Derived::show`. The call `b->show()` looks up the entry through the vptr at runtime, so `Derived::show` runs. This is **runtime (dynamic) polymorphism**.\n\n`Derived::show` overrides `Base::show` because the signature matches and the base function is virtual; it is automatically virtual in the derived class too. Writing `void show() override` is better practice, since the compiler then errors if the signature does not actually match (for example a missing `const`).\n\n**Contrast.** If `show` were not virtual, the call would bind on the pointer's static type and print `Base` (function hiding, resolved at compile time).\n\n**Related points an interviewer may probe.**\n- *Virtual destructor:* the snippet leaks the object (never deleted). If you `delete b` and `Base` has no virtual destructor, `Derived`'s destructor is not run, which is undefined behavior. Make the base destructor virtual whenever a class is meant to be used polymorphically.\n- *Slicing:* `Base b2 = *b;` copies only the `Base` part, and `b2.show()` prints `Base`. Polymorphism works only through pointers or references.\n- *Cost:* one extra pointer per object and an indirect call, which blocks inlining in most cases.\n- *Pure virtual* (`= 0`) makes the class abstract.\n- Calling virtual functions from a constructor or destructor dispatches to the class currently being constructed or destroyed, not the most derived one.",
+ "followUps": [
+  "What changes if show() is not virtual in Base?",
+  "Why do base classes need a virtual destructor?",
+  "What is object slicing?",
+  "What is the difference between overriding, overloading and hiding?"
+ ]
+}

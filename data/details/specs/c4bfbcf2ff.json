@@ -1,0 +1,18 @@
+{
+ "qid": "c4bfbcf2ff",
+ "question": "PhonePe HLD round (SDE-2, backend, 3-5 years): design the backend of a **website blocker app for Chrome**. The flow reported by the candidate: every time a Chrome user hits a URL, it is sent to your system, which **checks it against the user's blocked list and responds**.",
+ "lookingFor": [
+  "Can you identify the latency-critical path and set requirements (very low latency, high QPS)?",
+  "Do you consider moving the check closer to the client (local cache or sync of the block list)?",
+  "Can you design the data model and a fast lookup for URL and domain matching?",
+  "Do you cover caching, availability and what happens when the service is down (fail open vs closed)?",
+  "Do you think about privacy, since browsing URLs are sensitive?"
+ ],
+ "answer": "**Requirements:** a Chrome extension intercepts navigation; the backend answers \"blocked or allowed\" for `(userId, URL)`. Manage block lists (add/remove rules, domain or path patterns, maybe schedules or categories). Non-functional: **very low latency** (a user must not feel the delay, budget tens of ms), high availability, and scale: assume 50M users with many navigations each day, giving up to hundreds of thousands of checks per second at peak.\n\n**Key observation (strong answer):** a network call on every navigation is the wrong default. The better design **syncs the user's block list to the extension** (local storage, a small set of normalized domains), and checks locally in microseconds. The server remains the source of truth and syncs via versioned pulls (`GET /blocklist?since=version`) or push. The \"send every URL to the backend\" flow in the question is then the fallback for cases that need server logic (category blocking, large shared lists). Raise this trade-off before designing the server check.\n\n**If the check must go to the server:**\n- **API:** `GET /check?user=...&url=...` (or POST with the URL hash). Better to send a normalised **domain**, or a hash, not the full URL, to protect privacy.\n- **Data model:** `blocklist(user_id, pattern, type [DOMAIN, PREFIX, REGEX], created_at)` in a key-value or wide-column store keyed by user id, so one read returns the user's list.\n- **Fast matching:** normalise the URL (lowercase host, strip `www`, remove tracking params), store domain rules in a hash set, so an exact or parent-domain check is O(labels). For path rules, use a **trie** or prefix map; for many global rules, a **Bloom filter** can quickly rule out \"not blocked\" (false positives resolved with a precise check).\n- **Caching:** in-memory cache of each user's rules at the service (LRU) and Redis behind it; invalidate on update through events. Cache negative results briefly.\n- **Scaling:** stateless check servers behind a load balancer; shard the store by user id; regional deployment and a CDN or edge for latency.\n- **Availability:** if the service is unreachable, the extension uses its local copy, and the policy is usually **fail open** (allow) for a productivity blocker, with a note that parental-control products may choose fail closed.\n\n**Other points:** authentication of the extension, rate limiting, analytics of blocked attempts processed asynchronously through a queue, and not logging full URLs.",
+ "followUps": [
+  "Why is syncing the block list to the client better than a call per navigation?",
+  "How do you match a rule like example.com against sub.example.com/path efficiently?",
+  "Fail open or fail closed when your service is down, and why?",
+  "What privacy concerns come from sending browsing URLs to a server, and how do you reduce them?"
+ ]
+}

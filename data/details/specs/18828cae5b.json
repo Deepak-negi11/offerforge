@@ -1,0 +1,17 @@
+{
+ "qid": "18828cae5b",
+ "question": "NVIDIA System Software Engineer Internship (on-campus) interview, pointer manipulation. A pointer `p` points to the start of an array containing `10, 20, 30, 40`. Evaluate and explain `(*p)++`, `*p++`, `*++p` and similar expressions: what is the value of the expression, what changes in the array and what happens to `p`?",
+ "lookingFor": [
+  "Operator precedence and associativity for unary operators and postfix",
+  "Difference between the value of an expression and its side effect",
+  "Distinguishing pointer arithmetic from modifying the pointee",
+  "Careful, systematic tracing"
+ ],
+ "answer": "Setup: `int a[] = {10, 20, 30, 40}; int *p = a;`. Each expression below is evaluated starting from this same initial state.\n\nRules: postfix `++` binds tighter than unary `*`; prefix `++` and `*` have the same precedence and associate right to left.\n\n| Expression | Parsed as | Value | Effect afterwards |\n|---|---|---|---|\n| `(*p)++` | post-increment of `a[0]` | 10 | `a[0]` becomes 11, `p` unchanged |\n| `*p++` | `*(p++)` | 10 | `p` now points to `a[1]` (array unchanged) |\n| `*++p` | `*(++p)` | 20 | `p` now points to `a[1]` |\n| `++*p` | `++(*p)` | 11 | `a[0]` becomes 11, `p` unchanged |\n| `*(p+1)` | read-only | 20 | nothing changes |\n| `(*p++)` | same as `*p++` | 10 | `p` moves to `a[1]` |\n\nAvoid mixing a modification of `p` with another use of `p` in one expression (for example `*p++ + *p`): it is unsequenced and undefined behaviour in C. Say that rather than inventing a number.\n\nA useful chain: starting fresh, run `*p++` (returns 10, `p` at 20), then `(*p)++` (returns 20, `a[1]` becomes 21), then `*++p` (p at 30, returns 30).\n\nKey idea to state: the postfix forms return the *old* value and then apply the side effect; the prefix forms apply the side effect first. `++` on the pointer moves it by `sizeof(int)` bytes; `++` on the pointee changes the data. A common idiom, `*dst++ = *src++`, is a copy loop built from exactly these rules.",
+ "followUps": [
+  "What does `*p++ = *q++` do, and is `i = i++` defined?",
+  "What changes if `p` is `char *` or a pointer to a struct?",
+  "What are sequence points and the C11 sequenced-before rules?",
+  "Write strcpy using these idioms."
+ ]
+}

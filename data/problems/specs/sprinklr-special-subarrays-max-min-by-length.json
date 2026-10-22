@@ -1,0 +1,43 @@
+{
+ "pid": "sprinklr-special-subarrays-max-min-by-length",
+ "title": "Special Subarrays: Max*Min by Length",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `arr` of `n` non-negative integers. A subarray is a contiguous, non-empty part of the array.\n\nA subarray is called **special** if the product of its maximum element and its minimum element is divisible by the length of the subarray. Zero is divisible by every positive integer, so any subarray whose minimum is `0` is special.\n\nCount the special subarrays. Subarrays are counted by their positions, so equal subarrays at different positions are counted separately.\n\nNotice how small the values are: the product of a maximum and a minimum never exceeds `900`.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` space-separated integers `arr[0] ... arr[n-1]`.",
+ "output_format": "Print a single integer: the number of special subarrays.",
+ "constraints": [
+  "1 ≤ n ≤ 5 · 10^4",
+  "0 ≤ arr[i] ≤ 30"
+ ],
+ "examples": [
+  {
+   "input": "4\n2 3 1 6",
+   "output": "8",
+   "explanation": "There are 10 subarrays. All four single elements are special, because x * x is divisible by 1. Of the longer ones, only [3, 1] (product 3, length 2) and [2, 3, 1, 6] (product 6, length 4) fail. For example [2, 3, 1] has max 3 and min 1, product 3, which is divisible by its length 3. So 10 - 2 = 8."
+  },
+  {
+   "input": "5\n4 2 2 3 6",
+   "output": "13",
+   "explanation": "There are 15 subarrays. [4, 2, 2] has product 4 * 2 = 8 and length 3, so it is not special; [4, 2, 2, 3, 6] has max 6 and min 2, product 12, which is not divisible by 5. Every other subarray is special, e.g. [4, 2, 2, 3] has 4 * 2 = 8 divisible by 4. So 15 - 2 = 13."
+  }
+ ],
+ "complexity": {
+  "time": "O(n · V), where V = 30 is the largest value",
+  "space": "O(n + V^2)"
+ },
+ "hints": [
+  "Fix the right end r and let the left end move left. How many different values can the running maximum take, given values are at most 30? The same question for the minimum.",
+  "For a fixed r the left ends split into at most about 60 groups on which (maximum, minimum) is constant. Maintain a monotonic stack for the maximum and one for the minimum and merge their breakpoints.",
+  "Inside one group the product p = max * min is fixed and the length ranges over an interval, so you only need to count how many lengths in that interval divide p. Precompute divisor prefix counts for p up to 900, and treat p = 0 as \"every length works\"."
+ ],
+ "reference": "import sys\nfrom bisect import bisect_right\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(v) for v in data[1:1 + n]]\n    divs = {}\n    # pre[p][L] = number of divisors of p that are <= L (L clamped to p)\n    pre = {}\n    def count_upto(p, L):\n        if L <= 0:\n            return 0\n        t = pre.get(p)\n        if t is None:\n            t = [0] * (p + 1)\n            for d in range(1, p + 1):\n                if p % d == 0:\n                    t[d] = 1\n            for d in range(1, p + 1):\n                t[d] += t[d - 1]\n            pre[p] = t\n        return t[L if L < p else p]\n    mxv, mxl = [], []\n    mnv, mnl = [], []\n    ans = 0\n    for r in range(n):\n        x = a[r]\n        lo = r\n        while mxv and mxv[-1] <= x:\n            mxv.pop(); lo = mxl.pop()\n        mxv.append(x); mxl.append(lo)\n        lo = r\n        while mnv and mnv[-1] >= x:\n            mnv.pop(); lo = mnl.pop()\n        mnv.append(x); mnl.append(lo)\n        A = len(mxv); B = len(mnv)\n        i = j = 0\n        while i < A and j < B:\n            l1 = mxl[i] if mxl[i] > mnl[j] else mnl[j]\n            e1 = mxl[i + 1] - 1 if i + 1 < A else r\n            e2 = mnl[j + 1] - 1 if j + 1 < B else r\n            e = e1 if e1 < e2 else e2\n            p = mxv[i] * mnv[j]\n            if p == 0:\n                ans += e - l1 + 1\n            else:\n                # lengths r - e + 1 .. r - l1 + 1\n                ans += count_upto(p, r - l1 + 1) - count_upto(p, r - e)\n            if e1 == e:\n                i += 1\n            if e2 == e:\n                j += 1\n    print(ans)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(v) for v in data[1:1 + n]]\nans = 0\nfor i in range(n):\n    mx = mn = a[i]\n    for j in range(i, n):\n        mx = max(mx, a[j]); mn = min(mn, a[j])\n        if (mx * mn) % (j - i + 1) == 0:\n            ans += 1\nprint(ans)\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n    N = 50000\n    tests = [fmt([0]), fmt([7]), fmt([1]), fmt([30, 30]), fmt([0, 0, 0]), fmt([5, 5, 5, 5, 5, 5]),\n             fmt([1, 2, 3, 4, 5, 6, 7, 8, 9]), fmt([30, 0, 30, 0, 30])]\n    for _ in range(8):\n        n = rng.randint(2, 20)\n        tests.append(fmt([rng.randint(0, 30) for _ in range(n)]))\n    for _ in range(6):\n        n = rng.randint(10, 60)\n        tests.append(fmt([rng.randint(1, 6) for _ in range(n)]))\n    for _ in range(3):\n        n = rng.randint(20, 80)\n        tests.append(fmt([rng.randint(1, 30) for _ in range(n)]))\n    # max-size tests\n    tests.append(fmt([rng.randint(0, 30) for _ in range(N)]))\n    tests.append(fmt([rng.randint(1, 30) for _ in range(N)]))\n    tests.append(fmt([30] * N))\n    tests.append(fmt([0] * N))\n    # zig-zag staircase: both monotone stacks stay large\n    zz = []\n    lo, hi = 1, 30\n    while lo <= hi:\n        zz.append(hi); zz.append(lo)\n        hi -= 1; lo += 1\n    tests.append(fmt((zz * (N // len(zz) + 1))[:N]))\n    # long runs of nonzero values with rare zeros\n    a = [rng.randint(1, 30) for _ in range(N)]\n    for _ in range(5):\n        a[rng.randrange(N)] = 0\n    tests.append(fmt(a))\n    # small spread around 29..30 and 1..2\n    tests.append(fmt([rng.choice([29, 30]) for _ in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_special(arr: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    arr = [int(v) for v in data[1:1 + n]]\n    print(count_special(arr))\n\n\nmain()\n",
+  "javascript": "function countSpecial(arr) {\n  // Write your solution here\n  return 0\n}\n\nconst tk = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = tk[0]\nconst arr = tk.slice(1, 1 + n)\nconsole.log(String(countSpecial(arr)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countSpecial(vector<int>& arr) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> arr(n);\n    for (int i = 0; i < n; i++) cin >> arr[i];\n    cout << countSpecial(arr) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countSpecial(int[] arr) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] arr = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            arr[i] = (int) in.nval;\n        }\n        System.out.println(countSpecial(arr));\n    }\n}\n"
+ }
+}

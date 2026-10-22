@@ -1,0 +1,17 @@
+{
+ "qid": "5c646b4ef7",
+ "question": "In an Adobe MTS-2 Frontend round with an Engineering Manager, the candidate was asked a React system design question: **design a PDF search box that cycles from one occurrence of a search word to the next across the entire PDF**. The discussion again covered **pub/sub, Context, Redux, Zustand and MobX** as options for sharing state.",
+ "lookingFor": [
+  "Can you break a frontend problem into components, state and data flow?",
+  "Do you handle performance for large documents (virtualised pages, async text extraction)?",
+  "Can you compare state-management options with trade-offs, not preferences?",
+  "Do you think about UX details: highlight, next/previous, counts, keyboard shortcuts, accessibility?"
+ ],
+ "answer": "**Requirements**: type a query; show the number of matches (e.g. 3/27); next/previous (Enter/Shift+Enter) cycle with wrap-around; the current match is scrolled into view and highlighted differently from other matches; works on large PDFs without freezing the UI. Case sensitivity and whole-word options are extras.\n\n**Components**: `SearchBox` (input, counter, prev/next, close), `PdfViewer` (virtualised list of `PdfPage`s), `TextLayer` per page that renders highlights, and a `SearchController`/hook that owns the search logic.\n\n**Data**: extract text per page (for example with pdf.js `getTextContent`), ideally in a **web worker** and lazily or in chunks, so the main thread stays responsive. Build an index `matches: [{page, startOffset, endOffset}]` in document order. Store `query`, `matches`, `currentIndex`, and `status` (indexing, ready).\n\n**Flow**: debounced input starts a search (cancel the previous one); results arrive incrementally; Next sets `currentIndex = (currentIndex + 1) % matches.length`; the viewer scrolls to that page (virtualised, so pages not on screen are not mounted) and the text layer highlights the match at the stored offsets.\n\n**State sharing**: the search box, viewer and page layers all need `query`, `matches` and `currentIndex`.\n- Context: simple, but any change re-renders all consumers; fine if split into stable parts and memoised.\n- Redux: predictable, devtools, middleware, but boilerplate.\n- Zustand: small store with selector subscriptions, so only the components that use a slice re-render.\n- MobX: observable state with fine-grained reactivity.\n- Pub/sub: decoupled events (`search:next`), good between independent widgets, but state flow is harder to trace.\nFor this problem I would choose a small store with selectors (Zustand or Redux Toolkit) because per-page highlight components should re-render only when their own matches or the current match change.\n\n**Edge cases**: text split across lines or text items, scanned PDFs with no text layer (OCR), zero matches, rapid typing, and accessibility (live region announcing counts, focus management).",
+ "followUps": [
+  "How would you keep the UI responsive while searching a 1000-page PDF?",
+  "How would you highlight a match that spans multiple text items?",
+  "Why might Context cause performance problems here?",
+  "How would you support search in scanned documents?"
+ ]
+}

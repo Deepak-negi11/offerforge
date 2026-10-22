@@ -1,0 +1,19 @@
+{
+ "qid": "f9fa00bd43",
+ "question": "Atlassian Karat round for a full-stack (backend-leaning) engineer, about 20 minutes, deliberately open ended with no scope given.\n\n**Show the process of basic authentication from the user typing in a textbox on the UI to the credentials finally being validated on the backend.** Describe all the steps in chronological order, covering both the front end and the back end. The candidate reported that clarifying questions were answered with \"up to you\", so state your assumptions.",
+ "lookingFor": [
+  "Can lay out an end-to-end flow in order: browser, network, server, data store, response.",
+  "Understands transport security (TLS) and that Base64 is encoding, not encryption.",
+  "Knows correct credential storage: salted, slow password hashing and constant-time comparison.",
+  "Covers session or token handling, cookie flags and CSRF/XSS awareness.",
+  "States assumptions, and mentions rate limiting, lockout and error-message hygiene."
+ ],
+ "answer": "**Assumption.** Say up front: \"I will cover a login form over HTTPS, and note how HTTP Basic (the `Authorization: Basic` header) differs.\"\n\n**1. Front end.**\n- The user types into `<input type=\"email\">` and `<input type=\"password\">` (masked, `autocomplete` hints so password managers work). Light client-side validation (non-empty, format) is only for UX; the server never trusts it.\n- On submit, JavaScript or a form POST sends the credentials. Never put them in a URL or query string.\n\n**2. Network.** DNS lookup, TCP connect, TLS handshake (the server certificate is verified, keys agreed). Everything below travels encrypted. Without TLS, credentials are readable by anyone on the path.\n\n**3. The request.** Either `POST /login` with a JSON or form body, or HTTP Basic: header `Authorization: Basic base64(user:password)`. Base64 is reversible encoding, not protection, so Basic is only acceptable over TLS and sends the secret on every request.\n\n**4. Back end.**\n- Edge: load balancer and WAF, rate limit by IP and by account, parse and validate input.\n- Look up the user by username (an indexed query, parameterised to avoid SQL injection).\n- Compare the supplied password with the stored hash. Passwords are stored as a salted hash from a slow algorithm (bcrypt, scrypt or Argon2), never plain text; the comparison is constant-time. Same generic error (\"invalid credentials\") for unknown user and wrong password to avoid user enumeration.\n- Failure: HTTP 401 (Basic adds a `WWW-Authenticate` header), count failures, lock out or add a delay, optionally challenge with MFA.\n\n**5. Success.** Create a session (random id stored server-side, e.g. in Redis) or issue a signed token (JWT). Send it in a cookie marked `HttpOnly; Secure; SameSite`, which limits XSS theft and CSRF. Later requests present the cookie, and the server validates it instead of the password.\n\n**6. Cross-cutting.** Logging without secrets, audit trail, password reset, CSRF tokens, logout and session expiry, and MFA or OAuth/SSO as alternatives that avoid handling passwords.",
+ "followUps": [
+  "Why is Base64 not secure, and why does Basic auth need HTTPS?",
+  "How do you store passwords, and why salt and a slow hash?",
+  "Session cookies vs JWT: what are the trade-offs?",
+  "How do you defend against brute force and credential stuffing?",
+  "What changes if you use OAuth 2.0 / OpenID Connect instead?"
+ ]
+}

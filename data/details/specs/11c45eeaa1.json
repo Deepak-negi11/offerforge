@@ -1,0 +1,19 @@
+{
+ "qid": "11c45eeaa1",
+ "question": "American Express, Engineer II (2.5 YOE, front-end/full stack), round 1 machine coding in React: **build a carousel that fetches its data from an API, advances to the next item automatically every 5 seconds, and has pause and play functionality.**",
+ "lookingFor": [
+  "Correct use of `useEffect`, cleanup of timers and avoiding memory leaks or stale closures.",
+  "Handling loading and error states for the data fetch.",
+  "State modelling (current index, playing flag) and wrap-around logic.",
+  "Clean component structure and accessibility of controls.",
+  "Edge cases: empty data, manual navigation resetting the timer."
+ ],
+ "answer": "**Clarify requirements.** Where does data come from (any REST endpoint, e.g. a list of image URLs)? Should there be prev/next buttons and dots? Does the timer reset on manual navigation? Start with the core, then extend.\n\n**State.** `items` (fetched), `loading`, `error`, `index`, `playing` (default true).\n\n**Fetch.** In a `useEffect` with `[]` deps, call `fetch`, check `res.ok`, set items; guard against unmount with an `AbortController` (abort in cleanup).\n\n**Auto-advance.** One effect keyed on `playing`, `items.length` and `index`:\n\n```jsx\nuseEffect(() => {\n  if (!playing || items.length === 0) return;\n  const id = setTimeout(() => setIndex(i => (i + 1) % items.length), 5000);\n  return () => clearTimeout(id);\n}, [playing, index, items.length]);\n```\nUsing `setTimeout` keyed on `index` means any manual navigation automatically restarts the 5 s countdown, and the cleanup prevents leaks and duplicate timers. The functional update `i => ...` avoids stale closures. `setInterval` also works if you keep it in a ref and clean it up.\n\n**Render.** Show the current item, prev/next buttons, a dot indicator, and a Pause/Play `<button>` that toggles `playing` (label via state, `aria-label`). Show a spinner while loading and a message on error or empty data.\n\n**Extras if time permits:** pause on hover/focus, respect `prefers-reduced-motion`, preload the next image, keyboard arrows, `aria-live=\"polite\"` on the slide, and slide transition with CSS.\n\n**Common mistakes:** leaving the interval running after unmount; creating a new interval on every render; mutating state directly; using modulo with negative index for 'prev' (use `(i - 1 + n) % n`); not handling empty arrays.",
+ "followUps": [
+  "Why use setTimeout instead of setInterval here, or when would setInterval be better?",
+  "How would you avoid a flash of stale content if the fetch is slow?",
+  "How would you make the carousel accessible?",
+  "How would you test this component?",
+  "How would you extend it to support infinite looping with animation?"
+ ]
+}

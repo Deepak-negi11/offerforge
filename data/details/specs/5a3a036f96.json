@@ -1,0 +1,18 @@
+{
+ "qid": "5a3a036f96",
+ "question": "In the hiring-manager round for an Apple Senior Software Engineer (ICT3) role, the interviewer asked the candidate to explain how they would crawl the URLs on a web page and build a map from URL to HTML page using BFS. Behavioral questions followed.",
+ "lookingFor": [
+  "Modelling the web as a graph and choosing BFS with a queue",
+  "Using a visited set to avoid cycles and duplicate fetches",
+  "Practical crawler concerns: normalisation, domain scope, politeness, failures",
+  "Complexity reasoning and how to scale or parallelise"
+ ],
+ "answer": "**Model:** pages are nodes, hyperlinks are directed edges. Crawling = graph traversal from a seed URL.\n\n**Algorithm (BFS)**\n1. Queue holds URLs to fetch, starting with the seed; a **visited** set stores normalised URLs; a hash map `pages: url -> html` is the result.\n2. Pop a URL, fetch it, store `pages[url] = html`.\n3. Parse the HTML, extract `<a href>` links, resolve relative links against the page URL, normalise them.\n4. For each link not in `visited` (and allowed by scope rules), add it to `visited` and enqueue it.\n5. Stop when the queue is empty or a depth/page limit is reached.\n\n```python\nfrom collections import deque\n\ndef crawl(seed, fetch, extract_links, allowed):\n    pages, visited = {}, {seed}\n    q = deque([seed])\n    while q:\n        url = q.popleft()\n        html = fetch(url)              # may fail: catch, skip, maybe retry\n        if html is None: continue\n        pages[url] = html\n        for link in extract_links(url, html):\n            if link not in visited and allowed(link):\n                visited.add(link)      # mark when enqueued, not when popped\n                q.append(link)\n    return pages\n```\n\n**Why BFS:** it explores pages level by level (nearest to the seed first), which gives natural depth limiting and breadth-first coverage; DFS can dive down an endless chain of links.\n\n**Details that show maturity**\n- **Normalise URLs**: lowercase host, strip fragments (`#section`), resolve `../`, drop tracking parameters, so the same page is not fetched twice.\n- **Scope**: restrict to a domain; respect `robots.txt` and rate-limit per host (politeness).\n- **Failures**: timeouts, redirects, non-HTML content, and spider traps (infinite calendar pages) need caps.\n- **Complexity:** O(V + E) graph work for V pages and E links; real cost is dominated by network latency, so fetch with a worker pool.\n- **Scale:** distributed crawler with a sharded URL frontier, persistent visited store (Bloom filter plus database), and content hashing to detect duplicates.",
+ "followUps": [
+  "How would you parallelise this and keep the visited set correct across threads?",
+  "How would you detect duplicate or near-duplicate pages?",
+  "What happens with infinite or spider-trap URLs?",
+  "BFS vs DFS for a crawler: trade-offs?",
+  "How would you re-crawl pages and decide the refresh frequency?"
+ ]
+}

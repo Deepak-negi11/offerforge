@@ -1,0 +1,19 @@
+{
+ "qid": "80c029a5ee",
+ "question": "Media.net, Hiring Manager round (system design flavoured). You have an API. Design two functions, `onNewReq()` which is called for every incoming request, and `getTotalCallsIn5Mins()` which returns how many requests arrived in the last 5 minutes. The candidate improvised towards a circular array of 300 slots (one per second) with an index pointer, and the interviewer wanted the design taken further (\"and beyond\").",
+ "lookingFor": [
+  "Can you turn a vague counting requirement into a data structure with bounded memory?",
+  "Awareness of time-window edge cases (stale buckets, idle periods, clock source).",
+  "Trade-off thinking between exact and bucketed counts, and between O(n) and O(1) reads.",
+  "Concurrency awareness: many threads calling `onNewReq()` at once.",
+  "Ability to extend from one machine to a distributed service."
+ ],
+ "answer": "**Requirements.** Count requests in a sliding 5-minute window; `onNewReq()` is on the hot path so it must be O(1); reads can be slightly stale but should be cheap. Assume a single process first.\n\n**Naive approach.** Keep a queue of timestamps; on each call drop entries older than 300 s and return the size. Correct and exact, but memory grows with traffic (millions of timestamps at high QPS) and eviction cost is amortised, not constant.\n\n**Circular buffer of 300 buckets.** Keep two arrays of size 300: `count[i]` and `stamp[i]` (the epoch second that bucket currently represents).\n- `onNewReq()`: `now = currentSecond(); i = now % 300; if stamp[i] != now { stamp[i] = now; count[i] = 0 } count[i]++`.\n- `getTotalCallsIn5Mins()`: loop over all 300 buckets and sum `count[i]` where `now - stamp[i] < 300`.\n\nBoth operations are O(1) in the sense that 300 is a constant; memory is fixed. The `stamp` array is what handles idle periods: buckets not touched for a while are simply ignored on read, so you do not need a background thread to clear them. An alternative is keeping a running total, subtracting a bucket when it is recycled, but then you must also advance over skipped seconds, which is easy to get wrong.\n\n**Beyond the basics.**\n- *Thread safety:* use a lock per call (simple), or `AtomicLongArray` / `AtomicInteger` buckets with a compare-and-set on the stamp. Striping the counter across cores (like `LongAdder`) reduces contention.\n- *Time source:* use a monotonic clock, and decide whether precision is 1 s or coarser. Coarser buckets (e.g. 5 s, 60 buckets) trade accuracy for memory and read cost.\n- *Distributed:* each node keeps its own buffer and a collector sums them periodically, or use Redis (`INCR` on a per-second key with `EXPIRE 300`, or sorted sets) for a shared count. Accept that the result is approximate.\n- *Generalising:* make the window and bucket size parameters so the same class supports last-minute or last-hour counts.\n\n**Tests.** No calls (returns 0), a burst in one second, a gap longer than 5 minutes, and the boundary at exactly 300 seconds.",
+ "followUps": [
+  "What changes if the window is configurable per client?",
+  "How would you make this thread-safe without a global lock?",
+  "How accurate is the count at the window boundary, and how would you make it exact?",
+  "How would you aggregate this across 50 servers?",
+  "How would you extend it to return the count for any last N seconds?"
+ ]
+}

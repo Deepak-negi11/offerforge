@@ -1,0 +1,18 @@
+{
+ "qid": "0bc98c8e0f",
+ "question": "Embedded Software Engineer (New Grad) technical interview at Texas Instruments: **what would happen to performance if the L1, L2 and L3 caches were combined into a single cache level?** (No further details were reported.)",
+ "lookingFor": [
+  "Do you understand why a cache hierarchy exists (speed vs size trade-off)?",
+  "Can you use average memory access time (AMAT) to reason about it?",
+  "Do you know how latency grows with cache size and associativity?",
+  "Do you know the roles of private vs shared caches in multi-core CPUs?",
+  "Can you reach a clear conclusion and state the trade-offs?"
+ ],
+ "answer": "**Short answer:** performance would get worse. A single level cannot be both as fast as L1 and as large as L3, because speed and capacity pull in opposite directions.\n\n**Why bigger means slower**\n- A larger SRAM array has longer wires and bit lines, so access latency rises with size.\n- Higher associativity needs more tag comparisons and a wider multiplexer, which adds delay and energy.\n- Many ports (needed for several loads and stores per cycle) multiply area, power and delay.\n\n**Using AMAT**\n`AMAT = hit time + miss rate x miss penalty`, and with a hierarchy the miss penalty of one level is the AMAT of the next.\n\nIllustrative numbers (typical orders of magnitude, not a specific chip): L1 about 4 cycles with 95% hits, L2 about 12 cycles, L3 about 40 cycles, DRAM about 200 cycles. The hierarchy gives roughly `4 + 0.05 x (12 + 0.2 x (40 + 0.3 x 200))`, about 5 cycles on average.\n\nA single large cache of L3 size would pay about 40 cycles on **every** access, even though most accesses hit in a tiny working set. A single small cache with L1 speed would miss far more often and go to DRAM at about 200 cycles. Either way the average is worse than the hierarchy.\n\n**Other reasons for the hierarchy**\n- *Locality:* the hot working set is small, so a tiny fast cache catches most accesses.\n- *Multi-core sharing:* L1 (and often L2) is private to each core for speed and bandwidth; L3 is shared to share data between cores and to hold the combined working set. A single shared cache would turn all cores into one bottleneck with heavy contention and coherence traffic.\n- *Split L1:* separate instruction and data L1 caches let fetch and data access happen in the same cycle.\n- *Power and area:* only the small L1 is accessed on every operation, so energy per access stays low.\n\n**Conclusion**\nThe multi-level design is a compromise that gives the average access time of a small cache with the hit rate of a large one. Merging the levels would remove that compromise.",
+ "followUps": [
+  "What is the difference between inclusive, exclusive and non-inclusive caches?",
+  "What are the three types of cache misses?",
+  "Why is L1 usually split into instruction and data caches?",
+  "How does associativity affect hit rate and latency?"
+ ]
+}

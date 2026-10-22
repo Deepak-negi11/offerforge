@@ -1,0 +1,18 @@
+{
+ "qid": "5cfff011e0",
+ "question": "In round 2 of a ServiceNow Software Engineer (IC2) interview, the candidate was given a system design question: **design an efficient system to find the top 5 most-liked YouTube videos across a region and worldwide**.",
+ "lookingFor": [
+  "Do you clarify scale, freshness and what 'top' means (all time vs recent window)?",
+  "Can you avoid the naive full scan and pick suitable data structures (heap, sorted set)?",
+  "Do you design an aggregation pipeline for a huge write stream of likes?",
+  "Do you combine regional results into a global one correctly?",
+  "Do you discuss caching, approximation and failure handling?"
+ ],
+ "answer": "**Requirements and assumptions.** Billions of videos, very high like and unlike write rate, reads of top 5 are much more frequent than writes, regions such as country or continent plus global. Ask: all-time or trending (last 24h)? Exact or near real time? Assume slightly stale results (seconds to minutes) are acceptable.\n\n**Naive approach.** Scan every video and sort: far too slow. Instead, maintain the answer incrementally.\n\n**High-level design**\n1. **Ingestion:** like events (`videoId`, `region`, `delta`) go to a **message queue** (Kafka), partitioned by `videoId`.\n2. **Counting:** stream processors aggregate counts per `(videoId, region)` over short windows and write totals to a counter store (sharded key-value store or Redis). Batching reduces write load, and hot videos can use sharded counters that are summed.\n3. **Per-region top-K:** each region keeps a **sorted set** (Redis ZSET) or a min-heap of size 5 (or bigger, such as 100, for headroom against unlikes). When a video's count changes, update it if it beats the smallest in the heap.\n4. **Global top-K:** if a video's likes are counted in one place per video (a global counter), keep a global heap or sorted set updated the same way. If counts are kept per region, a video's global total is the sum of its regional counts, so the global top 5 cannot be found by merging only regional top 5 lists (a video that is second in every region could still win overall). Either keep a global counter per video as well, or merge a larger top-K from each region (for example top 100) and re-total candidates, accepting small approximation.\n5. **Serving:** store the computed top 5 for each region plus global in a cache and serve reads from it; recompute every few seconds or minutes.\n\n**Trade-offs.** Exactness vs cost: approximate structures (count-min sketch plus heap) save memory. Time windows use sliding or tumbling windows (trending). Fault tolerance: queue replay and snapshots rebuild the state; use leader election per partition. Scale by partitioning by `videoId` and adding workers.",
+ "followUps": [
+  "How do you keep the top 5 correct when likes can be removed?",
+  "How would the design change for 'top 5 in the last hour'?",
+  "How do you handle a viral video receiving millions of likes per second (hot key)?",
+  "When is an approximate answer acceptable, and which data structure would give it?"
+ ]
+}

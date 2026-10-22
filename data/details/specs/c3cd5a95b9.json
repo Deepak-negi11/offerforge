@@ -1,0 +1,17 @@
+{
+ "qid": "c3cd5a95b9",
+ "question": "CRED software intern (summer 2022) technical interview, puzzle. Many people participate in a lottery. Each person picks numbers in **3 blocks, each choice from 1 to 9**, and wins only if all three are **7 7 7**. The task: **find a solution such that every person has a probability of winning of exactly 1/10^6**. The candidate reports the interviewer's expected solution was to make an array of 10^6 elements with only one element equal to 777 and return a random index element.",
+ "lookingFor": [
+  "Reasoning about probability and uniform random generation.",
+  "Noticing a problem with the constraints (9^3 does not equal 10^6).",
+  "Decoupling the player's pick from the draw mechanism.",
+  "Clear, implementable solution with independence per person."
+ ],
+ "answer": "**The key observation.** If the draw were simply three digits chosen uniformly from 1-9, there would be 9^3 = 729 outcomes, so the winning chance would be 1/729, not 1/10^6. To get exactly 10^6 you need a draw with 10^6 equally likely outcomes, only one of which means \"win\".\n\n**Design.** Separate the player's ticket from the randomness that decides winning.\n1. The winning ticket is fixed at 7-7-7.\n2. For each person, run an independent draw that produces an integer `r` uniformly in `[0, 10^6)`. For example, generate six independent random digits 0-9, or call a uniform generator `randint(0, 999999)`.\n3. The person wins if `r == 0` (any single fixed value works). Otherwise they do not win.\n4. When a person wins, show 7-7-7; otherwise show any other combination.\n\nThis gives `P(win) = 1/10^6` for each person, exactly, and persons are independent.\n\n**The reported array solution** is the same idea: build an array of 10^6 slots with one `777` and the rest other values, pick a uniformly random index, return that element. It works but uses 10^6 memory unnecessarily; comparing `r == 0` is O(1) memory and time.\n\n**Implementation points.**\n- Use a uniform generator; avoid `rand() % 10^6` when the generator's range is not a multiple of 10^6, because it introduces modulo bias. Use rejection sampling or a library function.\n- Use a good random source (and a secure one if real money is involved).\n- Each person gets a fresh draw; reusing a single draw would make wins perfectly correlated.\n\n**Sanity check.** Expected winners among N people is N / 10^6; with 10^6 people you expect one, but could have zero or several.\n\nState the 729 vs 10^6 discrepancy aloud: the interviewer may be testing whether you notice it.",
+ "followUps": [
+  "What is the chance that at least one of N people wins?",
+  "How would you do this with only a fair coin or a fair die?",
+  "What is modulo bias in random number generation?",
+  "How would you guarantee exactly one winner among 10^6 people?"
+ ]
+}

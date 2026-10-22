@@ -1,0 +1,19 @@
+{
+ "qid": "f1055ce0c3",
+ "question": "Oracle SE4 system design round. Design an **enterprise remote browser isolation (RBI) system**. Employees browse the web, but pages are rendered in an isolated environment away from their machines. The prompt called out these areas: **authentication and authorisation, data streaming, gateways, rate limiting, virtual nodes and edge servers**.",
+ "lookingFor": [
+  "Do you understand the core security idea: untrusted web content runs away from the endpoint?",
+  "Can you design the control plane (identity, policy) separately from the data plane (streaming)?",
+  "Do you think about latency, per-user isolation and resource scheduling?",
+  "Do you cover multi-tenancy, rate limiting and abuse prevention?",
+  "Can you discuss trade-offs of pixel streaming versus DOM mirroring?"
+ ],
+ "answer": "**Requirements.** Users open a URL. The page executes in a disposable, sandboxed browser in the cloud and only a safe representation is delivered to the user's device. Admins define policy (allowed sites, upload and download rules, copy and paste). Goals: strong isolation, interactive latency (roughly under 100-150 ms input to display), tenant separation, auditability. Assume thousands of tenants and hundreds of thousands of concurrent sessions.\n\n**Architecture.**\n- **Client:** a thin browser extension or web app that sends input events and shows the stream.\n- **Edge servers / gateways:** terminate TLS near the user, authenticate the session, and proxy a WebSocket or WebRTC stream to the right isolation node. The edge also enforces rate limits and picks the closest region to cut latency.\n- **Control plane:** auth (SSO via SAML or OIDC, short-lived tokens), policy service, session broker, audit log. The broker decides which node serves a session and records it.\n- **Isolation nodes (virtual nodes):** a pool of VMs or microVMs (for example Firecracker-style) or hardened containers, each running a headless Chromium. One session gets one fresh instance, destroyed at the end, so malware cannot persist.\n- **Data plane:** the isolated browser streams pixels (video or tile-based) to the client, or sends sanitised DOM and CSS. Pixel streaming is the safest and simplest; DOM mirroring uses less bandwidth but widens the attack surface.\n\n**Authn and authz.** Authenticate the user at the gateway, issue a token bound to tenant and session, and check policy on every navigation and file transfer. Downloads pass through a scanning service (antivirus, content disarm).\n\n**Rate limiting and quotas.** Token-bucket limits per user and tenant at the gateway, plus caps on concurrent sessions, bandwidth and CPU per session to protect shared nodes.\n\n**Scaling.** Keep a warm pool of pre-booted instances to hide start-up time, autoscale on queue depth, and place sessions close to users. Network egress from nodes goes through a controlled proxy with logging.\n\n**Trade-offs.** Cost per session is high, so use idle timeouts and consider reusing an instance within one user's session only. Failure mode: if a node dies, reconnect to a new instance and lose page state.",
+ "followUps": [
+  "How would you minimise input-to-display latency?",
+  "How do you safely handle file downloads and uploads?",
+  "How would you isolate tenants from each other on shared hardware?",
+  "Pixel streaming versus DOM reconstruction: which would you choose and why?",
+  "How would you scale to a sudden spike of logins at 9 am?"
+ ]
+}

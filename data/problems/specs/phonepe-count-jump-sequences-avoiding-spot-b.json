@@ -1,0 +1,49 @@
+{
+ "pid": "phonepe-count-jump-sequences-avoiding-spot-b",
+ "title": "Count Jump Sequences Avoiding Spot B",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "There are `N` locations on a straight line, numbered `1` to `N`. You start at location `A`. A spotlight is fixed at location `B` (`B ≠ A`).\n\nYou must make exactly `K` jumps. A jump moves you from your current location `X` to a new location `Y` and must satisfy both rules:\n\n- `1 ≤ Y ≤ N` and `Y ≠ X` (you cannot stay in place).\n- `|X - Y| < |X - B|`: the length of the jump is strictly smaller than your current distance to the spotlight.\n\nAs a consequence you can never land on `B`, and if you ever stand on `B` itself no jump is possible.\n\nTwo sequences of jumps are different if they differ in the location reached after at least one of the `K` jumps. Count the sequences of exactly `K` valid jumps starting from `A`, and print the count modulo `10^9 + 7`. If no such sequence exists the answer is `0`.",
+ "input_format": "A single line with four integers `N`, `A`, `B` and `K`.",
+ "output_format": "Print a single integer: the number of valid sequences of `K` jumps modulo `10^9 + 7`.",
+ "constraints": [
+  "2 ≤ N ≤ 1000",
+  "1 ≤ A, B ≤ N, A ≠ B",
+  "1 ≤ K ≤ 1000"
+ ],
+ "examples": [
+  {
+   "input": "6 3 6 1",
+   "output": "4",
+   "explanation": "From location 3 the distance to the spotlight is 3, so a jump must be shorter than 3. Reachable locations are 1, 2, 4 and 5 (not 3 itself): 4 sequences."
+  },
+  {
+   "input": "6 3 6 2",
+   "output": "10",
+   "explanation": "After the first jump you are at 1, 2, 4 or 5. From 1 (distance 5) you can reach 2, 3, 4, 5: 4 ways, from 2 (distance 4) you can reach 1, 3, 4, 5: 4 ways, from 4 (distance 2) you can reach 3 and 5: 2 ways, from 5 (distance 1) there is no valid jump. Total 4 + 4 + 2 + 0 = 10."
+  },
+  {
+   "input": "3 1 2 1",
+   "output": "0",
+   "explanation": "The distance from 1 to the spotlight is 1, so a jump must be shorter than 1, which only allows staying in place."
+  }
+ ],
+ "complexity": {
+  "time": "O(N · K)",
+  "space": "O(N)"
+ },
+ "hints": [
+  "Let ways[x] be the number of ways to be at location x after the current number of jumps. Compute the next layer from the previous one.",
+  "From a location X the reachable locations form a contiguous range around X (minus X itself). Instead of looping over all of them, add the count to a whole range.",
+  "Use a difference array (or prefix sums) so that each of the K layers is built in O(N), then take everything modulo 10^9 + 7."
+ ],
+ "reference": "import sys\n\ndef main():\n    n, a, b, k = map(int, sys.stdin.read().split())\n    MOD = 10**9 + 7\n    dp = [0] * (n + 2)\n    dp[a] = 1\n    for _ in range(k):\n        diff = [0] * (n + 3)\n        sub = [0] * (n + 2)\n        for x in range(1, n + 1):\n            v = dp[x]\n            if not v:\n                continue\n            d = abs(x - b)\n            if d == 0:\n                continue\n            lo = max(1, x - d + 1)\n            hi = min(n, x + d - 1)\n            diff[lo] += v\n            diff[hi + 1] -= v\n            sub[x] = v\n        new = [0] * (n + 2)\n        run = 0\n        for y in range(1, n + 1):\n            run += diff[y]\n            new[y] = (run - sub[y]) % MOD\n            run %= MOD\n        dp = new\n    print(sum(dp) % MOD)\n\nmain()\n",
+ "brute": "import sys\nn, a, b, k = map(int, sys.stdin.read().split())\nMOD = 10**9 + 7\nways = {x: 0 for x in range(1, n + 1)}\nways[a] = 1\nfor _ in range(k):\n    nxt = {x: 0 for x in range(1, n + 1)}\n    for x in range(1, n + 1):\n        for y in range(1, n + 1):\n            if y != x and abs(x - y) < abs(x - b):\n                nxt[y] = (nxt[y] + ways[x]) % MOD\n    ways = nxt\nprint(sum(ways.values()) % MOD)\n",
+ "generator": "def gen(rng):\n    tests = [\"6 3 6 1\", \"6 3 6 2\", \"3 1 2 1\", \"2 1 2 1\", \"2 2 1 3\", \"5 2 4 1\", \"5 5 1 4\", \"10 1 10 2\", \"10 5 6 3\"]\n    for _ in range(20):\n        n = rng.randint(2, 9)\n        a = rng.randint(1, n)\n        b = rng.randint(1, n)\n        while b == a:\n            b = rng.randint(1, n)\n        k = rng.randint(1, 5)\n        tests.append(f\"{n} {a} {b} {k}\")\n    tests.append(\"1000 500 1 1000\")\n    tests.append(\"1000 1 1000 1000\")\n    tests.append(\"1000 123 777 1000\")\n    tests.append(\"1000 999 1 999\")\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef count_sequences(n: int, a: int, b: int, k: int) -> int:\n    MOD = 10**9 + 7\n    # Write your solution here\n    return 0\n\n\ndef main():\n    n, a, b, k = map(int, sys.stdin.read().split())\n    print(count_sequences(n, a, b, k))\n\n\nmain()\n",
+  "javascript": "function countSequences(n, a, b, k) {\n  const MOD = 1000000007\n  // Write your solution here\n  return 0\n}\n\nconst [n, a, b, k] = input.split(/\\s+/).filter(Boolean).map(Number)\nconsole.log(String(countSequences(n, a, b, k)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countSequences(int n, int a, int b, int k) {\n    const long long MOD = 1000000007LL;\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, a, b, k;\n    cin >> n >> a >> b >> k;\n    cout << countSequences(n, a, b, k) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countSequences(int n, int a, int b, int k) {\n        final long MOD = 1000000007L;\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int a = (int) in.nval;\n        in.nextToken();\n        int b = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        System.out.println(countSequences(n, a, b, k));\n    }\n}\n"
+ }
+}

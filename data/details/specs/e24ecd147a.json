@@ -1,0 +1,18 @@
+{
+ "qid": "e24ecd147a",
+ "question": "Amazon SDE-2 object-oriented design: **design a Vending Machine Leasing System**. Model `VendingMachine`, `LeaseAgreement` and `PaymentStrategy`, and use the **State pattern** for machine conditions such as **Idle, Out of Stock and Maintenance**. The interviewer looked for clean interfaces and extensibility.",
+ "lookingFor": [
+  "Correct use of the State pattern with clear transitions.",
+  "Using Strategy for payments and keeping lease concerns separate from machine concerns.",
+  "Clean interfaces and extensibility.",
+  "Handling invalid operations per state.",
+  "Realistic edge cases: inventory, concurrency, billing."
+ ],
+ "answer": "**Clarify.** Who leases machines to whom (an operator leases from a company)? What does a lease contain (term, rent, revenue share, location)? How does payment work (monthly rent, or share of per-sale revenue)? Do we also need the customer purchase flow? I will cover both: leasing and the machine itself.\n\n**Core classes.**\n- `VendingMachine`: id, location, `Inventory`, current `MachineState`, optional active `LeaseAgreement`.\n- `LeaseAgreement`: id, machine, lessee, start and end dates, rent terms, status (`ACTIVE`, `EXPIRED`, `TERMINATED`).\n- `LeaseService`: create, renew, terminate; validate that a machine is not leased twice for overlapping periods.\n- `PaymentStrategy` interface: `Receipt pay(Money amount)`; implementations `CardPayment`, `UpiPayment`, `CashPayment`. Used both for customer purchases and for lease billing.\n- `Inventory`: slot to product and quantity; `isEmpty()`, `dispense(slot)`.\n\n**State pattern.**\n```java\ninterface MachineState {\n  void selectProduct(VendingMachine m, String slot);\n  void insertPayment(VendingMachine m, PaymentStrategy p, Money amt);\n  void dispense(VendingMachine m);\n  void enterMaintenance(VendingMachine m);\n}\n```\nConcrete states: `IdleState`, `HasSelectionState`/`ProcessingPaymentState`, `OutOfStockState`, `MaintenanceState`. Each implements valid operations and rejects the others with a clear message. The machine delegates every call to its current state, and states change it via `m.setState(...)`.\n\nTransitions: Idle to Processing on a valid selection; Processing back to Idle after dispense; to `OutOfStock` when inventory reaches zero; to `Maintenance` when a technician enters; Maintenance back to Idle after restock.\n\n**Why State.** It removes large `if (state == ...)` branches and makes adding a state (for example `Faulty`) a new class.\n\n**Extensibility and edge cases.** A lease expiring should move the machine to a `Decommissioned` state; refunds on failed dispense; thread safety so two customers cannot take the last item; use events so billing and monitoring subscribe without coupling.\n\n**Mistakes to avoid.** Putting lease logic inside the state classes, and embedding payment types in a switch.",
+ "followUps": [
+  "How would you add a new state without changing existing states?",
+  "How do you prevent two concurrent purchases of the last item?",
+  "How would you bill a lease based on a share of sales?",
+  "State versus Strategy: what is the difference?"
+ ]
+}

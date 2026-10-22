@@ -1,0 +1,49 @@
+{
+ "pid": "intuit-count-ways-to-fill-zeros",
+ "title": "Count Ways to Fill Zeros",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given an integer array `arr` of length `n`. Some positions hold `0`, which means the value there is **unknown**; every other position holds a fixed non-zero integer. At least one element is non-zero.\n\nReplace every `0` with any integer (the replacement may be negative, positive or even `0`, and different zeros may receive different values) so that every pair of adjacent elements differs by **at most one**: `|arr[i] - arr[i + 1]| ≤ 1` for all `i`. Fixed values must not be changed.\n\nCount the number of different valid arrays you can obtain. Two results are different if they differ at some position. Print the count modulo `1000000007`; if no valid filling exists the answer is `0`.",
+ "input_format": "The first line contains `n`.\nThe second line contains `n` integers: the array `arr`.",
+ "output_format": "Print a single integer: the number of valid fillings modulo `1000000007`.",
+ "constraints": [
+  "1 ≤ n ≤ 1500",
+  "-10^9 ≤ arr[i] ≤ 10^9",
+  "At least one element is non-zero"
+ ],
+ "examples": [
+  {
+   "input": "4\n3 0 0 4",
+   "output": "6",
+   "explanation": "The two zeros sit between the fixed values 3 and 4, so the three steps 3 -> x -> y -> 4 must each be -1, 0 or +1 and add up to +1. The valid fillings (x, y) are (3, 3), (3, 4), (4, 4), (2, 3), (4, 3) and (4, 5): that is one +1 with two 0 steps in 3 orders, plus two +1 steps with one -1 step in 3 orders, so 3 + 3 = 6."
+  },
+  {
+   "input": "4\n0 0 5 0",
+   "output": "27",
+   "explanation": "A zero run at an end of the array has only one fixed neighbour, so each zero can differ from the previous element by -1, 0 or +1 freely. The two leading zeros give 3 * 3 = 9 fillings and the trailing zero gives 3, for 9 * 3 = 27."
+  },
+  {
+   "input": "5\n2 0 0 0 7",
+   "output": "0",
+   "explanation": "Going from 2 to 7 needs a rise of 5, but the four steps across the three zeros can rise by at most 4 in total, so no filling exists."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "The fixed values cut the array into independent pieces: runs of zeros between two fixed values, and runs at the start or end. The answer is the product of the counts for the pieces.",
+  "A run of L zeros at the start or end has one fixed neighbour and L free steps of -1, 0 or +1, so it contributes 3^L. A run between fixed values a and b is a sequence of L + 1 steps that must add up to b - a.",
+  "For L + 1 steps with total d, choose p steps of +1 and q = p - d steps of -1 and fill the rest with 0; summing (L+1)! / (p! q! z!) over valid p counts them. Precompute factorials and inverse factorials modulo 10^9 + 7. (A per-segment DP over the partial sum also works within n ≤ 1500.)"
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    arr = [int(x) for x in data[1:1 + n]]\n    MOD = 10**9 + 7\n    N = n + 5\n    fact = [1] * (N + 1)\n    for i in range(1, N + 1):\n        fact[i] = fact[i - 1] * i % MOD\n    inv = [1] * (N + 1)\n    inv[N] = pow(fact[N], MOD - 2, MOD)\n    for i in range(N, 0, -1):\n        inv[i - 1] = inv[i] * i % MOD\n    nz = [i for i in range(n) if arr[i] != 0]\n    ans = 1\n    # leading and trailing runs\n    ans = ans * pow(3, nz[0], MOD) % MOD\n    ans = ans * pow(3, n - 1 - nz[-1], MOD) % MOD\n    for a_i, b_i in zip(nz, nz[1:]):\n        S = b_i - a_i  # number of steps\n        d = arr[b_i] - arr[a_i]\n        total = 0\n        q = 0\n        while True:\n            p = q + d\n            z = S - p - q\n            if z < 0:\n                break\n            if p >= 0:\n                total += fact[S] * inv[p] % MOD * inv[q] % MOD * inv[z]\n            q += 1\n        ans = ans * (total % MOD) % MOD\n        if ans == 0:\n            break\n    print(ans % MOD)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\narr = [int(x) for x in data[1:1 + n]]\nMOD = 10**9 + 7\nfixed = [x for x in arr if x != 0]\nlo = min(fixed) - n - 1\nhi = max(fixed) + n + 1\ndp = {}\nfor v in range(lo, hi + 1):\n    if arr[0] == 0 or arr[0] == v:\n        dp[v] = 1\nfor i in range(1, n):\n    nd = {}\n    for v in range(lo, hi + 1):\n        if arr[i] != 0 and arr[i] != v:\n            continue\n        s = dp.get(v - 1, 0) + dp.get(v, 0) + dp.get(v + 1, 0)\n        if s:\n            nd[v] = s\n    dp = nd\nprint(sum(dp.values()) % MOD)\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n\n    def walk(n, start, mask_p):\n        v = start\n        a = []\n        for _ in range(n):\n            a.append(v)\n            v += rng.choice((-1, 0, 1))\n        a = [x if rng.random() > mask_p else 0 for x in a]\n        if all(x == 0 for x in a):\n            i = rng.randrange(n)\n            a[i] = start if start != 0 else 1\n        return a\n\n    tests = [fmt([5]), fmt([0, 3]), fmt([3, 0, 0, 4]), fmt([0, 0, 5, 0]), fmt([2, 0, 0, 0, 7]), fmt([1, 0, 1]), fmt([1, 3]), fmt([1, 2, 3]), fmt([-1, 0, 1]), fmt([-2, 0, 0, 0, 0, 2]), fmt([4, 0, 0, 0, 0, 0, 4])]\n    for n in (2, 3, 4, 5, 6, 8, 10, 12, 15, 20):\n        for _ in range(3):\n            tests.append(fmt(walk(n, rng.choice((-3, -1, 1, 2, 3)), rng.choice((0.3, 0.6, 0.85)))))\n        a = [rng.choice((0, 0, 0, -2, -1, 1, 2)) for _ in range(n)]\n        if all(x == 0 for x in a):\n            a[0] = 2\n        tests.append(fmt(a))\n    n = 1500\n    a = [0] * n\n    a[700] = 10**9\n    tests.append(fmt(a))\n    a = [0] * n\n    a[0] = 1\n    a[-1] = 700\n    tests.append(fmt(a))\n    a = [0] * n\n    a[0] = 5\n    a[-1] = -5\n    tests.append(fmt(a))\n    a = [0] * n\n    a[10] = 10**9\n    a[-10] = 10**9 - 3\n    tests.append(fmt(a))\n    tests.append(fmt(walk(n, 7, 0.9)))\n    tests.append(fmt(walk(n, 1, 0.99)))\n    tests.append(fmt(walk(n, -10**9 + 1000, 0.995)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_ways(arr: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    arr = [int(x) for x in data[1:1 + n]]\n    print(count_ways(arr))\n\n\nmain()\n",
+  "javascript": "function countWays(arr) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst arr = t.slice(1, 1 + n)\nconsole.log(String(countWays(arr)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countWays(vector<long long>& arr) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> arr(n);\n    for (auto& x : arr) cin >> x;\n    cout << countWays(arr) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countWays(long[] arr) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] arr = new long[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); arr[i] = (long) in.nval; }\n        System.out.println(countWays(arr));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,19 @@
+{
+ "qid": "14bd1c6f9b",
+ "question": "In the second technical round for an Associate Engineer role at Qualcomm (full-time), the interviewer asked the candidate to **walk through how a C program executes**, including **macros and the preprocessor**.\n\nExplain what happens from source file to running process, and where macros fit in.",
+ "lookingFor": [
+  "Do you know the full build pipeline (preprocess, compile, assemble, link) rather than just 'the compiler runs it'?",
+  "Do you understand that macros are textual substitution done before compilation?",
+  "Can you describe what the loader and runtime do before and after `main`?",
+  "Can you explain the process memory layout (text, data, bss, heap, stack)?",
+  "Are you aware of macro pitfalls such as side effects and missing parentheses?"
+ ],
+ "answer": "**Build stages (for `gcc prog.c`):**\n\n1. **Preprocessing** (`gcc -E`). Handles lines starting with `#`: `#include` pastes header contents, `#define` performs textual macro substitution, `#if/#ifdef` includes or removes code, comments are stripped. The preprocessor knows nothing about C types or syntax; it only manipulates tokens.\n2. **Compilation** (`-S`). Parses and type-checks the expanded source, optimises it and emits assembly.\n3. **Assembly** (`-c`). The assembler produces a relocatable object file (`.o`) with machine code, a symbol table and relocation entries.\n4. **Linking.** The linker merges object files, resolves symbols (for example `printf`) against static archives or shared libraries, assigns addresses and produces an executable (ELF on Linux).\n\n**Running it.** The OS loader creates a process, maps the segments and sets up the stack, `argc/argv` and environment. Execution starts at the runtime entry point (`_start` in the C runtime), which initialises the library and then calls `main`. When `main` returns, `exit` runs `atexit` handlers, flushes stdio and the process terminates with that status.\n\n**Memory layout:** text (code, read-only), data (initialised globals), bss (zero-initialised globals), heap (grows up via `malloc`), stack (grows down; frames for locals and return addresses).\n\n**Macros.** `#define SQUARE(x) x*x` makes `SQUARE(a+1)` expand to `a+1*a+1`. Fix by parenthesising: `((x)*(x))`. Even then `SQUARE(i++)` evaluates `i++` twice. Macros have no type checking and are hard to debug, so prefer `inline` functions or `const`/`enum`. Useful macro features: include guards, conditional compilation, `#x` stringizing and `##` token pasting.\n\n**Mistakes to avoid:** saying macros are 'executed at runtime', or skipping the linker and loader.",
+ "followUps": [
+  "What is the difference between a macro and an inline function?",
+  "What are include guards and why are they needed?",
+  "What is the difference between static and dynamic linking?",
+  "Where do local, global, static and heap variables live in memory?",
+  "What happens before `main` is called?"
+ ]
+}

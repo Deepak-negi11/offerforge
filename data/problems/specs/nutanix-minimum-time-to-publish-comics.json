@@ -1,0 +1,46 @@
+{
+ "pid": "nutanix-minimum-time-to-publish-comics",
+ "title": "Minimum Time to Publish Comics",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You have to publish `X` different comic books. There are `Y` printing machines and `Z` binding machines. Printing machine `i` needs `print[i]` minutes to print all pages of one comic book. Every binding machine needs `K` minutes to bind one comic book. At any point in time a machine (printing or binding) can work on at most one comic book, and a job that has started cannot be interrupted.\n\nEach comic book is published in these steps:\n\n1. It is put into a free printing machine `i`. After `print[i]` minutes its printed pages are taken out of the machine.\n2. After a **non-negative** amount of waiting time, the printed pages are placed in a free binding machine.\n3. After `K` minutes the bound book is taken out of the binding machine.\n\nAll machines are free at time `0`, and a machine can start its next job at the very moment its previous job ends. Find the minimum time at which all `X` comic books have been published.",
+ "input_format": "The first line contains four integers `X`, `Y`, `Z` and `K`.\nThe second line contains `Y` integers `print[0], print[1], ..., print[Y - 1]`.",
+ "output_format": "Print one integer: the minimum time needed to publish all `X` comic books.",
+ "constraints": [
+  "1 ≤ X ≤ 2·10^5",
+  "1 ≤ Y ≤ 10^5",
+  "1 ≤ Z ≤ 10^9",
+  "1 ≤ K ≤ 10^9",
+  "1 ≤ print[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3 2 1 4\n1 3",
+   "output": "13",
+   "explanation": "Print the three books on machine 0, which finishes them at times 1, 2 and 3 (machine 1 would only finish one at time 3, which is no better). With a single binder taking 4 minutes each, binding runs 1-5, 5-9 and 9-13, so everything is published at time 13."
+  },
+  {
+   "input": "5 2 3 2\n2 5",
+   "output": "10",
+   "explanation": "The five earliest print completion times are 2, 4, 5 (machine 1), 6 and 8, so books become ready at those times. Three binders take the first three books and finish at 4, 6 and 7. The fourth book (ready at 6) uses the binder freed at 4 and ends at 8. The fifth (ready at 8) uses the binder freed at 6 and ends at 10."
+  }
+ ],
+ "complexity": {
+  "time": "O((X + Y) log Y)",
+  "space": "O(X + Y)"
+ },
+ "hints": [
+  "Printing and binding are two stages in a row. Think about the moments at which printed books become available to the binders.",
+  "Ready times that are as early as possible, one by one, can only help the binding stage. Which `X` print completion times (over all machines and all their jobs) are the earliest? A min-heap of each machine's next completion time gives them in order.",
+  "With sorted ready times `r[1] <= r[2] <= ...`, book `j` is bound by the binder that was freed by book `j - Z`: it finishes at `max(r[j], finish[j - Z]) + K` (just `r[j] + K` if `j <= Z`). The answer is the last finish time."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.read().split()\n    X, Y, Z, K = int(data[0]), int(data[1]), int(data[2]), int(data[3])\n    heap = [(int(data[4 + i]), int(data[4 + i])) for i in range(Y)]\n    heapq.heapify(heap)\n    ready = []\n    for _ in range(X):\n        t, p = heap[0]\n        ready.append(t)\n        heapq.heapreplace(heap, (t + p, p))\n    fin = [0] * X\n    for j in range(X):\n        prev = fin[j - Z] if j >= Z else 0\n        fin[j] = max(ready[j], prev) + K\n    print(fin[-1])\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nX, Y, Z, K = int(data[0]), int(data[1]), int(data[2]), int(data[3])\nP = [int(data[4 + i]) for i in range(Y)]\nall_times = sorted(p * k for p in P for k in range(1, X + 1))\nready = all_times[:X]\nfree = [0] * min(Z, X)\nans = 0\nfor r in ready:\n    b = min(range(len(free)), key=lambda i: free[i])\n    start = max(r, free[b])\n    free[b] = start + K\n    ans = max(ans, free[b])\nprint(ans)\n",
+ "generator": "def gen(rng):\n    def fmt(X, Z, K, pr):\n        return f\"{X} {len(pr)} {Z} {K}\\n\" + ' '.join(map(str, pr))\n\n    big = 10**9\n    tests = [fmt(1, 1, 1, [1]), fmt(1, big, big, [big]), fmt(5, 1, 3, [2]), fmt(3, 1, 4, [1, 3]),\n             fmt(5, 3, 2, [2, 5]), fmt(4, 100, 1, [3, 3, 3]), fmt(6, 2, 7, [1, 1, 1, 1]),\n             fmt(7, 3, 1, [9, 4, 6])]\n    for _ in range(40):\n        X = rng.randint(1, 12)\n        Y = rng.randint(1, 5)\n        Z = rng.choice([1, 2, 3, 5, big])\n        K = rng.randint(1, 10)\n        tests.append(fmt(X, Z, K, [rng.randint(1, 10) for _ in range(Y)]))\n    for _ in range(10):\n        X = rng.randint(5, 20)\n        Z = rng.randint(1, 4)\n        K = rng.randint(1, 40)\n        tests.append(fmt(X, Z, K, [rng.randint(1, 30) for _ in range(rng.randint(1, 4))]))\n    X = 2 * 10**5\n    Y = 10**5\n    tests.append(fmt(X, 1, 1, [big]))\n    tests.append(fmt(X, 5, big, [rng.randint(1, big) for _ in range(Y)]))\n    tests.append(fmt(X, big, 1, [rng.randint(1, big) for _ in range(Y)]))\n    tests.append(fmt(X, 1000, big, [rng.randint(1, big) for _ in range(Y)]))\n    tests.append(fmt(X, 7, 3, [rng.randint(1, 100) for _ in range(Y)]))\n    tests.append(fmt(X, 50000, 40, [rng.randint(1, 10**5) for _ in range(Y)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_publish_time(x: int, z: int, k: int, prints: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    x, y, z, k = int(data[0]), int(data[1]), int(data[2]), int(data[3])\n    prints = [int(data[4 + i]) for i in range(y)]\n    print(min_publish_time(x, z, k, prints))\n\n\nmain()\n",
+  "javascript": "function minPublishTime(x, z, k, prints) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst x = t[0], y = t[1], z = t[2], k = t[3]\nconst prints = []\nfor (let i = 0; i < y; i++) prints.push(t[4 + i])\nconsole.log(String(minPublishTime(x, z, k, prints)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minPublishTime(long long x, long long z, long long k, vector<long long>& prints) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    long long x, y, z, k;\n    cin >> x >> y >> z >> k;\n    vector<long long> prints(y);\n    for (auto& p : prints) cin >> p;\n    cout << minPublishTime(x, z, k, prints) << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minPublishTime(long x, long z, long k, long[] prints) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        long x = (long) in.nval;\n        in.nextToken();\n        int y = (int) in.nval;\n        in.nextToken();\n        long z = (long) in.nval;\n        in.nextToken();\n        long k = (long) in.nval;\n        long[] prints = new long[y];\n        for (int i = 0; i < y; i++) {\n            in.nextToken();\n            prints[i] = (long) in.nval;\n        }\n        System.out.println(minPublishTime(x, z, k, prints));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,49 @@
+{
+ "pid": "servicenow-zombie-infection-within-k-years",
+ "title": "Zombie Infection Within K Years",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an `r × c` grid. Each cell holds one of three digits:\n\n- `0`: a wall. Nothing can enter or pass through a wall.\n- `1`: a human.\n- `2`: a zombie.\n\nEvery year, each zombie infects all of its adjacent cells (up, down, left, right) that hold a human, turning them into zombies. Newly infected humans start infecting their own neighbours the following year, not in the same year. Walls never change.\n\nGiven an integer `k`, decide whether **all** humans become zombies within at most `k` years. If so, the zombies win and you print `ZOMBIES`; otherwise the humans win and you print `HUMANS`. If the grid contains no humans, the zombies win trivially. A human that cannot be reached because of walls (or because there are no zombies) means the humans win.",
+ "input_format": "The first line contains `r`, `c` and `k`.\nEach of the next `r` lines contains a string of exactly `c` digits, each `0`, `1` or `2`, with no spaces.",
+ "output_format": "Print `ZOMBIES` if every human is infected within `k` years, otherwise `HUMANS`.",
+ "constraints": [
+  "1 ≤ r, c ≤ 500",
+  "0 ≤ k ≤ r · c",
+  "Every cell is `0`, `1` or `2`"
+ ],
+ "examples": [
+  {
+   "input": "3 4 4\n2110\n1011\n0111",
+   "output": "HUMANS",
+   "explanation": "The only zombie is at the top left. Year 1 infects (0,1) and (1,0), year 2 infects (0,2), year 3 infects (1,2), year 4 infects (1,3) and (2,2), and year 5 infects (2,1) and (2,3). With k = 4 the humans at (2,1) and (2,3) are still uninfected."
+  },
+  {
+   "input": "3 4 5\n2110\n1011\n0111",
+   "output": "ZOMBIES",
+   "explanation": "The same grid with k = 5: the last humans become zombies in year 5, so every human is infected in time."
+  },
+  {
+   "input": "1 3 100\n201",
+   "output": "HUMANS",
+   "explanation": "The wall between the zombie and the human blocks the infection, so no amount of time is enough."
+  }
+ ],
+ "complexity": {
+  "time": "O(r · c)",
+  "space": "O(r · c)"
+ },
+ "hints": [
+  "Every zombie spreads at the same speed in all directions at once, which is what a breadth-first search does when you add all sources to the queue together.",
+  "Start a multi-source BFS from every zombie cell. The BFS level at which a human cell is reached is the year in which it is infected.",
+  "Stop expanding after `k` levels, then check whether any cell is still a human. Cells blocked by walls are simply never reached."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c, k = int(data[0]), int(data[1]), int(data[2])\n    W = c + 2\n    cell = [48] * (W * (r + 2))\n    for i in range(r):\n        row = data[3 + i]\n        base = (i + 1) * W + 1\n        for j in range(c):\n            cell[base + j] = ord(row[j])\n    frontier = [idx for idx, v in enumerate(cell) if v == 50]\n    humans = cell.count(49)\n    year = 0\n    dirs = (1, -1, W, -W)\n    while frontier and humans and year < k:\n        nxt = []\n        for u in frontier:\n            for d in dirs:\n                v = u + d\n                if cell[v] == 49:\n                    cell[v] = 50\n                    humans -= 1\n                    nxt.append(v)\n        frontier = nxt\n        year += 1\n    print('ZOMBIES' if humans == 0 else 'HUMANS')\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c, k = int(data[0]), int(data[1]), int(data[2])\ng = [list(data[3 + i]) for i in range(r)]\nfor _ in range(k):\n    change = []\n    for i in range(r):\n        for j in range(c):\n            if g[i][j] == '1':\n                for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n                    a, b = i + di, j + dj\n                    if 0 <= a < r and 0 <= b < c and g[a][b] == '2':\n                        change.append((i, j))\n                        break\n    if not change:\n        break\n    for i, j in change:\n        g[i][j] = '2'\nprint('HUMANS' if any('1' in row for row in g) else 'ZOMBIES')\n",
+ "generator": "def gen(rng):\n    from collections import deque\n    def fmt(rows, k):\n        return '%d %d %d\\n%s' % (len(rows), len(rows[0]), k, '\\n'.join(rows))\n    def dist_all(rows):\n        r, c = len(rows), len(rows[0])\n        d = [[-1] * c for _ in range(r)]\n        dq = deque()\n        for i in range(r):\n            for j in range(c):\n                if rows[i][j] == '2':\n                    d[i][j] = 0\n                    dq.append((i, j))\n        while dq:\n            i, j = dq.popleft()\n            for a, b in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)):\n                if 0 <= a < r and 0 <= b < c and rows[a][b] != '0' and d[a][b] < 0:\n                    d[a][b] = d[i][j] + 1\n                    dq.append((a, b))\n        return d\n    def need(rows):\n        d = dist_all(rows)\n        worst = 0\n        for i, row in enumerate(rows):\n            for j, ch in enumerate(row):\n                if ch == '1':\n                    if d[i][j] < 0:\n                        return None\n                    worst = max(worst, d[i][j])\n        return worst\n    tests = [\n        fmt(['2'], 0),\n        fmt(['1'], 5),\n        fmt(['0'], 3),\n        fmt(['21'], 0),\n        fmt(['21'], 1),\n        fmt(['2110', '1011', '0111'], 4),\n        fmt(['2110', '1011', '0111'], 5),\n        fmt(['201'], 100),\n        fmt(['222', '000'], 0),\n        fmt(['12', '21'], 1),\n    ]\n    for _ in range(14):\n        r, c = rng.randint(1, 8), rng.randint(1, 8)\n        pw = rng.choice([0.1, 0.25, 0.4])\n        pz = rng.choice([0.05, 0.15])\n        rows = []\n        for i in range(r):\n            row = ''\n            for j in range(c):\n                x = rng.random()\n                row += '0' if x < pw else ('2' if x < pw + pz else '1')\n            rows.append(row)\n        nd = need(rows)\n        if nd is not None and rng.random() < 0.7:\n            k = max(0, nd - rng.randint(0, 1))\n        else:\n            k = rng.randint(0, r * c)\n        tests.append(fmt(rows, k))\n    # large tests\n    R = C = 500\n    # open grid, zombie in a corner, k exact / one short\n    rows = ['2' + '1' * (C - 1)] + ['1' * C for _ in range(R - 1)]\n    tests.append(fmt(rows, R + C - 2))\n    tests.append(fmt(rows, R + C - 3))\n    # snake corridor\n    rows = []\n    for i in range(R):\n        if i % 2 == 0:\n            rows.append('1' * C)\n        else:\n            gap = C - 1 if (i // 2) % 2 == 0 else 0\n            row = ['0'] * C\n            row[gap] = '1'\n            rows.append(''.join(row))\n    rows[0] = '2' + rows[0][1:]\n    nd = need(rows)\n    tests.append(fmt(rows, nd))\n    tests.append(fmt(rows, nd - 1))\n    tests.append(fmt(rows, R * C))\n    # random with walls, zombies sprinkled\n    rows = []\n    for i in range(R):\n        row = ''\n        for j in range(C):\n            x = rng.random()\n            row += '0' if x < 0.2 else ('2' if x < 0.2005 else '1')\n        rows.append(row)\n    nd = need(rows)\n    tests.append(fmt(rows, nd if nd is not None else R * C))\n    rows = [''.join(rng.choice('0112') for _ in range(C)) for _ in range(R)]\n    tests.append(fmt(rows, rng.randint(0, 20)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef zombies_win(grid: List[str], k: int) -> bool:\n    # grid[i][j] is '0' (wall), '1' (human) or '2' (zombie).\n    # Return True if every human is infected within k years.\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c, k = int(data[0]), int(data[1]), int(data[2])\n    grid = data[3:3 + r]\n    print('ZOMBIES' if zombies_win(grid, k) else 'HUMANS')\n\n\nmain()\n",
+  "javascript": "function zombiesWin(grid, k) {\n  // grid[i][j] is '0' (wall), '1' (human) or '2' (zombie).\n  // Return true if every human is infected within k years.\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst r = parseInt(t[0]), c = parseInt(t[1]), k = parseInt(t[2])\nconst grid = t.slice(3, 3 + r)\nconsole.log(zombiesWin(grid, k) ? 'ZOMBIES' : 'HUMANS')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\n// grid[i][j] is '0' (wall), '1' (human) or '2' (zombie).\n// Return true if every human is infected within k years.\nbool zombiesWin(vector<string>& grid, long long k) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    long long k;\n    cin >> r >> c >> k;\n    vector<string> grid(r);\n    for (auto& row : grid) cin >> row;\n    cout << (zombiesWin(grid, k) ? \"ZOMBIES\" : \"HUMANS\") << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    // grid[i].charAt(j) is '0' (wall), '1' (human) or '2' (zombie).\n    // Return true if every human is infected within k years.\n    static boolean zombiesWin(String[] grid, long k) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int r = Integer.parseInt(st.nextToken());\n        int c = Integer.parseInt(st.nextToken());\n        long k = Long.parseLong(st.nextToken());\n        String[] grid = new String[r];\n        for (int i = 0; i < r; i++) grid[i] = st.nextToken();\n        System.out.println(zombiesWin(grid, k) ? \"ZOMBIES\" : \"HUMANS\");\n    }\n}\n"
+ }
+}

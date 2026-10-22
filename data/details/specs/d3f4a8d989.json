@@ -1,0 +1,19 @@
+{
+ "qid": "d3f4a8d989",
+ "question": "From a second technical round for a Software Engineering Intern role at Qualcomm: **different ways to share a variable (global, static, pass by value or by reference); what the `volatile` keyword does in C; the C memory map; semaphores and process synchronization; and whether little-endian versus big-endian affects how you access data.**",
+ "lookingFor": [
+  "Do you know scope and lifetime rules, and the consequences of each way of sharing data?",
+  "Do you understand `volatile` precisely, including what it does not guarantee?",
+  "Can you describe the C memory map and what lives where?",
+  "Do you know how semaphores solve synchronisation problems?",
+  "Do you know when endianness matters and when it does not?"
+ ],
+ "answer": "**Ways to share a variable.**\n- **Global:** visible to all files (with `extern`). Easy but couples code and is unsafe under concurrency.\n- **Static:** a file-scope `static` is shared inside one file only; a static local persists between calls. Narrower than global.\n- **Pass by value:** the callee gets a copy and cannot change the caller's variable.\n- **Pass by pointer/reference:** the callee modifies the original. In C, \"by reference\" is done through pointers.\nPrefer passing arguments explicitly; keep shared state minimal, and protect it with locks if threads share it.\n\n**`volatile`.** It tells the compiler the value may change **outside the program's visible control**, so every read or write must really happen and must not be cached in a register or optimised away. Uses: **memory-mapped hardware registers**, variables changed by an **interrupt service routine**, and a flag polled in a loop. It does **not** provide atomicity or memory ordering between threads, so use atomics or locks for thread synchronisation. `const volatile` is valid for a read-only hardware register.\n\n**C memory map.** From low to high: **text** (code), **initialised data**, **BSS** (zero-initialised), **heap** (grows up), free space, **stack** (grows down). Locals go on the stack, `malloc` memory on the heap, globals and statics in data or BSS.\n\n**Semaphores and synchronisation.** A semaphore is an integer with atomic `wait` (decrement, block if zero) and `signal` (increment, wake a waiter). A **binary** semaphore (initial value 1) gives mutual exclusion; a **counting** semaphore manages a pool of resources. Classic uses: producer-consumer (one semaphore counting empty slots, one counting full) and ordering of events. Unlike a mutex, a semaphore has no owner. Misuse causes deadlock or priority inversion.\n\n**Endianness.** It affects how a multi-byte value is laid out in memory, so it matters when you access **bytes** of a value: casting `int *` to `char *`, reading a binary file or network packet, or talking to hardware. It does **not** matter when you use whole values with arithmetic in code. Convert with `htonl/ntohl` for network order, or extract bytes with shifts rather than pointer casts, which is portable.",
+ "followUps": [
+  "Can a pointer be `volatile`? What does `volatile int *p` mean compared with `int *volatile p`?",
+  "Why is `volatile` not enough for thread safety?",
+  "What is the difference between a mutex and a binary semaphore?",
+  "How can you detect the endianness of a machine in C?",
+  "What is priority inversion?"
+ ]
+}

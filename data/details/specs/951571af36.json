@@ -1,0 +1,17 @@
+{
+ "qid": "951571af36",
+ "question": "In an Apple Software Engineer (IS&T Backend, Java/Spring Boot) first technical round, the theory questions included: **explain the CAP theorem** and **microservice resiliency aspects such as rate limiting and circuit breaking**.",
+ "lookingFor": [
+  "Precise understanding of CAP rather than the 'pick two' slogan.",
+  "Linking theory to real databases and design choices.",
+  "Knowing patterns that stop cascading failures.",
+  "Practical experience with Resilience4j, gateways or similar."
+ ],
+ "answer": "**CAP theorem.** In a distributed data store, when a **network partition** occurs, you must choose between:\n- **Consistency (C):** every read sees the latest write (linearizability), or returns an error.\n- **Availability (A):** every request to a non-failing node gets a non-error response, possibly with stale data.\n- **Partition tolerance (P):** the system continues despite dropped or delayed messages between nodes.\n\nPartitions are unavoidable in real networks, so the practical choice is **CP versus AP during a partition**; when there is no partition you can have both. 'Pick any two' is misleading. Examples (behaviour depends on configuration): systems such as ZooKeeper/etcd favour consistency (CP); Cassandra and DynamoDB-style stores, with default settings, favour availability (AP) with eventual consistency; tunable quorums (R + W > N) move along the spectrum. The PACELC extension adds that even without partitions there is a latency versus consistency trade-off. Choose per use case: payments and inventory lean CP; social feeds and caches can accept AP.\n\n**Rate limiting.** Caps how many requests a client can make in a window, protecting services from overload, abuse and noisy neighbours. Algorithms: fixed window, sliding window, **token bucket** (allows bursts), leaky bucket. Applied at the API gateway or per service, keyed by user, API key or IP; returns `429 Too Many Requests` with `Retry-After`. In a distributed setup counters are kept in a shared store such as Redis.\n\n**Circuit breaker.** Wraps calls to a remote dependency. States: **closed** (normal, counts failures), **open** (after a failure-rate threshold, calls fail fast or use a fallback, giving the dependency time to recover), **half-open** (a few trial calls; success closes it, failure reopens it). It prevents threads piling up on a slow service and cascading failure. In Java, Resilience4j is a common library (Hystrix is in maintenance mode).\n\n**Related patterns:** timeouts, retries with exponential backoff and jitter (only for idempotent calls), bulkheads (isolated resource pools), fallbacks and graceful degradation, and load shedding.",
+ "followUps": [
+  "Give an example of a CP and an AP system and explain why.",
+  "What is eventual consistency and how do you handle conflicts?",
+  "How would you implement a distributed rate limiter?",
+  "Why can retries make an outage worse?"
+ ]
+}

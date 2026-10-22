@@ -1,0 +1,17 @@
+{
+ "qid": "ada878f65b",
+ "question": "In the first technical round for an Associate Software Engineer role at ServiceNow (on-campus 2022), after coding problems and questions on XML, XSLT and XSD, the interviewer asked about **stored procedures, cursors and triggers in SQL**, followed by a few basic OOP concepts.",
+ "lookingFor": [
+  "Do you know what each construct is, how it is used and when to use it?",
+  "Can you write a short, correct example of each?",
+  "Do you know the downsides (performance, hidden logic, maintainability)?",
+  "Can you compare them with application-level logic?"
+ ],
+ "answer": "Syntax varies by database (MySQL, PostgreSQL, SQL Server, Oracle); state which one you use in your examples and keep the concept database-neutral.\n\n**Stored procedure.** A named, precompiled block of SQL (and procedural logic) stored in the database and executed with a call. It can take parameters and contain control flow.\n\n    CREATE PROCEDURE GetOrdersByCustomer(IN cid INT)\n    BEGIN\n      SELECT * FROM orders WHERE customer_id = cid;\n    END;\n    CALL GetOrdersByCustomer(7);\n\nBenefits: reuse, fewer network round trips for multi-step logic, centralised business rules, permission control (grant execute but not table access), and protection against SQL injection when parameters are used properly. Costs: logic lives in the database, which is harder to test, version and port.\n\n**Cursor.** SQL normally works on whole sets of rows. A cursor lets procedural code **process a result set one row at a time**. Steps: declare, open, fetch in a loop, close.\n\n    DECLARE c CURSOR FOR SELECT id, salary FROM employee;\n    OPEN c;\n    FETCH c INTO v_id, v_salary;   -- inside a loop until no more rows\n    CLOSE c;\n\nUse cursors only when row-by-row logic is unavoidable; they are slow and use more resources than set-based statements such as a single `UPDATE ... WHERE`. Say that a set-based rewrite is usually better.\n\n**Trigger.** A procedure that the database runs **automatically** in response to an event (`INSERT`, `UPDATE`, `DELETE`) on a table, either `BEFORE` or `AFTER` the event, per row or per statement. Within it you can refer to old and new row values.\n\n    CREATE TRIGGER log_salary_change\n    AFTER UPDATE ON employee\n    FOR EACH ROW\n      INSERT INTO salary_audit(emp_id, old_salary, new_salary, changed_at)\n      VALUES (OLD.id, OLD.salary, NEW.salary, NOW());\n\nTypical uses: audit trails, enforcing complex integrity rules, keeping derived data in sync. Costs: hidden side effects that surprise developers, extra cost on every write, difficult debugging, and risk of cascading triggers.\n\n**Comparison**: a procedure is called explicitly, a trigger fires implicitly on data changes, and a cursor is a way of iterating inside either.",
+ "followUps": [
+  "What is the difference between a stored procedure and a function?",
+  "Why are cursors slower than set-based queries?",
+  "What is the difference between BEFORE and AFTER triggers?",
+  "When would you avoid using triggers?"
+ ]
+}

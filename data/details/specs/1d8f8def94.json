@@ -1,0 +1,19 @@
+{
+ "qid": "1d8f8def94",
+ "question": "Dream11 SDE-2 high-level design: **send a lineup notification to every user in a contest 30 minutes before the match starts.** The input comes from **two Kafka streams**: one with users **joining a contest** and one with **contest lineup information**. The system must be **elastic**, working for a contest with only 1,000 users and for contests with millions. The candidate reported proposing Redis plus Spark, and being asked about the internals of Redis lists and CDC.",
+ "lookingFor": [
+  "Requirements clarification (timing guarantee, duplicates, late joiners).",
+  "Event-driven design: joining two streams, scheduling, fan-out.",
+  "Elastic scale: partitioning, batching, back-pressure.",
+  "Reliability: idempotency, retries, failure of the push provider.",
+  "Awareness of trade-offs in the storage and scheduling choices."
+ ],
+ "answer": "**Requirements.** Functional: for each contest, at T-30 min send each joined user the lineup notification once. Non-functional: on-time (delay of seconds), at-most-once visible to the user (dedupe), tolerates lineup changes and late joins, scales from 1k to millions of recipients per contest, and survives component failures. Clarify: what if the lineup is not yet published at T-30, and may users join after T-30?\n\n**Components**\n1. **Ingest:** consumers read `contest_joins` and `lineup_info`, both keyed by `contest_id` so a contest's events land on one partition (ordering and locality).\n2. **State store:** a participants set per contest (Redis set or sorted structure, or a database table partitioned by contest) and the latest lineup per contest. Joins append; the lineup stream overwrites.\n3. **Scheduler:** when a match start time is known, schedule a **trigger at T-30** (a delayed queue, time-bucketed scan, or a scheduler service). It checks the lineup is ready; if not, retry shortly and alert.\n4. **Fan-out planner:** the trigger splits each contest's users into **chunks** (for example 5k to 10k user ids) and publishes one task per chunk to a `notification_tasks` topic. Small contests become one task, huge ones thousands, which is what gives elasticity.\n5. **Workers (autoscaled):** consume tasks, build the message (lineup plus user), and call the push service (FCM/APNs) in batches, with rate limiting and retries with backoff. Autoscale on consumer lag.\n6. **Delivery tracking and dedupe:** write `(contest_id, user_id)` sent markers (an idempotency key or Redis `SETNX`) so retries do not double-send.\n\n**Spark option:** a streaming or batch job can do the join and chunking, but a scheduled task plus partitioned workers is simpler for a hard deadline.\n\n**Trade-offs and bottlenecks:** a hot partition for a giant contest (split by chunks); push provider throttling (queue and spread); lineup changes after sending (send an update notification); memory for participant sets (store in a database and stream chunks, not hold millions in RAM).\n\n**Monitoring:** delivery latency against T-30, consumer lag, failure rates, and dead-letter queue for poison messages.",
+ "followUps": [
+  "How do you guarantee a notification is not sent twice if a worker crashes mid-chunk?",
+  "How would you handle users who join a contest after the notification time?",
+  "How would you design the scheduler so it survives restarts and scales to thousands of matches?",
+  "How would you handle the push provider rate limiting you?",
+  "What happens if the lineup changes right after you send the notification?"
+ ]
+}

@@ -1,0 +1,43 @@
+{
+ "pid": "razorpay-find-two-numbers-from-sum-and-xor",
+ "title": "Find Two Numbers From Sum and XOR",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "You are given the **sum** `S` and the **bitwise XOR** `X` of two non-negative integers `a` and `b`. Recover the numbers: find non-negative integers `a ≤ b` such that `a + b = S` and `a ^ b = X`.\n\nIf there is more than one such pair, print the one with the **smallest** `a`. If no such pair exists, print `-1`.\n\nThe input contains several independent queries.",
+ "input_format": "The first line contains an integer `T`, the number of queries.\nEach of the next `T` lines contains two integers `S` and `X`.",
+ "output_format": "For each query print one line: either `a b` (two space-separated integers with `a ≤ b`) or `-1`.",
+ "constraints": [
+  "1 ≤ T ≤ 5 · 10^4",
+  "0 ≤ S, X ≤ 10^15"
+ ],
+ "examples": [
+  {
+   "input": "4\n9 5\n5 6\n7 4\n6 0",
+   "output": "2 7\n-1\n-1\n3 3",
+   "explanation": "S=9, X=5: 2+7 = 9 and 2^7 = 5, and no pair with a smaller `a` works. S=5, X=6: the XOR cannot exceed the sum, so -1. S=7, X=4: the sum and XOR must have the same parity, but 7 and 4 do not, so -1. S=6, X=0: the numbers must be equal, so 3 and 3."
+  },
+  {
+   "input": "2\n0 0\n12 4",
+   "output": "0 0\n-1",
+   "explanation": "0 and 0 work for the first query. For S=12, X=4 the carry part (S - X) / 2 = 4 shares bit 2 with X, which is impossible, so the answer is -1."
+  }
+ ],
+ "complexity": {
+  "time": "O(T)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Recall a + b = (a ^ b) + 2 * (a & b). So the AND of the two numbers is (S - X) / 2.",
+  "That only makes sense if S ≥ X and S - X is even. Also, a bit can never be set in both a ^ b and a & b, so (S - X) / 2 and X must share no set bit.",
+  "If it is valid, bits of the AND belong to both numbers, and each bit of X belongs to exactly one of them. Giving all the X bits to b makes `a` as small as possible: a = (S - X) / 2, b = a + X."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    t = int(data[0])\n    out = []\n    for q in range(t):\n        s = int(data[1 + 2 * q])\n        x = int(data[2 + 2 * q])\n        if s < x or (s - x) % 2:\n            out.append('-1')\n            continue\n        d = (s - x) // 2\n        if d & x:\n            out.append('-1')\n        else:\n            out.append(f'{d} {d + x}')\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nt = int(data[0])\nout = []\nfor q in range(t):\n    s = int(data[1 + 2 * q])\n    x = int(data[2 + 2 * q])\n    ans = '-1'\n    for a in range(0, s // 2 + 1):\n        b = s - a\n        if a ^ b == x:\n            ans = f'{a} {b}'\n            break\n    out.append(ans)\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    def fmt(qs):\n        return str(len(qs)) + '\\n' + '\\n'.join(f'{s} {x}' for s, x in qs)\n    tests = [fmt([(0, 0)]), fmt([(9, 5), (5, 6), (7, 4), (6, 0)]), fmt([(0, 0), (12, 4)]), fmt([(1, 1)]), fmt([(2, 0)]),\n             fmt([(1, 0)]), fmt([(10**15, 10**15)]), fmt([(10**15, 0)]), fmt([(10**15, 1)]), fmt([(3, 3), (4, 4), (8, 2)])]\n    # exhaustive small\n    tests.append(fmt([(s, x) for s in range(0, 20) for x in range(0, 6)]))\n    for _ in range(15):\n        qs = []\n        for _ in range(rng.randint(1, 12)):\n            a = rng.randint(0, 60)\n            b = rng.randint(0, 60)\n            if rng.random() < 0.6:\n                qs.append((a + b, a ^ b))\n            else:\n                qs.append((rng.randint(0, 100), rng.randint(0, 100)))\n        tests.append(fmt(qs))\n    def big(valid_prob):\n        qs = []\n        for _ in range(50000):\n            r = rng.random()\n            if r < valid_prob:\n                a = rng.randint(0, 5 * 10**14)\n                b = rng.randint(0, 5 * 10**14)\n                qs.append((a + b, a ^ b))\n            else:\n                qs.append((rng.randint(0, 10**15), rng.randint(0, 10**15)))\n        return fmt(qs)\n    tests.append(big(1.0))\n    tests.append(big(0.5))\n    tests.append(big(0.0))\n    qs = []\n    for _ in range(50000):\n        a = rng.randint(2**48, 5 * 10**14)\n        b = rng.randint(2**48, 5 * 10**14)\n        qs.append((a + b, a ^ b))\n    tests.append(fmt(qs))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef find_numbers(s: int, x: int) -> List[int]:\n    # Write your solution here\n    # Return [a, b] with a <= b, or [-1] if there is no valid pair\n    return [-1]\n\n\ndef main():\n    data = sys.stdin.read().split()\n    t = int(data[0])\n    out = []\n    for q in range(t):\n        s = int(data[1 + 2 * q])\n        x = int(data[2 + 2 * q])\n        out.append(' '.join(map(str, find_numbers(s, x))))\n    print('\\n'.join(out))\n\n\nmain()\n",
+  "javascript": "function findNumbers(s, x) {\n  // Write your solution here (s and x are BigInt)\n  // Return [a, b] with a <= b as BigInts, or [-1n] if there is no valid pair\n  return [-1n]\n}\n\nconst tok = input.split(/\\s+/).filter(Boolean)\nconst t = Number(tok[0])\nconst out = []\nfor (let q = 0; q < t; q++) {\n  const s = BigInt(tok[1 + 2 * q]), x = BigInt(tok[2 + 2 * q])\n  out.push(findNumbers(s, x).join(' '))\n}\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> findNumbers(long long s, long long x) {\n    // Write your solution here\n    // Return {a, b} with a <= b, or {-1} if there is no valid pair\n    return {-1};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int t;\n    cin >> t;\n    while (t--) {\n        long long s, x;\n        cin >> s >> x;\n        vector<long long> r = findNumbers(s, x);\n        for (size_t i = 0; i < r.size(); i++) cout << r[i] << (i + 1 < r.size() ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] findNumbers(long s, long x) {\n        // Write your solution here\n        // Return {a, b} with a <= b, or {-1} if there is no valid pair\n        return new long[]{-1};\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        int t = Integer.parseInt(br.readLine().trim());\n        StringBuilder sb = new StringBuilder();\n        for (int q = 0; q < t; q++) {\n            StringTokenizer st = new StringTokenizer(br.readLine());\n            long s = Long.parseLong(st.nextToken());\n            long x = Long.parseLong(st.nextToken());\n            long[] r = findNumbers(s, x);\n            for (int i = 0; i < r.length; i++) sb.append(r[i]).append(i + 1 < r.length ? \" \" : \"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

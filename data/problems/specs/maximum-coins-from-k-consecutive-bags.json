@@ -1,0 +1,51 @@
+{
+ "pid": "maximum-coins-from-k-consecutive-bags",
+ "title": "Maximum Coins From K Consecutive Bags",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "Bags sit at the integer positions of a number line that extends far in both directions. You are given `n` non-overlapping segments `[l, r]` with a value `c`: every bag at a position `x` with `l ≤ x ≤ r` holds `c` coins. Every position not covered by any segment holds a bag with `0` coins.\n\nPick `k` consecutive positions `x, x + 1, ..., x + k - 1` (the starting position `x` can be any integer) and collect all coins in those bags. Print the maximum number of coins you can collect.\n\nCoordinates go up to `10^9`, so you cannot store one value per position; work with the segments instead. The segments are given in arbitrary order and never overlap, though two segments may touch (for example `[1, 3]` and `[4, 6]`).",
+ "input_format": "The first line contains two integers `n` and `k`.\nEach of the next `n` lines contains three integers `l r c`.",
+ "output_format": "Print a single integer: the maximum number of coins.",
+ "constraints": [
+  "1 ≤ n ≤ 50000",
+  "1 ≤ l ≤ r ≤ 10^9",
+  "1 ≤ c ≤ 1000",
+  "1 ≤ k ≤ 10^9",
+  "No two segments share a position"
+ ],
+ "examples": [
+  {
+   "input": "3 4\n1 3 2\n5 6 4\n8 8 5",
+   "output": "13",
+   "explanation": "Taking positions 5 to 8 gives 4 + 4 + 0 + 5 = 13. Positions 3 to 6 give only 2 + 0 + 4 + 4 = 10."
+  },
+  {
+   "input": "2 100\n1 2 3\n1000 1000 7",
+   "output": "7",
+   "explanation": "The two segments are almost 1000 apart, so 100 consecutive positions cannot reach both. The best choice covers the single bag at 1000 for 7 coins (the first segment would give only 6)."
+  },
+  {
+   "input": "1 5\n3 100 10",
+   "output": "50",
+   "explanation": "Five bags inside the segment hold 10 coins each."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Some optimal window either starts at the left end of a segment or ends at the right end of a segment. Why can you slide any other window until it touches such an end without losing coins?",
+  "Sort the segments and build prefix sums of each segment's full coin total. For a window starting at l_i, the segments it fully covers form a contiguous range, found with binary search or two pointers; add the partial overlap with the next segment.",
+  "Handle windows that end at a right end by mirroring the number line (negate and swap coordinates) and running the same procedure again."
+ ],
+ "reference": "import sys\nfrom bisect import bisect_right\n\ndef best(segs, k):\n    segs.sort()\n    n = len(segs)\n    L = [s[0] for s in segs]\n    R = [s[1] for s in segs]\n    C = [s[2] for s in segs]\n    pref = [0] * (n + 1)\n    for i in range(n):\n        pref[i + 1] = pref[i] + (R[i] - L[i] + 1) * C[i]\n    res = 0\n    for i in range(n):\n        end = L[i] + k - 1\n        idx = bisect_right(R, end)\n        if idx <= i:\n            tot = k * C[i]\n        else:\n            tot = pref[idx] - pref[i]\n            if idx < n and L[idx] <= end:\n                tot += (end - L[idx] + 1) * C[idx]\n        if tot > res:\n            res = tot\n    return res\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    segs = [(int(data[2 + 3 * i]), int(data[3 + 3 * i]), int(data[4 + 3 * i])) for i in range(n)]\n    a = best(list(segs), k)\n    b = best([(-r, -l, c) for l, r, c in segs], k)\n    print(max(a, b))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, k = int(data[0]), int(data[1])\ncoin = {}\nlo, hi = 10**9, 0\nfor i in range(n):\n    l, r, c = int(data[2 + 3 * i]), int(data[3 + 3 * i]), int(data[4 + 3 * i])\n    lo = min(lo, l)\n    hi = max(hi, r)\n    for x in range(l, r + 1):\n        coin[x] = c\nbest = 0\nfor s in range(lo - k, hi + 1):\n    best = max(best, sum(coin.get(x, 0) for x in range(s, s + k)))\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(segs, k):\n        return '%d %d\\n%s' % (len(segs), k, '\\n'.join('%d %d %d' % s for s in segs))\n\n    def small(m, maxgap, maxlen, k):\n        pos = rng.randint(1, 3)\n        segs = []\n        for _ in range(m):\n            pos += rng.randint(0, maxgap)\n            ln = rng.randint(1, maxlen)\n            segs.append((pos, pos + ln - 1, rng.randint(1, 9)))\n            pos += ln\n        rng.shuffle(segs)\n        return fmt(segs, k)\n\n    def big(n, k, span, cmax):\n        pts = sorted(rng.sample(range(1, span + 1), 2 * n))\n        segs = [(pts[2 * i], pts[2 * i + 1], rng.randint(1, cmax)) for i in range(n)]\n        rng.shuffle(segs)\n        return fmt(segs, k)\n\n    tests = [fmt([(1, 1, 1)], 1), fmt([(5, 9, 3)], 2), fmt([(5, 9, 3)], 100), fmt([(1, 3, 2), (4, 6, 5)], 4),\n             fmt([(1, 3, 2), (5, 6, 4), (8, 8, 5)], 4), fmt([(1, 2, 3), (1000, 1000, 7)], 100),\n             fmt([(3, 100, 10)], 5), fmt([(1, 1, 5), (3, 3, 5), (5, 5, 5)], 3)]\n    for _ in range(26):\n        tests.append(small(rng.randint(1, 6), rng.choice([0, 1, 3, 6]), rng.randint(1, 5), rng.randint(1, 30)))\n    tests.append(big(50000, 10**9, 10**9, 1000))\n    tests.append(big(50000, 3 * 10**6, 10**9, 1000))\n    tests.append(big(50000, 10**5, 4 * 10**5 + 50000, 1000))\n    tests.append(big(50000, 1, 10**9, 1000))\n    tests.append(big(30000, 5 * 10**8, 10**9, 7))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef maximum_coins(segments: List[List[int]], k: int) -> int:\n    # Write your solution here\n    # segments[i] = [l, r, c]\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    segments = [[int(data[2 + 3 * i]), int(data[3 + 3 * i]), int(data[4 + 3 * i])] for i in range(n)]\n    print(maximum_coins(segments, k))\n\n\nmain()\n",
+  "javascript": "function maximumCoins(segments, k) {\n  // Write your solution here\n  // segments[i] = [l, r, c]\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst segments = []\nfor (let i = 0; i < n; i++) {\n  segments.push([t[2 + 3 * i], t[3 + 3 * i], t[4 + 3 * i]])\n}\nconsole.log(String(maximumCoins(segments, k)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maximumCoins(vector<array<long long, 3>>& segments, long long k) {\n    // Write your solution here\n    // segments[i] = {l, r, c}\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long k;\n    cin >> n >> k;\n    vector<array<long long, 3>> segments(n);\n    for (int i = 0; i < n; i++) cin >> segments[i][0] >> segments[i][1] >> segments[i][2];\n    cout << maximumCoins(segments, k) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    // segments[i] = {l, r, c}\n    static long maximumCoins(long[][] segments, long k) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        long k = (long) in.nval;\n        long[][] segments = new long[n][3];\n        for (int i = 0; i < n; i++) {\n            for (int j = 0; j < 3; j++) {\n                in.nextToken(); segments[i][j] = (long) in.nval;\n            }\n        }\n        System.out.println(maximumCoins(segments, k));\n    }\n}\n"
+ }
+}

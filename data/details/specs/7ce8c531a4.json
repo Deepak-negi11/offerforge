@@ -1,0 +1,17 @@
+{
+ "qid": "7ce8c531a4",
+ "question": "In the first (written) round of the Zoho off-campus drive for Full Stack Developer, the paper gave **a structure and a union declaration and asked how much memory is allocated for each**. The candidate notes that knowledge of **padding** is needed. Answers were typed in, not chosen from options.\n\nThe exact declarations are not reproduced in the source, so below is the general method with worked examples.",
+ "lookingFor": [
+  "Do you know alignment and padding rules rather than just summing member sizes?",
+  "Can you compute `sizeof` for a struct and a union quickly and correctly?",
+  "Do you know that member order changes struct size?",
+  "Can you state the platform assumption (sizes of `int`, `char`, pointers)?"
+ ],
+ "answer": "**Assumptions.** Typical 32/64-bit platform: `char` 1 byte, `short` 2, `int` 4, `float` 4, `double` 8, pointer 8 (64-bit). Each type is aligned to a multiple of its own size.\n\n**Struct rules**\n\n1. Each member is placed at an offset that is a multiple of its alignment, so padding is inserted before it if needed.\n2. The total size is rounded up to a multiple of the largest member alignment (tail padding), so arrays of the struct stay aligned.\n\n```c\nstruct A { char c; int i; short s; };\n```\nOffsets: `c` at 0, 3 bytes padding, `i` at 4, `s` at 8, then 2 bytes tail padding. Size = **12**.\n\nReordering the members largest first gives less padding:\n```c\nstruct B { int i; short s; char c; };\n```\n`i` at 0, `s` at 4, `c` at 6, 1 byte tail padding. Size = **8**.\n\n**Union rules.** All members share the same starting address, so the size is the size of the largest member, rounded up to the largest alignment.\n\n```c\nunion U { char c; int i; short s; };      // size 4\nunion V { char name[5]; int i; };         // largest member 5, alignment 4, so size 8\n```\n\n**Quick method:** for a struct, walk the members and track the current offset; for a union, take the maximum size and round up. Nested structs follow the same rules using their own size and alignment.\n\n**Extra points:** `#pragma pack(1)` removes padding; bit-fields pack within storage units; `sizeof` is evaluated at compile time; writing one union member and reading another is type punning, which is implementation-defined in C++ (allowed in C).",
+ "followUps": [
+  "How does `#pragma pack(1)` change the size and what is the trade-off?",
+  "What is the size of a struct containing a `double`, a `char` and an `int`, in two different orders?",
+  "How would you read the bytes of a float using a union?",
+  "What is a bit-field and how is it laid out?"
+ ]
+}

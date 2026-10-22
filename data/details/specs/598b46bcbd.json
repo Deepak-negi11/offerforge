@@ -1,0 +1,17 @@
+{
+ "qid": "598b46bcbd",
+ "question": "Reported in an NVIDIA Systems Software Intern interview: what is a union and how does it differ from a struct? What does `static` mean? How does memory allocation work?\n\nThe report gives no further detail, so this write-up covers the standard C/OS version of each part.",
+ "lookingFor": [
+  "Precise knowledge of memory layout of union vs struct",
+  "Both meanings of `static` in C (storage duration and linkage)",
+  "A layered understanding of allocation: compile time, stack, heap, OS",
+  "Awareness of pitfalls like type punning and padding"
+ ],
+ "answer": "**struct vs union.** A `struct` lays its members out one after another (with alignment padding), so `sizeof` is at least the sum of members and each member has its own storage. A `union` overlays all members on the same storage: `sizeof` is the size of the largest member (plus padding to alignment) and only the member last written is meaningful.\n\n```c\nstruct S { int i; char c; double d; }; // all three coexist\nunion  U { int i; char c; double d; }; // share 8 bytes\n```\n\nUse unions for tagged variants (a type tag plus a union of payloads), register or protocol views, and saving memory. Reading a member other than the last written is permitted for type punning in C (implementation-defined bytes) but not in C++, where `memcpy` or `std::bit_cast` is safer.\n\n**static.**\n\n- On a local variable: static storage duration; initialised once, keeps its value across calls. Lives in the data or BSS segment, not on the stack.\n- On a global variable or function: internal linkage; visible only inside that translation unit.\n- In C++ on a class member: shared by all instances rather than per object.\n\n**How memory allocation works.**\n\n- *Static/global:* sized at compile and link time, set up when the program loads (data, BSS).\n- *Stack:* automatic variables are allocated by adjusting the stack pointer on function entry, freed on return. Fast, limited size, no fragmentation.\n- *Heap:* `malloc`/`free` (or `new`/`delete`) managed by the allocator, which carves blocks from memory obtained from the OS with `brk`/`sbrk` or `mmap`. It tracks free blocks with free lists or bins, can fragment, and leaks if you forget `free`.\n- *OS level:* the memory is virtual; physical pages are assigned lazily on first touch (demand paging) through page tables.",
+ "followUps": [
+  "How does padding and alignment change `sizeof` for a struct, and how can you reorder members to shrink it?",
+  "What is a tagged union and how does it compare to `std::variant`?",
+  "What does malloc do internally when the heap has no free block big enough?",
+  "What is internal vs external fragmentation?"
+ ]
+}

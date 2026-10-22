@@ -5,7 +5,7 @@ import { AuthGate } from '../components/AuthGate'
 import { QuestionList, QuestionRow } from '../components/QuestionRow'
 import { Chip, CompanyLogo, EmptyState } from '../components/ui'
 import { useAccount } from '../lib/account'
-import { TRACK_LABEL, byNewest, matchesText, useAtlas, useSortedTopics, type Company, type Question, type Track } from '../lib/data'
+import { LEVELS, TRACK_LABEL, byNewest, matchesText, useAtlas, useSortedTopics, type Company, type Process, type Question, type Track } from '../lib/data'
 import { NotFound } from './NotFound'
 
 type View = 'all' | 'bookmarked' | 'solved'
@@ -34,7 +34,8 @@ function CompanyView({ company }: { company: Company }) {
   const track = (params.get('track') as Track) || defaultTrack
   const view = (params.get('view') as View) || 'all'
   const category = params.get('type') ?? ''
-  const role = params.get('role') ?? ''
+  const exp = params.get('exp') ?? 'all' // experience level; 'none' = level not stated
+  const difficulty = params.get('difficulty') ?? ''
   const sort = params.get('sort') === 'reports' ? 'reports' : 'newest'
   const [text, setText] = useState('')
 
@@ -45,28 +46,30 @@ function CompanyView({ company }: { company: Company }) {
   }
 
   const trackAll = useMemo(() => all.filter((q) => q.track === track), [all, track])
-  const trackQs = useMemo(() => trackAll.filter((q) => q.kind === 'question'), [trackAll])
+  const allTrackQs = useMemo(() => trackAll.filter((q) => q.kind === 'question'), [trackAll])
+  const levelCounts = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const q of allTrackQs) m.set(q.level || 'none', (m.get(q.level || 'none') ?? 0) + 1)
+    return m
+  }, [allTrackQs])
+  const levelOptions = track === 'fulltime' ? LEVELS.filter((l) => levelCounts.get(l.value || 'none')) : []
+  const trackQs = useMemo(() => (exp === 'all' ? allTrackQs : allTrackQs.filter((q) => (q.level || 'none') === exp)), [allTrackQs, exp])
   const notesByRound = useMemo(() => {
     const m = new Map<string, Question[]>()
     for (const q of trackAll) if (q.kind === 'format') m.set(q.round, [...(m.get(q.round) ?? []), q])
     return m
   }, [trackAll])
-  const roles = useMemo(() => {
-    const m = new Map<string, number>()
-    for (const q of trackQs) m.set(q.role, (m.get(q.role) ?? 0) + 1)
-    return [...m.entries()].sort((a, b) => b[1] - a[1])
-  }, [trackQs])
 
   const filtered = useMemo(
     () =>
       [...trackQs].sort(sort === 'newest' ? byNewest : (a, b) => b.reports - a.reports || (b.year ?? 0) - (a.year ?? 0)).filter(
         (q) =>
           (!category || q.category === category) &&
-          (!role || q.role === role) &&
+          (!difficulty || q.difficulty === difficulty) &&
           (view === 'all' || (view === 'bookmarked' ? bookmarks.has(q.id) : solved.has(q.id))) &&
           matchesText(q, company.name, text),
       ),
-    [trackQs, sort, category, role, view, bookmarks, solved, text, company],
+    [trackQs, sort, category, difficulty, view, bookmarks, solved, text, company],
   )
   const byRound = useMemo(() => {
     const m = new Map<string, Question[]>()
@@ -79,9 +82,7 @@ function CompanyView({ company }: { company: Company }) {
     return [...m.entries()].sort((a, b) => b[1] - a[1])
   }, [trackQs])
   const topics = useSortedTopics(trackQs, 10)
-  const processes = company.processes.filter((p) => p.track === track)
-  const [procIdx, setProcIdx] = useState(0)
-  const proc = processes[Math.min(procIdx, Math.max(0, processes.length - 1))]
+  const proc = pickProcess(company.processes.filter((p) => p.track === track), exp)
   const nSaved = trackQs.filter((q) => bookmarks.has(q.id)).length
   const nSolved = trackQs.filter((q) => solved.has(q.id)).length
 
@@ -121,8 +122,7 @@ function CompanyView({ company }: { company: Company }) {
               role="tab"
               aria-selected={active}
               onClick={() => {
-                setProcIdx(0)
-                set({ track: t, role: '', view: '' })
+                set({ track: t, exp: '', view: '' })
               }}
               className={
                 'flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-[15px] font-semibold transition-colors sm:-mb-px sm:justify-start sm:rounded-none sm:border-0 sm:border-b-2 sm:px-5 ' +
@@ -137,6 +137,28 @@ function CompanyView({ company }: { company: Company }) {
         })}
       </div>
 
+      {levelOptions.length > 1 && (
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <span className="shrink-0 text-sm font-medium text-muted">Experience level</span>
+          <div role="radiogroup" aria-label="Experience level" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
+            {[{ value: 'all', label: 'All levels', count: allTrackQs.length }, ...levelOptions.map((l) => ({ value: l.value || 'none', label: l.label, count: levelCounts.get(l.value || 'none') ?? 0 }))].map((o) => (
+              <button
+                key={o.value}
+                role="radio"
+                aria-checked={exp === o.value}
+                onClick={() => set({ exp: o.value === 'all' ? '' : o.value })}
+                className={
+                  'whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ' +
+                  (exp === o.value ? 'border-accent bg-accent text-accent-fg' : 'border-line bg-surface text-muted hover:border-line-strong hover:text-fg')
+                }
+              >
+                {o.label} <span className="tabular-nums opacity-70">{o.count}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-10 pt-8 lg:grid-cols-[minmax(0,1fr)_260px]">
         <div className="min-w-0 space-y-8">
           {proc && view === 'all' && (
@@ -146,28 +168,8 @@ function CompanyView({ company }: { company: Company }) {
                   <h2 id="process-h" className="text-lg font-semibold tracking-[-0.015em] text-fg">
                     How the {TRACK_LABEL[track].toLowerCase()} process works
                   </h2>
-                  <p className="mt-0.5 text-sm text-subtle">
-                    {proc.role}
-                    {proc.location ? `, ${proc.location}` : ''}
-                  </p>
+                  <p className="mt-0.5 text-sm text-subtle">{proc.role}</p>
                 </div>
-                {processes.length > 1 && (
-                  <label className="flex items-center gap-2 text-sm text-muted">
-                    <span>Variant</span>
-                    <select
-                      value={procIdx}
-                      onChange={(e) => setProcIdx(Number(e.target.value))}
-                      className="h-8 max-w-56 rounded-lg border border-line bg-surface px-2 text-sm text-fg outline-none hover:border-line-strong focus-visible:border-accent"
-                    >
-                      {processes.map((p, i) => (
-                        <option key={i} value={i}>
-                          {p.role}
-                          {p.location ? `, ${p.location}` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
               </div>
               <ol className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {proc.rounds.map((r, i) => (
@@ -194,7 +196,7 @@ function CompanyView({ company }: { company: Company }) {
           )}
 
           <div className="space-y-3">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
               <div role="tablist" aria-label="Show" className="grid shrink-0 grid-cols-3 rounded-lg border border-line bg-surface-2 p-0.5 md:inline-flex">
                 {(
                   [
@@ -223,7 +225,7 @@ function CompanyView({ company }: { company: Company }) {
                   </button>
                 ))}
               </div>
-              <label className="relative flex-1">
+              <label className="relative min-w-48 flex-1">
                 <span className="sr-only">Search {company.name} questions</span>
                 <MagnifyingGlassIcon size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
                 <input
@@ -247,23 +249,21 @@ function CompanyView({ company }: { company: Company }) {
                   <option value="reports">Most reported</option>
                 </select>
               </label>
-              {roles.length > 1 && (
-                <label className="flex shrink-0 items-center gap-2">
-                  <span className="text-sm text-muted">Role</span>
-                  <select
-                    value={role}
-                    onChange={(e) => set({ role: e.target.value })}
-                    className="h-9 max-w-48 rounded-lg border border-line bg-surface px-2 text-sm text-fg outline-none hover:border-line-strong focus-visible:border-accent"
-                  >
-                    <option value="">All roles</option>
-                    {roles.map(([r, n]) => (
-                      <option key={r} value={r}>
-                        {r} ({n})
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
+              <label className="flex shrink-0 items-center gap-2">
+                <span className="text-sm text-muted">Difficulty</span>
+                <select
+                  value={difficulty}
+                  onChange={(e) => set({ difficulty: e.target.value })}
+                  className="h-9 rounded-lg border border-line bg-surface px-2 text-sm text-fg outline-none hover:border-line-strong focus-visible:border-accent"
+                >
+                  <option value="">All</option>
+                  {(['Easy', 'Medium', 'Hard'] as const).map((d) => (
+                    <option key={d} value={d}>
+                      {d} ({trackQs.filter((q) => q.difficulty === d && (!category || q.category === category)).length})
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
             <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0" role="group" aria-label="Question type">
               <span className="mr-1 self-center whitespace-nowrap text-xs font-medium text-subtle">Type</span>
@@ -284,7 +284,7 @@ function CompanyView({ company }: { company: Company }) {
           </div>
 
           {filtered.length === 0 ? (
-            view !== 'all' && !text && !category && !role ? (
+            view !== 'all' && !text && !category && !difficulty ? (
               <EmptyState
                 title={view === 'bookmarked' ? `No ${company.name} bookmarks yet` : `Nothing solved at ${company.name} yet`}
                 body={
@@ -392,4 +392,12 @@ function RoundNotes({ notes }: { notes: Question[] }) {
       )}
     </div>
   )
+}
+
+/** The hiring process to show for a level: the most detailed report at that level (entry level when showing all). */
+function pickProcess(processes: Process[], exp: string): Process | undefined {
+  const want = exp === 'all' ? 'entry' : exp === 'none' ? '' : exp
+  const pool = processes.filter((p) => p.level === want)
+  const list = pool.length ? pool : exp === 'all' ? processes : []
+  return [...list].sort((a, b) => b.rounds.length - a.rounds.length)[0]
 }

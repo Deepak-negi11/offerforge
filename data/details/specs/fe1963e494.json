@@ -1,0 +1,19 @@
+{
+ "qid": "fe1963e494",
+ "question": "In a Samsung semiconductor research (SSIR) technical and managerial round, the interviewer gave a scenario question about space optimisation with matrices: **how would you create a program that stores the faulty addresses of a memory matrix in a space-efficient way, using a non-primitive data structure?** The discussion continued until the interviewer was satisfied. The same round had a binary search question on a sorted 0/1 array (find the point where 0 ends and 1 starts). The exact numbers and constraints were not reported, so state your assumptions.",
+ "lookingFor": [
+  "Can you reason about the size and sparsity of the data before choosing a representation?",
+  "Do you compare structures on space and on query, insert and iterate costs?",
+  "Do you know sparse-matrix representations?",
+  "Can you discuss hardware-flavoured trade-offs such as repair mapping and lookup speed?",
+  "Do you ask clarifying questions and state assumptions?"
+ ],
+ "answer": "**Clarify.** A memory is modelled as an R x C matrix of cells, addressed by (row, column). Ask: how big is the memory (for example, millions of rows and columns), how many cells are faulty (a few, or a large share), and which operations matter (is address X faulty, list all faults, add a fault, find faults in a row)? A fixed 2D boolean array uses R x C bits or bytes regardless of how many faults there are, which is wasteful when faults are rare.\n\n**Key idea: the faulty set is sparse, so store only the faults.**\n\n1. **Hash set of encoded addresses:** key = `row * C + col` (use a 64-bit integer). Space O(F) for F faults, average O(1) to check, add or remove. Simplest and fast. No ordering.\n2. **Per-row sorted structure:** a map from row to a sorted list or set of faulty columns. Good if faults cluster in rows (row-level repair), supports \"all faults in row r\" and binary-search lookups in O(log k). A `map<int, vector<int>>` or array of vectors.\n3. **Compressed sparse row (CSR):** three arrays (row pointers, column indices, optional values) for a static set; the most compact and cache friendly, but costly to update.\n4. **Ordered set or balanced tree of (row, col):** keeps sorted order for range queries, O(log F).\n5. **Bitmap or bit-packed matrix:** the best option if faults are *dense* (for example more than a few percent), at R x C / 8 bytes with O(1) access.\n6. **Probabilistic filter (Bloom filter):** very compact with no false negatives but some false positives; useful only as a fast pre-check before an exact structure.\n\n**Recommendation.** Assuming faults are rare and the main operation is \"is this address faulty\", use a hash set of encoded (row, col) keys, or a per-row sorted vector if rows must be enumerated. Choose a bitmap when density exceeds about 1/(bits used per stored entry), meaning roughly when storing coordinates costs more than the bitmap.\n\n**Trade-offs to state:** space versus lookup time, mutability (static CSR versus dynamic hash), memory locality, and worst-case hash collisions. Also mention that real hardware keeps a repair map of row or column spares, so row-level and column-level lists can be a natural fit.",
+ "followUps": [
+  "What is the break-even density between a bitmap and a coordinate list?",
+  "How would you find the number of faulty cells in a rectangular region quickly?",
+  "How would you handle faults that appear and disappear over time?",
+  "How does a Bloom filter help here, and what are its limits?",
+  "Solve the binary search on a sorted 0/1 array to find the first 1."
+ ]
+}

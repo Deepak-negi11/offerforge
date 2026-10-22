@@ -1,0 +1,17 @@
+{
+ "qid": "8663547b11",
+ "question": "In Media.net on-campus technical interviews (SDE intern and SDE-1), candidates were asked to write SQL for the **second highest salary using a subquery**, and then to **generalise it to the nth highest salary** by any method. In one report the interviewer was fine with the candidate solving only the second-highest version, so explain your thinking clearly. Assume a table `Employee(id, name, salary)`.",
+ "lookingFor": [
+  "Comfort with subqueries and aggregate functions.",
+  "Ability to generalise a one-off query to N.",
+  "Handling duplicate salaries and the case where no Nth value exists.",
+  "Knowing alternative solutions and their trade-offs."
+ ],
+ "answer": "**Second highest with a subquery:**\n\n```sql\nSELECT MAX(salary) AS second_highest\nFROM Employee\nWHERE salary < (SELECT MAX(salary) FROM Employee);\n```\nThe inner query returns the top salary; the outer query takes the largest salary strictly below it. Because of `<`, duplicate top salaries are skipped correctly. If there is no second distinct value, `MAX` returns `NULL`, which is a graceful result. To get the employee names instead, select rows `WHERE salary = (that value)`.\n\n**Nth highest, three methods:**\n\n1. **Correlated subquery (classic, works everywhere):**\n```sql\nSELECT DISTINCT e1.salary\nFROM Employee e1\nWHERE N - 1 = (SELECT COUNT(DISTINCT e2.salary)\n               FROM Employee e2\n               WHERE e2.salary > e1.salary);\n```\nA salary is the Nth highest if exactly N-1 distinct salaries are greater than it. It is O(n^2) in the worst case, so it is fine for interview-sized data but not for millions of rows.\n\n2. **LIMIT/OFFSET (MySQL, PostgreSQL):**\n```sql\nSELECT DISTINCT salary FROM Employee\nORDER BY salary DESC\nLIMIT 1 OFFSET N-1;\n```\nSimple and fast with an index on `salary`. Many databases do not allow an expression in `OFFSET`, so compute `N-1` in the application or in a variable.\n\n3. **Window function:**\n```sql\nSELECT DISTINCT salary FROM (\n  SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk\n  FROM Employee) t\nWHERE rnk = N;\n```\n`DENSE_RANK` treats ties as one rank without gaps, which matches the usual meaning. Avoid `ROW_NUMBER` (it counts duplicates as separate ranks).\n\n**Edge cases to mention:** N larger than the number of distinct salaries returns no row (wrap in a scalar subquery to return `NULL`), `NULL` salaries are ignored by comparisons and `MAX`, and N <= 0 should be rejected.\n\n**Which would I use:** the window function on modern databases for clarity, and the correlated subquery when portability across old systems matters.",
+ "followUps": [
+  "What changes if the question asks for the second highest salary in each department?",
+  "Why does the correlated subquery become slow and how would you optimise it?",
+  "What is the difference between RANK and DENSE_RANK for this problem?",
+  "How would you return NULL rather than an empty result when N is too large?"
+ ]
+}

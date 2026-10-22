@@ -1,0 +1,50 @@
+{
+ "pid": "adobe-count-wildcard-pattern-matches-in-text",
+ "title": "Count Wildcard Pattern Matches in Text",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a text `T` and a pattern `P`, both made of lowercase English letters, except that `P` contains exactly one wildcard character `*`. The wildcard may be replaced by **any** string of lowercase letters, including the empty string. For example, the pattern `aa*b` can become `aab`, `aaab`, `aaccb`, and so on.\n\nCount the **occurrences** of the pattern in the text: the number of substrings of `T` that equal some string obtainable from `P` by replacing the wildcard. Substrings are identified by their start and end positions, so two equal substrings at different positions are counted separately, and overlapping occurrences are all counted.\n\n`P` always contains at least one letter, so the empty substring never matches.\n\n**Follow-up:** can you solve it in `O(|T| + |P|)` time instead of trying every substring?",
+ "input_format": "The first line contains the text `T`.\nThe second line contains the pattern `P`.",
+ "output_format": "Print a single integer: the number of occurrences of `P` in `T`.",
+ "constraints": [
+  "1 ≤ |T| ≤ 10^5",
+  "2 ≤ |P| ≤ 10^5",
+  "T consists of lowercase letters",
+  "P consists of lowercase letters and exactly one `*`, and has at least one letter"
+ ],
+ "examples": [
+  {
+   "input": "aabaaab\naa*b",
+   "output": "4",
+   "explanation": "The matching substrings are `aab` (positions 0-2), `aabaaab` (0-6), `aaab` (3-6) and `aab` (4-6). Each starts with `aa` and ends with `b`, with the wildcard covering whatever lies between."
+  },
+  {
+   "input": "aaaa\na*a",
+   "output": "6",
+   "explanation": "Every substring of length at least 2 starts and ends with `a`. There are 3 + 2 + 1 = 6 of them, each counted separately."
+  },
+  {
+   "input": "abab\n*b",
+   "output": "6",
+   "explanation": "Any substring ending in `b` matches: 2 end at index 1 (`ab`, `b`) and 4 end at index 3 (`abab`, `bab`, `ab`, `b`)."
+  }
+ ],
+ "complexity": {
+  "time": "O(|T| + |P|)",
+  "space": "O(|T| + |P|)"
+ },
+ "hints": [
+  "Split the pattern at `*` into a prefix `A` and a suffix `B`. A substring matches exactly when it starts with `A`, ends with `B`, and the two parts do not overlap.",
+  "Find every start position where `A` occurs and every start position where `B` occurs (KMP or the Z-function). Do not rescan the text for each substring.",
+  "For each occurrence of `B` starting at `s`, count how many occurrences of `A` end at or before `s`. A running count (prefix sums) answers this in O(1)."
+ ],
+ "reference": "import sys\n\ndef occurrences(pat, t):\n    n, m = len(t), len(pat)\n    res = [False] * (n + 1)\n    if m == 0:\n        return [True] * (n + 1)\n    s = pat + '#' + t\n    L = len(s)\n    z = [0] * L\n    l = r = 0\n    for i in range(1, L):\n        if i < r:\n            z[i] = min(r - i, z[i - l])\n        while i + z[i] < L and s[z[i]] == s[i + z[i]]:\n            z[i] += 1\n        if i + z[i] > r:\n            l, r = i, i + z[i]\n    for i in range(n - m + 1):\n        if z[m + 1 + i] >= m:\n            res[i] = True\n    return res\n\ndef main():\n    data = sys.stdin.read().split()\n    t, p = data[0], data[1]\n    k = p.index('*')\n    a, b = p[:k], p[k + 1:]\n    n = len(t)\n    la, lb = len(a), len(b)\n    oa = occurrences(a, t)\n    ob = occurrences(b, t)\n    # cnt[x] = number of start positions i of a with i + la <= x\n    cnt = [0] * (n + 2)\n    run = 0\n    for x in range(n + 1):\n        i = x - la\n        if i >= 0 and oa[i] and i <= n - la:\n            run += 1\n        cnt[x] = run\n    total = 0\n    for s in range(n - lb + 1):\n        if ob[s] and s >= la:\n            total += cnt[s]\n    print(total)\n\nmain()\n",
+ "brute": "import sys, re\n\ndata = sys.stdin.read().split()\nt, p = data[0], data[1]\nrx = re.compile(p.replace('*', '[a-z]*'))\nc = 0\nfor i in range(len(t)):\n    for j in range(i + 1, len(t) + 1):\n        if rx.fullmatch(t[i:j]):\n            c += 1\nprint(c)\n",
+ "generator": "def gen(rng):\n    def fmt(t, p):\n        return t + '\\n' + p\n    tests = [\n        fmt('a', 'a*'), fmt('a', '*a'), fmt('a', 'a*a'), fmt('ab', 'a*b'), fmt('aa', 'a*a'),\n        fmt('abc', '*c'), fmt('abc', 'abc*'), fmt('abc', '*abc'), fmt('abc', 'ab*bc'),\n        fmt('aaaa', 'a*a'), fmt('aabaaab', 'aa*b'), fmt('abab', '*b'),\n    ]\n    for _ in range(60):\n        n = rng.randint(1, 30)\n        al = rng.choice(['ab', 'abc', 'a'])\n        t = ''.join(rng.choice(al) for _ in range(n))\n        la = rng.randint(0, 3)\n        lb = rng.randint(0 if la else 1, 3)\n        a = ''.join(rng.choice(al) for _ in range(la))\n        b = ''.join(rng.choice(al) for _ in range(lb))\n        tests.append(fmt(t, a + '*' + b))\n    for _ in range(10):\n        n = rng.randint(30, 60)\n        t = ''.join(rng.choice('ab') for _ in range(n))\n        i = rng.randint(0, n - 4)\n        a = t[i:i + rng.randint(0, 2)]\n        j = rng.randint(0, n - 3)\n        b = t[j:j + rng.randint(1, 3)]\n        tests.append(fmt(t, a + '*' + b))\n    N = 100000\n    tests.append(fmt('a' * N, 'a*a'))\n    tests.append(fmt('ab' * (N // 2), 'ab*ab'))\n    t = ''.join(rng.choice('abc') for _ in range(N))\n    tests.append(fmt(t, 'a*c'))\n    t2 = ''.join(rng.choice('ab') for _ in range(N))\n    tests.append(fmt(t2, t2[:20] + '*' + t2[-20:]))\n    tests.append(fmt('a' * N, 'a' * 50000 + '*' + 'a' * 49999))\n    tests.append(fmt('a' * N, '*'.join(['a' * 40000, 'a' * 30000])))\n    tests.append(fmt('b' + 'a' * (N - 2) + 'b', 'b*b'))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef count_matches(text: str, pattern: str) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    print(count_matches(data[0], data[1]))\n\n\nmain()\n",
+  "javascript": "function countMatches(text, pattern) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconsole.log(String(countMatches(t[0], t[1])))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countMatches(const string& text, const string& pattern) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string text, pattern;\n    cin >> text >> pattern;\n    cout << countMatches(text, pattern) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countMatches(String text, String pattern) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String text = br.readLine().trim();\n        String pattern = br.readLine().trim();\n        System.out.println(countMatches(text, pattern));\n    }\n}\n"
+ }
+}

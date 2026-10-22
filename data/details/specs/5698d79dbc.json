@@ -1,0 +1,18 @@
+{
+ "qid": "5698d79dbc",
+ "question": "Microsoft SDE II design round (reported as a question a friend of the author received): **design a coding contest platform** with the code-editing and **submission** parts.\n\nScale constraint: expect **millions of submissions at the closing time of a contest, about 10^6 transactions per second**. As with all design rounds, list requirements first and keep communicating your thought process.",
+ "lookingFor": [
+  "Separating the API tier from the (slow, untrusted) code execution tier.",
+  "Absorbing a huge write burst with queues and backpressure.",
+  "Safe, isolated, scalable code execution.",
+  "Leaderboard design under heavy read and write load.",
+  "Realistic capacity thinking and fairness guarantees."
+ ],
+ "answer": "**Requirements.** Functional: browse problems, write code, submit, get a verdict (accepted, wrong answer, TLE), live leaderboard. Non-functional: handle ~10^6 submissions/s at the deadline, never lose a submission, fair timestamps, strong isolation for untrusted code.\n\n**Key insight.** Accepting a submission is cheap; *judging* it is expensive (compile and run seconds of CPU). So decouple them: accept fast, judge asynchronously.\n\n**Submission path.** Client calls `POST /submit` through a CDN/API gateway to stateless submit servers. They authenticate, rate limit per user, assign `submission_id` and a **server-side timestamp**, store the code in object storage (code is large), and append a small message to a **partitioned queue (Kafka)**. Return `202 Accepted` with the id. A durable log means a spike only grows queue lag rather than dropping data. Write the submission metadata to a sharded store (partition by `contest_id` + `user_id`).\n\n**Judging.** A pool of workers consume the queue and run code in sandboxes (containers with seccomp, cgroups limits on CPU, memory, no network, time limit; or microVMs). Autoscale workers on queue lag, and prioritize by contest or reserve capacity before a known deadline. Test cases and per-problem limits are cached on workers. Results are written to the DB and published as events.\n\n**Results and leaderboard.** Clients poll `GET /submission/{id}` (served from cache) or receive push updates. The leaderboard uses a **Redis sorted set** per contest (score = solved count and penalty), updated on verdict events; reads served from a replica or a cached snapshot refreshed every few seconds.\n\n**Scaling.** Shard everything by contest or user, use multi-region read caches, and use backpressure: if the judge is behind, still accept submissions but show \"queued\".\n\n**Trade-offs.** Strict immediate verdicts are impossible at that load; the guarantee is no lost submissions and a correct final ranking, with verdicts eventually consistent. Freeze the leaderboard at the end for fairness.\n\n**Mistakes to avoid:** running code synchronously in the request path, and trusting client timestamps.",
+ "followUps": [
+  "How do you sandbox untrusted code safely?",
+  "How do you make sure no submission is lost or judged twice?",
+  "How would you scale the leaderboard for 100k participants?",
+  "How do you prevent cheating or plagiarism?"
+ ]
+}

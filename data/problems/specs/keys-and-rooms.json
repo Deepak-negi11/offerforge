@@ -1,0 +1,49 @@
+{
+ "pid": "keys-and-rooms",
+ "title": "Keys and Rooms",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A building has `n` rooms numbered `0` to `n - 1`. Every room is locked except room `0`, which is where you start. Each room contains a (possibly empty) set of keys, and each key opens exactly one room, identified by the room number written on it.\n\nWhenever you are inside a room you may take all of its keys. A key lets you enter its room any number of times, and you may visit rooms in any order as long as you hold the key for each room you enter (other than room `0`).\n\nDecide whether it is possible to visit **every** room. Print `true` if it is, otherwise print `false`.\n\nA room may contain duplicate keys, a key to the room it is in, or keys to rooms you can already enter.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines describes one room: an integer `k` followed by `k` integers, the room numbers that the keys in this room open (`k` may be `0`, in which case the line contains only `0`). Room `i` is described on line `i + 1`.",
+ "output_format": "Print `true` if all rooms can be visited, otherwise `false`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ total number of keys over all rooms ≤ 2 · 10^5",
+  "0 ≤ each key value ≤ n - 1"
+ ],
+ "examples": [
+  {
+   "input": "4\n2 1 2\n1 3\n0\n0",
+   "output": "true",
+   "explanation": "Room 0 gives keys to rooms 1 and 2. Room 1 gives a key to room 3. All four rooms are reachable."
+  },
+  {
+   "input": "5\n1 2\n1 0\n1 3\n1 1\n0",
+   "output": "false",
+   "explanation": "Room 0 only opens room 2, room 2 only opens room 3, room 3 opens room 1, and room 1 opens room 0 again. Room 4 is never opened, so not every room can be visited."
+  },
+  {
+   "input": "4\n1 1\n1 0\n1 3\n1 2",
+   "output": "false",
+   "explanation": "Rooms 0 and 1 only have keys to each other, and rooms 2 and 3 only to each other. Rooms 2 and 3 can never be entered."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + K) where K is the total number of keys",
+  "space": "O(n + K)"
+ },
+ "hints": [
+  "Model rooms as nodes and each key as a directed edge from the room that contains it to the room it opens.",
+  "The question becomes: starting at node 0, can a traversal reach every node?",
+  "Run a BFS or an iterative DFS from room 0 with a visited array and check that the number of visited rooms equals n."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    p = 1\n    adj = []\n    for _ in range(n):\n        k = int(data[p])\n        adj.append(data[p + 1:p + 1 + k])\n        p += 1 + k\n    seen = [False] * n\n    seen[0] = True\n    stack = [0]\n    cnt = 1\n    while stack:\n        u = stack.pop()\n        for v in adj[u]:\n            v = int(v)\n            if not seen[v]:\n                seen[v] = True\n                cnt += 1\n                stack.append(v)\n    print('true' if cnt == n else 'false')\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\np = 1\nkeys = []\nfor _ in range(n):\n    k = int(data[p])\n    keys.append([int(v) for v in data[p + 1:p + 1 + k]])\n    p += 1 + k\nhave = {0}\nchanged = True\nwhile changed:\n    changed = False\n    for r in list(have):\n        for v in keys[r]:\n            if v not in have:\n                have.add(v)\n                changed = True\nprint('true' if len(have) == n else 'false')\n",
+ "generator": "def gen(rng):\n    def fmt(rooms):\n        lines = [str(len(rooms))]\n        for r in rooms:\n            lines.append(' '.join(map(str, [len(r)] + r)))\n        return '\\n'.join(lines)\n    tests = [fmt([[]]), fmt([[0]]), fmt([[], []]), fmt([[1], []]), fmt([[1, 2], [3], [], []]),\n             fmt([[2], [1, 3], [], []]), fmt([[1], [0], [3], [2]]), fmt([[1, 1, 1], [0, 0], []]),\n             fmt([[1], [2], [3], [4], [0]])]\n    for n in (2, 3, 4, 5, 6, 8, 10, 12):\n        for _ in range(3):\n            rooms = []\n            for i in range(n):\n                k = rng.choice([0, 0, 1, 1, 2])\n                rooms.append([rng.randrange(n) for _ in range(k)])\n            tests.append(fmt(rooms))\n    # a chain that is fully reachable (true), and one with last link missing (false)\n    n = 10**5\n    perm = list(range(1, n))\n    rng.shuffle(perm)\n    order = [0] + perm\n    rooms = [[] for _ in range(n)]\n    for a, b in zip(order, order[1:]):\n        rooms[a] = [b]\n    tests.append(fmt(rooms))\n    rooms2 = [list(r) for r in rooms]\n    rooms2[order[-2]] = []\n    tests.append(fmt(rooms2))\n    # random sparse graph with 2e5 keys\n    rooms3 = [[] for _ in range(n)]\n    for _ in range(2 * 10**5):\n        rooms3[rng.randrange(n)].append(rng.randrange(n))\n    tests.append(fmt(rooms3))\n    # star: room 0 has all keys\n    rooms4 = [[] for _ in range(n)]\n    rooms4[0] = list(range(1, n))\n    tests.append(fmt(rooms4))\n    # two cycles, unreachable second half\n    rooms5 = [[(i + 1) % (n // 2)] if i < n // 2 else [n // 2 + (i - n // 2 + 1) % (n // 2)] for i in range(n)]\n    tests.append(fmt(rooms5))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef can_visit_all_rooms(rooms: List[List[int]]) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    p = 1\n    rooms = []\n    for _ in range(n):\n        k = int(data[p])\n        rooms.append([int(v) for v in data[p + 1:p + 1 + k]])\n        p += 1 + k\n    print('true' if can_visit_all_rooms(rooms) else 'false')\n\n\nmain()\n",
+  "javascript": "function canVisitAllRooms(rooms) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nlet p = 1\nconst rooms = []\nfor (let i = 0; i < n; i++) {\n  const k = t[p]\n  rooms.push(t.slice(p + 1, p + 1 + k))\n  p += 1 + k\n}\nconsole.log(canVisitAllRooms(rooms) ? 'true' : 'false')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool canVisitAllRooms(vector<vector<int>>& rooms) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<vector<int>> rooms(n);\n    for (int i = 0; i < n; i++) {\n        int k;\n        cin >> k;\n        rooms[i].resize(k);\n        for (int j = 0; j < k; j++) cin >> rooms[i][j];\n    }\n    cout << (canVisitAllRooms(rooms) ? \"true\" : \"false\") << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean canVisitAllRooms(int[][] rooms) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[][] rooms = new int[n][];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            int k = (int) in.nval;\n            rooms[i] = new int[k];\n            for (int j = 0; j < k; j++) {\n                in.nextToken();\n                rooms[i][j] = (int) in.nval;\n            }\n        }\n        System.out.println(canVisitAllRooms(rooms) ? \"true\" : \"false\");\n    }\n}\n"
+ }
+}

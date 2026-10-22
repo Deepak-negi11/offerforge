@@ -1,0 +1,18 @@
+{
+ "qid": "8e256178b5",
+ "question": "PhonePe SDE-2 high-level design round: **design a Shazam-like service.** A user sends a short audio sample and the system returns the matching song's metadata. The discussion covers processing the audio input, converting it into a suitable **matchable representation**, handling and storing large binary/audio data, **matching** the sample against the catalogue, scalability and the overall service architecture. One candidate in 2025 was told to solve it **without any ML model**; they proposed hashing over sliding windows, stored in a database and compared at query time, and covered APIs, schema and scale.",
+ "lookingFor": [
+  "Structuring an unfamiliar problem: requirements, then approaches.",
+  "Understanding audio fingerprinting as hashing, not magic.",
+  "Choosing storage for large blobs versus the fingerprint index.",
+  "Matching robustness (noise, offset) and scale.",
+  "Trade-offs and clear APIs."
+ ],
+ "answer": "**Requirements and scale.** Identify a song from a 5-15 second clip, tolerant of noise and starting at any offset, results in about a second. Assume tens of millions of songs and a high query rate. Out of scope: lyrics, recommendations.\n\n**Core idea: acoustic fingerprinting, no ML needed.**\n1. Convert audio to mono, resample, and compute a spectrogram (short-time FFT).\n2. Find **peaks** (time-frequency points of high energy), which survive noise and compression.\n3. Form hashes from **pairs of nearby peaks**: `hash(freq1, freq2, time_delta)`, anchored at the time of the first peak. This is the constellation approach described in the public Shazam paper. A simpler alternative, as one candidate proposed, is hashing windows of the signal, though that is less robust to noise and offset.\n\n**Indexing (offline).** For each catalogue song, compute fingerprints and store `hash -> (songId, offsetInSong)` in a key-value or wide-column store (for example Cassandra or DynamoDB) or an inverted index, partitioned by hash. Raw audio goes to object storage (for example S3); song metadata goes to a relational or document DB.\n\n**Query (online).**\n1. Client (or an ingest service) computes fingerprints from the clip so raw audio travels less.\n2. Look up each hash and collect `(songId, songOffset - clipOffset)`.\n3. A genuine match produces many hits sharing the **same time offset**; the song with the biggest consistent-offset count wins if it passes a threshold. Return the metadata.\n\n**Architecture.** API gateway, a fingerprint service, a matching service reading the index, a metadata service, plus an ingestion pipeline (queue, workers) for new songs. Cache hot songs' metadata; shard the index by hash; scale matching horizontally since lookups are independent.\n\n**Trade-offs.** More hashes per song gives higher accuracy but more storage; shorter clips are faster but less certain. API example: `POST /v1/identify` with fingerprints or audio returning `{songId, title, artist, confidence}`.",
+ "followUps": [
+  "How do you make matching robust to background noise?",
+  "How would you estimate the storage for the fingerprint index?",
+  "Why check for a consistent time offset instead of counting raw hash hits?",
+  "How would you add new songs without downtime?"
+ ]
+}

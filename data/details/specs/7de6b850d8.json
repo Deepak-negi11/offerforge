@@ -1,0 +1,17 @@
+{
+ "qid": "7de6b850d8",
+ "question": "Qualcomm Technical Interview 2 (Associate Engineer, a senior engineer, started \"unexpectedly\" with core OS). Reported questions: explain **defragmentation**, **thrashing**, **memory management** and **virtual memory**, with the interviewer going deep and asking follow-ups on each. The same round moved on to process scheduling: **which scheduling algorithm is best**, and **how does a Multi-Level Feedback Queue (MLFQ) work**?",
+ "lookingFor": [
+  "Whether OS fundamentals are clear enough to explain causes, not just definitions.",
+  "Linking virtual memory, paging and page faults to performance symptoms such as thrashing.",
+  "Trade-off thinking: no scheduling algorithm is best for every workload.",
+  "Ability to handle depth-first follow-ups without bluffing."
+ ],
+ "answer": "**Virtual memory.** Each process sees its own address space; the MMU translates virtual pages to physical frames via page tables (cached in the TLB). Pages not in RAM live on disk and are loaded on a page fault (demand paging). Benefits: isolation, programs larger than RAM, and sharing.\n\n**Fragmentation / defragmentation.** *External* fragmentation: free memory is split into pieces too small to satisfy a contiguous request (contiguous allocation, segmentation). Fix: compaction (defragmentation) or paging, which removes it. *Internal* fragmentation: wasted space inside an allocated block (e.g. last page only partly used). Paging trades external for internal fragmentation.\n\n**Thrashing.** When the total working sets of running processes exceed physical memory, pages are evicted just before they are needed again. The page-fault rate soars, the CPU mostly waits on disk, and utilisation drops. A naive scheduler sees low CPU use and admits more processes, making it worse. Remedies: reduce the degree of multiprogramming, working-set model or page-fault-frequency control, local replacement, more RAM.\n\n**Which scheduler is best?** There is none. FCFS is simple but suffers the convoy effect. SJF/SRTF minimises average waiting time but needs burst estimates and can starve long jobs. Round Robin gives good response time, with the quantum as the trade-off. Priority scheduling needs aging. Real systems combine them.\n\n**MLFQ.** Several queues of different priority. Typical rules:\n- Higher-priority queue runs first; equal priority uses Round Robin.\n- A new job enters the top queue.\n- If a job uses its whole time slice, it moves down one level (it looks CPU-bound).\n- If it yields early (I/O-bound or interactive), it stays.\n- Periodically boost all jobs to the top queue to prevent starvation and handle phase changes.\n- Account for total time used at a level, so a job cannot game the scheduler by yielding just before the slice ends.\n\nResult: short and interactive jobs get quick response, long jobs get throughput, and no prior knowledge of burst length is needed.",
+ "followUps": [
+  "How does the working-set model detect thrashing?",
+  "Compare FIFO, LRU and Clock page replacement. What is Belady's anomaly?",
+  "How can a process game MLFQ, and how is that prevented?",
+  "What is a TLB miss and what does the OS do on a page fault?"
+ ]
+}

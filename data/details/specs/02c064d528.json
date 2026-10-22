@@ -1,0 +1,17 @@
+{
+ "qid": "02c064d528",
+ "question": "Round 2 for a Software Developer role (1.5 years of experience) at Tower Research. One question: **given a time in `HH:MM` format and an integer `n` of minutes, add `n` minutes, keep the result in 24-hour format, and throw an exception if the input is wrong.** The round then covered Python generators and `yield`, `map`, `lambda` and `reduce`, list comprehensions, and Git commands (`pull` merges incoming changes; `fetch` does not), plus a detailed project discussion.",
+ "lookingFor": [
+  "Do you write correct code with careful input validation?",
+  "Do you handle edge cases: wrap-around past midnight, negative minutes, large n?",
+  "Do you use modular arithmetic instead of fragile loops?",
+  "Do you know the Python and Git fundamentals asked afterwards?"
+ ],
+ "answer": "**Approach.** Convert the time to minutes since midnight, add `n`, take the result modulo 1440 (minutes per day) and convert back.\n\n**Validation first.** Check that the string matches `HH:MM` (two digits, a colon, two digits), that `0 <= HH <= 23` and `0 <= MM <= 59`, and that `n` is an integer (in Python, reject `bool`, which is a subclass of `int`). Raise `ValueError` or `TypeError` with a clear message. Decide whether negative `n` is allowed; Python's modulo handles it correctly.\n\n```python\nimport re\n\ndef add_minutes(time_str, n):\n    if not isinstance(n, int) or isinstance(n, bool):\n        raise TypeError(\"n must be an integer\")\n    m = re.fullmatch(r\"(\\d{2}):(\\d{2})\", time_str or \"\")\n    if not m:\n        raise ValueError(\"time must be in HH:MM format\")\n    h, mi = int(m.group(1)), int(m.group(2))\n    if h > 23 or mi > 59:\n        raise ValueError(\"hours must be 0-23 and minutes 0-59\")\n    total = (h * 60 + mi + n) % 1440\n    return f\"{total // 60:02d}:{total % 60:02d}\"\n\nadd_minutes(\"23:45\", 30)   # \"00:15\"\nadd_minutes(\"00:10\", -20)  # \"23:50\"\n```\n\nTime and space are O(1). Test cases: midnight wrap, `n = 0`, `n` larger than a day, negative `n`, `\"24:00\"`, `\"7:5\"`, `None`, and a non-numeric `n`.\n\n**The follow-ups, briefly.**\n- **Generators:** functions using `yield` that produce values lazily and keep their state between calls, saving memory for large or infinite sequences.\n- **`map`, `lambda`, `reduce`:** `map(f, xs)` applies `f` lazily, `lambda` is an anonymous one-expression function, and `functools.reduce(f, xs)` folds a sequence into one value.\n- **`git fetch` vs `git pull`:** `fetch` downloads remote changes without touching your working branch; `pull` is `fetch` plus a merge (or rebase) into the current branch.",
+ "followUps": [
+  "How would you support 12-hour format with AM/PM?",
+  "What is the difference between a generator and a list comprehension?",
+  "What is the difference between git merge and git rebase?",
+  "How would you handle time zones and daylight saving time if this were date-times?"
+ ]
+}

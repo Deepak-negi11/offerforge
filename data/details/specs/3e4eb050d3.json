@@ -1,0 +1,17 @@
+{
+ "qid": "3e4eb050d3",
+ "question": "An Adobe MTS-1 hiring manager round asked the candidate to **design an elevator (lift) system**. No more detail was reported, so clarify scope: the number of elevators and floors, and whether the focus is class design and scheduling (typical for LLD) rather than hardware.",
+ "lookingFor": [
+  "Can you clarify requirements and model the system into classes with clear responsibilities?",
+  "Do you model elevator behaviour as a state machine?",
+  "Can you design a dispatch/scheduling strategy and reason about its trade-offs?",
+  "Do you consider concurrency, edge cases and extensibility?"
+ ],
+ "answer": "**Requirements**: a building with N floors and M elevators. Hall calls (up/down buttons outside) and car calls (floor buttons inside). Elevators move, open/close doors, serve requests, and the system decides which elevator takes a hall call. Out of scope unless asked: weight sensors, fire mode (can mention as an extension).\n\n**Classes**:\n- `Direction { UP, DOWN, IDLE }`, `ElevatorState { MOVING, STOPPED, DOOR_OPEN, OUT_OF_SERVICE }`\n- `Request { floor, direction }` for hall calls; internal requests are just target floors.\n- `Elevator { id, currentFloor, direction, state, sortedSet upStops, sortedSet downStops }` with `addStop(floor)`, `step()` (move one floor or open door), and `isIdle()`.\n- `ElevatorController` / `Dispatcher { elevators, SchedulingStrategy }` with `requestElevator(floor, direction)` and `selectFloor(elevatorId, floor)`.\n- `SchedulingStrategy` interface (Strategy pattern): `Elevator pick(List<Elevator>, Request)`.\n- `Display`/`Button` classes if the interviewer wants hardware modelling.\n\n**Elevator behaviour (SCAN/LOOK algorithm)**: keep going in the current direction, serving stops in order (`upStops` ascending), then reverse when no stops remain ahead, like a disk-scheduling sweep. This avoids starvation and wasted trips.\n\n**Dispatch strategies**: nearest elevator; or a cost function that prefers an elevator already moving toward the request in the same direction (best), else an idle one, else the one that finishes earliest. Simple to extend with energy or load-based rules.\n\n**State handling**: transitions such as `IDLE` to `MOVING` on a new stop, `MOVING` to `DOOR_OPEN` on arrival, then back to `IDLE`/`MOVING`. A State pattern keeps each state's rules in one place.\n\n**Concurrency and edge cases**: requests arrive while elevators run, so protect each elevator's stop sets with a lock or process requests on a single event loop; ignore duplicate requests; validate floor ranges; handle overload and out-of-service elevators by reassigning requests.",
+ "followUps": [
+  "How would you handle a request for the floor an elevator is already stopped at?",
+  "How would you assign elevators in peak hours (morning up-peak) differently?",
+  "How do you make this thread-safe?",
+  "How would you add priority access, such as a fire mode or VIP floors?"
+ ]
+}

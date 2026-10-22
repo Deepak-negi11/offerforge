@@ -1,0 +1,43 @@
+{
+ "pid": "visa-blur-an-image-matrix",
+ "title": "Blur an Image Matrix",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "An image is stored as a matrix of colour intensities with `r` rows and `c` columns. To blur it, replace every pixel by the **average of its neighbourhood**: the `3 x 3` block of pixels centred on it, including the pixel itself. Pixels on the border or in a corner have fewer than 9 pixels in their block; in that case average only the pixels that exist.\n\nThe average is rounded **down** to an integer. Every new value must be computed from the **original** image, not from values that have already been blurred.\n\nPrint the blurred image.",
+ "input_format": "The first line contains `r` and `c`.\nEach of the next `r` lines contains `c` integers: one row of the image.",
+ "output_format": "Print `r` lines of `c` space-separated integers: the blurred image.",
+ "constraints": [
+  "1 ≤ r, c ≤ 500",
+  "0 ≤ intensity ≤ 255"
+ ],
+ "examples": [
+  {
+   "input": "3 3\n10 20 30\n40 50 60\n70 80 90",
+   "output": "30 35 40\n45 50 55\n60 65 70",
+   "explanation": "The top-left pixel has only four pixels in its block: (10 + 20 + 40 + 50) / 4 = 30. The centre pixel uses all nine: 450 / 9 = 50. The top-middle pixel has six: (10 + 20 + 30 + 40 + 50 + 60) / 6 = 35."
+  },
+  {
+   "input": "2 4\n0 255 0 255\n255 0 255 0",
+   "output": "127 127 127 127\n127 127 127 127",
+   "explanation": "Corner blocks have four pixels summing to 510 and other blocks have six pixels summing to 765. Both averages are 127.5, which is rounded down to 127."
+  }
+ ],
+ "complexity": {
+  "time": "O(r * c)",
+  "space": "O(r * c)"
+ },
+ "hints": [
+  "For each pixel, visit the up-to-nine pixels around it that lie inside the matrix, summing them and counting how many you visited.",
+  "Write results into a separate output matrix so that already-blurred values never feed into later averages.",
+  "Use integer (floor) division of the sum by the count. A 2D prefix-sum table also works but is not needed for a fixed 3 x 3 block."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    g = [[int(x) for x in data[2 + i * c:2 + (i + 1) * c]] for i in range(r)]\n    out = []\n    for i in range(r):\n        lo_i, hi_i = max(0, i - 1), min(r, i + 2)\n        row = []\n        for j in range(c):\n            lo_j, hi_j = max(0, j - 1), min(c, j + 2)\n            s = 0\n            for a in range(lo_i, hi_i):\n                s += sum(g[a][lo_j:hi_j])\n            row.append(s // ((hi_i - lo_i) * (hi_j - lo_j)))\n        out.append(' '.join(map(str, row)))\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\ng = [[int(x) for x in data[2 + i * c:2 + (i + 1) * c]] for i in range(r)]\nout = []\nfor i in range(r):\n    row = []\n    for j in range(c):\n        vals = []\n        for di in (-1, 0, 1):\n            for dj in (-1, 0, 1):\n                a, b = i + di, j + dj\n                if 0 <= a < r and 0 <= b < c:\n                    vals.append(g[a][b])\n        row.append(sum(vals) // len(vals))\n    out.append(' '.join(map(str, row)))\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    def fmt(g):\n        return f'{len(g)} {len(g[0])}\\n' + '\\n'.join(' '.join(map(str, row)) for row in g)\n    tests = [fmt([[0]]), fmt([[255]]), fmt([[10, 20, 30], [40, 50, 60], [70, 80, 90]]), fmt([[0, 255, 0, 255], [255, 0, 255, 0]]), fmt([[1, 2, 3, 4, 5]]), fmt([[1], [2], [3], [9]]), fmt([[255, 255], [255, 254]])]\n    for _ in range(25):\n        r, c = rng.randint(1, 7), rng.randint(1, 7)\n        hi = rng.choice([1, 9, 255])\n        tests.append(fmt([[rng.randint(0, hi) for _ in range(c)] for _ in range(r)]))\n    R = C = 500\n    tests.append(fmt([[rng.randint(0, 255) for _ in range(C)] for _ in range(R)]))\n    tests.append(fmt([[255] * C for _ in range(R)]))\n    tests.append(fmt([[(i + j) % 2 * 255 for j in range(C)] for i in range(R)]))\n    tests.append(fmt([[rng.randint(0, 255) for _ in range(500)] for _ in range(1)]))\n    tests.append(fmt([[rng.randint(0, 255)] for _ in range(500)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef blur(image: List[List[int]]) -> List[List[int]]:\n    # Write your solution here\n    return image\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    image = [[int(x) for x in data[2 + i * c:2 + (i + 1) * c]] for i in range(r)]\n    print('\\n'.join(' '.join(map(str, row)) for row in blur(image)))\n\n\nmain()\n",
+  "javascript": "function blur(image) {\n  // Write your solution here\n  return image\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst r = t[0], c = t[1]\nconst image = []\nfor (let i = 0; i < r; i++) image.push(t.slice(2 + i * c, 2 + (i + 1) * c))\nconsole.log(blur(image).map(row => row.join(' ')).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<vector<int>> blur(vector<vector<int>>& image) {\n    // Write your solution here\n    return image;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<vector<int>> image(r, vector<int>(c));\n    for (int i = 0; i < r; i++)\n        for (int j = 0; j < c; j++) cin >> image[i][j];\n    vector<vector<int>> res = blur(image);\n    for (size_t i = 0; i < res.size(); i++)\n        for (size_t j = 0; j < res[i].size(); j++)\n            cout << res[i][j] << (j + 1 < res[i].size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[][] blur(int[][] image) {\n        // Write your solution here\n        return image;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int r = (int) in.nval;\n        in.nextToken();\n        int c = (int) in.nval;\n        int[][] image = new int[r][c];\n        for (int i = 0; i < r; i++)\n            for (int j = 0; j < c; j++) {\n                in.nextToken();\n                image[i][j] = (int) in.nval;\n            }\n        int[][] res = blur(image);\n        StringBuilder sb = new StringBuilder();\n        for (int[] row : res) {\n            for (int j = 0; j < row.length; j++) sb.append(row[j]).append(j + 1 < row.length ? \" \" : \"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

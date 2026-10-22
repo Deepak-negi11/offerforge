@@ -1,0 +1,19 @@
+{
+ "qid": "fc301f59c7",
+ "question": "Uber Freight (SWE III) system design round. **Design a Google Calendar backend**: users create, update and delete events with invitees who can accept or decline, scaled to **10M daily active users and 10k QPS**. A related report says the interviewer drove the discussion with pointed 'how would you do A, how would you do B' questions rather than letting the candidate lead.",
+ "lookingFor": [
+  "Scoping a calendar product and defining APIs.",
+  "Data modelling for events, attendees and recurrence.",
+  "Scale math from DAU to QPS and storage.",
+  "Consistency, conflicts and notification design.",
+  "Answering deep-dive questions on demand."
+ ],
+ "answer": "**Requirements.** Create, edit and delete events; invite users who accept/decline/tentative; view day/week/month; reminders and notifications. Out of scope: video links, rooms, and free/busy search across orgs unless asked. 10M DAU and 10k QPS is read-dominated (viewing calendars), with writes at maybe a few hundred per second.\n\n**API**\n- `POST /events`, `PATCH /events/{id}`, `DELETE /events/{id}`\n- `POST /events/{id}/rsvp {status}`\n- `GET /calendar?from=&to=` returns the events in a time range for the user.\n\n**Data model**\n- `Event(id, organizer_id, title, start, end, timezone, recurrence_rule, version)`\n- `Attendee(event_id, user_id, status)`\n- A per-user **calendar index** `(user_id, start_time, event_id)`, since the read pattern is \"my events in a time range\". Maintain it for the organizer and each invitee.\n\nUse a relational DB sharded by `user_id` (the index) with events referenced by id, or a KV/wide-column store keyed by `user_id` with a range on `start_time`. Putting the index on the user's shard makes range reads a single-shard query.\n\n**Recurrence.** Store the rule (RRULE-style) plus exceptions, and expand occurrences at read time for the requested window. Do not materialise infinite instances.\n\n**Time zones.** Store UTC plus the event's time zone id, so daylight-saving changes are handled correctly.\n\n**RSVP and updates.** An update writes the event (with optimistic locking via `version`) and fans out to attendees through a queue, which updates their index entries and sends notifications. Invitee status changes only the `Attendee` row.\n\n**Reminders.** A scheduler scans upcoming events by time bucket and publishes reminders; make them idempotent.\n\n**Caching.** Cache the current week's events per user in Redis and invalidate on change. Handle conflict detection by querying the overlap on the user's index.\n\n**Scale.** Shard by user, replicate reads, and treat very large invite lists (a company-wide event) with asynchronous fan-out.",
+ "followUps": [
+  "How do you model recurring events with edits to a single occurrence?",
+  "How would you store time zones so daylight-saving changes do not break events?",
+  "How do you keep each invitee's view consistent after the organiser edits an event?",
+  "How would you implement find-a-free-slot for several people?",
+  "How would you handle an event with 50,000 invitees?"
+ ]
+}

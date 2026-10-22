@@ -1,0 +1,18 @@
+{
+ "qid": "b62635b14b",
+ "question": "**Design a Netflix recommendation system.** (System design, Software Engineer Intern, Netflix.) The question is reported without further detail, so state your assumptions and scope clearly.",
+ "lookingFor": [
+  "Can you frame a recommendation problem with goals, signals and metrics?",
+  "Do you separate offline training from online serving and understand latency limits?",
+  "Do you know candidate generation followed by ranking, and why it is split?",
+  "Do you handle cold start, freshness and feedback loops?",
+  "Can you describe evaluation, both offline metrics and A/B tests?"
+ ],
+ "answer": "**Requirements.** For each user and context (home page row, device, time), return a ranked list of titles they are likely to enjoy. Goals: relevance, diversity, freshness, low latency (tens to a few hundred milliseconds), scale to hundreds of millions of users. Assume interns are not expected to name a specific production model, so reason about the pipeline.\n\n**Data and signals.** Implicit feedback (plays, watch time, completion, searches, abandonment), explicit feedback (thumbs), user attributes (country, language, device), and title metadata (genre, cast, language, release date).\n\n**Architecture**\n1. **Event pipeline:** client events -> message queue (for example Kafka) -> data lake and feature store.\n2. **Offline training (batch):** periodically train models, for example matrix factorization or two-tower embeddings that map users and titles to vectors, plus a ranking model. Store the learned embeddings and precomputed candidate lists.\n3. **Candidate generation:** from a catalog of thousands of titles, quickly pick a few hundred via similarity (nearest neighbours in embedding space), popularity per region, \"because you watched X\", and recently added titles.\n4. **Ranking:** a more expensive model scores each candidate using user, title and context features (gradient-boosted trees or a neural network) and predicts watch probability.\n5. **Re-ranking and business rules:** diversity across genres, remove already watched titles, maturity ratings, regional licensing.\n6. **Serving:** a stateless recommendation API reads precomputed results from a cache or key-value store; it computes the cheap parts online. A \"nearline\" job updates results when a user finishes watching something, so the page reflects recent behaviour.\n\n**Cold start.** New user: use popularity by country, onboarding choices, and device. New title: use content metadata and similar titles, with exploration traffic.\n\n**Evaluation.** Offline: precision@k, recall@k, NDCG on held-out data (split by time to avoid leakage). Online: A/B tests on watch time and retention, since offline gains do not always translate.\n\n**Trade-offs and risks.** Precompute versus real-time cost, popularity bias and filter bubbles (add exploration), and feedback loops where the system only learns from what it shows.",
+ "followUps": [
+  "How would you handle a brand-new user with no history?",
+  "Why split into candidate generation and ranking instead of scoring every title?",
+  "How would you evaluate the system offline and online?",
+  "How do you balance exploration against exploitation?"
+ ]
+}

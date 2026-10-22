@@ -1,0 +1,18 @@
+{
+ "qid": "3e9408a936",
+ "question": "Nutanix software engineer on-campus technical interview. The reported task: **implement a binary tree whose nodes can be locked, where a node can be locked only if none of its ancestors or descendants is locked, with thread-safe access.** The usual API is `lock(node)`, `unlock(node)` and `isLocked(node)`, each returning a boolean for success. Time complexity expectations were not reported; a common target is O(h) for lock and unlock, where h is the tree height.",
+ "lookingFor": [
+  "Choosing the right data to store per node (parent pointer, lock flag, locked-descendant count).",
+  "Correct handling of ancestors and descendants with good complexity.",
+  "Thread-safety reasoning: atomic check-and-update and deadlock avoidance.",
+  "Edge cases: re-lock, unlock when not locked, root node.",
+  "Clean class design and testability."
+ ],
+ "answer": "**Idea.** Each node stores: `parent`, `isLocked`, and `lockedDescendants` (count of locked nodes in its subtree, excluding itself).\n\n**lock(node):**\n1. If `node.isLocked` or `node.lockedDescendants > 0`, return false (a descendant is locked).\n2. Walk up the ancestors; if any ancestor `isLocked`, return false.\n3. Set `node.isLocked = true`, then walk up again incrementing each ancestor's `lockedDescendants`. Return true.\n\n**unlock(node):** if not locked, return false. Set `isLocked = false` and decrement `lockedDescendants` on every ancestor. Return true.\n\n**isLocked(node):** return `node.isLocked`.\n\nComplexity: O(h) time for lock and unlock, O(1) extra space. The count avoids scanning the whole subtree, which would be O(n).\n\n```java\nsynchronized boolean lock(Node n) {\n  if (n.locked || n.lockedDesc > 0) return false;\n  for (Node p = n.parent; p != null; p = p.parent)\n    if (p.locked) return false;\n  n.locked = true;\n  for (Node p = n.parent; p != null; p = p.parent) p.lockedDesc++;\n  return true;\n}\n```\n\n**Thread safety.** The check and the update must be one atomic step; otherwise two threads could lock a parent and child at once. Options:\n- *Coarse lock*: one `ReentrantLock` or `synchronized` on the tree. Simple and correct, but limits concurrency.\n- *Finer locking*: lock the nodes on the path from the target to the root in a fixed order (always bottom-up), so threads cannot deadlock. Unrelated subtrees still contend at the shared ancestors, so the gain is limited.\n- *Optimistic*: read-mostly `isLocked` using `volatile`, with updates under a lock.\n\n**Edge cases.** Locking an already locked node, unlocking an unlocked node, null node, root, and a lock followed by unlock restoring all counters. Test with a concurrent stress test that asserts the invariant never breaks.\n\n**Alternative:** without counters, lock cost is O(n) for the subtree check.",
+ "followUps": [
+  "How would you make lock and unlock faster than O(h)?",
+  "Can you avoid a global lock but still be correct?",
+  "How would you handle a tree that is modified (nodes added or removed) while locks exist?",
+  "How would you test this class under concurrency?"
+ ]
+}

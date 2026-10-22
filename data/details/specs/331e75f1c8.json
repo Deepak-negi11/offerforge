@@ -1,0 +1,18 @@
+{
+ "qid": "331e75f1c8",
+ "question": "Infosys SP / DSE second technical round with a Senior Technical Lead: **design WhatsApp at a high level (HLD).** The discussion focused on the major components and how the system would work at scale.",
+ "lookingFor": [
+  "Requirements gathering and capacity estimates.",
+  "Choosing a real-time delivery mechanism and handling offline users.",
+  "Data modelling and partitioning for messages.",
+  "Trade-offs, bottlenecks and failure handling."
+ ],
+ "answer": "**Requirements.** Functional: 1:1 and group chat, delivery and read receipts, offline delivery, media sharing, last-seen and presence. Non-functional: low latency, high availability, messages never lost, ordered per conversation, end-to-end encryption. Scale assumption to state: hundreds of millions of daily users and billions of messages a day, so state your own numbers and derive QPS and storage.\n\n**Entities.** `User`, `Device`, `Conversation` (1:1 or group), `Message(id, conversationId, senderId, timestamp, status, payload)`, `GroupMember`, `Media`.\n\n**High-level components**\n1. **Clients** keep a persistent connection (WebSocket or a custom protocol over TCP) to a **gateway / chat server**, behind a load balancer.\n2. **Session service** (for example Redis) maps `userId -> chat server` and stores presence.\n3. **Chat service** receives a message, assigns an id and sequence number, persists it, then routes: if the recipient is online, push through their connection; otherwise store it as pending and trigger a **push notification** (APNs or FCM).\n4. **Message store:** a write-heavy, partitioned NoSQL store (Cassandra or HBase style) keyed by conversation id and time. Messages are deleted from the server after delivery in the classic model.\n5. **Group service:** fan-out to members, either by sending to each member's queue or via a per-group channel.\n6. **Media service:** upload to object storage (S3-like) and share the reference; CDN for downloads.\n7. **Queues** (Kafka or similar) decouple delivery, notifications and receipts.\n\n**Delivery flow and receipts:** sent (server stored) -> delivered (recipient device ack) -> read. Clients retry with idempotent message ids to avoid duplicates.\n\n**Scaling and trade-offs:** shard chat servers and stores by user or conversation; replicate across regions; use heartbeats to detect dead connections; handle reconnect storms with backoff; prefer **availability and per-chat ordering** over global consistency. With end-to-end encryption the server relays ciphertext only, so no server-side search of content.\n\n**Bottlenecks:** large groups (fan-out cost), hot conversations, presence update volume (throttle and batch).",
+ "followUps": [
+  "How do you guarantee message ordering and avoid duplicates?",
+  "How would you design group messaging for a group with 100,000 members?",
+  "How would you implement 'last seen' and online presence efficiently?",
+  "How does end-to-end encryption affect multi-device support?",
+  "Where does the CAP theorem show up in this design?"
+ ]
+}

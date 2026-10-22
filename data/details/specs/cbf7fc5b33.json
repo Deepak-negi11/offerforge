@@ -1,0 +1,18 @@
+{
+ "qid": "cbf7fc5b33",
+ "question": "In the first round (1 hour) of an SAP Labs interview for an experienced developer, the interviewer went through the candidate's project, asked one coding question (implement a **double-ended queue**, a linear structure where insertion and deletion are allowed at both ends) and one system design question: **how would you design LinkedIn?**",
+ "lookingFor": [
+  "Do you scope an open-ended product into core features and clarify scale?",
+  "Do you model the professional graph (connections) and choose suitable storage?",
+  "Can you design the feed, search and notifications with sensible trade-offs?",
+  "Do you reason about scale, caching, consistency and bottlenecks?",
+  "Do you structure the answer rather than listing technologies?"
+ ],
+ "answer": "**Scope and requirements.** Core features: profiles, connections (send/accept requests), a feed of posts, search for people and jobs, messaging, notifications. Pick two or three to go deep on (connections, feed, search). Assume ~500M users, ~100M daily active, read-heavy (feeds and profile views), and eventual consistency acceptable for feeds.\n\n**Entities and APIs.** `User/Profile`, `Connection(user_a, user_b, status)`, `Post`, `Comment/Like`, `Job`, `Message`. APIs: `POST /connections/request`, `POST /connections/{id}/accept`, `GET /feed`, `POST /posts`, `GET /search?q=`.\n\n**High-level components.** Clients, API gateway and load balancers, stateless services (profile, connection, feed, search, notification, messaging), caches, databases, a message queue (Kafka) for async work, object storage and CDN for images and videos.\n\n**Data model.**\n- Profiles: sharded relational or document store keyed by user id.\n- Connections: a graph. Store as adjacency lists (`user_id -> connection ids`) in a sharded store, or a graph database. Operations: \"is X connected to Y\", \"mutual connections\", \"2nd-degree connections\" (people you may know) via intersection of adjacency lists, ideally computed offline.\n- Posts: keyed by author and time; media in object storage.\n\n**Feed.** Two classic strategies:\n- *Fan-out on write:* when a user posts, push the post id into each connection's precomputed feed (stored in cache/Redis). Fast reads, but heavy for users with huge follower counts.\n- *Fan-out on read:* build the feed at read time by pulling recent posts from connections. Cheap writes, slower reads.\nUse a hybrid: push for normal users, pull for high-fanout accounts, then rank by relevance (an ML ranking service) and cache.\n\n**Search.** An inverted-index search engine (Elasticsearch/Solr) fed asynchronously from profile and job updates, with typeahead via prefix indexes.\n\n**Scale and trade-offs.** Shard by user id; replicate for reads; cache hot profiles and feeds; use queues for notifications and fan-out so spikes do not hit the DB. Watch for celebrity hot keys, graph queries crossing shards, and stale feeds (acceptable) versus connection state (should be consistent).",
+ "followUps": [
+  "How would you compute 'People You May Know'?",
+  "How do you handle a user with millions of connections or followers?",
+  "How would you implement a deque efficiently (doubly linked list vs circular array)?",
+  "How would you design messaging with delivery and read receipts?"
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "qid": "de19b2d1c3",
+ "question": "Groww hiring-manager round (reported by SDE-2 candidates in 2022 and 2025). Reported question: **design a leaderboard service**, asked alongside culture-fit and project-discussion questions. The reports do not give the exact constraints, so clarify the type of leaderboard (for example a game or a trading or investing competition), the number of users, and the update rate.",
+ "lookingFor": [
+  "Clarifying requirements before designing.",
+  "Choice of data structure for ranking (sorted set, heap, tree) with complexity reasoning.",
+  "Scaling reads and writes, and the consistency versus freshness trade-off.",
+  "Handling ties, time windows and top-N versus own-rank queries.",
+  "Clear structure and communication under an open-ended prompt."
+ ],
+ "answer": "**Clarify.** What is ranked (score, profit, points)? How many users (say 10M) and how many score updates per second? Need global top-N only, or also \"my rank\" and neighbours? Is it all-time, daily, or weekly? How fresh must it be (real time versus a few seconds)? How are ties broken?\n\n**API.** `POST /scores {userId, delta or score}`, `GET /leaderboard?window=daily&limit=100`, `GET /users/{id}/rank`, `GET /users/{id}/neighbors?range=5`.\n\n**Core data structure.** A **sorted set** (for example Redis `ZSET`, backed by a skip list plus hash table): `ZADD`/`ZINCRBY` in O(log n), top N with `ZREVRANGE` in O(log n + N), and rank with `ZREVRANK` in O(log n). Alternatives: a min-heap of size K handles only the top K and cannot answer the rank of an arbitrary user; a balanced tree with subtree sizes answers rank in O(log n); a database `ORDER BY score LIMIT N` with an index works at small scale but is slow for rank at large scale. Break ties with a composite key, for example (score, earlier timestamp).\n\n**Architecture.** Clients call a leaderboard service. Score updates go to a queue (Kafka) and are applied to the sorted set, with the database holding the durable record of scores. A cache holds the rendered top 100 with a short TTL, since most reads are for the top. Use one key per time window (`lb:daily:2026-10-20`) with an expiry, so resets are free.\n\n**Scaling.** One sorted set handles millions of members, but beyond that shard by user id range or score bucket and merge top-N from the shards. Approximate ranks (for example a score histogram) are acceptable for users far from the top. Use read replicas for read-heavy loads. Persist by replaying the event log if the cache is lost.\n\n**Trade-offs.** Strong real-time consistency versus cost: batch updates every second reduce write load. Mention fraud and abuse checks at the score source.",
+ "followUps": [
+  "How would you compute a user's rank if the leaderboard has 100 million users?",
+  "How do you handle ties fairly?",
+  "How would you build weekly and monthly leaderboards at the same time?",
+  "What happens if the Redis node holding the leaderboard fails?",
+  "Why not just use a SQL ORDER BY query?"
+ ]
+}

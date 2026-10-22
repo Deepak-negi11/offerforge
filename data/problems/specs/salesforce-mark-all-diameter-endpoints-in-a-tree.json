@@ -1,0 +1,48 @@
+{
+ "pid": "salesforce-mark-all-diameter-endpoints-in-a-tree",
+ "title": "Mark All Diameter Endpoints in a Tree",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an unweighted tree with `n` nodes numbered `0` to `n - 1` (for example an organisational hierarchy). The **diameter** of the tree is the number of edges on a longest simple path between any two nodes. A node is a **diameter endpoint** if it is one of the two end nodes of at least one path whose length equals the diameter.\n\nPrint a binary array of length `n` in which position `i` is `1` if node `i` is a diameter endpoint and `0` otherwise. A tree can have many longest paths, and every node that ends any of them must be marked.",
+ "input_format": "The first line contains the integer `n`.\nEach of the next `n - 1` lines contains two integers `u` and `v` describing an undirected edge between nodes `u` and `v`.",
+ "output_format": "Print `n` space-separated values, each `0` or `1`: the marker of node `0`, node `1`, ..., node `n - 1`.",
+ "constraints": [
+  "2 ≤ n ≤ 10^5",
+  "0 ≤ u, v < n; the edges form a tree"
+ ],
+ "examples": [
+  {
+   "input": "4\n0 1\n1 2\n2 3",
+   "output": "1 0 0 1",
+   "explanation": "The tree is a path 0-1-2-3 with diameter 3. The only longest path joins nodes 0 and 3, so only they are marked."
+  },
+  {
+   "input": "4\n0 1\n0 2\n0 3",
+   "output": "0 1 1 1",
+   "explanation": "The tree is a star centred at 0 with diameter 2. Any two leaves form a longest path, so all three leaves 1, 2, 3 are endpoints, while the centre is not."
+  },
+  {
+   "input": "5\n0 1\n1 2\n1 3\n3 4",
+   "output": "1 0 1 0 1",
+   "explanation": "The diameter is 3. Longest paths are 0-1-3-4 and 2-1-3-4, so the endpoints are nodes 0, 2 and 4. Node 3 is only an interior node of these paths, and node 1 is interior to both."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "A longest path in a tree can be found with two BFS runs: the node farthest from any start is one end of some diameter. Use this to find one diameter and its length D.",
+  "Let `u` and `v` be the two ends of one diameter. Show that for any node `x`, its farthest possible distance to any other node is `max(dist(x, u), dist(x, v))`.",
+  "Node `x` is the end of some longest path exactly when that farthest distance equals D. Run BFS from `u` and from `v` and mark `x` if `max(distU[x], distV[x]) == D`."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    adj = [[] for _ in range(n)]\n    for i in range(n - 1):\n        u = int(data[1 + 2 * i])\n        v = int(data[2 + 2 * i])\n        adj[u].append(v)\n        adj[v].append(u)\n\n    def bfs(s):\n        d = [-1] * n\n        d[s] = 0\n        q = deque([s])\n        while q:\n            x = q.popleft()\n            for y in adj[x]:\n                if d[y] < 0:\n                    d[y] = d[x] + 1\n                    q.append(y)\n        return d\n\n    d0 = bfs(0)\n    u = d0.index(max(d0))\n    du = bfs(u)\n    D = max(du)\n    v = du.index(D)\n    dv = bfs(v)\n    print(' '.join('1' if max(du[i], dv[i]) == D else '0' for i in range(n)))\n\nmain()\n",
+ "brute": "import sys\nfrom collections import deque\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nadj = [[] for _ in range(n)]\nfor i in range(n - 1):\n    u = int(data[1 + 2 * i])\n    v = int(data[2 + 2 * i])\n    adj[u].append(v)\n    adj[v].append(u)\n\ndef bfs(s):\n    d = [-1] * n\n    d[s] = 0\n    q = deque([s])\n    while q:\n        x = q.popleft()\n        for y in adj[x]:\n            if d[y] < 0:\n                d[y] = d[x] + 1\n                q.append(y)\n    return d\n\necc = [max(bfs(s)) for s in range(n)]\nD = max(ecc)\nprint(' '.join('1' if ecc[i] == D else '0' for i in range(n)))\n",
+ "generator": "def gen(rng):\n    def fmt(n, edges, shuffle=True):\n        perm = list(range(n))\n        if shuffle:\n            rng.shuffle(perm)\n        es = [(perm[u], perm[v]) if rng.random() < 0.5 else (perm[v], perm[u]) for u, v in edges]\n        if shuffle:\n            rng.shuffle(es)\n        return str(n) + '\\n' + '\\n'.join(f'{u} {v}' for u, v in es)\n\n    def rand_tree(n, deep=0.0):\n        e = []\n        for i in range(1, n):\n            if rng.random() < deep:\n                p = i - 1\n            else:\n                p = rng.randint(0, i - 1)\n            e.append((p, i))\n        return e\n\n    tests = [fmt(2, [(0, 1)], False), fmt(3, [(0, 1), (1, 2)], False), fmt(4, [(0, 1), (1, 2), (2, 3)], False),\n             fmt(4, [(0, 1), (0, 2), (0, 3)], False), fmt(5, [(0, 1), (1, 2), (1, 3), (3, 4)], False),\n             fmt(6, [(0, 1), (0, 2), (0, 3), (3, 4), (3, 5)], False)]\n    for _ in range(45):\n        n = rng.randint(2, 25)\n        tests.append(fmt(n, rand_tree(n, rng.choice([0.0, 0.3, 0.7]))))\n    for _ in range(8):\n        legs = rng.randint(2, 5)\n        L = rng.randint(1, 4)\n        e = []\n        cnt = 1\n        for _ in range(legs):\n            prev = 0\n            for _ in range(L):\n                e.append((prev, cnt))\n                prev = cnt\n                cnt += 1\n        tests.append(fmt(cnt, e))\n    N = 10**5\n    tests.append(fmt(N, rand_tree(N, 0.0)))\n    tests.append(fmt(N, rand_tree(N, 0.999)))\n    tests.append(fmt(N, [(0, i) for i in range(1, N)]))\n    tests.append(fmt(N, [(i, i + 1) for i in range(N - 1)]))\n    legs, L = 100, 999\n    e = []\n    cnt = 1\n    for _ in range(legs):\n        prev = 0\n        for _ in range(L):\n            e.append((prev, cnt))\n            prev = cnt\n            cnt += 1\n    tests.append(fmt(cnt, e))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef diameter_endpoints(n: int, edges: List[Tuple[int, int]]) -> List[int]:\n    # Write your solution here\n    return [0] * n\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    edges = [(int(data[1 + 2 * i]), int(data[2 + 2 * i])) for i in range(n - 1)]\n    print(' '.join(map(str, diameter_endpoints(n, edges))))\n\n\nmain()\n",
+  "javascript": "function diameterEndpoints(n, edges) {\n  // Write your solution here\n  return new Array(n).fill(0)\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst edges = []\nfor (let i = 0; i < n - 1; i++) {\n  edges.push([t[1 + 2 * i], t[2 + 2 * i]])\n}\nconsole.log(diameterEndpoints(n, edges).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> diameterEndpoints(int n, vector<pair<int, int>>& edges) {\n    // Write your solution here\n    return vector<int>(n, 0);\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<pair<int, int>> edges(n - 1);\n    for (int i = 0; i < n - 1; i++) cin >> edges[i].first >> edges[i].second;\n    vector<int> res = diameterEndpoints(n, edges);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] diameterEndpoints(int n, int[][] edges) {\n        // Write your solution here\n        return new int[n];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[][] edges = new int[n - 1][2];\n        for (int i = 0; i < n - 1; i++) {\n            in.nextToken();\n            edges[i][0] = (int) in.nval;\n            in.nextToken();\n            edges[i][1] = (int) in.nval;\n        }\n        int[] res = diameterEndpoints(n, edges);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "d1edd10283",
+ "question": "MakeMyTrip SSE-1 Backend, hiring manager round. The interviewer described amazon.com: opening it shows many categories; choosing one such as **electronics** shows subcategories like mobiles, washing machines and AC; choosing **mobiles** shows mobiles by **price range**, then a particular mobile. **Design a database schema to store this information**, i.e. the hierarchy amazon.com -> categories (electronics) -> mobile -> price ranges -> a particular mobile.",
+ "lookingFor": [
+  "Choosing a hierarchical data model with trade-offs.",
+  "Recognising price range is a filter/attribute, not a category.",
+  "Handling the query patterns: children, breadcrumbs, all products under a node.",
+  "Indexes and constraints.",
+  "Knowing alternatives (adjacency list, path, closure table, nested sets)."
+ ],
+ "answer": "**Key insight.** The category tree (electronics > mobiles) is a true hierarchy of arbitrary depth. **Price range is not a level of the tree**: it is a *filter* computed from the product's price. Storing price ranges as category nodes would duplicate products and break whenever prices change. Say this explicitly.\n\n**Schema (adjacency list).**\n\n```\ncategories(id PK, parent_id FK -> categories.id NULL, name, slug, level, position)\nproducts(id PK, category_id FK -> categories.id, name, brand, price, currency, attributes JSON, created_at)\n```\n\nIndexes: `categories(parent_id)`, `products(category_id, price)` so \"mobiles between 10k and 20k\" is a range scan. A unique constraint on `(parent_id, name)` prevents duplicate siblings. Product price ranges (\"under 10k\", \"10k-20k\") can be defined in a small config table or in code and applied as `WHERE price BETWEEN ...`.\n\n**Queries.**\n- Children of electronics: `SELECT * FROM categories WHERE parent_id = :id`.\n- Products in mobiles by range: `... WHERE category_id = :id AND price BETWEEN :lo AND :hi`.\n- Breadcrumb or all descendants: a recursive CTE (`WITH RECURSIVE`).\n\n**Alternatives and trade-offs.**\n- **Adjacency list** (above): simplest writes and moves; subtree queries need recursion.\n- **Materialised path** (`path = '/1/4/9/'`): subtree via `LIKE '/1/4/%'`; moving a subtree means updating many rows.\n- **Closure table** `(ancestor_id, descendant_id, depth)`: fast subtree and ancestor queries, more storage and write cost.\n- **Nested sets:** fast reads, expensive writes.\nFor a catalog that is read-heavy and rarely reorganised, adjacency list plus caching of the category tree (it is small) is sufficient; add a closure table if deep subtree queries are hot.\n\n**Products in multiple categories** (e.g. a phone under \"Mobiles\" and \"Deals\") needs a join table `product_categories`. Category-specific attributes (RAM, screen size) go in JSON or an EAV/attributes table, which feeds filters.\n\n**Avoid:** one table per level, and price ranges as hierarchy nodes.",
+ "followUps": [
+  "How would you fetch all products under electronics including all subcategories?",
+  "How would you handle a product that belongs to two categories?",
+  "When would you pick a closure table over an adjacency list?",
+  "How would you store category-specific attributes such as RAM or screen size?"
+ ]
+}

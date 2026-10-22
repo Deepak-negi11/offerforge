@@ -1,0 +1,50 @@
+{
+ "pid": "shortest-path-visiting-all-nodes",
+ "title": "Shortest Path Visiting All Nodes",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given a connected, undirected, unweighted graph with `n` nodes numbered `0` to `n - 1`. There are no self-loops and no repeated edges.\n\nA walk may **start at any node** and may finish at any node. It can move along an edge in either direction, and it may visit the same node or traverse the same edge as many times as it likes. Find the **minimum number of edges** in a walk that visits every node at least once.",
+ "input_format": "The first line contains two integers `n` and `m`: the number of nodes and edges.\nEach of the next `m` lines contains two integers `u` and `v`, describing an undirected edge between nodes `u` and `v`.",
+ "output_format": "Print a single integer: the length (number of edges) of the shortest walk that visits all nodes.",
+ "constraints": [
+  "1 ≤ n ≤ 12",
+  "n - 1 ≤ m ≤ n(n - 1)/2",
+  "The graph is connected, with no self-loops or duplicate edges",
+  "0 ≤ u, v < n"
+ ],
+ "examples": [
+  {
+   "input": "4 3\n0 1\n0 2\n0 3",
+   "output": "4",
+   "explanation": "Node 0 is the center of a star. Walk 1 → 0 → 2 → 0 → 3: this visits all four nodes using 4 edges, and no walk with 3 edges can reach three leaves and the center."
+  },
+  {
+   "input": "4 3\n0 1\n1 2\n2 3",
+   "output": "3",
+   "explanation": "The graph is a path. Starting at one end and walking to the other end visits all nodes in 3 edges."
+  },
+  {
+   "input": "1 0",
+   "output": "0",
+   "explanation": "With a single node the empty walk already visits every node."
+  }
+ ],
+ "complexity": {
+  "time": "O(2^n · n · deg)",
+  "space": "O(2^n · n)"
+ },
+ "hints": [
+  "Walks may revisit nodes, so the state must remember which nodes have been visited so far, not just the current node.",
+  "Model a state as (set of visited nodes as a bitmask, current node). Moving along an edge costs exactly 1.",
+  "Run a BFS that starts from every node at once (all states `(1 << v, v)` at distance 0). The first time you reach the full mask, the BFS depth is the answer."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    adj = [[] for _ in range(n)]\n    for i in range(m):\n        a = int(data[2 + 2 * i])\n        b = int(data[3 + 2 * i])\n        adj[a].append(b)\n        adj[b].append(a)\n    full = (1 << n) - 1\n    seen = [[False] * n for _ in range(1 << n)]\n    dq = deque()\n    for v in range(n):\n        seen[1 << v][v] = True\n        dq.append((1 << v, v, 0))\n    while dq:\n        mask, v, d = dq.popleft()\n        if mask == full:\n            print(d)\n            return\n        for w in adj[v]:\n            nm = mask | (1 << w)\n            if not seen[nm][w]:\n                seen[nm][w] = True\n                dq.append((nm, w, d + 1))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nINF = 10**9\ndist = [[INF] * n for _ in range(n)]\nfor i in range(n):\n    dist[i][i] = 0\nfor i in range(m):\n    a = int(data[2 + 2 * i])\n    b = int(data[3 + 2 * i])\n    dist[a][b] = dist[b][a] = 1\nfor k in range(n):\n    for i in range(n):\n        for j in range(n):\n            if dist[i][k] + dist[k][j] < dist[i][j]:\n                dist[i][j] = dist[i][k] + dist[k][j]\ndp = [[INF] * n for _ in range(1 << n)]\nfor v in range(n):\n    dp[1 << v][v] = 0\nfor mask in range(1, 1 << n):\n    for v in range(n):\n        cur = dp[mask][v]\n        if cur >= INF:\n            continue\n        for w in range(n):\n            if not mask >> w & 1:\n                nm = mask | (1 << w)\n                if cur + dist[v][w] < dp[nm][w]:\n                    dp[nm][w] = cur + dist[v][w]\nprint(min(dp[(1 << n) - 1]))\n",
+ "generator": "def gen(rng):\n    def fmt(n, edges):\n        edges = list(edges)\n        rng.shuffle(edges)\n        out = [str(n) + ' ' + str(len(edges))]\n        for a, b in edges:\n            if rng.random() < 0.5:\n                a, b = b, a\n            out.append('%d %d' % (a, b))\n        return '\\n'.join(out)\n\n    def relabel(n, edges):\n        perm = list(range(n))\n        rng.shuffle(perm)\n        return [(perm[a], perm[b]) for a, b in edges]\n\n    def rand_graph(n, extra):\n        edges = set()\n        for i in range(1, n):\n            j = rng.randrange(i)\n            edges.add((j, i))\n        for _ in range(extra):\n            a, b = rng.randrange(n), rng.randrange(n)\n            if a != b:\n                edges.add((min(a, b), max(a, b)))\n        return relabel(n, edges)\n\n    tests = [fmt(1, []), fmt(2, [(0, 1)]), fmt(3, [(0, 1), (1, 2)]), fmt(3, [(0, 1), (1, 2), (0, 2)]),\n             fmt(4, [(0, 1), (0, 2), (0, 3)]), fmt(4, [(0, 1), (1, 2), (2, 3)])]\n    n = 12\n    tests.append(fmt(n, relabel(n, [(i, i + 1) for i in range(n - 1)])))\n    tests.append(fmt(n, relabel(n, [(0, i) for i in range(1, n)])))\n    tests.append(fmt(n, [(i, j) for i in range(n) for j in range(i + 1, n)]))\n    tests.append(fmt(n, relabel(n, [(i, (i + 1) % n) if i < (i + 1) % n else ((i + 1) % n, i) for i in range(n)])))\n    tests.append(fmt(n, rand_graph(n, 0)))\n    tests.append(fmt(n, rand_graph(n, 6)))\n    tests.append(fmt(n, rand_graph(n, 20)))\n    tests.append(fmt(n, rand_graph(n, 40)))\n    # two stars joined, a \"double broom\"\n    tests.append(fmt(n, relabel(n, [(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (5, 6), (6, 7), (7, 8), (8, 9), (8, 10), (8, 11)])))\n    for nn in (4, 5, 6, 7, 8, 9, 10):\n        for _ in range(2):\n            tests.append(fmt(nn, rand_graph(nn, rng.randint(0, nn))))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef shortest_path_length(n: int, edges: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    edges = [[int(data[2 + 2 * i]), int(data[3 + 2 * i])] for i in range(m)]\n    print(shortest_path_length(n, edges))\n\n\nmain()\n",
+  "javascript": "function shortestPathLength(n, edges) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst edges = []\nfor (let i = 0; i < m; i++) edges.push([t[2 + 2 * i], t[3 + 2 * i]])\nconsole.log(shortestPathLength(n, edges))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint shortestPathLength(int n, vector<pair<int, int>>& edges) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<pair<int, int>> edges(m);\n    for (int i = 0; i < m; i++) cin >> edges[i].first >> edges[i].second;\n    cout << shortestPathLength(n, edges) << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int shortestPathLength(int n, int[][] edges) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] edges = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); edges[i][0] = (int) in.nval;\n            in.nextToken(); edges[i][1] = (int) in.nval;\n        }\n        System.out.println(shortestPathLength(n, edges));\n    }\n}\n"
+ }
+}

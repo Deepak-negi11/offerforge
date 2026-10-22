@@ -1,0 +1,19 @@
+{
+ "qid": "0ec763baa9",
+ "question": "In an HCLTech Graduate Engineer Trainee technical round, the candidate was asked to **design a schema for a library management system**. No specific requirements were reported, so assume a typical one: members borrow books, with due dates, returns and fines.",
+ "lookingFor": [
+  "Entity identification and relationships",
+  "Correct keys and constraints",
+  "Normalisation and handling many-to-many",
+  "Awareness of copies versus titles",
+  "Ability to write DDL and a sample query"
+ ],
+ "answer": "**Step 1: clarify requirements.** Members borrow physical copies of books; each loan has a due date and return date; late returns may incur fines; librarians search by title, author and category.\n\n**Step 2: entities and relationships**\n- A *book* (title) can have many *copies*; a member borrows a *copy*, not a title.\n- Books and authors are **many-to-many** (use a junction table).\n- A member has many loans; a copy has many loans over time.\n\n**Step 3: tables (sketch)**\n\n```sql\nCREATE TABLE author (author_id INT PRIMARY KEY, name VARCHAR(100) NOT NULL);\nCREATE TABLE book (\n  book_id INT PRIMARY KEY, isbn VARCHAR(20) UNIQUE,\n  title VARCHAR(200) NOT NULL, category VARCHAR(50), publisher VARCHAR(100));\nCREATE TABLE book_author (\n  book_id INT REFERENCES book(book_id),\n  author_id INT REFERENCES author(author_id),\n  PRIMARY KEY (book_id, author_id));\nCREATE TABLE copy (\n  copy_id INT PRIMARY KEY, book_id INT NOT NULL REFERENCES book(book_id),\n  status VARCHAR(20) DEFAULT 'AVAILABLE');\nCREATE TABLE member (\n  member_id INT PRIMARY KEY, name VARCHAR(100) NOT NULL,\n  email VARCHAR(100) UNIQUE, joined_on DATE);\nCREATE TABLE loan (\n  loan_id INT PRIMARY KEY, copy_id INT NOT NULL REFERENCES copy(copy_id),\n  member_id INT NOT NULL REFERENCES member(member_id),\n  issued_on DATE NOT NULL, due_on DATE NOT NULL, returned_on DATE,\n  fine_amount DECIMAL(8,2) DEFAULT 0);\n```\n\n**Design notes**\n- Keys and foreign keys give referential integrity; `CHECK (due_on >= issued_on)` guards dates.\n- The schema is in 3NF: author details are not repeated per book.\n- Index `book.title`, `loan.member_id` and `loan.copy_id` for search and lookups.\n- Overdue query: `SELECT * FROM loan WHERE returned_on IS NULL AND due_on < CURRENT_DATE;`.\n- Extensions: reservations table, staff table, and a `fine` payments table.\n\n**Mistake to avoid:** a single wide table with repeated author and member details.",
+ "followUps": [
+  "Why separate book and copy?",
+  "How would you prevent the same copy being issued twice at once?",
+  "How would you model reservations and renewals?",
+  "Which indexes would you add and why?",
+  "What normal form is this design in?"
+ ]
+}

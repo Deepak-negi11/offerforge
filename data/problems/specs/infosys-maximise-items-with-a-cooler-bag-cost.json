@@ -1,0 +1,51 @@
+{
+ "pid": "infosys-maximise-items-with-a-cooler-bag-cost",
+ "title": "Maximise Items With a Cooler-Bag Cost",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are shopping with a budget of `B`. There are `n` items, and item `i` has a price `cost[i]` and a type `type[i]` that is either `0` or `1`. Each item can be bought **at most once**.\n\nItems of type `1` must be carried in a reusable cooler bag. If you buy **at least one** item of type `1`, you must also pay a one-time cooler-bag cost `C`, no matter how many type `1` items you buy. Buying only type `0` items costs nothing extra.\n\nChoose a set of items whose total price (plus `C` if the set contains a type `1` item) does not exceed `B`. Print the **maximum number of items** you can buy. Buying nothing is allowed, so the answer can be `0`.",
+ "input_format": "The first line contains three integers `n`, `B` and `C`.\nEach of the next `n` lines contains two integers `cost[i]` and `type[i]`.",
+ "output_format": "Print a single integer: the maximum number of items that can be bought.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ cost[i] ≤ 10^9",
+  "type[i] ∈ {0, 1}",
+  "1 ≤ B ≤ 10^14",
+  "1 ≤ C ≤ 10^14"
+ ],
+ "examples": [
+  {
+   "input": "5 10 3\n2 0\n4 0\n3 1\n1 1\n6 0",
+   "output": "3",
+   "explanation": "Without the cooler bag you can buy the type 0 items costing 2 and 4 (total 6); the item costing 6 would exceed 10, so that gives 2 items. If you pay the cooler-bag cost 3, you have 7 left and can buy the items costing 1, 2 and 3 (total 6), for 3 items and a total of 9."
+  },
+  {
+   "input": "3 5 10\n1 1\n2 0\n3 0",
+   "output": "2",
+   "explanation": "The cooler bag costs more than the whole budget, so type 1 items are out of reach. Buy the two type 0 items for 5."
+  },
+  {
+   "input": "4 20 5\n4 1\n5 1\n6 1\n7 0",
+   "output": "3",
+   "explanation": "Paying 5 for the cooler bag leaves 15, enough for the items costing 4, 5 and 6 (total 15). Only buying the type 0 item gives just 1 item."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "If the price of every item were fixed and there were no cooler bag, which items would you buy to maximise the count?",
+  "Split the problem into two cases: you buy no type 1 item (budget B, type 0 items only), or you pay C up front and then every item is available with budget B - C.",
+  "In the second case, just greedily take the cheapest items from the whole list. If that selection happens to contain no type 1 item, it is still no better than case one, so taking the maximum of the two cases is safe."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, B, C = int(data[0]), int(data[1]), int(data[2])\n    c0, c1 = [], []\n    for i in range(n):\n        c = int(data[3 + 2 * i])\n        if int(data[4 + 2 * i]) == 0:\n            c0.append(c)\n        else:\n            c1.append(c)\n\n    def greedy(costs, budget):\n        costs.sort()\n        cnt = 0\n        for c in costs:\n            if c > budget:\n                break\n            budget -= c\n            cnt += 1\n        return cnt\n\n    best = greedy(c0[:], B)\n    if B >= C:\n        best = max(best, greedy(c0 + c1, B - C))\n    print(best)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, B, C = int(data[0]), int(data[1]), int(data[2])\ncost = [int(data[3 + 2 * i]) for i in range(n)]\ntyp = [int(data[4 + 2 * i]) for i in range(n)]\nbest = 0\nfor mask in range(1 << n):\n    tot, cnt, has1 = 0, 0, False\n    for i in range(n):\n        if mask >> i & 1:\n            tot += cost[i]\n            cnt += 1\n            if typ[i] == 1:\n                has1 = True\n    if has1:\n        tot += C\n    if tot <= B and cnt > best:\n        best = cnt\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(B, C, items):\n        return f\"{len(items)} {B} {C}\\n\" + \"\\n\".join(f\"{c} {t}\" for c, t in items)\n    tests = [\n        fmt(1, 1, [(1, 0)]),\n        fmt(1, 1, [(1, 1)]),\n        fmt(2, 1, [(1, 1)]),\n        fmt(5, 100, [(2, 0), (3, 1)]),\n        fmt(10, 3, [(5, 1), (5, 1), (5, 1)]),\n        fmt(10 ** 9, 10 ** 9, [(10 ** 9, 1), (1, 0)]),\n    ]\n    for n in (2, 3, 4, 6, 8, 10, 12):\n        for _ in range(3):\n            items = [(rng.randint(1, 12), rng.randint(0, 1)) for _ in range(n)]\n            tests.append(fmt(rng.randint(1, 40), rng.randint(1, 15), items))\n    N = 100000\n    for kind in range(4):\n        if kind == 0:\n            items = [(rng.randint(1, 10 ** 9), rng.randint(0, 1)) for _ in range(N)]\n            B, C = 10 ** 13, rng.randint(1, 10 ** 9)\n        elif kind == 1:\n            items = [(rng.randint(1, 10 ** 9), 1) for _ in range(N)]\n            B, C = 10 ** 14, 10 ** 9\n        elif kind == 2:\n            items = [(rng.randint(1, 1000), rng.randint(0, 1)) for _ in range(N)]\n            B, C = 20 * 10 ** 6, 5000\n        else:\n            items = [(rng.randint(1, 10 ** 6), 0 if rng.random() < 0.9 else 1) for _ in range(N)]\n            B, C = 10 ** 14, 10 ** 14 - 1\n        tests.append(fmt(B, C, items))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_items(cost: List[int], types: List[int], budget: int, cooler: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, budget, cooler = int(data[0]), int(data[1]), int(data[2])\n    cost = [int(data[3 + 2 * i]) for i in range(n)]\n    types = [int(data[4 + 2 * i]) for i in range(n)]\n    print(max_items(cost, types, budget, cooler))\n\n\nmain()\n",
+  "javascript": "function maxItems(cost, types, budget, cooler) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], budget = t[1], cooler = t[2]\nconst cost = [], types = []\nfor (let i = 0; i < n; i++) {\n  cost.push(t[3 + 2 * i])\n  types.push(t[4 + 2 * i])\n}\nconsole.log(String(maxItems(cost, types, budget, cooler)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint maxItems(vector<long long>& cost, vector<int>& types, long long budget, long long cooler) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long budget, cooler;\n    cin >> n >> budget >> cooler;\n    vector<long long> cost(n);\n    vector<int> types(n);\n    for (int i = 0; i < n; i++) cin >> cost[i] >> types[i];\n    cout << maxItems(cost, types, budget, cooler) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int maxItems(long[] cost, int[] types, long budget, long cooler) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        long budget = (long) in.nval;\n        in.nextToken();\n        long cooler = (long) in.nval;\n        long[] cost = new long[n];\n        int[] types = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); cost[i] = (long) in.nval;\n            in.nextToken(); types[i] = (int) in.nval;\n        }\n        System.out.println(maxItems(cost, types, budget, cooler));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,19 @@
+{
+ "qid": "ccf6a70ac0",
+ "question": "LinkedIn high-level design round (Senior Software Engineer). Design a **notification system**. Add **rate limiting on different categories**, for example at most 5 marketing notifications per user per day, and add handling for **user preferences**. The interviewer also asked how you measured the performance and success of a project you built (performance testing, metrics such as p90).",
+ "lookingFor": [
+  "Clear requirements: channels, categories, priority, delivery guarantees.",
+  "A sensible pipeline: ingest, preference and limit checks, queue, channel workers.",
+  "A correct, scalable per-user per-category rate limiter and where its state lives.",
+  "Handling of retries, duplicates, failures and fan-out spikes.",
+  "Metrics and testing: latency percentiles, delivery rate, load tests."
+ ],
+ "answer": "**Requirements.** Channels: push, email, in-app (SMS optional). Categories: transactional (OTP, security), social (invites, messages), marketing. Assume ~100M users and ~1B notifications/day, so roughly 12k/s average with large peaks. Goals: low latency for transactional, no duplicates, and respect preferences and caps. Marketing may be delayed or dropped; security alerts must not.\n\n**Flow.** Producers call a Notification API (or publish events to Kafka). A *router* service: (1) validates and de-duplicates by an idempotency key; (2) loads user preferences; (3) applies category rate limits; (4) renders the template and locale; (5) enqueues to a per-channel topic. Channel workers call providers (APNs/FCM, email vendor), retry with exponential backoff, and write status to a delivery log. Use separate queues per priority so a marketing blast cannot starve OTPs.\n\n**Preferences.** Table `(user_id, category, channel, enabled, quiet_hours, timezone)`, stored in a sharded DB, cached in Redis with a short TTL and invalidated on update. Regulatory or security categories ignore opt-out. Defaults are applied when no row exists.\n\n**Rate limiting.** Key `rl:{user}:{category}:{day}` in Redis with `INCR` plus `EXPIRE`, or a Lua script that checks and increments atomically. Day boundaries should use the user's timezone, or use a sliding window or token bucket if you want smoothness. Limits live in config per category (marketing 5/day, transactional unlimited). Count only on a successful enqueue (or reserve then release on failure) so retries do not burn the quota. If Redis is down, fail open for transactional and fail closed for marketing.\n\n**Scaling and trade-offs.** Partition Kafka by user_id so one user's events are ordered and limiter state is local. Batch marketing campaigns, throttle them, and spread by timezone. Accept at-least-once delivery with idempotent sends.\n\n**Measuring success.** Track p50/p90/p99 end-to-end latency per category, delivery and open rates, queue lag, error and retry rates, and unsubscribe rate. Validate with load tests at 2x peak and failure drills (provider outage, Redis loss), and state concrete before and after numbers for any project you describe.",
+ "followUps": [
+  "How would you make the daily limit correct across multiple Redis regions?",
+  "How do you prevent duplicate notifications if a worker crashes after sending?",
+  "How would you support scheduled notifications and per-user quiet hours?",
+  "Fixed window, sliding window or token bucket: which would you pick for marketing caps and why?",
+  "How would you notify a user once instead of five times when five events happen together (batching or digest)?"
+ ]
+}

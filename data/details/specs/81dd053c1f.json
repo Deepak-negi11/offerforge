@@ -1,0 +1,19 @@
+{
+ "qid": "81dd053c1f",
+ "question": "LinkedIn Senior Software Engineer (Infrastructure team) screening round, after a hash map DSA question: **explain the ACID properties and distributed transactions**, then OS basics: **virtual memory** and the **difference between threads and processes**.",
+ "lookingFor": [
+  "Precise knowledge of ACID and what each property protects",
+  "Understanding of why distributed transactions are hard and the main protocols",
+  "Awareness of alternatives such as sagas and eventual consistency",
+  "Operating system fundamentals expected of an infrastructure engineer",
+  "Ability to reason about failure modes"
+ ],
+ "answer": "**ACID.** *Atomicity*: all operations of a transaction happen or none do (undo/rollback). *Consistency*: a transaction takes the database from one valid state to another, preserving constraints. *Isolation*: concurrent transactions behave as if run in some serial order, to the degree set by the isolation level (locks or MVCC). *Durability*: committed data survives crashes (write-ahead logging, fsync, replication).\n\n**Distributed transactions.** An operation spans multiple nodes or services (for example debiting an account on one database and crediting another) and must still be atomic.\n- **Two-phase commit (2PC):** a coordinator asks participants to *prepare* (they durably log and vote yes or no); if all vote yes it sends *commit*, otherwise *abort*. It gives atomicity but is **blocking**: if the coordinator fails after prepare, participants hold locks until it recovers. Latency is higher too (two round trips plus forced writes).\n- **Three-phase commit / consensus-based commit** (Paxos or Raft replicating the coordinator or each shard, as in Spanner) reduce blocking at higher complexity.\n- **Saga pattern:** a sequence of local transactions, each with a **compensating action** (refund, cancel) that runs if a later step fails. No global locks and good availability, but only eventual consistency and compensations must be idempotent.\n- Related techniques: idempotency keys, the outbox pattern, and retries with deduplication.\n- The CAP theorem frames the trade-off: during a partition you choose between consistency and availability.\n\n**Virtual memory.** Each process gets its own virtual address space; the MMU and OS translate virtual pages to physical frames via page tables (cached in the TLB). It provides isolation, memory larger than RAM through paging to disk (page faults load pages on demand), and sharing such as shared libraries and copy-on-write.\n\n**Thread vs process.** A process has its own address space and resources; threads in one process share the heap and have separate stacks. Threads are cheaper to create and switch but offer no isolation and need synchronisation.",
+ "followUps": [
+  "Why is two-phase commit called a blocking protocol?",
+  "When would you choose a saga over 2PC?",
+  "How do you make a saga step idempotent?",
+  "What happens on a page fault, step by step?",
+  "How does Raft or Paxos help with distributed commit?"
+ ]
+}

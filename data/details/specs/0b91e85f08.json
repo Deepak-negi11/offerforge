@@ -1,0 +1,17 @@
+{
+ "qid": "0b91e85f08",
+ "question": "In a Software Engineering Intern technical interview at Qualcomm (2025), the candidate was asked:\n\n- How do you **differentiate between shared and private variables of threads** in a multithreaded environment?\n- Explain the **basic server-client architecture in TCP**.",
+ "lookingFor": [
+  "Do you know what memory each thread shares and what is private?",
+  "Can you show which variables are shared and the race conditions that follow?",
+  "Do you know the TCP socket call sequence on both sides?",
+  "Can you connect the two topics (a threaded server handling clients)?"
+ ],
+ "answer": "**Shared vs private in threads.** Threads in one process share the address space, so these are **shared**: global and static variables, heap memory (anything reached through a pointer to `malloc`/`new` data that is passed around), code and open file descriptors. These are **private**: the thread's own stack (local variables and parameters), registers and program counter, and thread-local storage (`thread_local` in C++, `__thread` or `pthread_key_create` in C). A local variable is private, but if you pass its address to another thread, that thread can access it, so lifetime and sharing depend on the pointers.\n\nShared data must be protected with mutexes, atomics or semaphores, otherwise two threads doing `counter++` produce a data race (read-modify-write is not atomic). Private data needs no locking. Design tip: prefer private data and message passing, minimise shared mutable state.\n\n**TCP client-server.** TCP is connection-oriented, reliable and ordered.\n\nServer: `socket()`, `bind()` to an address and port, `listen()`, then loop on `accept()`, which returns a new connected socket per client; use `recv()` and `send()`, then `close()`.\n\nClient: `socket()`, `connect()` to the server's IP and port, `send()` and `recv()`, `close()`.\n\nThe connection starts with the three-way handshake (SYN, SYN-ACK, ACK). The server's listening socket stays open while each accepted socket is one client connection, identified by the 4-tuple of client IP and port and server IP and port.\n\n**Handling many clients:** a thread (or process) per client, a thread pool, or event-driven I/O (`select`, `poll`, `epoll`). A thread per client shares the server's globals, so any shared client table needs a mutex.",
+ "followUps": [
+  "What is a race condition and how do you detect one?",
+  "What does `thread_local` do?",
+  "How would you build a server that handles thousands of clients?",
+  "What is the difference between TCP and UDP sockets in the call sequence?"
+ ]
+}

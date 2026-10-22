@@ -1,0 +1,50 @@
+{
+ "pid": "google-maximize-ship-distance-with-holidays",
+ "title": "Maximize Ship Distance with Holidays",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "A ship starts a voyage with `K` units of fuel and sails for `N` days. You are given an array `dist` of length `N`: `dist[i]` is the distance the ship covers on day `i` **if it travels** that day.\n\nOn each day the ship does exactly one of two things:\n\n- **Travel:** it covers `dist[i]` and its fuel decreases by `1`. The ship can only travel if it has at least `1` unit of fuel at the start of that day, so fuel never drops below `0`.\n- **Rest (a holiday):** it covers distance `0` and its fuel increases by `1`. There is no limit on how much fuel the ship can hold.\n\nExactly `H` of the `N` days must be holidays. Choose which days are holidays to maximise the total distance covered after `N` days, and print that distance. If there is no valid way to spend exactly `H` holidays without the fuel ever running out, print `-1`.\n\n**Follow-up:** the candidate reports three follow-up variants that stretched the dynamic programme from two state dimensions to three; the exact variants were not recorded.",
+ "input_format": "The first line contains three integers `N`, `K` and `H`.\nThe second line contains `N` integers `dist[0] ... dist[N-1]`.",
+ "output_format": "Print a single integer: the maximum total distance, or `-1` if no valid plan exists.",
+ "constraints": [
+  "1 ≤ N ≤ 1000",
+  "0 ≤ K ≤ 1000",
+  "0 ≤ H ≤ N",
+  "1 ≤ dist[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "5 1 2\n9 9 1 1 1",
+   "output": "11",
+   "explanation": "The ship travels on 3 days and rests on 2. Ignoring fuel, the best 3 days would be 9 + 9 + 1 = 19, but the first two days cannot both be travel days: the ship starts with 1 fuel and would be empty on day 1. Every valid plan can use at most one of the two 9s, for example travel, rest, travel, rest, travel gives 9 + 1 + 1 = 11 (fuel 1 -> 0 -> 1 -> 0 -> 1 -> 0), and so does rest, travel, rest, travel, travel. No plan does better."
+  },
+  {
+   "input": "3 0 1\n4 4 4",
+   "output": "-1",
+   "explanation": "The ship has no fuel, so it must rest first. After the single holiday it has 1 unit of fuel, which pays for only one of the two remaining travel days. Every arrangement gets stuck, so the answer is -1."
+  },
+  {
+   "input": "4 0 2\n3 10 4 6",
+   "output": "16",
+   "explanation": "With no starting fuel the ship must rest on day 0. Then it travels on day 1 (distance 10, fuel back to 0), rests on day 2 and travels on day 3 (distance 6). The total is 16, which is the best possible because 10 + 6 are the two largest values."
+  }
+ ],
+ "complexity": {
+  "time": "O(N·H)",
+  "space": "O(H)"
+ },
+ "hints": [
+  "Let a day be either 'travel' or 'rest'. After `i` days with `r` of them rests, how much fuel does the ship have? Notice that it is determined by `i` and `r` alone, so fuel does not need its own state dimension.",
+  "Define `dp[i][r]` as the maximum distance after `i` days using `r` holidays. From a state you can rest (go to `r + 1`) or, if the fuel `K + 2r - i` is at least 1, travel and add `dist[i]`.",
+  "Only the previous day's row is needed, so the space can be reduced to `O(H)`. A three-dimensional table indexed by fuel is correct but too slow for the limits."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    N, K, H = int(data[0]), int(data[1]), int(data[2])\n    d = [int(x) for x in data[3:3 + N]]\n    NEG = -1\n    dp = [NEG] * (H + 2)\n    dp[0] = 0\n    for i in range(N):\n        new = [NEG] * (H + 2)\n        for r in range(0, min(i, H) + 1):\n            v = dp[r]\n            if v < 0:\n                continue\n            if r + 1 <= H and v > new[r + 1]:\n                new[r + 1] = v\n            if K + 2 * r - i >= 1:\n                nv = v + d[i]\n                if nv > new[r]:\n                    new[r] = nv\n        dp = new\n    print(dp[H])\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nN, K, H = int(data[0]), int(data[1]), int(data[2])\nd = [int(x) for x in data[3:3 + N]]\nbest = -1\nfor mask in range(1 << N):\n    if bin(mask).count('1') != H:\n        continue\n    fuel = K\n    total = 0\n    ok = True\n    for i in range(N):\n        if mask >> i & 1:\n            fuel += 1\n        else:\n            if fuel < 1:\n                ok = False\n                break\n            fuel -= 1\n            total += d[i]\n    if ok and total > best:\n        best = total\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(n, k, h, d):\n        return f'{n} {k} {h}\\n' + ' '.join(map(str, d))\n    tests = [\n        fmt(1, 0, 0, [5]),\n        fmt(1, 0, 1, [5]),\n        fmt(1, 1, 0, [7]),\n        fmt(1, 5, 1, [7]),\n        fmt(3, 0, 1, [4, 4, 4]),\n        fmt(4, 2, 0, [1, 2, 3, 4]),\n        fmt(5, 0, 5, [9, 9, 9, 9, 9]),\n        fmt(6, 0, 3, [1, 9, 1, 9, 1, 9]),\n    ]\n    for _ in range(60):\n        n = rng.randint(1, 12)\n        k = rng.randint(0, 4)\n        h = rng.randint(0, n)\n        if rng.random() < 0.7:\n            h = max(h, (n - k + 1) // 2)\n            h = min(h, n)\n        d = [rng.randint(1, rng.choice([5, 20, 100])) for _ in range(n)]\n        tests.append(fmt(n, k, h, d))\n    # medium\n    for _ in range(6):\n        n = rng.randint(30, 200)\n        k = rng.randint(0, 20)\n        h = rng.randint(max(0, (n - k + 1) // 2), n)\n        tests.append(fmt(n, k, h, [rng.randint(1, 10**9) for _ in range(n)]))\n    # max size\n    n = 1000\n    tests.append(fmt(n, 1000, 500, [rng.randint(1, 10**9) for _ in range(n)]))\n    tests.append(fmt(n, 0, 500, [rng.randint(1, 10**9) for _ in range(n)]))\n    tests.append(fmt(n, 3, 600, [rng.randint(1, 10**9) for _ in range(n)]))\n    tests.append(fmt(n, 10, 495, [10**9 - rng.randint(0, 5) for _ in range(n)]))\n    tests.append(fmt(n, 1000, 1000, [rng.randint(1, 10**9) for _ in range(n)]))\n    tests.append(fmt(n, 0, 1000, [rng.randint(1, 10**9) for _ in range(n)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_distance(n: int, k: int, h: int, dist: List[int]) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k, h = int(data[0]), int(data[1]), int(data[2])\n    dist = [int(x) for x in data[3:3 + n]]\n    print(max_distance(n, k, h, dist))\n\n\nmain()\n",
+  "javascript": "function maxDistance(n, k, h, dist) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1], h = t[2]\nconst dist = t.slice(3, 3 + n)\nconsole.log(String(maxDistance(n, k, h, dist)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxDistance(int n, int k, int h, vector<long long>& dist) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k, h;\n    cin >> n >> k >> h;\n    vector<long long> dist(n);\n    for (int i = 0; i < n; i++) cin >> dist[i];\n    cout << maxDistance(n, k, h, dist) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxDistance(int n, int k, int h, long[] dist) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        in.nextToken();\n        int h = (int) in.nval;\n        long[] dist = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            dist[i] = (long) in.nval;\n        }\n        System.out.println(maxDistance(n, k, h, dist));\n    }\n}\n"
+ }
+}

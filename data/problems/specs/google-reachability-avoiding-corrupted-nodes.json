@@ -1,0 +1,50 @@
+{
+ "pid": "google-reachability-avoiding-corrupted-nodes",
+ "title": "Reachability Avoiding Corrupted Nodes",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A network has `n` nodes numbered `0` to `n - 1` and `m` undirected links. Data enters the network at the entry node `s`. One node `c` (with `c ≠ s`) is **corrupted**: traffic can arrive **at** a corrupted node, but it can never pass **through** it, so no link can be followed out of `c`.\n\nFor every node, decide whether it can be reached from `s`, and compute the minimum number of links needed to reach it. A node is reachable if some path from `s` exists in which the corrupted node, if it appears, is only the last node of the path. The entry node itself is reachable at distance `0`.\n\nPrint two lines:\n\n- the first line has `n` values: `1` if the node is reachable and `0` otherwise;\n- the second line has `n` values: the minimum number of links from `s`, or `-1` if the node is not reachable.\n\nThe network does not have to be connected. There are no self-loops and no duplicate links.",
+ "input_format": "The first line contains four integers `n`, `m`, `s` and `c`.\nEach of the next `m` lines contains two integers `u` and `v`: an undirected link between nodes `u` and `v`.",
+ "output_format": "Two lines of `n` space-separated integers each: the reachability flags (`1` or `0`), then the distances (`-1` for unreachable nodes).",
+ "constraints": [
+  "2 ≤ n ≤ 10^5",
+  "0 ≤ m ≤ 1.5·10^5",
+  "0 ≤ s, c < n, s ≠ c",
+  "No self-loops or duplicate links"
+ ],
+ "examples": [
+  {
+   "input": "6 6 5 3\n0 3\n1 2\n1 3\n2 4\n3 4\n4 5",
+   "output": "0 1 1 1 1 1\n-1 3 2 2 1 0",
+   "explanation": "The entry is node 5 and node 3 is corrupted. From 5 we reach 4 (1 link), then 2 and 3 (2 links). Node 3 is reached but cannot be used to go further, so node 0, whose only link goes to 3, is unreachable. Node 1 is reached through 2 in 3 links, not through 3."
+  },
+  {
+   "input": "5 4 0 2\n0 1\n1 2\n2 3\n3 4",
+   "output": "1 1 1 0 0\n0 1 2 -1 -1",
+   "explanation": "The network is a path. Node 2 is reached after two links, but the path stops there, so nodes 3 and 4 cannot be reached."
+  },
+  {
+   "input": "6 5 1 4\n0 1\n1 2\n1 4\n2 3\n5 3",
+   "output": "1 1 1 1 1 1\n1 0 1 2 1 3",
+   "explanation": "Node 4 is a dead end for traffic, but it does not block anyone else: nodes 0, 2, 3 and 5 are reached along the other links, with node 5 at distance 3 via 1 -> 2 -> 3 -> 5."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Without the corrupted node this is a plain single-source shortest path in an unweighted graph. Which traversal gives the fewest links?",
+  "Run a BFS from `s`. The only change: when you pop the corrupted node, do not expand its neighbours. Do you still want to give the corrupted node a distance?",
+  "One BFS already gives the distance to every node, so you do not need a separate search per node."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.buffer.read().split()\n    n, m, s, c = int(data[0]), int(data[1]), int(data[2]), int(data[3])\n    adj = [[] for _ in range(n)]\n    p = 4\n    for _ in range(m):\n        u = int(data[p]); v = int(data[p + 1])\n        p += 2\n        adj[u].append(v)\n        adj[v].append(u)\n    dist = [-1] * n\n    dist[s] = 0\n    q = deque([s])\n    while q:\n        v = q.popleft()\n        if v == c:\n            continue\n        dv = dist[v] + 1\n        for w in adj[v]:\n            if dist[w] < 0:\n                dist[w] = dv\n                q.append(w)\n    print(' '.join('1' if x >= 0 else '0' for x in dist))\n    print(' '.join(map(str, dist)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m, s, c = int(data[0]), int(data[1]), int(data[2]), int(data[3])\nedges = []\nfor i in range(m):\n    edges.append((int(data[4 + 2 * i]), int(data[5 + 2 * i])))\nINF = float('inf')\nd = [INF] * n\nd[s] = 0\nchanged = True\nwhile changed:\n    changed = False\n    for u, v in edges:\n        for a, b in ((u, v), (v, u)):\n            if a != c and d[a] + 1 < d[b]:\n                d[b] = d[a] + 1\n                changed = True\nres = [-1 if x == INF else x for x in d]\nprint(' '.join('0' if x < 0 else '1' for x in res))\nprint(' '.join(map(str, res)))\n",
+ "generator": "def gen(rng):\n    def fmt(n, s, c, edges):\n        edges = list(edges)\n        rng.shuffle(edges)\n        out = []\n        for u, v in edges:\n            if rng.random() < 0.5:\n                u, v = v, u\n            out.append(f'{u} {v}')\n        return f'{n} {len(edges)} {s} {c}\\n' + '\\n'.join(out)\n    def rand_edges(n, m):\n        es = set()\n        m = min(m, n * (n - 1) // 2)\n        while len(es) < m:\n            u = rng.randrange(n)\n            v = rng.randrange(n)\n            if u != v:\n                es.add((min(u, v), max(u, v)))\n        return es\n    tests = [\n        fmt(2, 0, 1, []),\n        fmt(2, 0, 1, [(0, 1)]),\n        fmt(3, 0, 1, [(0, 1), (1, 2)]),\n        fmt(3, 1, 0, [(0, 1), (1, 2)]),\n        fmt(4, 0, 3, [(0, 1), (1, 2), (2, 3), (0, 2)]),\n        fmt(6, 5, 3, [(0, 3), (1, 2), (1, 3), (2, 4), (3, 4), (4, 5)]),\n    ]\n    for _ in range(70):\n        n = rng.randint(2, 9)\n        m = rng.randint(0, min(n * (n - 1) // 2, 14))\n        s = rng.randrange(n)\n        c = rng.randrange(n)\n        while c == s:\n            c = rng.randrange(n)\n        tests.append(fmt(n, s, c, rand_edges(n, m)))\n    for _ in range(4):\n        n = rng.randint(200, 800)\n        tests.append(fmt(n, 0, rng.randint(1, n - 1), rand_edges(n, rng.randint(n // 2, 2 * n))))\n    # max size random\n    n = 100000\n    tests.append(fmt(n, 0, 1, rand_edges(n, 150000)))\n    # long path, corrupted far away, plus extra edges around it\n    n = 100000\n    es = {(i, i + 1) for i in range(n - 1)}\n    for _ in range(50000):\n        a = rng.randrange(n - 3)\n        es.add((a, a + 2))\n    tests.append(fmt(n, 0, n // 2, es))\n    # star plus chain\n    n = 100000\n    es = {(0, i) for i in range(1, 50000)}\n    es |= {(i, i + 1) for i in range(50000, n - 1)}\n    es.add((49999, 50000))\n    tests.append(fmt(n, 1, 0, es))\n    # sparse forest: many components\n    n = 100000\n    es = set()\n    for i in range(1, n):\n        if rng.random() < 0.8:\n            es.add((rng.randrange(max(0, i - 50), i), i))\n    tests.append(fmt(n, 0, rng.randint(1, 100), es))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef distances(n: int, edges: List[Tuple[int, int]], s: int, c: int) -> List[int]:\n    # Return, for every node, the fewest links from s (corrupted node c cannot be passed through), or -1\n    # Write your solution here\n    return [-1] * n\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m, s, c = int(data[0]), int(data[1]), int(data[2]), int(data[3])\n    edges = [(int(data[4 + 2 * i]), int(data[5 + 2 * i])) for i in range(m)]\n    dist = distances(n, edges, s, c)\n    print(' '.join('1' if x >= 0 else '0' for x in dist))\n    print(' '.join(map(str, dist)))\n\n\nmain()\n",
+  "javascript": "function distances(n, edges, s, c) {\n  // Return, for every node, the fewest links from s (corrupted node c cannot be passed through), or -1\n  // Write your solution here\n  return new Array(n).fill(-1)\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1], s = t[2], c = t[3]\nconst edges = []\nfor (let i = 0; i < m; i++) {\n  edges.push([t[4 + 2 * i], t[5 + 2 * i]])\n}\nconst dist = distances(n, edges, s, c)\nconsole.log(dist.map(x => (x >= 0 ? 1 : 0)).join(' '))\nconsole.log(dist.join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> distances(int n, vector<pair<int, int>>& edges, int s, int c) {\n    // Return, for every node, the fewest links from s (corrupted node c cannot be passed through), or -1\n    // Write your solution here\n    return vector<int>(n, -1);\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m, s, c;\n    cin >> n >> m >> s >> c;\n    vector<pair<int, int>> edges(m);\n    for (int i = 0; i < m; i++) cin >> edges[i].first >> edges[i].second;\n    vector<int> dist = distances(n, edges, s, c);\n    for (int i = 0; i < n; i++) cout << (dist[i] >= 0 ? 1 : 0) << (i + 1 < n ? ' ' : '\\n');\n    for (int i = 0; i < n; i++) cout << dist[i] << (i + 1 < n ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] distances(int n, int[][] edges, int s, int c) {\n        // Return, for every node, the fewest links from s (corrupted node c cannot be passed through), or -1\n        // Write your solution here\n        int[] dist = new int[n];\n        Arrays.fill(dist, -1);\n        return dist;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        in.nextToken();\n        int s = (int) in.nval;\n        in.nextToken();\n        int c = (int) in.nval;\n        int[][] edges = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken();\n            edges[i][0] = (int) in.nval;\n            in.nextToken();\n            edges[i][1] = (int) in.nval;\n        }\n        int[] dist = distances(n, edges, s, c);\n        StringBuilder a = new StringBuilder(), b = new StringBuilder();\n        for (int i = 0; i < n; i++) {\n            a.append(dist[i] >= 0 ? 1 : 0).append(i + 1 < n ? \" \" : \"\\n\");\n            b.append(dist[i]).append(i + 1 < n ? \" \" : \"\\n\");\n        }\n        System.out.print(a);\n        System.out.print(b);\n    }\n}\n"
+ }
+}

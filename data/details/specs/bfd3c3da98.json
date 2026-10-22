@@ -1,0 +1,18 @@
+{
+ "qid": "bfd3c3da98",
+ "question": "Bloomberg Software Engineer, virtual onsite round 2 (candidate was rejected): **design an identity provider (like Google's or Azure's) with single sign-on (SSO) and single logout (SLO), using OAuth or SAML in the backend.** Follow-up questions covered scale, how to handle requests from different regions, session management, and the authentication-token lifecycle.",
+ "lookingFor": [
+  "Knowledge of OAuth 2.0 / OpenID Connect and SAML flows.",
+  "Security thinking: token handling, session fixation, revocation.",
+  "Multi-region scaling, data replication and latency.",
+  "Session and token lifecycle design including logout propagation.",
+  "Structured trade-off discussion."
+ ],
+ "answer": "**1. Requirements.** Users authenticate once at the identity provider (IdP) and access many relying applications (SSO); logging out in one place ends sessions everywhere (SLO). Support OAuth 2.0 / OpenID Connect and SAML. Assume 100 million users, thousands of logins per second at peak, global traffic, and 99.99 percent availability. Security is the top priority.\n\n**2. Core flow (OIDC authorization code).**\n1. App redirects the browser to the IdP `/authorize`.\n2. IdP checks for an existing IdP session cookie; if absent, it shows the login page (password, MFA).\n3. IdP creates a session and redirects back with a short-lived authorization code.\n4. The app backend exchanges the code at `/token` for an ID token, access token and refresh token.\n5. Tokens are signed JWTs, verified with the IdP's public keys from a JWKS endpoint.\n\nSAML is similar but exchanges signed XML assertions through the browser.\n\n**3. Components.** Stateless auth servers behind a global load balancer; credential store (hashed with a slow algorithm such as bcrypt or argon2); session store (Redis or similar); token service with key management (an HSM or KMS, key rotation); client registry (redirect URIs, secrets); audit log; rate limiting and bot protection.\n\n**4. Session and token lifecycle.** Keep access tokens short-lived (about 5 to 15 minutes) and self-contained so resource servers can validate them without calling the IdP. Refresh tokens are long-lived, stored server-side, rotated on use, and revocable. IdP session cookies are `HttpOnly`, `Secure`, `SameSite`.\n\n**5. Single logout.** The IdP tracks which apps participate in each session. On logout it destroys the session, then notifies apps via OIDC back-channel logout (server-to-server logout tokens) or front-channel logout (hidden iframes). Back-channel is more reliable. Revoke refresh tokens, and keep short access-token lifetimes because already-issued access tokens cannot be recalled.\n\n**6. Multi-region.** Route users to the nearest region; replicate user and client data across regions (eventual consistency for profile, stronger for credentials and revocation); either keep sessions regional with a home-region lookup or use a replicated session store; share signing keys through KMS replication. Trade-off: availability and latency versus revocation freshness.",
+ "followUps": [
+  "How do you revoke an access token that has already been issued?",
+  "Why use the authorization code flow with PKCE instead of the implicit flow?",
+  "What happens to logout if one application is unreachable?",
+  "How do you rotate signing keys without breaking relying parties?"
+ ]
+}

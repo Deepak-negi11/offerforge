@@ -1,0 +1,50 @@
+{
+ "pid": "ola-count-squares-of-side-k",
+ "title": "Count Squares of Side K",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given `n` distinct points with integer coordinates on a grid and an integer `k`. Count the distinct **axis-aligned squares of side length `k`** whose four corners are all among the given points.\n\nA square is axis-aligned when its sides are parallel to the coordinate axes, so it is determined by its bottom-left corner `(x, y)`: its other corners are `(x + k, y)`, `(x, y + k)` and `(x + k, y + k)`. Two squares are different if at least one corner differs, so each square is counted once. Tilted squares are not counted, and the points do not have to be the only points inside a square (extra points may lie anywhere).",
+ "input_format": "The first line contains two integers `n` and `k`.\nEach of the next `n` lines contains two integers `x` and `y`, the coordinates of a point.",
+ "output_format": "Print a single integer: the number of axis-aligned squares of side `k` whose four corners are given points.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ k ≤ 10^9",
+  "0 ≤ x, y ≤ 10^9",
+  "All points are distinct"
+ ],
+ "examples": [
+  {
+   "input": "6 1\n0 0\n0 1\n1 0\n1 1\n2 0\n2 1",
+   "output": "2",
+   "explanation": "The squares with bottom-left corners (0,0) and (1,0) have all four corners present. There is no point at x = 3, so nothing else."
+  },
+  {
+   "input": "5 2\n0 0\n2 0\n0 2\n2 2\n1 1",
+   "output": "1",
+   "explanation": "Only the square with corners (0,0), (2,0), (0,2), (2,2) has side 2. The point (1,1) in the middle is irrelevant."
+  },
+  {
+   "input": "4 3\n0 0\n3 0\n0 3\n2 3",
+   "output": "0",
+   "explanation": "The corner (3,3) is missing, so no square of side 3 exists."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "A square of side `k` is fully determined by one corner. Which corner can you pick so that each square is counted exactly once?",
+  "Store all points in a hash set so that you can test whether a point exists in O(1).",
+  "For every point `(x, y)` treat it as the bottom-left corner and check whether `(x+k, y)`, `(x, y+k)` and `(x+k, y+k)` are all in the set."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    pts = set()\n    for i in range(n):\n        pts.add((int(data[2 + 2 * i]), int(data[3 + 2 * i])))\n    cnt = 0\n    for x, y in pts:\n        if (x + k, y) in pts and (x, y + k) in pts and (x + k, y + k) in pts:\n            cnt += 1\n    print(cnt)\n\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, k = int(data[0]), int(data[1])\npts = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(n)]\ncnt = 0\nfor x, y in pts:\n    if (x + k, y) in pts and (x, y + k) in pts and (x + k, y + k) in pts:\n        cnt += 1\nprint(cnt)\n",
+ "generator": "def gen(rng):\n    def fmt(pts, k):\n        pts = list(pts)\n        rng.shuffle(pts)\n        return f'{len(pts)} {k}\\n' + '\\n'.join(f'{x} {y}' for x, y in pts)\n\n    tests = [fmt([(0, 0), (0, 1), (1, 0), (1, 1), (2, 0), (2, 1)], 1), fmt([(0, 0), (2, 0), (0, 2), (2, 2), (1, 1)], 2),\n             fmt([(0, 0), (3, 0), (0, 3), (2, 3)], 3), fmt([(5, 5)], 1), fmt([(0, 0), (1, 1)], 1),\n             fmt([(0, 0), (10**9, 0), (0, 10**9), (10**9, 10**9)], 10**9), fmt([(0, 0), (1, 0), (0, 1), (1, 1)], 2),\n             fmt([(i, j) for i in range(4) for j in range(4)], 1)]\n    for _ in range(50):\n        w = rng.randint(2, 7)\n        cells = [(i, j) for i in range(w) for j in range(w)]\n        pts = rng.sample(cells, rng.randint(1, len(cells)))\n        tests.append(fmt(pts, rng.randint(1, 4)))\n    for _ in range(4):\n        w = rng.randint(5, 40)\n        cells = [(i, j) for i in range(w) for j in range(w)]\n        pts = rng.sample(cells, rng.randint(len(cells) // 2, len(cells)))\n        if len(pts) <= 60:\n            tests.append(fmt(pts, rng.randint(1, 5)))\n    tests.append(fmt([(10**9 - 3 * i, 10**9 - 3 * j) for i in range(30) for j in range(30) if rng.random() < 0.9], 3))\n    # max-size tests\n    g = [(i * 7 + 13, j * 7 + 500) for i in range(316) for j in range(316)]\n    tests.append(fmt(g, 7))\n    tests.append(fmt(g, 14))\n    cells = rng.sample(range(330 * 330), 100000)\n    tests.append(fmt([(c // 330, c % 330) for c in cells], 2))\n    k = 123456789\n    pts = set()\n    while len(pts) < 99000:\n        x = rng.randint(0, 10**9 - k)\n        y = rng.randint(0, 10**9 - k)\n        if rng.random() < 0.5:\n            pts.update([(x, y), (x + k, y), (x, y + k), (x + k, y + k)])\n        else:\n            pts.add((x, y))\n    pts = list(pts)[:100000]\n    tests.append(fmt(pts, k))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_squares(xs: List[int], ys: List[int], k: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    xs = [int(data[2 + 2 * i]) for i in range(n)]\n    ys = [int(data[3 + 2 * i]) for i in range(n)]\n    print(count_squares(xs, ys, k))\n\n\nmain()\n",
+  "javascript": "function countSquares(xs, ys, k) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst xs = [], ys = []\nfor (let i = 0; i < n; i++) {\n  xs.push(t[2 + 2 * i])\n  ys.push(t[3 + 2 * i])\n}\nconsole.log(countSquares(xs, ys, k))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countSquares(vector<long long>& xs, vector<long long>& ys, long long k) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long k;\n    cin >> n >> k;\n    vector<long long> xs(n), ys(n);\n    for (int i = 0; i < n; i++) cin >> xs[i] >> ys[i];\n    cout << countSquares(xs, ys, k) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countSquares(long[] xs, long[] ys, long k) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        long k = (long) in.nval;\n        long[] xs = new long[n], ys = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); xs[i] = (long) in.nval;\n            in.nextToken(); ys[i] = (long) in.nval;\n        }\n        System.out.println(countSquares(xs, ys, k));\n    }\n}\n"
+ }
+}

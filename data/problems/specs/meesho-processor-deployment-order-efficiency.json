@@ -1,0 +1,43 @@
+{
+ "pid": "meesho-processor-deployment-order-efficiency",
+ "title": "Processor Deployment Order Efficiency",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A supercomputer has `n` processors arranged in a row, numbered `1` to `n`. You deploy them one at a time, each exactly once, in an order of your choice.\n\nThe efficiency of processor `i` depends on how many of its neighbours (processors `i - 1` and `i + 1`, where they exist) were deployed **before** it:\n\n- none of them: the efficiency is `no_adjacent[i]`,\n- exactly one of them: the efficiency is `one_adjacent[i]`,\n- both of them: the efficiency is `both_adjacent[i]`.\n\nProcessors `1` and `n` have only one neighbour, so for them only the first two cases can happen.\n\nFind the maximum possible sum of the efficiencies over all possible deployment orders.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` integers `no_adjacent[1..n]`.\nThe third line contains `n` integers `one_adjacent[1..n]`.\nThe fourth line contains `n` integers `both_adjacent[1..n]`.",
+ "output_format": "Print a single integer: the maximum possible sum of efficiencies.",
+ "constraints": [
+  "2 ≤ n ≤ 10^5",
+  "0 ≤ no_adjacent[i], one_adjacent[i], both_adjacent[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "4\n1 2 3 4\n4 4 2 1\n1 1 1 1",
+   "output": "14",
+   "explanation": "Deploying in the order 4, 3, 2, 1 gives no_adjacent[4] + one_adjacent[3] + one_adjacent[2] + one_adjacent[1] = 4 + 2 + 4 + 4 = 14. For comparison, the order 1, 3, 4, 2 gives only 1 + 3 + 1 + 1 = 6, and 4, 2, 1, 3 gives 4 + 2 + 4 + 1 = 11. No order beats 14."
+  },
+  {
+   "input": "3\n5 1 5\n2 2 2\n9 9 9",
+   "output": "19",
+   "explanation": "Deploy processors 1 and 3 first (each has no deployed neighbour: 5 + 5), then processor 2 with both neighbours deployed (9). The total is 19."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Trying all n! orders is hopeless. What actually matters for the efficiency of processor i: the exact position in the order, or only whether each neighbour comes before or after it?",
+  "For every pair of adjacent processors you only need to decide which of the two is deployed first. Any choice of these n - 1 decisions can be realised by some order, because the row has no cycles.",
+  "Run a DP from left to right whose state is the direction of the last decision (was processor i - 1 deployed before processor i or after it). The efficiency of processor i is fixed once the directions of both its edges are known."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    no = [int(x) for x in data[1:1 + n]]\n    one = [int(x) for x in data[1 + n:1 + 2 * n]]\n    both = [int(x) for x in data[1 + 2 * n:1 + 3 * n]]\n    tbl = (no, one, both)\n    # o = 1 means processor i is deployed before processor i + 1\n    dp = [tbl[1 - o][0] for o in (0, 1)]\n    # processor 0: its right neighbour is earlier when o == 0\n    for i in range(1, n - 1):\n        new = [0, 0]\n        for o in (0, 1):\n            best = 0\n            for prev in (0, 1):\n                v = dp[prev] + tbl[prev + (1 - o)][i]\n                if v > best:\n                    best = v\n            new[o] = best\n        dp = new\n    ans = 0\n    for prev in (0, 1):\n        v = dp[prev] + tbl[prev][n - 1]\n        if v > ans:\n            ans = v\n    print(ans)\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import permutations\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nno = [int(x) for x in data[1:1 + n]]\none = [int(x) for x in data[1 + n:1 + 2 * n]]\nboth = [int(x) for x in data[1 + 2 * n:1 + 3 * n]]\ntbl = (no, one, both)\nbest = 0\nfor order in permutations(range(n)):\n    pos = [0] * n\n    for t, p in enumerate(order):\n        pos[p] = t\n    total = 0\n    for i in range(n):\n        c = 0\n        if i > 0 and pos[i - 1] < pos[i]:\n            c += 1\n        if i < n - 1 and pos[i + 1] < pos[i]:\n            c += 1\n        total += tbl[c][i]\n    best = max(best, total)\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(no, one, both):\n        n = len(no)\n        return f\"{n}\\n{' '.join(map(str, no))}\\n{' '.join(map(str, one))}\\n{' '.join(map(str, both))}\"\n    tests = [\n        fmt([1, 2, 3, 4], [4, 4, 2, 1], [1, 1, 1, 1]),\n        fmt([5, 1, 5], [2, 2, 2], [9, 9, 9]),\n        fmt([3, 8], [4, 2], [0, 0]),\n        fmt([0, 0], [0, 0], [0, 0]),\n        fmt([1, 1, 1], [5, 5, 5], [9, 9, 9]),\n        fmt([9, 9, 9, 9, 9], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1]),\n        fmt([1, 1, 1, 1, 1], [1, 1, 1, 1, 1], [9, 9, 9, 9, 9]),\n    ]\n    for _ in range(24):\n        n = rng.randint(2, 7)\n        hi = rng.choice([5, 20, 100])\n        tests.append(fmt([rng.randint(0, hi) for _ in range(n)], [rng.randint(0, hi) for _ in range(n)], [rng.randint(0, hi) for _ in range(n)]))\n    n = 100000\n    M = 10 ** 9\n    tests.append(fmt([rng.randint(0, M) for _ in range(n)], [rng.randint(0, M) for _ in range(n)], [rng.randint(0, M) for _ in range(n)]))\n    tests.append(fmt([M] * n, [M] * n, [M] * n))\n    tests.append(fmt([rng.randint(0, 100) for _ in range(n)], [rng.randint(0, 100) for _ in range(n)], [rng.randint(500, 1000) for _ in range(n)]))\n    tests.append(fmt([rng.randint(0, M) for _ in range(n)], [rng.randint(0, 10) for _ in range(n)], [rng.randint(0, 10) for _ in range(n)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_efficiency(no_adjacent: List[int], one_adjacent: List[int], both_adjacent: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    no_adjacent = [int(x) for x in data[1:1 + n]]\n    one_adjacent = [int(x) for x in data[1 + n:1 + 2 * n]]\n    both_adjacent = [int(x) for x in data[1 + 2 * n:1 + 3 * n]]\n    print(max_efficiency(no_adjacent, one_adjacent, both_adjacent))\n\n\nmain()\n",
+  "javascript": "function maxEfficiency(noAdjacent, oneAdjacent, bothAdjacent) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst noAdjacent = t.slice(1, 1 + n)\nconst oneAdjacent = t.slice(1 + n, 1 + 2 * n)\nconst bothAdjacent = t.slice(1 + 2 * n, 1 + 3 * n)\nconsole.log(String(maxEfficiency(noAdjacent, oneAdjacent, bothAdjacent)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxEfficiency(vector<long long>& noAdjacent, vector<long long>& oneAdjacent, vector<long long>& bothAdjacent) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> noAdjacent(n), oneAdjacent(n), bothAdjacent(n);\n    for (int i = 0; i < n; i++) cin >> noAdjacent[i];\n    for (int i = 0; i < n; i++) cin >> oneAdjacent[i];\n    for (int i = 0; i < n; i++) cin >> bothAdjacent[i];\n    cout << maxEfficiency(noAdjacent, oneAdjacent, bothAdjacent) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxEfficiency(long[] noAdjacent, long[] oneAdjacent, long[] bothAdjacent) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] noAdjacent = new long[n], oneAdjacent = new long[n], bothAdjacent = new long[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); noAdjacent[i] = (long) in.nval; }\n        for (int i = 0; i < n; i++) { in.nextToken(); oneAdjacent[i] = (long) in.nval; }\n        for (int i = 0; i < n; i++) { in.nextToken(); bothAdjacent[i] = (long) in.nval; }\n        System.out.println(maxEfficiency(noAdjacent, oneAdjacent, bothAdjacent));\n    }\n}\n"
+ }
+}

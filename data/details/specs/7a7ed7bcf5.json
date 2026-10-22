@@ -1,0 +1,17 @@
+{
+ "qid": "7a7ed7bcf5",
+ "question": "Asked in an SDE intern technical interview (round 1 was mainly DSA with a few OOP and SQL questions): differentiate between clustered and non-clustered indexes, and explain primary keys versus foreign keys.",
+ "lookingFor": [
+  "Accurate understanding of how an index relates to physical storage",
+  "Awareness of the performance trade-offs of each type",
+  "Clear distinction between key types and their purpose",
+  "Ability to give a concrete example"
+ ],
+ "answer": "**Clustered index.** The table's rows are physically stored in the order of the index key, so the index's leaf level *is* the table data (as in SQL Server, or InnoDB in MySQL where the primary key is the clustered index). There can be only **one** per table because the data can be sorted in only one way. It is very fast for range queries on the key (`BETWEEN`, ordered scans), and lookups by key need no extra step.\n\n**Non-clustered index.** A separate structure (usually a B+ tree) holding the indexed column values plus a pointer to the row: a row id or, in InnoDB, the clustered key. A table can have many. A lookup first searches the index, then follows the pointer to fetch the full row (a \"key lookup\"), which costs an extra read. A **covering index**, which includes all columns the query needs, avoids this extra step.\n\n**Trade-offs**\n\n- Clustered: best for the most common access path and range scans; inserts with random keys (such as random UUIDs) cause page splits and fragmentation, and changing the key is expensive.\n- Non-clustered: flexible for many query patterns, but each one costs storage and slows writes, because every insert, update or delete must update all of them.\n\n**Primary key vs foreign key**\n\n- **Primary key** uniquely identifies each row in a table. It cannot be NULL and there is one per table (it may be composite). It usually creates a clustered index by default.\n- **Foreign key** is a column (or columns) that references the primary key (or a unique key) of another table. It enforces referential integrity: you cannot insert a child row pointing to a non-existent parent, and the parent's deletion or update is restricted or cascaded according to `ON DELETE` and `ON UPDATE` rules. It can be NULL if the relation is optional, and a table can have many foreign keys.\n\n```sql\nCREATE TABLE orders (\n  id INT PRIMARY KEY,\n  customer_id INT,\n  FOREIGN KEY (customer_id) REFERENCES customers(id)\n);\n```\n\nIndex the foreign key column as well, to speed joins and parent deletes.",
+ "followUps": [
+  "Why can a table have only one clustered index?",
+  "What is a covering index?",
+  "How does a random UUID primary key affect a clustered index?",
+  "What is the difference between a primary key and a unique key?"
+ ]
+}

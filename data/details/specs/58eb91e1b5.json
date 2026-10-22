@@ -1,0 +1,18 @@
+{
+ "qid": "58eb91e1b5",
+ "question": "Uber Backend SDE-2, Round 4 (HLD): **design an in-memory key-value cache**. Topics discussed: key-value storage, eviction strategies (**LRU and TTL**), **concurrency**, read/write optimisation and a **write-ahead log**. The interviewer stressed that the cache is a **single-node, non-distributed system**. The candidate noted a mistake: they kept bringing up the CAP theorem even though it does not apply to a single node.",
+ "lookingFor": [
+  "Can you design the storage engine of a single-node cache with O(1) operations?",
+  "Do you implement LRU and TTL eviction correctly and combine them?",
+  "Can you design concurrency with attention to lock contention?",
+  "Do you understand a write-ahead log, its durability trade-offs and recovery?",
+  "Do you stay within the scope given and avoid applying distributed-systems concepts that do not apply?"
+ ],
+ "answer": "**Requirements.** `get`, `set(key, value, ttl?)`, `delete`; bounded memory; O(1) operations; thread safety; optional durability so the cache can recover after a restart. Single node only, so there is no CAP trade-off; focus on correctness, latency and memory.\n\n**Storage.** A hash map `key -> entry` where an entry holds `value`, `expiresAt` and links into an LRU structure.\n\n**LRU.** Doubly linked list ordered by recency plus the hash map pointing to nodes. `get` moves the node to the head; insertion adds at the head; when the entry count (or byte size) exceeds capacity, evict the tail. All O(1). Cheaper variants for high concurrency are approximate LRU (sample a few keys and evict the oldest, as Redis does) or CLOCK.\n\n**TTL.** Combine two strategies: **lazy expiry** (check `expiresAt` on access and delete if expired) plus **active expiry** (a background task scans a sample of keys or uses a min-heap or timing wheel keyed by expiry time to remove expired entries). Lazy alone leaks memory for keys never read again.\n\n**Concurrency.** A single global lock is simple but is a bottleneck, because even `get` mutates the LRU list. Options: **shard** the cache into N segments by key hash, each with its own lock, map and LRU (as in Guava/Caffeine's segments); or buffer recency updates in a lock-free queue and apply them in batches (Caffeine's approach), so reads rarely contend. Use a read-write lock only where reads do not mutate.\n\n**Write-ahead log.** To survive restarts, append each mutation (`SET key value expiresAt`, `DEL key`) to a log file **before** applying it in memory. On recovery, replay the log to rebuild state; periodically write a snapshot and truncate the log (checkpointing) so replay stays fast. Trade-off: `fsync` on every write is durable but slow; batching fsyncs (group commit, or every second) gives throughput with a small window of loss.\n\n**Other points.** Memory accounting by bytes, large-value handling, metrics (hit rate, evictions), and tests for eviction order and TTL boundaries.",
+ "followUps": [
+  "Why does a plain read-write lock not help much with an LRU cache?",
+  "How would you implement TTL expiry efficiently for millions of keys?",
+  "What are the durability trade-offs of fsync per write versus batched fsync?",
+  "How would you extend this single-node cache to a distributed one, and which new problems appear?"
+ ]
+}

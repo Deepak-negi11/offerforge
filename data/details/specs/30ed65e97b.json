@@ -1,0 +1,17 @@
+{
+ "qid": "30ed65e97b",
+ "question": "In Technical Round 2 of an Oracle internship interview, the interviewer asked about the candidate's second-year internship and the technologies used there, and then how the database used in that project could be scaled for high performance.",
+ "lookingFor": [
+  "Measure-first approach to performance problems",
+  "Knowledge of indexing, query tuning, caching and connection pooling",
+  "Understanding of replication, partitioning and sharding and their costs",
+  "Ability to connect the answer to your own project's actual workload"
+ ],
+ "answer": "Scale in order of cost and risk, and diagnose before changing anything. Describe your own project's database and workload first (what DB, what tables, read-heavy or write-heavy, size), then walk down these steps.\n\n1. **Measure.** Find the actual bottleneck: slow query log, `EXPLAIN` plans, CPU, I/O and lock waits, cache hit ratio. Set a target such as p95 latency or throughput.\n2. **Fix queries and schema.** Add the right indexes (composite indexes matching `WHERE` and `ORDER BY`), avoid `SELECT *`, remove N+1 query patterns, paginate with keyset pagination, and normalize or selectively denormalize hot read paths. Over-indexing slows writes, so index what the workload needs.\n3. **Connection pooling.** Reuse a bounded set of connections instead of opening one per request, so the database is not overloaded.\n4. **Caching.** Put frequently read, rarely changing data in an in-memory cache such as Redis, with a clear invalidation or TTL strategy. This often removes most read load.\n5. **Scale up.** More CPU, RAM and faster storage; simple and effective early on, but with a ceiling.\n6. **Read replicas.** Send reads to replicas and writes to the primary. Trade-off: replication lag, so reads that must see their own writes go to the primary.\n7. **Partitioning and archiving.** Split big tables by date or key; move old data to cheaper storage so the working set stays small.\n8. **Sharding.** Split data across several servers by a shard key (for example `user_id`). It scales writes and storage but adds complexity: cross-shard queries and transactions, rebalancing and operational overhead. Use it last.\n9. **Choose the right store** for the access pattern, for example search in a search engine, or a NoSQL store for simple key access at huge scale, while accepting weaker transactional guarantees.\n\nClose by stating the trade-offs (consistency versus availability, cost versus complexity) and say how you would verify the improvement with the same measurements, such as load testing before and after.",
+ "followUps": [
+  "How do indexes speed up reads and what do they cost on writes?",
+  "What is replication lag and how can it affect your application?",
+  "How would you choose a shard key?",
+  "When would you add a cache and how do you keep it consistent?"
+ ]
+}

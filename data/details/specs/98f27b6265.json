@@ -1,0 +1,18 @@
+{
+ "qid": "98f27b6265",
+ "question": "Mastercard Java developer (experienced) interview, Spring/Java backend questions: **how to create a custom annotation**, **where to use `@Around` advice in AOP**, **how to send a file over a REST HTTP call and which content type to use**, and **how to implement OAuth security for a microservice**.",
+ "lookingFor": [
+  "Do you understand annotations and reflection basics?",
+  "Can you apply AOP for cross-cutting concerns and explain advice types and pitfalls?",
+  "Do you know multipart/form-data vs raw binary uploads?",
+  "Do you understand OAuth 2.0 roles and token validation in a resource server?"
+ ],
+ "answer": "**Custom annotation.**\n\n    @Target(ElementType.METHOD)\n    @Retention(RetentionPolicy.RUNTIME)\n    public @interface LogExecutionTime { }\n\n`@Target` says where it may be applied; `@Retention(RUNTIME)` keeps it available for reflection (the default `CLASS` is not visible at runtime). An annotation alone does nothing; something must read it, for example an AOP aspect or a framework processor.\n\n**`@Around` advice.** It wraps a method call, so it can run code before and after, change arguments or the result, catch exceptions, or skip the call entirely. It receives a `ProceedingJoinPoint` and must call `proceed()`.\n\n    @Aspect @Component\n    class TimingAspect {\n        @Around(\"@annotation(LogExecutionTime)\")\n        Object time(ProceedingJoinPoint pjp) throws Throwable {\n            long t = System.nanoTime();\n            try { return pjp.proceed(); }\n            finally { log.info(\"{} took {} ms\", pjp.getSignature(),\n                               (System.nanoTime() - t) / 1_000_000); }\n        }\n    }\n\nUse it for cross-cutting concerns: timing and metrics, logging, retry, caching, transactions, authorization checks. Prefer the narrowest advice type that works. Pitfall: Spring AOP is proxy based, so self-invocation inside a class is not intercepted.\n\n**Sending a file over REST.**\n- Common: `multipart/form-data`, with the file as one part (and optional metadata fields). In Spring: `@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)` with a `MultipartFile` parameter.\n- Alternative: send raw bytes with `application/octet-stream` (or the real type such as `application/pdf`) as the body, with the filename in a header or the path. Base64 inside JSON works but inflates size by about a third.\n- Set size limits, validate type and content, and stream large files.\n\n**OAuth for a microservice.** OAuth 2.0 delegates access using tokens. An authorization server (Keycloak, Okta and similar) issues access tokens (often JWTs). The microservice acts as a **resource server**: it validates the token's signature, issuer, audience and expiry (using the issuer's public keys) and checks scopes or roles. In Spring Security, configure `oauth2ResourceServer().jwt()`. Users get tokens via the authorization-code flow (with PKCE); service-to-service calls use the **client credentials** flow. Often an API gateway validates tokens centrally, but each service should still enforce authorization. Use HTTPS, short-lived tokens and least-privilege scopes.",
+ "followUps": [
+  "What is the difference between @Before, @After and @Around?",
+  "Why does Spring AOP not intercept a call to a method in the same class?",
+  "Why use multipart/form-data rather than base64 in JSON for uploads?",
+  "What is the difference between OAuth 2.0 and OpenID Connect?",
+  "How do you validate a JWT and what claims do you check?"
+ ]
+}

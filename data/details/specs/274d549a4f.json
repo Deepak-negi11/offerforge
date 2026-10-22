@@ -1,0 +1,17 @@
+{
+ "qid": "274d549a4f",
+ "question": "Apple, Software Engineer, IS&T Backend, first elimination round, Java and Spring theory segment: **explain the Factory design pattern with an example.** It was asked among other questions on Spring Cloud, CAP theorem, and microservice resiliency.",
+ "lookingFor": [
+  "Knowing what problem the pattern solves (decoupling object creation from use).",
+  "A clean, correct code example in the candidate's language.",
+  "Understanding of Factory Method versus Abstract Factory versus a simple factory.",
+  "Link to SOLID (open/closed, dependency inversion) and to real frameworks."
+ ],
+ "answer": "**Intent.** The Factory pattern moves object creation behind a method or class, so client code depends on an interface and not on concrete classes. Adding a new type then does not require changing every place that creates objects.\n\n**Example: notifications.**\n\n    interface Notification { void send(String to, String msg); }\n    class EmailNotification implements Notification { public void send(String to, String msg) { /* SMTP */ } }\n    class SmsNotification implements Notification { public void send(String to, String msg) { /* gateway */ } }\n\n    class NotificationFactory {\n        static Notification create(String type) {\n            switch (type) {\n                case \"EMAIL\": return new EmailNotification();\n                case \"SMS\": return new SmsNotification();\n                default: throw new IllegalArgumentException(\"Unknown type: \" + type);\n            }\n        }\n    }\n\n    // client\n    Notification n = NotificationFactory.create(channel);\n    n.send(user, \"Order shipped\");\n\nThe client knows only `Notification`. Adding a push channel means a new class and one new case.\n\n**Variants worth naming.**\n- **Simple factory** (above): one class with a creation method. Easy, but the switch must change for each new type.\n- **Factory Method:** a base class declares an abstract `createX()` and subclasses decide which concrete class to build (for example a `Dialog` with `createButton()` overridden per platform).\n- **Abstract Factory:** an interface for creating *families* of related objects (a UI toolkit factory that creates matching buttons and checkboxes).\n\n**When to use.** Creation logic is complex or depends on configuration or runtime input, several implementations share an interface, or you want to mock creation in tests. Do not use it when a plain constructor is enough.\n\n**Real examples.** `Calendar.getInstance()`, `NumberFormat.getInstance()`, `List.of(...)`, and Spring's `BeanFactory`, which creates and wires beans for you.\n\n**Principles served:** open/closed (extend by adding classes), dependency inversion (depend on abstractions), single responsibility (creation separated from use).",
+ "followUps": [
+  "How would you remove the switch statement so new types need no factory change?",
+  "What is the difference between Factory Method and Abstract Factory?",
+  "How does the Factory pattern relate to dependency injection?",
+  "How would you unit-test code that uses a factory?"
+ ]
+}

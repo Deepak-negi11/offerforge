@@ -1,0 +1,18 @@
+{
+ "qid": "10bc576b5e",
+ "question": "In the second technical round for a **Senior Software Engineer (Kubernetes/Go)** role at NVIDIA, there was a deep dive on **Kubernetes internals and Go**: the **informer cache**, **webhooks**, how a change propagates to a **reconciler**, **edge- versus level-triggered** reconciliation, **rolling out and rolling back CRD versions**, and **handling races when several threads reconcile events for the same object**.",
+ "lookingFor": [
+  "Do you know the client-go informer machinery and the path from API server to Reconcile()?",
+  "Do you understand level-triggered design and idempotent reconcilers?",
+  "Can you reason about concurrency, stale caches and optimistic concurrency?",
+  "Do you know CRD versioning, conversion and storage versions?"
+ ],
+ "answer": "**Propagation path.** A user applies an object, the API server runs admission (mutating webhooks, schema validation, validating webhooks) and writes it to etcd. A controller's **informer** (a *reflector* doing list + watch) receives events, puts them in a queue, updates a thread-safe **local cache (indexer)**, and calls event handlers. The handlers enqueue only the object's **key** (`namespace/name`) onto a **rate-limited work queue**; a worker pops the key and calls `Reconcile`, which reads current state **from the cache**, compares it with the spec and makes API calls to converge.\n\n**Edge vs level triggered.** Edge-triggered logic reacts to a specific event (\"pod created\"); if an event is missed or reordered, the system is wrong forever. Kubernetes controllers are **level-triggered**: the handler only says \"something changed for this key\", and reconcile recomputes from the *whole current state*. This makes controllers idempotent, resilient to missed or duplicated events, and safe to run periodically (resync). Rule: never depend on event content or event order.\n\n**Races.**\n- The work queue **de-duplicates keys and never hands the same key to two workers at once**; if the key changes while it is processing, it is marked dirty and re-queued afterwards. So `MaxConcurrentReconciles > 1` parallelises across objects, not within one.\n- Remaining races: **stale cache** (you just wrote and the cache has not caught up), other controllers or users updating the same object, and multiple operator replicas. Mitigate with **optimistic concurrency** (`resourceVersion`; retry on Conflict), server-side apply with field ownership, patching rather than full updates, **leader election** for replicas, using an uncached reader for critical reads, and in-memory expectations to avoid double-creating child objects. Use **finalizers** for cleanup and **owner references** for garbage collection.\n\n**CRD versioning.** Add a new version alongside the old one, with a **conversion webhook** (or `None` strategy for schema-identical versions) so the API server converts between versions. Choose which version is the **storage version**; stored objects stay in the old version until rewritten, so run a storage migration, check `status.storedVersions`, and only then stop serving the old version. For rollback, keep the old version served and convertible, make changes additive, keep conversion lossless (use annotations for fields the old version lacks), and canary the new controller before switching the storage version.",
+ "followUps": [
+  "Why is reading from the informer cache after a write potentially stale and how do you cope?",
+  "How does the work queue guarantee that one key is processed by one worker at a time?",
+  "What does a conversion webhook failure do to the API?",
+  "How do finalizers work and what can go wrong with them?",
+  "How would you make a reconciler safe when you run three replicas?"
+ ]
+}

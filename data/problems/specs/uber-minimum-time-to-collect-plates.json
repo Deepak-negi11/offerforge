@@ -1,0 +1,49 @@
+{
+ "pid": "uber-minimum-time-to-collect-plates",
+ "title": "Minimum Time to Collect Plates",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "`n` plates lie on a 2D plane; plate `i` sits at the integer point `(x[i], y[i])`. Two plates are **linked** when both of these hold:\n\n- they lie in the same row (equal `x`) or in the same column (equal `y`), and\n- the distance between them is at most `d`.\n\nBecause linked plates share one coordinate, their distance is simply the absolute difference of the other coordinate. Several plates may sit on the same point; such plates are at distance `0` and are therefore linked.\n\nWhen you collect a plate, you also collect, at the same moment, every plate connected to it through a chain of links (A linked to B, B linked to C, and so on). Each second you may pick any plate that has not been collected yet and collect it (together with its whole group).\n\nPrint the minimum number of seconds needed to collect all the plates.",
+ "input_format": "The first line contains two integers `n` and `d`.\nThe second line contains `n` integers `x[0] ... x[n-1]`.\nThe third line contains `n` integers `y[0] ... y[n-1]`.",
+ "output_format": "Print one integer: the minimum number of seconds.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ d ≤ 10^9",
+  "0 ≤ x[i], y[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3 1\n0 2 1\n0 1 2",
+   "output": "3",
+   "explanation": "The plates are (0,0), (2,1) and (1,2). No two of them share a row or a column, so nothing is linked and each plate needs its own second."
+  },
+  {
+   "input": "4 1\n0 0 1 2\n0 1 0 2",
+   "output": "2",
+   "explanation": "The plates are (0,0), (0,1), (1,0), (2,2). (0,1) and (1,0) are each linked to (0,0) (same column or row, distance 1), so those three form one group. (2,2) is alone, giving 2 seconds."
+  },
+  {
+   "input": "4 1\n0 0 1 1\n0 1 1 2",
+   "output": "1",
+   "explanation": "The plates are (0,0), (0,1), (1,1), (1,2). (0,0)-(0,1) share a row, (0,1)-(1,1) share a column, and (1,1)-(1,2) share a row, all at distance 1. One chain connects everything, so a single second is enough."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Collecting one plate collects its whole group, so the answer is the number of connected components of the 'linked' graph.",
+  "You cannot compare all pairs. Within one row only plates that are neighbours after sorting by the other coordinate matter: if three plates in a row are sorted, the middle one is at least as close to each end as the ends are to each other.",
+  "Sort the plates by (x, y) and union consecutive plates with the same x whose y-gap is at most d; then sort by (y, x) and do the same for columns. Count the remaining components with a union-find."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, d = int(data[0]), int(data[1])\n    xs = list(map(int, data[2:2 + n]))\n    ys = list(map(int, data[2 + n:2 + 2 * n]))\n    parent = list(range(n))\n\n    def find(a):\n        while parent[a] != a:\n            parent[a] = parent[parent[a]]\n            a = parent[a]\n        return a\n\n    comps = n\n    for g, o in ((xs, ys), (ys, xs)):\n        order = sorted(range(n), key=lambda i: (g[i], o[i]))\n        for k in range(1, n):\n            a, b = order[k - 1], order[k]\n            if g[a] == g[b] and o[b] - o[a] <= d:\n                ra, rb = find(a), find(b)\n                if ra != rb:\n                    parent[ra] = rb\n                    comps -= 1\n    print(comps)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, d = int(data[0]), int(data[1])\nxs = list(map(int, data[2:2 + n]))\nys = list(map(int, data[2 + n:2 + 2 * n]))\nseen = [False] * n\ngroups = 0\nfor s in range(n):\n    if seen[s]:\n        continue\n    groups += 1\n    seen[s] = True\n    stack = [s]\n    while stack:\n        a = stack.pop()\n        for b in range(n):\n            if seen[b]:\n                continue\n            if xs[a] == xs[b] or ys[a] == ys[b]:\n                dist2 = (xs[a] - xs[b]) ** 2 + (ys[a] - ys[b]) ** 2\n                if dist2 <= d * d:\n                    seen[b] = True\n                    stack.append(b)\nprint(groups)\n",
+ "generator": "def gen(rng):\n    def fmt(d, pts):\n        n = len(pts)\n        return f\"{n} {d}\\n\" + ' '.join(str(p[0]) for p in pts) + '\\n' + ' '.join(str(p[1]) for p in pts)\n    B = 10**9\n    tests = [\n        fmt(1, [(0, 0)]),\n        fmt(0, [(5, 5), (5, 5)]),\n        fmt(0, [(5, 5), (5, 6), (6, 5)]),\n        fmt(1, [(0, 0), (2, 1), (1, 2)]),\n        fmt(1, [(0, 0), (0, 1), (1, 0), (2, 2)]),\n        fmt(2, [(0, 0), (0, 2), (0, 5), (0, 7), (3, 7)]),\n        fmt(B, [(0, 0), (0, B), (B, B), (B, 0)]),\n        fmt(5, [(1, 1), (1, 1), (1, 1)]),\n        fmt(B - 1, [(0, 0), (0, B), (B, B), (B, 0)]),\n    ]\n    for n in (2, 3, 4, 6, 8, 12, 20, 30):\n        for _ in range(3):\n            m = rng.choice([2, 3, 5, 8])\n            d = rng.randint(0, m)\n            tests.append(fmt(d, [(rng.randint(0, m), rng.randint(0, m)) for _ in range(n)]))\n    N = 100000\n    pts = [(rng.randint(0, 300), rng.randint(0, B)) for _ in range(N)]\n    tests.append(fmt(5 * 10**6, pts))\n    tests.append(fmt(10**4, [(7, i * 10**4) for i in range(N)]))\n    tests.append(fmt(0, [(rng.randint(0, B), rng.randint(0, B)) for _ in range(N)]))\n    g = [(i, j) for i in range(316) for j in range(316)]\n    rng.shuffle(g)\n    tests.append(fmt(1, g))\n    chain = [(3, i * 9999) for i in range(N)]\n    rng.shuffle(chain)\n    tests.append(fmt(9998, chain))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_time(n: int, d: int, x: List[int], y: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, d = int(data[0]), int(data[1])\n    x = [int(v) for v in data[2:2 + n]]\n    y = [int(v) for v in data[2 + n:2 + 2 * n]]\n    print(min_time(n, d, x, y))\n\n\nmain()\n",
+  "javascript": "function minTime(n, d, x, y) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], d = t[1]\nconst x = t.slice(2, 2 + n)\nconst y = t.slice(2 + n, 2 + 2 * n)\nconsole.log(String(minTime(n, d, x, y)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minTime(int n, long long d, vector<long long>& x, vector<long long>& y) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long d;\n    cin >> n >> d;\n    vector<long long> x(n), y(n);\n    for (auto& v : x) cin >> v;\n    for (auto& v : y) cin >> v;\n    cout << minTime(n, d, x, y) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minTime(int n, long d, long[] x, long[] y) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        long d = (long) in.nval;\n        long[] x = new long[n], y = new long[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); x[i] = (long) in.nval; }\n        for (int i = 0; i < n; i++) { in.nextToken(); y[i] = (long) in.nval; }\n        System.out.println(minTime(n, d, x, y));\n    }\n}\n"
+ }
+}

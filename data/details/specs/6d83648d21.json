@@ -1,0 +1,19 @@
+{
+ "qid": "6d83648d21",
+ "question": "Oracle Health SMTS (about 4 years' experience), hiring manager round. Design and implement a **log-ingestion system that returns the K microservices with the most error logs in the last 5 minutes**. Discuss **scalability, availability and fault tolerance**, then **code the core methods**.",
+ "lookingFor": [
+  "Can you separate the architecture (ingest, aggregate, query) from the in-memory algorithm?",
+  "Do you pick a sliding-window structure with bounded memory?",
+  "Can you use a heap or a selection method correctly for top K?",
+  "Do you discuss partitioning, replication and approximate counting?",
+  "Is your code clean and are edge cases handled (late events, clock skew)?"
+ ],
+ "answer": "**Requirements.** Services emit log events (`service`, `level`, `timestamp`). We count only `ERROR` events and answer `topK(k)` for the last 5 minutes. Assume high ingest volume and fresh results (seconds).\n\n**Core structure.** Keep per-service counters in time buckets (one per second or minute). For a 5-minute window with 1-minute buckets, store `counts[bucket][service]`. On each event, increment the bucket for its timestamp. Old buckets beyond 5 minutes are dropped. A running total per service avoids summing buckets on every query: when a bucket expires, subtract its counts.\n\n```python\nclass ErrorTracker:\n    def __init__(self, window=300):\n        self.window = window\n        self.buckets = deque()          # (second, {service: count})\n        self.totals = defaultdict(int)\n\n    def record(self, service, ts):\n        self._expire(ts)\n        if not self.buckets or self.buckets[-1][0] != ts:\n            self.buckets.append((ts, defaultdict(int)))\n        self.buckets[-1][1][service] += 1\n        self.totals[service] += 1\n\n    def _expire(self, now):\n        while self.buckets and self.buckets[0][0] <= now - self.window:\n            _, c = self.buckets.popleft()\n            for s, n in c.items():\n                self.totals[s] -= n\n                if self.totals[s] == 0: del self.totals[s]\n\n    def top_k(self, k, now):\n        self._expire(now)\n        return heapq.nlargest(k, self.totals.items(), key=lambda x: x[1])\n```\n\n`record` is O(1) amortised. `top_k` is O(S log K) over S services, using a min-heap of size K. This simple version assumes events arrive roughly in order; for late events use event-time buckets and a watermark.\n\n**Distributed design.** Producers send logs to Kafka partitioned by service, so one service's counts live on one consumer. Each consumer holds its own tracker and answers local top-K; a query service merges the partial top-K lists (exact, because a service sits on one partition). Persist checkpoints or recompute from the log on restart. Replicate consumers for availability.\n\n**Trade-offs.** For huge cardinality use Count-Min sketch with a heap (approximate). Stream processors like Flink give windowing and fault tolerance out of the box. Clock skew: use the ingest time if producer clocks are unreliable.",
+ "followUps": [
+  "How would you handle events that arrive late or out of order?",
+  "What if there are millions of distinct services?",
+  "How would you make the result survive a node crash?",
+  "How would you extend it to a sliding window of the last hour?",
+  "Why use a min-heap of size K rather than sorting everything?"
+ ]
+}

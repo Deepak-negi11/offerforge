@@ -1,0 +1,44 @@
+{
+ "pid": "apple-room-booking-api",
+ "title": "Room Booking API",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A conference center has an unlimited supply of rooms, each identified by an integer `id`. Every room starts completely free. You must implement the booking API `bookApi(id, startTime, endTime)` and process a sequence of booking requests in order.\n\nA request asks to reserve room `id` for the half-open time slot `[startTime, endTime)`. The request **succeeds** (return `true`) if the slot does not overlap any booking that was **already accepted** for the same room, and the booking is then recorded. Otherwise it **fails** (return `false`) and nothing is recorded.\n\n- Two slots overlap if they share any moment of time. Slots that only touch, such as `[10, 20)` and `[20, 30)`, do **not** overlap.\n- Bookings of different rooms never interfere with each other.\n- Failed requests have no effect on later requests.\n\nFor every request print whether it succeeded.",
+ "input_format": "The first line contains an integer `q`, the number of requests.\nEach of the next `q` lines contains three integers `id`, `startTime` and `endTime`.",
+ "output_format": "Print `q` lines. Line `i` is `true` if request `i` succeeds and `false` otherwise.",
+ "constraints": [
+  "1 ≤ q ≤ 8 · 10^4",
+  "0 ≤ id ≤ 10^9",
+  "0 ≤ startTime < endTime ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "6\n1 10 20\n1 15 25\n1 20 30\n2 10 20\n1 5 10\n1 0 40",
+   "output": "true\nfalse\ntrue\ntrue\ntrue\nfalse",
+   "explanation": "Room 1 is free, so `[10,20)` is accepted. `[15,25)` overlaps it, so it fails and is not recorded. `[20,30)` only touches the first booking, so it is accepted. Room 2 has no bookings, so `[10,20)` is accepted there. `[5,10)` touches `[10,20)` in room 1 and is accepted. `[0,40)` overlaps the bookings of room 1 and fails."
+  },
+  {
+   "input": "3\n7 1 2\n7 1 2\n7 2 3",
+   "output": "true\nfalse\ntrue",
+   "explanation": "The second request is identical to the first accepted booking, so it overlaps and fails. `[2,3)` only touches `[1,2)` and is accepted."
+  }
+ ],
+ "complexity": {
+  "time": "O(q log q)",
+  "space": "O(q)"
+ },
+ "hints": [
+  "Each room is independent, so keep a separate collection of accepted slots per room id (a hash map from id to its slots).",
+  "Accepted slots in one room never overlap, so if you keep them sorted by start time, only the neighbours of the new slot can conflict with it.",
+  "Binary search the position of `startTime`: the slot before it must end at or before `startTime`, and the slot after it must start at or after `endTime`."
+ ],
+ "reference": "import sys\nfrom bisect import bisect_left\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    rooms = {}\n    out = []\n    for i in range(q):\n        r = int(data[1 + 3 * i])\n        s = int(data[2 + 3 * i])\n        e = int(data[3 + 3 * i])\n        if r not in rooms:\n            rooms[r] = ([], [])\n        st, en = rooms[r]\n        k = bisect_left(st, s)\n        if (k > 0 and en[k - 1] > s) or (k < len(st) and st[k] < e):\n            out.append('false')\n        else:\n            st.insert(k, s)\n            en.insert(k, e)\n            out.append('true')\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nq = int(data[0])\nrooms = {}\nout = []\nfor i in range(q):\n    r, s, e = int(data[1 + 3 * i]), int(data[2 + 3 * i]), int(data[3 + 3 * i])\n    lst = rooms.setdefault(r, [])\n    ok = True\n    for a, b in lst:\n        if s < b and a < e:\n            ok = False\n            break\n    if ok:\n        lst.append((s, e))\n    out.append('true' if ok else 'false')\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    def fmt(ops):\n        return str(len(ops)) + '\\n' + '\\n'.join(f'{a} {b} {c}' for a, b, c in ops)\n    tests = [\n        fmt([(1, 0, 1)]),\n        fmt([(5, 3, 9), (5, 3, 9)]),\n        fmt([(0, 0, 10**9), (0, 0, 1), (0, 10**9 - 1, 10**9)]),\n        fmt([(10**9, 5, 6), (10**9, 6, 7), (10**9, 4, 5), (10**9, 5, 7)]),\n        fmt([(1, 10, 20), (1, 20, 30), (1, 0, 10), (1, 9, 11), (1, 29, 31)]),\n    ]\n    for q in (3, 5, 8, 12, 20, 30):\n        for _ in range(3):\n            ops = []\n            for _ in range(q):\n                s = rng.randint(0, 30)\n                ops.append((rng.randint(0, 2), s, s + rng.randint(1, 8)))\n            tests.append(fmt(ops))\n    n = 80000\n    starts = list(range(n))\n    rng.shuffle(starts)\n    tests.append(fmt([(0, s * 12000, s * 12000 + rng.randint(1, 12000)) for s in starts]))\n    tests.append(fmt([(7, i * 12000, i * 12000 + 12000) for i in range(n)]))\n    ops = []\n    for _ in range(n):\n        s = rng.randint(0, 10**9 - 10000)\n        ops.append((0, s, s + rng.randint(1, 10000)))\n    tests.append(fmt(ops))\n    ops = []\n    for _ in range(n):\n        s = rng.randint(0, 10**9 - 10000)\n        ops.append((rng.randint(0, 2), s, s + rng.randint(1, 10000)))\n    tests.append(fmt(ops))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef process_requests(ids: List[int], starts: List[int], ends: List[int]) -> List[bool]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    ids = [int(data[1 + 3 * i]) for i in range(q)]\n    starts = [int(data[2 + 3 * i]) for i in range(q)]\n    ends = [int(data[3 + 3 * i]) for i in range(q)]\n    res = process_requests(ids, starts, ends)\n    print('\\n'.join('true' if x else 'false' for x in res))\n\n\nmain()\n",
+  "javascript": "function processRequests(ids, starts, ends) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst q = t[0]\nconst ids = [], starts = [], ends = []\nfor (let i = 0; i < q; i++) {\n  ids.push(t[1 + 3 * i])\n  starts.push(t[2 + 3 * i])\n  ends.push(t[3 + 3 * i])\n}\nconsole.log(processRequests(ids, starts, ends).map(x => (x ? 'true' : 'false')).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<bool> processRequests(vector<long long>& ids, vector<long long>& starts, vector<long long>& ends) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int q;\n    cin >> q;\n    vector<long long> ids(q), starts(q), ends(q);\n    for (int i = 0; i < q; i++) cin >> ids[i] >> starts[i] >> ends[i];\n    vector<bool> res = processRequests(ids, starts, ends);\n    for (size_t i = 0; i < res.size(); i++) cout << (res[i] ? \"true\" : \"false\") << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean[] processRequests(long[] ids, long[] starts, long[] ends) {\n        // Write your solution here\n        return new boolean[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int q = (int) in.nval;\n        long[] ids = new long[q], starts = new long[q], ends = new long[q];\n        for (int i = 0; i < q; i++) {\n            in.nextToken(); ids[i] = (long) in.nval;\n            in.nextToken(); starts[i] = (long) in.nval;\n            in.nextToken(); ends[i] = (long) in.nval;\n        }\n        boolean[] res = processRequests(ids, starts, ends);\n        StringBuilder sb = new StringBuilder();\n        for (boolean x : res) sb.append(x ? \"true\" : \"false\").append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

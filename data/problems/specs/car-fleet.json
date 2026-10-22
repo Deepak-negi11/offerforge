@@ -1,0 +1,50 @@
+{
+ "pid": "car-fleet",
+ "title": "Car Fleet",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "There is a single road leading to a finish line at position `target` (miles). `n` cars are on the road at distinct starting positions `position[i]` (all smaller than `target`), and car `i` drives toward the finish at a constant speed of `speed[i]` miles per hour.\n\nA car can never pass another car. If a faster car catches up to a slower car ahead of it, it has to slow down and drive at the speed of the slower car, and from then on they travel together as one **fleet**. A car that catches up exactly at the finish line also counts as joining that fleet. A single car is also a fleet, and fleets never change after they form.\n\nCount how many distinct fleets arrive at the finish line.\n\nAll times are exact rational numbers, so ties matter: two cars (or fleets) that would arrive at exactly the same moment belong to the same fleet. Compare arrival times without floating-point arithmetic.",
+ "input_format": "The first line contains two integers `target` and `n`.\nEach of the next `n` lines contains two integers `position[i]` and `speed[i]`.",
+ "output_format": "Print a single integer: the number of fleets that reach the finish line.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ target ≤ 10^6",
+  "0 ≤ position[i] < target, all positions are distinct",
+  "1 ≤ speed[i] ≤ 10^6"
+ ],
+ "examples": [
+  {
+   "input": "20 4\n0 2\n4 2\n10 1\n12 1",
+   "output": "2",
+   "explanation": "Arrival times alone are 10, 8, 10 and 8 hours. The car at 10 is slower than the car at 12 ahead of it, so it forms the second fleet. The car at 4 reaches the finish at time 8, but it is stuck behind the fleet at position 10 and arrives at 10 with it; likewise the car at 0 (10 hours) merges. Result: 2 fleets."
+  },
+  {
+   "input": "100 3\n10 1\n20 2\n30 3",
+   "output": "3",
+   "explanation": "Each car behind is slower than the car in front of it (times 90, 40, 23.3 from the back), so nobody catches up and there are 3 fleets."
+  },
+  {
+   "input": "15 4\n13 1\n9 3\n6 2\n0 7",
+   "output": "2",
+   "explanation": "The car at 9 needs 2 hours, same as the car at 13, so they meet exactly at the finish and form one fleet. The car at 6 needs 4.5 hours and is slower, so it is a new fleet. The car at 0 would need about 2.1 hours, so it catches up with that fleet and merges into it."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Sort the cars by starting position. A car can only ever be blocked by the car directly in front of it.",
+  "For each car compute the time it would take alone: (target - position) / speed. Walk from the car nearest the finish to the farthest.",
+  "If a car's own time is greater than the time of the fleet ahead, it never catches up and starts a new fleet; otherwise it merges. Compare times with cross-multiplication to avoid floats."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    T, n = int(data[0]), int(data[1])\n    cars = sorted((int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(n))\n    fleets = 0\n    # lead fleet's time = (T - p) / s, kept as a fraction\n    num, den = -1, 1\n    for p, s in reversed(cars):\n        a, b = T - p, s\n        if a * den > num * b:  # strictly later than the fleet ahead\n            fleets += 1\n            num, den = a, b\n    print(fleets)\n\nmain()\n",
+ "brute": "import sys\nfrom fractions import Fraction\n\ndata = sys.stdin.read().split()\nT, n = int(data[0]), int(data[1])\npos = [int(data[2 + 2 * i]) for i in range(n)]\nspd = [int(data[3 + 2 * i]) for i in range(n)]\norder = sorted(range(n), key=lambda i: -pos[i])\neff = {}\nfor idx, i in enumerate(order):\n    t = Fraction(T - pos[i], spd[i])\n    if idx > 0:\n        t = max(t, eff[order[idx - 1]])\n    eff[i] = t\nprint(len(set(eff.values())))\n",
+ "generator": "def gen(rng):\n    def fmt(T, cars):\n        return f\"{T} {len(cars)}\\n\" + '\\n'.join(f\"{p} {s}\" for p, s in cars)\n    tests = [fmt(10, [(3, 3)]), fmt(12, [(10, 2), (8, 4), (0, 1), (5, 1), (3, 3)]),\n             fmt(20, [(0, 2), (4, 2), (10, 1), (12, 1)]), fmt(100, [(10, 1), (20, 2), (30, 3)]),\n             fmt(10, [(0, 1), (1, 1), (2, 1), (3, 1)]), fmt(10, [(0, 5), (5, 1)]),\n             fmt(10, [(0, 10), (5, 5)]), fmt(7, [(0, 3), (1, 6), (2, 9)]),\n             fmt(1000000, [(0, 1), (999999, 1)])]\n    for _ in range(70):\n        T = rng.randint(2, 30)\n        n = rng.randint(1, min(T, 8))\n        ps = rng.sample(range(T), n)\n        tests.append(fmt(T, [(p, rng.randint(1, rng.choice([3, 6, 20]))) for p in ps]))\n    N = 100000\n    T = 10**6\n    ps = rng.sample(range(T), N)\n    tests.append(fmt(T, [(p, rng.randint(1, 10**6)) for p in ps]))\n    tests.append(fmt(T, [(p, rng.randint(1, 5)) for p in ps]))\n    ps2 = sorted(ps)\n    tests.append(fmt(T, [(p, 10**6 - i) for i, p in enumerate(ps2)]))   # speeds decreasing with position: mostly separate? mixes\n    tests.append(fmt(T, [(p, 1 + i) for i, p in enumerate(ps2)]))       # faster cars behind: heavy merging\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef car_fleet(target: int, position: List[int], speed: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    target, n = int(data[0]), int(data[1])\n    position = [int(data[2 + 2 * i]) for i in range(n)]\n    speed = [int(data[3 + 2 * i]) for i in range(n)]\n    print(car_fleet(target, position, speed))\n\n\nmain()\n",
+  "javascript": "function carFleet(target, position, speed) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst target = t[0], n = t[1]\nconst position = [], speed = []\nfor (let i = 0; i < n; i++) {\n  position.push(t[2 + 2 * i])\n  speed.push(t[3 + 2 * i])\n}\nconsole.log(String(carFleet(target, position, speed)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint carFleet(long long target, vector<long long>& position, vector<long long>& speed) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    long long target;\n    int n;\n    cin >> target >> n;\n    vector<long long> position(n), speed(n);\n    for (int i = 0; i < n; i++) cin >> position[i] >> speed[i];\n    cout << carFleet(target, position, speed) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int carFleet(long target, long[] position, long[] speed) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        long target = (long) in.nval;\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] position = new long[n], speed = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); position[i] = (long) in.nval;\n            in.nextToken(); speed[i] = (long) in.nval;\n        }\n        System.out.println(carFleet(target, position, speed));\n    }\n}\n"
+ }
+}

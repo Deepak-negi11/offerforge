@@ -1,0 +1,19 @@
+{
+ "qid": "8080e33766",
+ "question": "Intel AI Software Solutions Engineer (experienced), AI/ML/Deep Learning round of about 45 minutes, described as the most technical and interactive round. Reported questions: **explain the Transformer architecture in detail**, **discuss the physical significance of its components**, and **how can the attention mechanism be optimized?** The interviewer asked deep-dive follow-ups.",
+ "lookingFor": [
+  "Accurate, end-to-end description of the architecture.",
+  "Intuition for why each component exists, not just what it is.",
+  "Understanding of the quadratic cost of attention and its fixes.",
+  "Connection to practice: training stability, inference speed, memory.",
+  "Ability to reason through follow-ups rather than recite."
+ ],
+ "answer": "**Overview (original encoder-decoder).** Input tokens become embeddings plus **positional encodings**. The encoder stacks N identical layers; each has multi-head self-attention then a position-wise feed-forward network, each wrapped with a residual connection and layer norm. The decoder has the same plus *masked* self-attention and *cross-attention* over encoder output; a final linear layer and softmax predict the next token.\n\n**Attention.** Each token is projected to a query Q, key K and value V. Output = `softmax(QK^T / sqrt(d_k)) V`.\n\n**What each part is for.**\n- *Q, K, V:* the query says what this token is looking for, the key says what each token offers, and the value is the content that gets mixed in. Scores are similarity-weighted averages over the sequence.\n- *Scaling by sqrt(d_k):* keeps dot products from growing with dimension, which would push softmax into saturated regions with tiny gradients.\n- *Multi-head:* several attention maps in lower-dimensional subspaces let the model track different relations (syntax, coreference, position) in parallel.\n- *Positional encoding:* attention is permutation-invariant, so order has to be injected.\n- *Feed-forward network:* per-token nonlinear transformation that adds capacity after mixing information across tokens.\n- *Residual connections:* ease gradient flow in deep stacks; *layer norm:* stabilises activations and training.\n- *Causal mask (decoder):* blocks looking at future tokens so training matches generation.\n\n**Optimising attention.** Standard attention costs O(n^2) time and memory in sequence length n.\n- *FlashAttention:* exact attention, but tiled to cut memory traffic between GPU HBM and on-chip SRAM, so it is faster and avoids materialising the n x n matrix.\n- *KV cache* during generation: reuse past keys and values instead of recomputing.\n- *Multi-query / grouped-query attention:* share K and V across heads to shrink the cache.\n- *Sparse or sliding-window attention* and *linear/low-rank approximations:* reduce complexity at some accuracy cost.\n- *Quantisation* and fused kernels for inference.\n\nMention the trade-off: exact methods keep quality, approximate ones trade accuracy for length.",
+ "followUps": [
+  "Why divide by sqrt(d_k) in scaled dot-product attention?",
+  "How do encoder-only, decoder-only and encoder-decoder models differ?",
+  "How do rotary or relative positional embeddings differ from sinusoidal ones?",
+  "Why does a KV cache help inference but not training?",
+  "What is the memory cost of attention for a 32k-token context?"
+ ]
+}

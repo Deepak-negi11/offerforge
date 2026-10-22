@@ -1,0 +1,19 @@
+{
+ "qid": "8cc4881924",
+ "question": "Design a notification system. The interviewer asked you to cover the requirements, the main components, and your **database choice and schema**.\n\nThe same round also moved on to **how you would secure a large application** and to **Spring Boot** questions, so be ready to connect your design to a Java/Spring backend and to security concerns such as authentication and protecting user data.",
+ "lookingFor": [
+  "Clarifying requirements: channels (push, email, SMS, in-app), triggers, volume and latency expectations",
+  "Decoupling producers from delivery using a queue and per-channel workers",
+  "Reliability: retries, dead-letter queues, idempotency and de-duplication",
+  "Sensible database choice and schema for templates, preferences and delivery status",
+  "Awareness of security and Spring Boot practicalities"
+ ],
+ "answer": "**Requirements.** Functional: send notifications over multiple channels (email, SMS, push, in-app), support templates, honour user preferences and opt-outs, allow immediate and scheduled sends. Non-functional: high availability, at-least-once delivery, low latency for transactional alerts, horizontal scale (assume tens of millions of notifications a day, with spikes).\n\n**Components.**\n- Notification API (REST): authenticated producers call `POST /notifications` with user, type, template id and parameters. It validates, persists a record and publishes an event.\n- Message queue (Kafka, RabbitMQ or SQS): separate topics per channel and priority, so a bulk marketing blast cannot delay an OTP.\n- Channel workers: consume messages, render the template, check preferences and rate limits, then call providers (SMTP/SES, SMS gateway, FCM/APNs).\n- Scheduler for delayed sends, and a preference service.\n- Delivery tracker: consumes provider callbacks and updates status.\n\n**Reliability.** Use at-least-once consumption with an idempotency key (`notification_id`) so retries do not double-send. Retry with exponential backoff, then move to a dead-letter queue. Fall back to a secondary provider when one fails.\n\n**Data model.** A relational store (PostgreSQL/MySQL) works well for templates, user preferences and channel settings, since they are structured and need integrity. Delivery logs are write-heavy and time-ordered, so use a wide-column or time-partitioned store (Cassandra, or partitioned Postgres) with a TTL.\n- `notification(id, user_id, type, template_id, payload, status, created_at)`\n- `delivery(notification_id, channel, provider_ref, status, attempts, updated_at)`\n- `preference(user_id, channel, type, enabled)`\n\n**Security (large applications).** Use OAuth2/JWT with service-to-service auth, least-privilege roles, TLS everywhere, secrets in a vault, input validation, rate limiting, PII encryption at rest, and audit logs. In Spring Boot this typically means Spring Security, method-level authorization and parameterised queries.\n\n**Scaling.** Partition by `user_id`, scale workers by queue lag, cache preferences in Redis, and apply per-user and per-provider rate limits.",
+ "followUps": [
+  "How do you guarantee a notification is not sent twice?",
+  "How would you prioritise OTPs over marketing messages?",
+  "How would you support scheduled and recurring notifications?",
+  "Why did you choose SQL vs NoSQL for the delivery log?",
+  "How does Spring Security fit into protecting this service?"
+ ]
+}

@@ -1,0 +1,49 @@
+{
+ "pid": "infosys-battery-swaps-with-one-boost",
+ "title": "Battery Swaps With One Boost",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "An electric vehicle drives along a line from position `0` to a destination at position `target`. It starts with a battery that lets it travel at most `startBattery` units of distance.\n\nThere are `n` battery stations along the way. Station `i` is at position `position[i]` and offers a replacement battery of capacity `battery[i]`. The positions are strictly increasing and every station lies strictly before the destination.\n\nThe rules are:\n\n- The vehicle only moves forward. With a battery of capacity `c` installed at position `p` (or `c = startBattery` at position `0`), it can reach any position up to and including `p + c`.\n- When you stop at station `i`, your current battery is removed and replaced by the one from that station, so the new capacity is exactly `battery[i]`. Whatever range was left on the old battery is lost.\n- You have one special upgrade that may be used **at most once** during the whole trip. If you use it at a station, the battery installed there has capacity `2 * battery[i]` instead of `battery[i]`. The upgrade cannot be applied to the starting battery.\n- Every battery replacement counts as one stop, whether or not the upgrade is used. You never have to stop if your current battery can already reach the destination.\n\nPrint the minimum number of stops needed to reach `target`, or `-1` if it is impossible.",
+ "input_format": "The first line contains three integers `n`, `startBattery` and `target`.\nThe second line contains `n` integers `position[0..n-1]` in strictly increasing order.\nThe third line contains `n` integers `battery[0..n-1]`.",
+ "output_format": "Print a single integer: the minimum number of stops, or `-1` if the destination cannot be reached.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ startBattery, battery[i] ≤ 10^9",
+  "1 ≤ position[0] < position[1] < ... < position[n-1] < target ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3 7 16\n4 8 12\n5 6 4",
+   "output": "2",
+   "explanation": "The start battery reaches position 7, so station 4 is reachable. Stop there and use the upgrade: capacity 2 * 5 = 10, reaching position 14. Stop at station 12 with a normal battery of capacity 4, which reaches 16. Two stops. Without the upgrade three stops would be needed."
+  },
+  {
+   "input": "2 5 20\n5 11\n4 10",
+   "output": "2",
+   "explanation": "At station 5 use the upgrade: capacity 8, reaching 13, which covers the station at 11. There take the capacity 10 battery, reaching 21 >= 20. Without the upgrade, capacity 4 from station 5 reaches only 9 and the station at 11 is out of reach."
+  },
+  {
+   "input": "1 3 10\n8\n5",
+   "output": "-1",
+   "explanation": "The start battery reaches only position 3, so the only station, at position 8, is unreachable."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Think of each station as a node. From a stop at position p with capacity c you can jump to any later station whose position is at most p + c. This is a shortest-path problem where the number of stops is the distance.",
+  "Track whether the upgrade has been used. You need three kinds of states per station: upgrade not used yet, upgrade used right here (capacity 2 * battery[i]), and upgrade used earlier (capacity battery[i]).",
+  "Process stations from left to right. For each state type keep a min-heap of (stops, reach). Since station positions only increase, any heap entry whose reach is smaller than the current position can be discarded for good."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    d = sys.stdin.read().split()\n    n, start, target = int(d[0]), int(d[1]), int(d[2])\n    pos = [int(x) for x in d[3:3 + n]]\n    bat = [int(x) for x in d[3 + n:3 + 2 * n]]\n    if start >= target:\n        print(0)\n        return\n    INF = float('inf')\n    best = INF\n    ha = [(0, start)]  # (stops, reach): boost not used yet\n    hb = []            # (stops, reach): boost already used\n    for j in range(n):\n        p = pos[j]\n        while ha and ha[0][1] < p:\n            heapq.heappop(ha)\n        while hb and hb[0][1] < p:\n            heapq.heappop(hb)\n        b = bat[j]\n        if ha:\n            da = ha[0][0] + 1\n            heapq.heappush(ha, (da, p + b))\n            heapq.heappush(hb, (da, p + 2 * b))\n            if p + 2 * b >= target and da < best:\n                best = da\n        if hb:\n            db = hb[0][0] + 1\n            heapq.heappush(hb, (db, p + b))\n            if p + b >= target and db < best:\n                best = db\n    print(best if best < INF else -1)\n\nmain()\n",
+ "brute": "import sys\nfrom collections import deque\n\nd = sys.stdin.read().split()\nn, start, target = int(d[0]), int(d[1]), int(d[2])\npos = [int(x) for x in d[3:3 + n]]\nbat = [int(x) for x in d[3 + n:3 + 2 * n]]\n# state: (station index or -1, boost used, current capacity)\nseen = {(-1, 0, start)}\ndq = deque([(-1, 0, start, 0)])\nans = -1\nwhile dq:\n    i, used, cap, dist = dq.popleft()\n    here = 0 if i < 0 else pos[i]\n    if here + cap >= target:\n        ans = dist\n        break\n    for j in range(i + 1, n):\n        if pos[j] <= here + cap:\n            for mult in (1, 2):\n                if mult == 2 and used:\n                    continue\n                st = (j, used or mult == 2, mult * bat[j])\n                if st not in seen:\n                    seen.add(st)\n                    dq.append((st[0], int(st[1]), st[2], dist + 1))\nprint(ans)\n",
+ "generator": "def gen(rng):\n    def fmt(start, target, pos, bat):\n        return f\"{len(pos)} {start} {target}\\n\" + ' '.join(map(str, pos)) + '\\n' + ' '.join(map(str, bat))\n    tests = [\n        fmt(7, 16, [4, 8, 12], [5, 6, 4]),\n        fmt(5, 10, [3], [4]),\n        fmt(10, 10, [3], [4]),\n        fmt(1, 100, [50], [1]),\n        fmt(2, 5, [2], [3]),\n        fmt(3, 12, [3, 4, 5], [2, 2, 2]),\n    ]\n    for _ in range(90):\n        n = rng.randint(1, 8)\n        pos = sorted(rng.sample(range(1, 30), n))\n        target = pos[-1] + rng.randint(1, 12)\n        bat = [rng.randint(1, 12) for _ in range(n)]\n        start = rng.randint(1, 10)\n        tests.append(fmt(start, target, pos, bat))\n    def big(n, step, bmin, bmax, start, tail):\n        pos, cur = [], 0\n        for _ in range(n):\n            cur += rng.randint(1, step)\n            pos.append(cur)\n        bat = [rng.randint(bmin, bmax) for _ in range(n)]\n        return fmt(start, min(10**9, pos[-1] + rng.randint(1, tail)), pos, bat)\n    tests.append(big(3000, 10, 10, 25, 12, 10))\n    tests.append(big(100000, 10, 10, 20, 12, 10))\n    tests.append(big(100000, 10, 10, 200000, 100, 1000))\n    tests.append(big(100000, 15000, 15000, 10**9, 15000, 100000))\n    tests.append(big(100000, 8, 8, 14, 8, 8))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_stops(position: List[int], battery: List[int], start_battery: int, target: int) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, start_battery, target = int(data[0]), int(data[1]), int(data[2])\n    position = [int(x) for x in data[3:3 + n]]\n    battery = [int(x) for x in data[3 + n:3 + 2 * n]]\n    print(min_stops(position, battery, start_battery, target))\n\n\nmain()\n",
+  "javascript": "function minStops(position, battery, startBattery, target) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], startBattery = t[1], target = t[2]\nconst position = t.slice(3, 3 + n)\nconst battery = t.slice(3 + n, 3 + 2 * n)\nconsole.log(String(minStops(position, battery, startBattery, target)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minStops(vector<long long>& position, vector<long long>& battery, long long startBattery, long long target) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long startBattery, target;\n    cin >> n >> startBattery >> target;\n    vector<long long> position(n), battery(n);\n    for (int i = 0; i < n; i++) cin >> position[i];\n    for (int i = 0; i < n; i++) cin >> battery[i];\n    cout << minStops(position, battery, startBattery, target) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minStops(long[] position, long[] battery, long startBattery, long target) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        long startBattery = (long) in.nval;\n        in.nextToken();\n        long target = (long) in.nval;\n        long[] position = new long[n], battery = new long[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); position[i] = (long) in.nval; }\n        for (int i = 0; i < n; i++) { in.nextToken(); battery[i] = (long) in.nval; }\n        System.out.println(minStops(position, battery, startBattery, target));\n    }\n}\n"
+ }
+}

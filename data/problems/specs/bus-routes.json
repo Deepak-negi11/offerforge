@@ -1,0 +1,50 @@
+{
+ "pid": "bus-routes",
+ "title": "Minimum Caravans Between Stops (Bus Routes)",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "There are `m` caravans. Caravan `i` travels along a fixed route, given as a list of distinct stops `routes[i]`, and cycles around that route forever. For example, a caravan with route `1 2 3` visits `1, 2, 3, 1, 2, 3, ...`.\n\nYou start at stop `source`, standing outside of all caravans. In one step you may board any caravan whose route contains your current stop, and ride it to any other stop on its route. You may get off at any stop on that route and board a different caravan there.\n\nReturn the **minimum number of caravans** you must board to get from `source` to `target`. If `source` equals `target`, the answer is `0`. If the trip is impossible, print `-1`.\n\nA stop may belong to the routes of several caravans, and a caravan may share stops with many others.",
+ "input_format": "The first line contains the integer `m`.\nEach of the next `m` lines describes one caravan: an integer `len` followed by `len` distinct stop numbers.\nThe last line contains two integers `source` and `target`.",
+ "output_format": "Print a single integer: the minimum number of caravans needed, `0` if `source = target`, or `-1` if the trip is impossible.",
+ "constraints": [
+  "1 ≤ m ≤ 10^5",
+  "1 ≤ len ≤ 10^5, and the sum of all len is at most 10^5",
+  "0 ≤ stop numbers, source, target < 10^6",
+  "the stops within one route are distinct"
+ ],
+ "examples": [
+  {
+   "input": "3\n3 5 10 15\n2 15 20\n3 20 25 30\n5 30",
+   "output": "3",
+   "explanation": "Board caravan 0 at stop 5 and get off at 15. Board caravan 1 at 15 and get off at 20. Board caravan 2 at 20 and ride to 30. No caravan connects 5 and 30 more directly, so 3 boardings are needed."
+  },
+  {
+   "input": "3\n2 4 9\n2 9 12\n2 30 31\n4 31",
+   "output": "-1",
+   "explanation": "Caravans 0 and 1 are linked through stop 9, but caravan 2 shares no stop with them, so stop 31 cannot be reached from stop 4."
+  },
+  {
+   "input": "2\n3 1 2 3\n2 3 4\n3 4",
+   "output": "1",
+   "explanation": "Caravan 1 passes through both stop 3 and stop 4, so a single boarding is enough. Stop 3 also lies on caravan 0, but riding it does not help."
+  }
+ ],
+ "complexity": {
+  "time": "O(S) where S is the sum of route lengths",
+  "space": "O(S)"
+ },
+ "hints": [
+  "Do not build a graph with stops as nodes only: the quantity to minimise is the number of caravans boarded, not the number of stops visited.",
+  "Precompute, for every stop, the list of caravans that visit it. Then BFS over caravans: from a caravan, every stop on its route leads to all caravans that also visit that stop.",
+  "Make sure each caravan and each stop is processed only once, otherwise popular stops get re-scanned over and over. Linking every pair of caravans that share a stop is too slow."
+ ],
+ "reference": "import sys\nfrom collections import defaultdict, deque\n\ndef main():\n    data = sys.stdin.read().split()\n    p = 0\n    m = int(data[p]); p += 1\n    routes = []\n    for _ in range(m):\n        L = int(data[p]); p += 1\n        routes.append([int(x) for x in data[p:p + L]])\n        p += L\n    s, t = int(data[p]), int(data[p + 1])\n    if s == t:\n        print(0)\n        return\n    at = defaultdict(list)\n    for i, r in enumerate(routes):\n        for x in r:\n            at[x].append(i)\n    seen_r = [False] * m\n    seen_s = {s}\n    dq = deque()\n    for i in at.get(s, ()):\n        seen_r[i] = True\n        dq.append((i, 1))\n    while dq:\n        i, d = dq.popleft()\n        for x in routes[i]:\n            if x == t:\n                print(d)\n                return\n            if x not in seen_s:\n                seen_s.add(x)\n                for j in at[x]:\n                    if not seen_r[j]:\n                        seen_r[j] = True\n                        dq.append((j, d + 1))\n    print(-1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\np = 0\nm = int(data[p]); p += 1\nsets = []\nfor _ in range(m):\n    L = int(data[p]); p += 1\n    sets.append(set(int(x) for x in data[p:p + L]))\n    p += L\ns, t = int(data[p]), int(data[p + 1])\nif s == t:\n    print(0)\nelse:\n    dist = {i: 1 for i in range(m) if s in sets[i]}\n    q = list(dist)\n    h = 0\n    while h < len(q):\n        i = q[h]\n        h += 1\n        for j in range(m):\n            if j not in dist and sets[i] & sets[j]:\n                dist[j] = dist[i] + 1\n                q.append(j)\n    best = [dist[i] for i in dist if t in sets[i]]\n    print(min(best) if best else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(routes, s, t):\n        lines = [str(len(routes))]\n        for r in routes:\n            lines.append(str(len(r)) + ' ' + ' '.join(map(str, r)))\n        lines.append(f\"{s} {t}\")\n        return '\\n'.join(lines)\n    tests = [\n        fmt([[1]], 1, 1), fmt([[1]], 1, 2), fmt([[1, 2]], 1, 2), fmt([[1, 2]], 3, 2), fmt([[1, 2]], 1, 5),\n        fmt([[5, 10, 15], [15, 20], [20, 25, 30]], 5, 30),\n        fmt([[4, 9], [9, 12], [30, 31]], 4, 31),\n        fmt([[1, 2, 3], [3, 4]], 3, 4),\n        fmt([[0, 999999], [999999, 500000]], 0, 500000),\n        fmt([[1, 2], [2, 3], [3, 4], [4, 5], [1, 5]], 1, 5),\n    ]\n    for _ in range(80):\n        m = rng.randint(1, 6)\n        U = rng.choice([5, 8, 12])\n        routes = [rng.sample(range(U), rng.randint(1, min(4, U))) for _ in range(m)]\n        s = rng.randint(0, U)\n        t = rng.randint(0, U)\n        tests.append(fmt(routes, s, t))\n    # long chain of caravans, shuffled order, plus unique filler stops\n    m = 20000\n    routes = []\n    for i in range(m):\n        routes.append([i, i + 1] + [100000 + 3 * i + c for c in range(3)])\n    rng.shuffle(routes)\n    tests.append(fmt(routes, 0, m))\n    # dense overlaps\n    routes = [rng.sample(range(3000), 5) for _ in range(20000)]\n    tests.append(fmt(routes, 0, 2999))\n    # one huge caravan\n    r = rng.sample(range(10**6), 100000)\n    tests.append(fmt([r], r[0], r[-1]))\n    # many one-stop caravans, unreachable\n    routes = [[7 * i] for i in range(100000)]\n    tests.append(fmt(routes, 0, 7))\n    # mid-sized sparse graph with a few hops\n    pool = rng.sample(range(10**6), 3000)\n    routes = [rng.sample(pool, 40) for _ in range(2000)]\n    tests.append(fmt(routes, pool[0], pool[1]))\n    # layered: forces many levels, each level has several caravans\n    routes = []\n    L = 4000\n    for lvl in range(L):\n        for _ in range(2):\n            routes.append([lvl, lvl + 1, 20000 + rng.randint(0, 50000)])\n    rng.shuffle(routes)\n    tests.append(fmt(routes, 0, L))\n    # source not on any route / target not on any route\n    tests.append(fmt([[1, 2, 3], [3, 4, 5]] + [[100 + i, 101 + i] for i in range(50)], 999, 5))\n    tests.append(fmt([[1, 2, 3], [3, 4, 5]] + [[100 + i, 101 + i] for i in range(50)], 1, 999))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef num_caravans(routes: List[List[int]], source: int, target: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    p = 0\n    m = int(data[p]); p += 1\n    routes = []\n    for _ in range(m):\n        L = int(data[p]); p += 1\n        routes.append([int(x) for x in data[p:p + L]])\n        p += L\n    source, target = int(data[p]), int(data[p + 1])\n    print(num_caravans(routes, source, target))\n\n\nmain()\n",
+  "javascript": "function numCaravans(routes, source, target) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nlet p = 0\nconst m = t[p++]\nconst routes = []\nfor (let i = 0; i < m; i++) {\n  const len = t[p++]\n  routes.push(t.slice(p, p + len))\n  p += len\n}\nconst source = t[p], target = t[p + 1]\nconsole.log(numCaravans(routes, source, target))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint numCaravans(vector<vector<int>>& routes, int source, int target) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int m;\n    cin >> m;\n    vector<vector<int>> routes(m);\n    for (int i = 0; i < m; i++) {\n        int len;\n        cin >> len;\n        routes[i].resize(len);\n        for (int j = 0; j < len; j++) cin >> routes[i][j];\n    }\n    int source, target;\n    cin >> source >> target;\n    cout << numCaravans(routes, source, target) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int numCaravans(int[][] routes, int source, int target) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] routes = new int[m][];\n        for (int i = 0; i < m; i++) {\n            in.nextToken();\n            int len = (int) in.nval;\n            routes[i] = new int[len];\n            for (int j = 0; j < len; j++) {\n                in.nextToken();\n                routes[i][j] = (int) in.nval;\n            }\n        }\n        in.nextToken();\n        int source = (int) in.nval;\n        in.nextToken();\n        int target = (int) in.nval;\n        System.out.println(numCaravans(routes, source, target));\n    }\n}\n"
+ }
+}

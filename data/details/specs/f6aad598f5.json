@@ -1,0 +1,19 @@
+{
+ "qid": "f6aad598f5",
+ "question": "In the second technical round of Oracle's on-campus Server Technology (MTS) interview, a DBMS question was asked: **how does a SQL query efficiently find the required row in a database table?**\n\nThe interviewer was after the role of **indexes**: how a database avoids reading every row of a large table to answer a lookup.",
+ "lookingFor": [
+  "Do you know the difference between a full table scan and an index lookup, and why it matters at scale?",
+  "Can you explain the structure behind an index (B+ tree) rather than just saying 'it is faster'?",
+  "Do you understand clustered versus non-clustered indexes and covering indexes?",
+  "Are you aware of the costs: slower writes, extra storage, and indexes the optimizer ignores?",
+  "Can you reason about when to create an index and how to verify it is used (EXPLAIN)?"
+ ],
+ "answer": "**Without an index** the database does a full table scan: it reads every row and checks the `WHERE` condition, which is O(n) page reads.\n\n**With an index** it follows a separate sorted structure that maps column values to row locations.\n\n- **B+ tree (the default in most engines).** A balanced tree with a high fan-out (hundreds of keys per node, one node per disk page). Internal nodes only route the search, and leaf nodes hold the keys in sorted order, linked to each other. A lookup walks root to leaf in O(log n) page reads, which is typically 3 to 4 pages even for hundreds of millions of rows. Because leaves are linked, range queries (`BETWEEN`, `ORDER BY`) are fast too.\n- **Clustered index.** The table rows themselves are stored in the order of the key (for example the primary key in InnoDB). There is one per table. A **non-clustered (secondary) index** stores the key plus a pointer (row id or primary key), so a lookup needs one more hop to fetch the row.\n- **Covering index.** If the index contains every column the query needs, the database answers from the index alone and never touches the table.\n- **Hash index.** O(1) for equality only, no range support.\n\n**Using it well**\n\n1. Index columns used in `WHERE`, `JOIN` and `ORDER BY` with good selectivity (many distinct values). A boolean column is usually a poor candidate.\n2. For a composite index `(a, b)`, the **leftmost-prefix rule** applies: it helps queries on `a` or `a, b`, but not on `b` alone.\n3. Wrapping the column in a function (`WHERE LOWER(name) = 'x'`) or a leading wildcard (`LIKE '%x'`) usually prevents index use.\n4. Check the plan with `EXPLAIN` to confirm an index seek instead of a scan.\n\n**Trade-offs.** Every insert, update or delete must also maintain each index, so writes get slower and storage grows. Over-indexing a write-heavy table hurts. The optimizer may also choose a scan when a query returns a large fraction of the table.\n\n**Example.** `SELECT * FROM students WHERE roll_no = 4521;` with an index on `roll_no` becomes a tree traversal of a few pages instead of reading the whole table.",
+ "followUps": [
+  "What is the difference between a clustered and a non-clustered index?",
+  "Why are B+ trees preferred over binary search trees or plain B trees for database indexes?",
+  "Given an index on (a, b, c), which of these queries can use it: WHERE b = 1; WHERE a = 1 AND c = 2?",
+  "When can adding an index make things worse?",
+  "How would you find out why a query is slow and decide which index to add?"
+ ]
+}

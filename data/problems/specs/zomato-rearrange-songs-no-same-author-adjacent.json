@@ -1,0 +1,48 @@
+{
+ "pid": "zomato-rearrange-songs-no-same-author-adjacent",
+ "title": "Rearrange Songs: No Same Author Adjacent",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A playlist has `n` songs numbered `0` to `n - 1`. Song `i` was written by the author with id `authors[i]`; one author can have several songs.\n\nReorder the playlist so that **no two consecutive songs have the same author**. Every song must be played exactly once.\n\nSeveral orders may be valid, so print the **lexicographically smallest** one, written as the sequence of song indices (compare two orders at the first position where they differ; the smaller index wins). If no valid order exists, print `-1`.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` space-separated integers `authors[0], ..., authors[n-1]`.",
+ "output_format": "Print the lexicographically smallest valid order as `n` space-separated song indices, or `-1` if no valid order exists.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ authors[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "5\n7 7 7 3 3",
+   "output": "0 3 1 4 2",
+   "explanation": "Author 7 has 3 of the 5 songs, so those songs must take positions 1, 3 and 5. The two songs by author 3 fill positions 2 and 4. Using the smallest indices first gives `0 3 1 4 2`."
+  },
+  {
+   "input": "5\n1 1 2 2 3",
+   "output": "0 2 1 3 4",
+   "explanation": "Play song 0, then the smallest index with a different author (song 2), then song 1, then song 3, and finally song 4. No two neighbours share an author, and picking any smaller index at some step would make the rest impossible or break the rule."
+  },
+  {
+   "input": "4\n4 4 4 9",
+   "output": "-1",
+   "explanation": "Author 4 has 3 of the 4 songs, but at most `ceil(4 / 2) = 2` songs by one author can be kept apart in a playlist of 4, so no valid order exists."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "When is it impossible? Consider the author with the most songs: how many songs can that author have in a playlist of length `n` before two must touch?",
+  "Build the order position by position. At each step you want the smallest index whose author differs from the previous song, as long as the remaining songs can still be arranged.",
+  "With `m` songs left, an author holding more than `m / 2` (integer division) of them is forced: you must play that author now. Otherwise take the smallest available index among authors other than the last one. Keep a heap of each author's next smallest index, and a second heap on remaining counts."
+ ],
+ "reference": "import sys, heapq\nfrom collections import defaultdict\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    q = defaultdict(list)\n    for i in range(n):\n        q[int(data[1 + i])].append(i)\n    cnt = {a: len(v) for a, v in q.items()}\n    if max(cnt.values()) > (n + 1) // 2:\n        print(-1)\n        return\n    pos = {a: 0 for a in q}\n    front = [(v[0], a) for a, v in q.items()]\n    heapq.heapify(front)\n    big = [(-c, a) for a, c in cnt.items()]\n    heapq.heapify(big)\n    last = None\n    res = []\n    for m in range(n, 0, -1):\n        while -big[0][0] != cnt[big[0][1]]:\n            heapq.heappop(big)\n        if -big[0][0] > m // 2:\n            b = big[0][1]\n        else:\n            while True:\n                idx, a = front[0]\n                if pos[a] < len(q[a]) and q[a][pos[a]] == idx:\n                    break\n                heapq.heappop(front)\n            top = heapq.heappop(front)\n            if top[1] == last:\n                while True:\n                    idx, a = front[0]\n                    if pos[a] < len(q[a]) and q[a][pos[a]] == idx:\n                        break\n                    heapq.heappop(front)\n                nxt = heapq.heappop(front)\n                heapq.heappush(front, top)\n                top = nxt\n            b = top[1]\n        res.append(q[b][pos[b]])\n        pos[b] += 1\n        cnt[b] -= 1\n        last = b\n        if cnt[b] > 0:\n            heapq.heappush(front, (q[b][pos[b]], b))\n            heapq.heappush(big, (-cnt[b], b))\n    print(' '.join(map(str, res)))\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import permutations\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nauth = [int(x) for x in data[1:1 + n]]\nans = None\nfor p in permutations(range(n)):\n    if all(auth[p[i]] != auth[p[i + 1]] for i in range(n - 1)):\n        ans = p\n        break\nprint(-1 if ans is None else ' '.join(map(str, ans)))\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n    tests = [fmt([5]), fmt([5, 5]), fmt([1, 2]), fmt([7, 7, 7, 3, 3]), fmt([1, 1, 2, 2, 3]), fmt([4, 4, 4, 9]),\n             fmt([1, 2, 3, 4]), fmt([2, 2, 1, 1]), fmt([1, 1, 1, 2, 2, 3, 3]), fmt([3, 1, 1, 1, 2]),\n             fmt([10**9, 10**9, 1]), fmt([1, 2, 1, 2, 1, 2, 1])]\n    for n in (2, 3, 4, 5, 6, 7, 8):\n        for _ in range(4):\n            k = rng.randint(1, min(n, 4))\n            tests.append(fmt([rng.randint(1, k) for _ in range(n)]))\n    for _ in range(6):\n        n = rng.randint(5, 8)\n        k = rng.randint(2, 3)\n        a = [rng.randint(1, k) for _ in range(n)]\n        tests.append(fmt(a))\n    N = 100000\n    tests.append(fmt([rng.randint(1, 10**9) for _ in range(N)]))\n    tests.append(fmt([1 if i < N // 2 else 2 for i in range(N)]))\n    tests.append(fmt([rng.choice([1, 2]) for _ in range(N)]))\n    tests.append(fmt([1] * (N // 2) + [rng.randint(2, 50) for _ in range(N // 2)]))\n    a = [1] * (N // 2) + [rng.randint(2, 10**9) for _ in range(N // 2)]\n    rng.shuffle(a)\n    tests.append(fmt(a))\n    tests.append(fmt([rng.randint(1, 3) for _ in range(N)]))\n    tests.append(fmt([rng.randint(1, 300) for _ in range(N)]))\n    tests.append(fmt([1] * (N // 2 + 1) + [2] * (N // 2 - 1)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef rearrange_songs(authors: List[int]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    authors = [int(x) for x in data[1:1 + n]]\n    print(' '.join(map(str, rearrange_songs(authors))))\n\n\nmain()\n",
+  "javascript": "function rearrangeSongs(authors) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst authors = t.slice(1, 1 + n)\nconsole.log(rearrangeSongs(authors).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> rearrangeSongs(vector<long long>& authors) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> authors(n);\n    for (int i = 0; i < n; i++) cin >> authors[i];\n    vector<int> res = rearrangeSongs(authors);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] rearrangeSongs(long[] authors) {\n        // Write your solution here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] authors = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            authors[i] = (long) in.nval;\n        }\n        int[] res = rearrangeSongs(authors);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

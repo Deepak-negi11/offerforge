@@ -1,0 +1,19 @@
+{
+ "qid": "0886d58de2",
+ "question": "Meesho SDE intern interview. A candidate reported three rounds that were entirely DSA, plus a system design question to build an online shopping order cart. The interviewers also asked about the candidate's projects, their own contributions and the challenges faced, and about any other internships. Design the order cart for an online shopping site: how users add and remove items, check out and place an order.",
+ "lookingFor": [
+  "Turning a vague prompt into requirements, entities and APIs.",
+  "Clean data modelling for cart, cart items, orders and products.",
+  "Awareness of correctness issues: price changes, stock, double submits.",
+  "Basic scaling and storage choices (cache versus database).",
+  "Ability to discuss trade-offs and your own project experience."
+ ],
+ "answer": "**Clarify requirements.** Functional: add, update and remove items; view cart; apply a coupon (optional); checkout and place an order; guest versus logged-in carts. Non-functional: low latency on cart reads, cart must not lose items, orders must be consistent. Rough scale assumption: millions of users, but a small active-cart set; reads dominate writes.\n\n**Entities.**\n- `Product(id, name, price, sellerId)` and `Inventory(productId, availableQty)`.\n- `Cart(userId, items, updatedAt)` and `CartItem(productId, qty)`.\n- `Order(id, userId, status, totalAmount, createdAt)` and `OrderItem(orderId, productId, qty, priceAtPurchase)`.\n\n**APIs.** `POST /cart/items`, `PATCH /cart/items/{productId}`, `DELETE /cart/items/{productId}`, `GET /cart`, `POST /orders` (takes an idempotency key).\n\n**Components.** An API gateway, a Cart service, a Catalog/Pricing service, an Inventory service and an Order service, backed by a database. The cart is accessed by key (user id), so a key-value store such as Redis, or a relational table with an index on userId, both work. Persist the cart durably (the DB is the source of truth, a cache only speeds reads) so a cache restart does not lose a shopper's items.\n\n**Key design points.**\n- Store only product id and quantity in the cart; read the current price from the catalog when displaying. At checkout, recompute the total and copy `priceAtPurchase` into the order, so later price changes do not rewrite history.\n- Placing an order should happen in one transaction: validate stock, decrement inventory (conditional update such as `UPDATE ... SET qty = qty - n WHERE qty >= n`), create the order, clear the cart. This avoids overselling under concurrent buyers.\n- Use an idempotency key so a double click or retry does not create two orders.\n- Payment is a separate step. Reserve stock with an expiry, confirm on payment success, release on failure or timeout.\n\n**Scaling.** Shard carts by userId, cache hot catalog data, and put order creation behind a queue only if traffic spikes demand it (for example a flash sale).\n\n**Trade-offs to mention.** Soft stock reservation versus hard decrement at add-to-cart; consistency versus availability in inventory counts; guest cart merge on login.\n\n**For the project discussion**, prepare a 2-minute story per project: problem, your specific contribution, one hard technical challenge and how you solved it, and what you would change.",
+ "followUps": [
+  "How do you prevent two users from buying the last unit of an item?",
+  "What happens if the product price changes while it is in the cart?",
+  "How would you merge a guest cart with the user's cart on login?",
+  "Where would you cache, and how would you invalidate the cache?",
+  "How would you handle a payment that succeeds but the order creation fails?"
+ ]
+}

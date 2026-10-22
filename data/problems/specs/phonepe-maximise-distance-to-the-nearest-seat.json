@@ -1,0 +1,44 @@
+{
+ "pid": "phonepe-maximise-distance-to-the-nearest-seat",
+ "title": "Maximise Distance to the Nearest Seat",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A row has `N` seats numbered `1` to `N`. `K` of them are already occupied, and every other seat is empty.\n\nYou then process `M` queries. In each query a new person arrives and must be seated in an empty seat chosen so that the **distance to the nearest occupied seat is as large as possible**. The distance between seats `x` and `y` is `|x - y|`. The person who sits down keeps that seat for the rest of the process, so later queries see it as occupied.\n\nIf several empty seats give the same maximum distance, choose the one with the **smallest seat number**. For each query, print the seat that was assigned.\n\nAt least one seat is occupied at the start (`K ≥ 1`), and there are always enough empty seats for all `M` queries (`M ≤ N - K`).\n\n**Follow-up:** The original question allowed `N` and `M` up to `10^7`. How would you keep the memory and the running time low when the row is that long, without storing every seat?",
+ "input_format": "The first line contains two integers `N` and `K`.\nThe second line contains `K` distinct integers: the occupied seats, in any order.\nThe third line contains the integer `M`.",
+ "output_format": "Print `M` lines. Line `i` contains the seat assigned to the `i`-th query.",
+ "constraints": [
+  "2 ≤ N ≤ 10^6",
+  "1 ≤ K ≤ min(N - 1, 10^5); the occupied seats are distinct and between 1 and N",
+  "1 ≤ M ≤ min(N - K, 2 · 10^5)"
+ ],
+ "examples": [
+  {
+   "input": "10 2\n3 8\n3",
+   "output": "1\n5\n10",
+   "explanation": "Seats 3 and 8 are taken. Seats 1, 5, 6 and 10 are all at distance 2 from the nearest person, which is the best possible, so the smallest of them, seat 1, is chosen. Now seats 1, 3, 8 are taken: seats 5, 6 and 10 still have distance 2, so seat 5 is next. Finally seat 10 is the only seat left at distance 2 from the nearest person."
+  },
+  {
+   "input": "7 1\n4\n4",
+   "output": "1\n7\n2\n3",
+   "explanation": "Seats 1 and 7 are both 3 away from seat 4, so seat 1 wins the tie, then seat 7 is the only seat at distance 3. After that every empty seat is within distance 1 of an occupied seat, so the best distance is 1 and the smallest such seat is 2, then 3."
+  }
+ ],
+ "complexity": {
+  "time": "O((K + M) log (K + M))",
+  "space": "O(K + M)"
+ },
+ "hints": [
+  "Do not scan the whole row for every query. The best seat is always in the middle of a gap between two occupied seats, or at an end of the row if the end is empty.",
+  "Keep every gap in a max-heap ordered by the best distance it can offer (ties by the smaller seat number). The best seat of a gap is the middle one, or seat 1 / seat N for the two end gaps.",
+  "After seating someone in a gap, that gap splits into two smaller gaps. Push both back into the heap (skip gaps with no empty seat) and repeat for the next query."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.read().split()\n    N, K = int(data[0]), int(data[1])\n    occ = sorted(int(x) for x in data[2:2 + K])\n    M = int(data[2 + K])\n    heap = []\n\n    def push(L, R):\n        # L or R is 0 / N + 1 for \"no occupied seat on that side\"\n        if L == 0:\n            if R > 1:\n                heapq.heappush(heap, (-(R - 1), 1, L, R))\n        elif R == N + 1:\n            if L < N:\n                heapq.heappush(heap, (-(N - L), N, L, R))\n        elif R - L >= 2:\n            heapq.heappush(heap, (-((R - L) // 2), (L + R) // 2, L, R))\n\n    push(0, occ[0])\n    for i in range(K - 1):\n        push(occ[i], occ[i + 1])\n    push(occ[-1], N + 1)\n    out = []\n    for _ in range(M):\n        d, s, L, R = heapq.heappop(heap)\n        out.append(s)\n        push(L, s)\n        push(s, R)\n    print('\\n'.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nN, K = int(data[0]), int(data[1])\nocc = set(int(x) for x in data[2:2 + K])\nM = int(data[2 + K])\nout = []\nfor _ in range(M):\n    best, bs = -1, -1\n    for s in range(1, N + 1):\n        if s in occ:\n            continue\n        d = min(abs(s - o) for o in occ)\n        if d > best:\n            best, bs = d, s\n    occ.add(bs)\n    out.append(bs)\nprint('\\n'.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def fmt(N, occ, M):\n        return '%d %d\\n%s\\n%d' % (N, len(occ), ' '.join(map(str, occ)), M)\n    tests = [\n        fmt(1 + 1, [1], 1),\n        fmt(2, [2], 1),\n        fmt(5, [3], 4),\n        fmt(10, [1], 9),\n        fmt(10, [10], 9),\n        fmt(10, [1, 10], 8),\n        fmt(9, [5], 8),\n        fmt(12, [4, 5, 9], 9),\n        fmt(7, [1, 2, 3, 4, 5, 6], 1),\n    ]\n    for _ in range(60):\n        N = rng.randint(2, 40)\n        K = rng.randint(1, min(N - 1, 6))\n        occ = rng.sample(range(1, N + 1), K)\n        M = rng.randint(1, N - K)\n        tests.append(fmt(N, occ, M))\n    N = 10**6\n    tests.append(fmt(N, [1], 200000))\n    tests.append(fmt(N, [N // 2], 200000))\n    tests.append(fmt(N, rng.sample(range(1, N + 1), 100000), 200000))\n    tests.append(fmt(N, [1, N], 200000))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef assign_seats(n: int, occupied: List[int], m: int) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    occupied = [int(x) for x in data[2:2 + k]]\n    m = int(data[2 + k])\n    print('\\n'.join(map(str, assign_seats(n, occupied, m))))\n\n\nmain()\n",
+  "javascript": "function assignSeats(n, occupied, m) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst occupied = t.slice(2, 2 + k)\nconst m = t[2 + k]\nconsole.log(assignSeats(n, occupied, m).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> assignSeats(int n, vector<int>& occupied, int m) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<int> occupied(k);\n    for (int i = 0; i < k; i++) cin >> occupied[i];\n    int m;\n    cin >> m;\n    vector<int> res = assignSeats(n, occupied, m);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] assignSeats(int n, int[] occupied, int m) {\n        // Write your solution here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        int[] occupied = new int[k];\n        for (int i = 0; i < k; i++) {\n            in.nextToken();\n            occupied[i] = (int) in.nval;\n        }\n        in.nextToken();\n        int m = (int) in.nval;\n        int[] res = assignSeats(n, occupied, m);\n        StringBuilder sb = new StringBuilder();\n        for (int x : res) sb.append(x).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

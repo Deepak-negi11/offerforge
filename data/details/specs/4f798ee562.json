@@ -1,0 +1,18 @@
+{
+ "qid": "4f798ee562",
+ "question": "In a Director of Engineering round at Sprinklr (SDE, experienced), after a resume deep-dive and discussion of preferred tech stack, the problem was: **identify the broken links on a website**, then **optimise the approach**, and finally **extend the solution to a multithreaded design**. The round emphasised scalability, clarity and thought process.",
+ "lookingFor": [
+  "Can you model a website as a graph and traverse it correctly (BFS/DFS, visited set)?",
+  "Do you handle real-world details: relative URLs, domains, redirects, timeouts, robots?",
+  "Can you optimise: dedupe, HEAD requests, caching, politeness limits?",
+  "Can you design a safe multithreaded crawler: work queue, thread-safe sets, bounded concurrency, termination?"
+ ],
+ "answer": "**Model.** Pages are nodes, links are edges. Start from a root URL, discover links, and check each one. A link is **broken** if the request fails (DNS error, timeout) or returns a 4xx/5xx status such as 404.\n\n**Baseline (single-threaded BFS).**\n\n1. Queue `[root]`, set `visited`.\n2. Pop a URL, fetch it, parse `<a href>` tags, resolve relative links against the page URL, strip fragments and normalise.\n3. For each link not in `visited`, record it, check its status, and, if it is on the **same domain** and returned HTML, enqueue it for crawling.\n4. Collect `(page, link, status)` for failures.\n\nThe visited set avoids cycles and repeated work. Complexity is O(V + E) page parses plus one network call per unique URL, so the network dominates.\n\n**Optimisations.**\n\n- Use `HEAD` for external links (fall back to `GET` if HEAD is rejected); only `GET` pages you must parse.\n- Dedupe by normalised URL; cache results so a link appearing on 100 pages is checked once.\n- Set timeouts, retry transient errors with backoff, follow a limited number of redirects.\n- Respect `robots.txt` and add per-host rate limits (politeness).\n- Skip non-HTML (images, PDFs) for parsing, and limit crawl depth.\n\n**Multithreaded design.** The work is I/O bound, so use a **thread pool** (or async I/O):\n\n- A shared **thread-safe frontier queue** (blocking queue) and a **concurrent set** for visited, with an atomic `add` that returns whether the URL was new (`ConcurrentHashMap.newKeySet().add(url)` in Java).\n- Worker threads take a URL, fetch, extract links, add new ones to the queue, and append failures to a concurrent results list.\n- **Termination:** track the number of pending tasks with an atomic counter; the crawl is done when the queue is empty and the counter is zero. A naive \"queue is empty\" check ends early while other workers may still enqueue.\n- Bound the concurrency and apply per-domain limits so you do not hammer a server.\n\n**Scaling further.** Partition the frontier by host across machines, store the visited set in Redis or a Bloom filter, and use a message queue for URLs.\n\nMistake to avoid: forgetting that visited-check and insert must be one atomic step.",
+ "followUps": [
+  "How do you detect that the crawl is finished in the multithreaded version?",
+  "How do you avoid crawling infinite URL spaces, such as calendar pages?",
+  "What are the trade-offs of threads versus async I/O here?",
+  "How would you distribute the crawler across many machines?",
+  "How would you handle pages rendered by JavaScript?"
+ ]
+}

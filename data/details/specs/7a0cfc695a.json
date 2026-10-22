@@ -1,0 +1,18 @@
+{
+ "qid": "7a0cfc695a",
+ "question": "Intel full-stack engineer second round (front-end machine coding). Build a **process status table**: a component for a year dropdown and a component for the table.\n\n- Show all unique processes in sorted order.\n- Each process has nodes, colour-coded by status: approved green, rejected red, in evaluation white, pending grey.\n- Each node shows its name and its **efficiency**, defined as workdays divided by the number of unique managers.\n- Place each node in the column of its month.\n- Filtering by the selected year (for example 2022 versus 2021) shows only nodes from that year.\n- At the bottom show total nodes per quarter (for example Q1 has 3 nodes).\n- Bonus: a delete icon on each node removes it from the table.\n\nStyling is free as long as the colour rule is followed.",
+ "lookingFor": [
+  "Component decomposition and clean state design (derive, do not duplicate state).",
+  "Data transformation: grouping, sorting, de-duplication, aggregation.",
+  "Handling edge cases: empty years, zero managers, duplicate names.",
+  "Correct interaction logic for filter and delete with totals updating.",
+  "Readable, testable code written under time pressure."
+ ],
+ "answer": "**Clarify first.** What is the input shape (list of nodes with process name, status, month, year, workdays, managers)? Is a node unique by id? What should efficiency show if managers are zero? Are months always 1 to 12?\n\n**Data model**\n\n    node = { id, process, name, status, month, year, workdays, managers: [ids] }\n\nKeep `nodes` as the single source of truth in state, plus `selectedYear`. Everything else is derived.\n\n**Components**\n- `YearSelect` (controlled dropdown): options come from the distinct years in the data, sorted.\n- `StatusTable`: receives the filtered nodes. Renders a header with 12 month columns plus a row per process.\n- `NodeCell`: shows name, efficiency and a delete button; its colour comes from a status-to-colour map (`approved: green`, `rejected: red`, `evaluation: white`, `pending: grey`).\n- `QuarterFooter`: totals per quarter.\n\n**Derived logic (compute with `useMemo`)**\n1. `visible = nodes.filter(n => n.year === selectedYear)`.\n2. Unique processes: `[...new Set(visible.map(n => n.process))].sort()`. Decide whether processes with no nodes in the chosen year still appear; the spec says all unique processes, so build the list from all nodes.\n3. Group: `byProcess[process][month] = nodes`; a cell can hold several nodes.\n4. Efficiency: `workdays / new Set(managers).size`, guarding against divide-by-zero and rounding for display.\n5. Quarter: `Math.ceil(month / 3)`; count per quarter from `visible`.\n6. Delete: `setNodes(prev => prev.filter(n => n.id !== id))`; because totals are derived, they update automatically.\n\n**Quality points:** stable `key`s (use the id), accessible controls (a labelled select, a button with `aria-label=\"Delete node\"`), a text status label so meaning does not rely on colour alone, and a small test of the aggregation functions. Mention that with thousands of nodes you would memoise and virtualise.\n\n**Order of work:** render static table, wire the filter, add colours, add efficiency and quarter totals, then delete, leaving styling for last.",
+ "followUps": [
+  "How would you handle two nodes in the same process and month?",
+  "How would you persist the delete (API call, optimistic update, rollback)?",
+  "How would you make the table accessible for screen readers?",
+  "What would change if the table had 50,000 nodes?"
+ ]
+}

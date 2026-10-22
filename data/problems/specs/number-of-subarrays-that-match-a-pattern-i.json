@@ -1,0 +1,50 @@
+{
+ "pid": "number-of-subarrays-that-match-a-pattern-i",
+ "title": "Number of Subarrays That Match a Pattern",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given an integer array `nums` of length `n` and an integer array `pattern` of length `m` whose entries are only `-1`, `0` and `1`.\n\nA subarray `nums[i..j]` of length `m + 1` **matches** the pattern if for every `k` from `0` to `m - 1`:\n\n- `pattern[k] = 1` means `nums[i + k + 1] > nums[i + k]`,\n- `pattern[k] = 0` means `nums[i + k + 1] = nums[i + k]`,\n- `pattern[k] = -1` means `nums[i + k + 1] < nums[i + k]`.\n\nPrint the number of subarrays of `nums` that match the pattern. Matching subarrays may overlap, and each starting position counts once.",
+ "input_format": "The first line contains `n`.\nThe second line contains `n` integers `nums[0], ..., nums[n-1]`.\nThe third line contains `m`.\nThe fourth line contains `m` integers, each `-1`, `0` or `1`: the pattern.",
+ "output_format": "Print a single integer: the number of matching subarrays.",
+ "constraints": [
+  "2 ≤ n ≤ 10^5",
+  "1 ≤ m < n",
+  "-10^9 ≤ nums[i] ≤ 10^9",
+  "pattern[k] ∈ {-1, 0, 1}"
+ ],
+ "examples": [
+  {
+   "input": "6\n1 2 3 4 5 6\n2\n1 1",
+   "output": "4",
+   "explanation": "Subarrays of length 3 must be strictly increasing. Starting at indices 0, 1, 2 and 3 gives [1,2,3], [2,3,4], [3,4,5] and [4,5,6]."
+  },
+  {
+   "input": "8\n3 3 5 2 2 4 1 1\n2\n1 -1",
+   "output": "2",
+   "explanation": "Consecutive differences have signs 0, 1, -1, 0, 1, -1, 0. The pattern 1, -1 occurs twice: [3,5,2] at index 1 and [2,4,1] at index 4."
+  },
+  {
+   "input": "4\n4 4 4 4\n2\n0 0",
+   "output": "2",
+   "explanation": "Both [4,4,4] windows (starting at 0 and at 1) match, and they overlap."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "A subarray only matters through the comparisons between neighbouring elements. Replace nums by the array of n - 1 values sign(nums[i+1] - nums[i]).",
+  "The question becomes: how many times does the sequence `pattern` occur as a contiguous block in that sign array? Checking every start costs O(n · m), which is too slow for 10^5.",
+  "Count occurrences of one array inside another in linear time with the KMP prefix function (or the Z-function) over pattern + separator + signs."
+ ],
+ "reference": "import sys\n\ndef main():\n    d = sys.stdin.read().split()\n    n = int(d[0])\n    a = [int(x) for x in d[1:1 + n]]\n    m = int(d[1 + n])\n    pat = [int(x) for x in d[2 + n:2 + n + m]]\n    s = [(a[i + 1] > a[i]) - (a[i + 1] < a[i]) for i in range(n - 1)]\n    seq = pat + [7] + s\n    pi = [0] * len(seq)\n    cnt = 0\n    for i in range(1, len(seq)):\n        k = pi[i - 1]\n        while k and seq[i] != seq[k]:\n            k = pi[k - 1]\n        if seq[i] == seq[k]:\n            k += 1\n        pi[i] = k\n        if k == m:\n            cnt += 1\n    print(cnt)\n\nmain()\n",
+ "brute": "import sys\n\nd = sys.stdin.read().split()\nn = int(d[0])\na = [int(x) for x in d[1:1 + n]]\nm = int(d[1 + n])\npat = [int(x) for x in d[2 + n:2 + n + m]]\ncnt = 0\nfor i in range(n - m):\n    ok = True\n    for k in range(m):\n        x, y = a[i + k], a[i + k + 1]\n        if pat[k] == 1 and not y > x:\n            ok = False\n        if pat[k] == 0 and not y == x:\n            ok = False\n        if pat[k] == -1 and not y < x:\n            ok = False\n    if ok:\n        cnt += 1\nprint(cnt)\n",
+ "generator": "def gen(rng):\n    def fmt(a, p):\n        return f\"{len(a)}\\n{' '.join(map(str, a))}\\n{len(p)}\\n{' '.join(map(str, p))}\"\n    tests = [\n        fmt([1, 2], [1]),\n        fmt([2, 1], [1]),\n        fmt([5, 5], [0]),\n        fmt([1, 2, 3, 4, 5, 6], [1, 1]),\n        fmt([3, 3, 5, 2, 2, 4, 1, 1], [1, -1]),\n        fmt([4, 4, 4, 4], [0, 0]),\n        fmt([1, 4, 3, 2, 1], [1, -1, -1, -1]),\n        fmt([1, 2, 1, 2, 1, 2, 1], [1, -1, 1]),\n        fmt([-10 ** 9, 10 ** 9, -10 ** 9, 10 ** 9], [1, -1, 1]),\n    ]\n    for _ in range(40):\n        n = rng.randint(2, 14)\n        a = [rng.randint(1, rng.choice([2, 3, 6])) for _ in range(n)]\n        m = rng.randint(1, min(n - 1, rng.choice([1, 2, 3, 5])))\n        if rng.random() < 0.5:\n            i = rng.randint(0, n - m - 1)\n            p = [(a[i + k + 1] > a[i + k]) - (a[i + k + 1] < a[i + k]) for k in range(m)]\n        else:\n            p = [rng.choice([-1, 0, 1]) for _ in range(m)]\n        tests.append(fmt(a, p))\n    n = 100000\n    # all equal, pattern of zeros: many overlapping matches\n    tests.append(fmt([7] * n, [0] * 50000))\n    tests.append(fmt([7] * n, [0] * 99999))\n    # all zeros pattern with a 1 at the end that never matches\n    tests.append(fmt([7] * n, [0] * 49999 + [1]))\n    # strictly increasing\n    tests.append(fmt(list(range(1, n + 1)), [1] * 30000))\n    # periodic zig-zag\n    a = [(i % 2) * 10 ** 9 + 1 for i in range(n)]\n    tests.append(fmt(a, [1, -1] * 20000 + [1]))\n    # random values\n    a = [rng.randint(-10 ** 9, 10 ** 9) for _ in range(n)]\n    tests.append(fmt(a, [rng.choice([-1, 0, 1]) for _ in range(5)]))\n    a = [rng.randint(1, 3) for _ in range(n)]\n    tests.append(fmt(a, [rng.choice([-1, 0, 1]) for _ in range(12)]))\n    a = [rng.randint(1, 2) for _ in range(n)]\n    p = [(a[i + 1] > a[i]) - (a[i + 1] < a[i]) for i in range(20000, 45000)]\n    tests.append(fmt(a, p))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_matching_subarrays(nums: List[int], pattern: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    nums = [int(x) for x in data[1:1 + n]]\n    m = int(data[1 + n])\n    pattern = [int(x) for x in data[2 + n:2 + n + m]]\n    print(count_matching_subarrays(nums, pattern))\n\n\nmain()\n",
+  "javascript": "function countMatchingSubarrays(nums, pattern) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst nums = t.slice(1, 1 + n)\nconst m = t[1 + n]\nconst pattern = t.slice(2 + n, 2 + n + m)\nconsole.log(String(countMatchingSubarrays(nums, pattern)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint countMatchingSubarrays(vector<int>& nums, vector<int>& pattern) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n;\n    vector<int> nums(n);\n    for (int i = 0; i < n; i++) cin >> nums[i];\n    cin >> m;\n    vector<int> pattern(m);\n    for (int i = 0; i < m; i++) cin >> pattern[i];\n    cout << countMatchingSubarrays(nums, pattern) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int countMatchingSubarrays(int[] nums, int[] pattern) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] nums = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            nums[i] = (int) in.nval;\n        }\n        in.nextToken();\n        int m = (int) in.nval;\n        int[] pattern = new int[m];\n        for (int i = 0; i < m; i++) {\n            in.nextToken();\n            pattern[i] = (int) in.nval;\n        }\n        System.out.println(countMatchingSubarrays(nums, pattern));\n    }\n}\n"
+ }
+}

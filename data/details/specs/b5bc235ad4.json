@@ -1,0 +1,19 @@
+{
+ "qid": "b5bc235ad4",
+ "question": "LinkedIn software engineer (about 2.5 years of experience), architecture and design round: **design a distributed IP deny list**. You are given a function that takes an IP and decides whether it should go on the deny list. You build the list, and the task is to **sync it to all the front-end servers** (the edge or gateway servers, not just backend services). The candidate proposed Kafka but the interviewer pushed back on real-time streaming and on confusing servers with services, steering toward coordination approaches such as leader-follower or gossip.",
+ "lookingFor": [
+  "Do you read the problem precisely (servers at the edge vs backend services) and ask clarifying questions?",
+  "Do you design for distribution to many nodes with bounded staleness?",
+  "Can you compare push, pull, leader-follower and gossip propagation?",
+  "Do you handle lookup efficiency, updates, expiry and failure of the source?",
+  "Do you reason about consistency and fail-open vs fail-closed trade-offs?"
+ ],
+ "answer": "**Clarify.** How many front-end servers (hundreds, thousands) and in how many regions or clusters? Deny list size (millions of IPs or CIDR ranges)? How quickly must a new entry take effect (seconds vs minutes)? How often does the list change? What happens when a server cannot reach the source: fail open (allow) or keep the last known list? The core problem is distributing a **read-mostly, versioned dataset** to many nodes.\n\n**Building the list.** An evaluation service runs the decision function over traffic signals and writes entries (IP or CIDR, reason, expiry) to a durable store (a database, with a cache in front), producing a versioned list.\n\n**Data on each server.** An in-memory structure for fast lookups on every request: a hash set for single IPs, a prefix trie or radix tree for CIDR ranges, optionally a Bloom filter as a quick pre-check. Swap in a new snapshot atomically (copy-on-write) so request handling never blocks.\n\n**Distribution options.**\n- *Pull with versions:* each server polls a regional distribution service with its current version; the service returns a delta, or a full snapshot if too far behind. Simple, robust, and staleness is bounded by the poll interval. Add jitter to avoid thundering herds, and use a CDN or cache tier to offload.\n- *Hierarchical leader-follower:* a central source feeds regional leaders, which feed local followers (tree fan-out). Cuts load on the source and cross-region traffic; leader election and failover need care.\n- *Gossip:* servers exchange version and delta info with random peers; very resilient with no single coordinator and eventually consistent, but convergence time is probabilistic and harder to reason about.\n- *Push (long poll, pub-sub):* lower latency, but needs connection management; the interviewer here steered away from a streaming system.\n\n**Consistency and safety.** Eventual consistency is acceptable if bounded; entries carry TTLs so stale blocks expire. Servers keep the last good snapshot if the source is down (fail static). Protect against bad updates with versioning, checksums, staged rollout and a quick rollback.\n\n**Observability.** Track per-server version lag and alert on servers that fall behind.",
+ "followUps": [
+  "How would you update the in-memory list without blocking request handling?",
+  "Compare gossip and hierarchical leader-follower for propagating the list.",
+  "How would you roll out a bad update safely, and roll it back?",
+  "How do you store and look up CIDR ranges efficiently?",
+  "Should the system fail open or fail closed if the source is unreachable?"
+ ]
+}

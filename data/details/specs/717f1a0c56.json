@@ -1,0 +1,19 @@
+{
+ "qid": "717f1a0c56",
+ "question": "Hiring-manager round for a Walmart Software Engineer III role. After a resume and project deep dive (a scheduler-based system), the design question was to **design a system that schedules incoming jobs to workers**, where:\n\n- jobs represent **prescriptions**, which can be **partially or fully filled**,\n- jobs must be **routed to the appropriate Walmart pharmacy**.\n\nThe discussion included failure handling, load management, **dead-letter queues**, load balancing and **jitter handling**. A second design topic was a high-level design of an **SSO system**, including session management and user information storage.",
+ "lookingFor": [
+  "Can you model routing rules and job states for partially and fully fillable orders?",
+  "Do you design queueing, retries, dead-letter handling and backpressure correctly?",
+  "Do you know why jitter matters in retries and scheduling?",
+  "Can you sketch SSO and session management sensibly?",
+  "Do you consider data integrity and auditing for sensitive (pharmacy) data?"
+ ],
+ "answer": "**Requirements.** Incoming prescription jobs must reach the right pharmacy (by location, inventory, stock and capabilities) and a worker there. A job can be fully fillable at one pharmacy, or partially fillable, in which case the remainder goes to another pharmacy or waits. Needs: reliability (no lost or duplicated prescriptions), auditability and fair load. These are design assumptions to confirm.\n\n**Components.**\n- **Intake API** validates the job and stores it with an idempotency key.\n- **Router/Matcher** queries an inventory view and picks the pharmacy (or splits the job into sub-jobs, one per pharmacy, each with a status).\n- **Queue per pharmacy** (a Kafka topic partitioned by pharmacy, or SQS queues); pharmacy workers consume from it.\n- **Job store** (relational) holds state: NEW, ROUTED, IN_PROGRESS, PARTIALLY_FILLED, FILLED, FAILED.\n- **Notification and audit** services; consumers publish events for each state change.\n\n**Failure handling.** Delivery is at-least-once, so processing must be idempotent. Workers acquire a lease; if one dies, the lease expires and the job returns to the queue. Retries use exponential backoff with **jitter** (a random component), so many failed jobs do not retry at the same instant and create a thundering herd. After N attempts a job goes to a **dead-letter queue** for manual review or alerting, with the reason attached. A partial fill is a normal state: reroute the remainder to another pharmacy and keep the parent job as the source of truth.\n\n**Load management.** Use bounded queues and backpressure; autoscale workers on queue depth; load balance by choosing among eligible pharmacies by current queue depth; rate limit intake; priority lanes for urgent prescriptions.\n\n**SSO outline.** A user signs in once at an identity provider (OAuth2/OpenID Connect or SAML). The IdP authenticates the user and issues a short-lived token (JWT) and a session cookie; relying applications validate the token (signature, expiry, audience) and create a local session. Session management: server-side sessions in Redis (revocable, with TTL and sliding expiry) or stateless JWTs with short expiry plus refresh tokens. Store user profiles in a relational database, hash credentials (bcrypt/argon2), and support logout (revoke the session and refresh token) and MFA.\n\n**Database topics.** Index columns used in filters and joins, prefer keyset pagination over `OFFSET`, and avoid unnecessary joins on hot paths.",
+ "followUps": [
+  "Why add jitter to retries and what does a thundering herd look like?",
+  "How would you handle a job that goes to the dead-letter queue?",
+  "How do you ensure a prescription is not filled twice?",
+  "JWT sessions versus server-side sessions: what are the trade-offs?",
+  "How would you route a job when no single pharmacy can fill it fully?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "c4a0020134",
+ "question": "NVIDIA System Software Engineer intern, technical interview. The candidate had no major multithreading project, so the interviewer asked about a Java program they had built that generates random numbers using multiple threads. **Discuss the multithreading in that project. Follow-up: explain garbage collection in Java.**",
+ "lookingFor": [
+  "Honest, concrete explanation of how threads were created and coordinated.",
+  "Awareness of shared state, race conditions and thread-safe alternatives.",
+  "Correct mental model of Java heap, reachability and generations.",
+  "Practical GC knowledge: collectors, pauses, memory leaks.",
+  "Ability to reason about trade-offs rather than recite."
+ ],
+ "answer": "**Part 1: discussing a multithreaded project.** Describe what each thread did, how you created it (`Thread`/`Runnable` or, better, an `ExecutorService`), how results were collected (`Future`, shared queue) and how threads were stopped (`join`, `shutdown`). Then volunteer the concurrency issues: for random numbers, a shared `java.util.Random` is thread-safe but contended (CAS retries on its seed), so `ThreadLocalRandom` gives each thread its own generator. Shared counters need `AtomicInteger` or `synchronized`; compound actions need locks; check-then-act without locking is a race. Explain `volatile` (visibility only, no atomicity), and how you would test for correctness (run repeatedly, vary thread counts). Be honest about limits (\"I have used it in this one program\") and show you understand more than you used.\n\n**Part 2: Java garbage collection.** GC automatically reclaims heap memory for objects that are no longer **reachable** from GC roots (thread stacks, static fields, JNI references). Cycles of unreachable objects are collected too, unlike plain reference counting.\n\n- **Generational hypothesis**: most objects die young. The heap has a young generation (Eden plus two survivor spaces) and an old generation. New objects go to Eden; a **minor GC** copies live objects to survivor space and promotes long-lived ones to old gen. A **major/full GC** collects old gen and is more expensive.\n- **Algorithms**: mark (find reachable), sweep (free), compact (remove fragmentation), copy.\n- **Collectors**: Serial, Parallel (throughput), G1 (default in modern JDKs, region-based, targets pause times), ZGC and Shenandoah (very low pause).\n- **Stop-the-world** pauses are the main cost. Tune with heap size flags (`-Xms`, `-Xmx`) and use GC logs.\n- **Memory leaks** in Java still happen: objects kept reachable by static collections, listeners or caches. `System.gc()` is only a hint; `finalize` is deprecated; use try-with-resources for non-memory resources.",
+ "followUps": [
+  "What is the difference between synchronized and volatile?",
+  "How would you detect and fix a memory leak in a Java application?",
+  "Why is ThreadLocalRandom preferred over Random in multithreaded code?",
+  "What causes a long full GC pause and how would you reduce it?"
+ ]
+}

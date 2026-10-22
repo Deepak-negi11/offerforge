@@ -1,0 +1,43 @@
+{
+ "pid": "visa-repeatedly-remove-smallest-peak",
+ "title": "Repeatedly Remove Smallest Peak",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an array of `n` **distinct** integers. An element is a **peak** if it is strictly greater than each of its neighbours in the current array. The first and last elements have only one neighbour, and a missing neighbour never blocks an element from being a peak (so an array of length 1 is a single peak).\n\nRepeat the following until the array is empty:\n\n1. Find the **smallest** peak in the current array.\n2. Remove it from the array. The elements on its left and right become neighbours.\n\nPrint the removed values in the order they were removed.\n\nBecause the values are distinct, the largest element of any non-empty array is always a peak, so the process always continues until the array is empty.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` distinct integers.",
+ "output_format": "Print `n` space-separated integers: the removed peaks in removal order.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ a[i] ≤ 10^9, all values are distinct"
+ ],
+ "examples": [
+  {
+   "input": "5\n2 9 4 7 3",
+   "output": "7 9 4 3 2",
+   "explanation": "Peaks are 9 and 7, so 7 goes first, leaving `2 9 4 3`. Now only 9 is a peak (4 has a larger neighbour, 3 is smaller than 4), then `2 4 3` has peak 4, then `2 3` has peak 3, and finally 2 remains."
+  },
+  {
+   "input": "4\n8 1 2 9",
+   "output": "8 9 2 1",
+   "explanation": "The ends count: 8 and 9 are both peaks and 8 is smaller. After removing it, `1 2 9` has peak 9; then `1 2` has peak 2; finally 1."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Rescanning the whole array for peaks after every removal costs O(n^2). Only the neighbourhood of the removed element changes.",
+  "Keep the array as a doubly linked list (prev / next arrays) and the current peaks in a min-heap.",
+  "After removing a peak, its left and right neighbours were smaller than it, so they were not peaks before. Check each of them against their new neighbours and push them if they now qualify."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    prv = list(range(-1, n - 1))\n    nxt = list(range(1, n + 1))\n\n    def is_peak(i):\n        l, r = prv[i], nxt[i]\n        return (l < 0 or a[l] < a[i]) and (r >= n or a[r] < a[i])\n\n    heap = [(a[i], i) for i in range(n) if is_peak(i)]\n    heapq.heapify(heap)\n    out = []\n    while heap:\n        v, i = heapq.heappop(heap)\n        out.append(v)\n        l, r = prv[i], nxt[i]\n        if l >= 0:\n            nxt[l] = r\n        if r < n:\n            prv[r] = l\n        if l >= 0 and is_peak(l):\n            heapq.heappush(heap, (a[l], l))\n        if r < n and is_peak(r):\n            heapq.heappush(heap, (a[r], r))\n    print(' '.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + n]]\nout = []\nwhile a:\n    best = None\n    for i in range(len(a)):\n        left_ok = i == 0 or a[i - 1] < a[i]\n        right_ok = i == len(a) - 1 or a[i + 1] < a[i]\n        if left_ok and right_ok and (best is None or a[i] < a[best]):\n            best = i\n    out.append(a[best])\n    del a[best]\nprint(' '.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n    tests = [fmt([5]), fmt([1, 2]), fmt([2, 1]), fmt([2, 9, 4, 7, 3]), fmt([8, 1, 2, 9]), fmt([1, 2, 3, 4, 5, 6]), fmt([6, 5, 4, 3, 2, 1]), fmt([1, 3, 2, 5, 4, 7, 6])]\n    for n in (2, 3, 4, 5, 7, 10, 15, 25, 40):\n        for _ in range(2):\n            tests.append(fmt(rng.sample(range(1, 100), n)))\n    N = 10**5\n    tests.append(fmt(rng.sample(range(1, 10**9 + 1), N)))\n    tests.append(fmt(list(range(1, N + 1))))\n    tests.append(fmt(list(range(N, 0, -1))))\n    vals = rng.sample(range(1, 10**9 + 1), N)\n    vals.sort()\n    lo, hi = vals[:N // 2], vals[N // 2:]\n    zig = []\n    for i in range(N // 2):\n        zig.append(hi[i])\n        zig.append(lo[i])\n    tests.append(fmt(zig))\n    zig2 = []\n    for i in range(N // 2):\n        zig2.append(lo[i])\n        zig2.append(hi[N // 2 - 1 - i])\n    tests.append(fmt(zig2))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef remove_smallest_peaks(a: List[int]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    print(' '.join(map(str, remove_smallest_peaks(a))))\n\n\nmain()\n",
+  "javascript": "function removeSmallestPeaks(a) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst a = t.slice(1, 1 + n)\nconsole.log(removeSmallestPeaks(a).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> removeSmallestPeaks(vector<long long>& a) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    vector<long long> res = removeSmallestPeaks(a);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] removeSmallestPeaks(long[] a) {\n        // Write your solution here\n        return new long[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (long) in.nval;\n        }\n        long[] res = removeSmallestPeaks(a);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

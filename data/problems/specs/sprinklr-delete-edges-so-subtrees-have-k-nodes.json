@@ -1,0 +1,51 @@
+{
+ "pid": "sprinklr-delete-edges-so-subtrees-have-k-nodes",
+ "title": "Delete Edges So Subtrees Have k Nodes",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an undirected tree with `n` nodes numbered `0` to `n - 1` and an integer `k`.\n\nYou may delete edges. After deleting some edges, the tree falls apart into connected components. You want **every component to contain at most `k` nodes**.\n\nFind the minimum number of edges that must be deleted.\n\nThe tree is not rooted: a component is simply a maximal set of nodes that are still connected after the deletions. A tree with `n <= k` needs no deletions, and with `k = 1` every edge must be deleted.",
+ "input_format": "The first line contains two integers `n` and `k`.\nEach of the next `n - 1` lines contains two integers `u` and `v`, an edge between nodes `u` and `v`.",
+ "output_format": "Print a single integer: the minimum number of edges to delete.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ k ≤ n",
+  "0 ≤ u, v < n",
+  "The edges form a tree",
+  "The tree has no path with more than 5000 nodes (so recursive DFS is safe)"
+ ],
+ "examples": [
+  {
+   "input": "5 2\n0 1\n1 2\n2 3\n3 4",
+   "output": "2",
+   "explanation": "The path has 5 nodes and each component may hold at most 2, so at least 3 components are needed, i.e. 2 deletions. Deleting edges (1, 2) and (3, 4) gives components {0, 1}, {2, 3} and {4}."
+  },
+  {
+   "input": "6 3\n0 1\n0 2\n0 3\n0 4\n0 5",
+   "output": "3",
+   "explanation": "A star with centre 0 and five leaves. The component containing the centre can keep at most two leaves, so the other three edges must be deleted."
+  },
+  {
+   "input": "7 3\n0 1\n0 2\n1 3\n1 4\n2 5\n2 6",
+   "output": "2",
+   "explanation": "A complete binary tree with 7 nodes. Deleting the edges (0, 1) and (0, 2) leaves components {1, 3, 4}, {2, 5, 6} and {0}, all of size at most 3. One deletion gives only two components, which cannot all fit in 3 nodes."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Root the tree anywhere and process nodes bottom-up. For each node, what do you need to know about each child once the edges inside the child subtree have been decided?",
+  "For each child you pass up the size of the (still open) component that contains it. A node can either absorb a child component or cut the edge to it. Cutting a larger child frees more room than cutting a smaller one.",
+  "At a node, sort the children component sizes ascending, keep adding them to the node (starting from size 1) while the total stays at most k, and cut every child that does not fit. Pass the resulting size to the parent."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0]); k = int(data[1])\n    adj = [[] for _ in range(n)]\n    for i in range(n - 1):\n        u = int(data[2 + 2 * i]); v = int(data[3 + 2 * i])\n        adj[u].append(v)\n        adj[v].append(u)\n    parent = [-1] * n\n    order = []\n    stack = [0]\n    seen = [False] * n\n    seen[0] = True\n    while stack:\n        v = stack.pop()\n        order.append(v)\n        for to in adj[v]:\n            if not seen[to]:\n                seen[to] = True\n                parent[to] = v\n                stack.append(to)\n    child_sizes = [[] for _ in range(n)]\n    cuts = 0\n    for v in reversed(order):\n        size = 1\n        cs = child_sizes[v]\n        cs.sort()\n        for s in cs:\n            if size + s <= k:\n                size += s\n            else:\n                cuts += 1\n        if parent[v] >= 0:\n            child_sizes[parent[v]].append(size)\n    print(cuts)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0]); k = int(data[1])\nedges = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(n - 1)]\nbest = n - 1\nfor mask in range(1 << (n - 1)):\n    cnt = bin(mask).count('1')\n    if cnt >= best:\n        continue\n    dsu = list(range(n))\n    def find(x):\n        while dsu[x] != x:\n            dsu[x] = dsu[dsu[x]]\n            x = dsu[x]\n        return x\n    for i, (u, v) in enumerate(edges):\n        if not (mask >> i) & 1:\n            a, b = find(u), find(v)\n            if a != b:\n                dsu[a] = b\n    sizes = {}\n    for v in range(n):\n        r = find(v)\n        sizes[r] = sizes.get(r, 0) + 1\n    if max(sizes.values()) <= k:\n        best = cnt\nprint(best)\n",
+ "generator": "def gen(rng):\n    def make(n, parents, k):\n        perm = list(range(n))\n        rng.shuffle(perm)\n        edges = []\n        for i in range(1, n):\n            a, b = perm[i], perm[parents[i]]\n            if rng.random() < 0.5:\n                a, b = b, a\n            edges.append((a, b))\n        rng.shuffle(edges)\n        return f'{n} {k}\\n' + '\\n'.join(f'{a} {b}' for a, b in edges)\n\n    def random_parents(n, window=None):\n        par = [0] * n\n        for i in range(1, n):\n            lo = 0 if window is None else max(0, i - window)\n            par[i] = rng.randint(lo, i - 1)\n        return par\n\n    def capped(n, cap, p_chain=1.0):\n        par = [0] * n\n        depth = [0] * n\n        for i in range(1, n):\n            if depth[i - 1] < cap and rng.random() < p_chain:\n                par[i] = i - 1\n            else:\n                while True:\n                    par[i] = rng.randint(0, i - 1)\n                    if depth[par[i]] < cap:\n                        break\n            depth[i] = depth[par[i]] + 1\n        return par\n\n    tests = []\n    tests.append('1 1\\n')\n    tests.append('2 1\\n0 1')\n    tests.append('2 2\\n0 1')\n    tests.append('5 2\\n0 1\\n1 2\\n2 3\\n3 4')\n    tests.append('6 3\\n0 1\\n0 2\\n0 3\\n0 4\\n0 5')\n    tests.append('7 3\\n0 1\\n0 2\\n1 3\\n1 4\\n2 5\\n2 6')\n    for _ in range(16):\n        n = rng.randint(1, 12)\n        shape = rng.choice([0, 0, 1, 2])\n        par = random_parents(n, None if shape == 0 else (1 if shape == 1 else 2))\n        k = rng.randint(1, max(1, n))\n        tests.append(make(n, par, k))\n    N = 100000\n    tests.append(make(N, random_parents(N), 50))\n    tests.append(make(N, capped(N, 2400), 1000))\n    tests.append(make(N, capped(N, 2400, 0.9995), 7))\n    tests.append(make(N, [0] * N, 40000))\n    tests.append(make(N, capped(N, 2400), 1))\n    tests.append(make(N, capped(N, 2400, 0.99), 300))\n    tests.append(make(N, random_parents(N), N))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef min_deletions(n: int, k: int, edges: List[Tuple[int, int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    k = int(data[1])\n    edges = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(n - 1)]\n    print(min_deletions(n, k, edges))\n\n\nmain()\n",
+  "javascript": "function minDeletions(n, k, edges) {\n  // edges: array of [u, v]\n  // Write your solution here\n  return 0\n}\n\nconst tk = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = tk[0]\nconst k = tk[1]\nconst edges = []\nfor (let i = 0; i < n - 1; i++) edges.push([tk[2 + 2 * i], tk[3 + 2 * i]])\nconsole.log(String(minDeletions(n, k, edges)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minDeletions(int n, int k, vector<pair<int, int>>& edges) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<pair<int, int>> edges(n - 1);\n    for (int i = 0; i < n - 1; i++) cin >> edges[i].first >> edges[i].second;\n    cout << minDeletions(n, k, edges) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minDeletions(int n, int k, int[][] edges) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        int[][] edges = new int[Math.max(0, n - 1)][2];\n        for (int i = 0; i < n - 1; i++) {\n            in.nextToken(); edges[i][0] = (int) in.nval;\n            in.nextToken(); edges[i][1] = (int) in.nval;\n        }\n        System.out.println(minDeletions(n, k, edges));\n    }\n}\n"
+ }
+}

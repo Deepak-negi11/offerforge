@@ -1,0 +1,48 @@
+{
+ "pid": "juspay-largest-sum-cycle",
+ "title": "Largest Sum Cycle",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a maze with `n` cells numbered `0` to `n - 1`. A cell can have any number of entrances but at most one exit, and every door is one-way. The array `edge` describes the exits: `edge[i]` is the cell you reach from cell `i` in one step, or `-1` if cell `i` has no exit.\n\nA **cycle** is a group of distinct cells `c0, c1, ..., c(k-1)` (with `k ≥ 1`) such that `edge[c0] = c1`, `edge[c1] = c2`, ..., `edge[c(k-1)] = c0`. A cell with `edge[i] = i` forms a cycle of a single cell. Because every cell has at most one exit, two different cycles never share a cell.\n\nThe **sum** of a cycle is the sum of the indices of its cells. Return the largest sum over all cycles in the maze, or `-1` if the maze has no cycle.\n\n**Follow-up:** some drives asked for the *length* of the longest cycle instead (the first example would then give `6`). The same traversal answers both versions.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` integers `edge[0], edge[1], ..., edge[n-1]`.",
+ "output_format": "Print a single integer: the largest cycle sum, or `-1` if there is no cycle.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "-1 ≤ edge[i] ≤ n - 1"
+ ],
+ "examples": [
+  {
+   "input": "23\n4 4 1 4 13 8 8 8 0 8 14 9 15 11 -1 10 15 22 22 22 22 22 21",
+   "output": "45",
+   "explanation": "Following the exits 4 → 13 → 11 → 9 → 8 → 0 → 4 closes a cycle of 6 cells whose indices add up to 4 + 13 + 11 + 9 + 8 + 0 = 45. The only other cycle is 21 ↔ 22 with sum 43. Every remaining cell just leads into one of these cycles (or into cell 14, which has no exit)."
+  },
+  {
+   "input": "6\n0 2 1 4 5 3",
+   "output": "12",
+   "explanation": "There are three cycles: cell 0 pointing to itself (sum 0), cells 1 and 2 (sum 3) and cells 3, 4, 5 (sum 12). The largest is 12."
+  },
+  {
+   "input": "4\n1 2 3 -1",
+   "output": "-1",
+   "explanation": "Every walk ends at cell 3, which has no exit, so the maze contains no cycle."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Each cell has at most one exit, so from any start cell there is exactly one path to follow. It either stops at a cell with no exit or eventually repeats a cell.",
+  "Walk from every unvisited cell, marking cells with the id of the current walk. If the walk reaches a cell marked with the current id, you have found a new cycle; if it reaches a cell from an earlier walk, nothing new can be found.",
+  "Once you know a cell lies on a cycle, go around the cycle once to add up its indices. Each cell is walked a constant number of times, so the total work is linear."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    e = [int(x) for x in data[1:1 + n]]\n    mark = [-1] * n\n    best = -1\n    for s in range(n):\n        if mark[s] != -1:\n            continue\n        u = s\n        while u != -1 and mark[u] == -1:\n            mark[u] = s\n            u = e[u]\n        if u != -1 and mark[u] == s:\n            tot = u\n            v = e[u]\n            while v != u:\n                tot += v\n                v = e[v]\n            if tot > best:\n                best = tot\n    print(best)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\ne = [int(x) for x in data[1:1 + n]]\nbest = -1\nfor i in range(n):\n    u = e[i]\n    tot = i\n    steps = 0\n    while u != -1 and u != i and steps <= n:\n        tot += u\n        u = e[u]\n        steps += 1\n    if u == i:\n        best = max(best, tot)\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(e):\n        return str(len(e)) + '\\n' + ' '.join(map(str, e))\n    tests = [\n        fmt([-1]), fmt([0]), fmt([-1, -1, -1]), fmt([1, 0]), fmt([1, 2, 0, -1, 3]),\n        fmt([0, 2, 1, 4, 5, 3]), fmt([1, 0, 3, 2, 3]), fmt([1, 2, 3, -1]),\n        fmt([4, 4, 1, 4, 13, 8, 8, 8, 0, 8, 14, 9, 15, 11, -1, 10, 15, 22, 22, 22, 22, 22, 21]),\n    ]\n    for _ in range(45):\n        n = rng.randint(1, 12)\n        mode = rng.randint(0, 2)\n        if mode == 0:\n            e = [rng.randint(-1, n - 1) for _ in range(n)]\n        elif mode == 1:\n            e = list(range(n))\n            rng.shuffle(e)\n            for i in range(n):\n                if rng.random() < 0.2:\n                    e[i] = -1\n        else:\n            e = [rng.randint(0, n - 1) if rng.random() < 0.8 else -1 for _ in range(n)]\n        tests.append(fmt(e))\n    N = 100000\n    tests.append(fmt([rng.randint(-1, N - 1) for _ in range(N)]))\n    p = list(range(N))\n    rng.shuffle(p)\n    tests.append(fmt(p))\n    p = list(range(N))\n    rng.shuffle(p)\n    e = [0] * N\n    for i in range(N):\n        e[p[i]] = p[(i + 1) % N]\n    tests.append(fmt(e))\n    e = [i + 1 for i in range(N)]\n    e[N - 1] = N - 3\n    tests.append(fmt(e))\n    e = [i + 1 for i in range(30000)]\n    e[-1] = -1\n    tests.append(fmt(e))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef largest_sum_cycle(edge: List[int]) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    edge = [int(x) for x in data[1:1 + n]]\n    print(largest_sum_cycle(edge))\n\n\nmain()\n",
+  "javascript": "function largestSumCycle(edge) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst edge = t.slice(1, 1 + n)\nconsole.log(String(largestSumCycle(edge)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long largestSumCycle(vector<int>& edge) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> edge(n);\n    for (int i = 0; i < n; i++) cin >> edge[i];\n    cout << largestSumCycle(edge) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long largestSumCycle(int[] edge) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] edge = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            edge[i] = (int) in.nval;\n        }\n        System.out.println(largestSumCycle(edge));\n    }\n}\n"
+ }
+}

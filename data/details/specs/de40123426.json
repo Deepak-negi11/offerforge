@@ -1,0 +1,19 @@
+{
+ "qid": "de40123426",
+ "question": "In Technical Interview 2 for an SDE Dev Tools role at Tower Research (9 years of experience), the interviewer pasted a skeleton on a shared editor:\n\n    class Task:\n        def task(self): pass\n        def wait(self): pass\n\n`task()` should **schedule a task** and `wait()` should **block** until the work is done. The interviewer asked for a quick implementation, with constraints such as not creating any extra class. He then extended it: **only 3 workers, with tasks arriving continuously**, so tasks have to be queued. The candidate answered with a queue and was asked to implement it quickly, followed by a further extension.",
+ "lookingFor": [
+  "Can you translate a vague spec into a concurrency design under time pressure?",
+  "Do you know threads, futures/joins, queues and condition variables?",
+  "Can you bound concurrency with a fixed worker pool and a task queue?",
+  "Do you handle shutdown, exceptions and wait semantics correctly?",
+  "Do you ask clarifying questions (what does wait wait for?) and stay calm with interruptions?"
+ ],
+ "answer": "**Clarify the contract.** `task(fn)` submits work and returns immediately; `wait()` blocks until all submitted tasks have finished. State that assumption out loud.\n\n**Step 1: one thread per task.** Keep a list of threads; `task` starts one, `wait` joins all. It is simple but unbounded: thousands of tasks mean thousands of threads.\n\n**Step 2: fixed pool of 3 workers.** Use a shared thread-safe queue and N worker threads that loop: take a task, run it, mark it done. Python's `queue.Queue` already provides locking and `join()` semantics.\n\n    import threading, queue\n\n    class Task:\n        def __init__(self, workers=3):\n            self.q = queue.Queue()\n            self.threads = [threading.Thread(target=self._run, daemon=True)\n                            for _ in range(workers)]\n            for t in self.threads:\n                t.start()\n\n        def _run(self):\n            while True:\n                fn = self.q.get()\n                try:\n                    fn()\n                except Exception as e:\n                    print(\"task failed:\", e)\n                finally:\n                    self.q.task_done()\n\n        def task(self, fn):\n            self.q.put(fn)       # returns immediately\n\n        def wait(self):\n            self.q.join()        # blocks until every queued task is done\n\n**Why it works.** `put` increments an unfinished-task counter and `task_done` decrements it; `join` waits until it reaches zero. Tasks arrive continuously and at most 3 run at once; extra tasks wait in the queue.\n\n**Points to discuss.**\n\n- The queue is unbounded; for back-pressure use `Queue(maxsize=N)` so `task` blocks when full.\n- Exceptions must not kill a worker (hence the try/except).\n- Python's GIL means threads help for I/O-bound work; for CPU-bound work use processes.\n- Add `shutdown()` that puts sentinel values to stop workers; `concurrent.futures.ThreadPoolExecutor(max_workers=3)` is the production equivalent.\n- Possible further extension: return results via futures, task priorities, retries, or `wait()` for a specific task.",
+ "followUps": [
+  "How would you add priorities or retries?",
+  "What if wait() must return results from every task?",
+  "How would you shut the pool down gracefully?",
+  "How is this different for CPU-bound work in Python?",
+  "What happens if tasks submit other tasks and then call wait() from inside a worker?"
+ ]
+}

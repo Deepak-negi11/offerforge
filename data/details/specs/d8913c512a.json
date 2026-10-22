@@ -1,0 +1,19 @@
+{
+ "qid": "d8913c512a",
+ "question": "A BookMyShow-style ticket booking problem in a system-coding round (Java, on a platform that can run multithreaded code). The candidate could not share the exact statement, but it centred on many users booking seats for a show at the same time without double-booking.\n\nThe interviewer was particular about the choice of concurrency constructs (for example `Semaphore` and `CyclicBarrier`) and expected working, executable code. In the reported attempt, a bug let two threads get through at once, and a single-line fix was the difference.",
+ "lookingFor": [
+  "Can you identify the shared state (seat or show inventory) and protect it correctly?",
+  "Do you know when to use a lock, a semaphore, an atomic compare-and-set or a barrier, and why?",
+  "Can you reason about races, deadlock and lost updates, and debug them calmly?",
+  "Is your code runnable and testable under many threads, not just plausible on a whiteboard?",
+  "Do you consider seat holds with expiry and partial failure on multi-seat bookings?"
+ ],
+ "answer": "**Model.** `Show` has a list of `Seat`s. Each seat has a state: `AVAILABLE`, `HELD` (with owner and expiry) or `BOOKED`. A user books *k* specific seats or any *k* seats.\n\n**Core invariant:** a seat is never given to two users. Protect it at the finest sensible granularity.\n\n**Approach 1: per-seat atomic state.** Keep an `AtomicReference<SeatState>` (or a `ReentrantLock`) per seat. To book several seats:\n1. Sort the seat ids and lock/CAS in that order. A global ordering prevents deadlock between two users who want overlapping seats.\n2. If any seat is not available, roll back the ones you took and fail. All-or-nothing.\n3. On success, mark them `HELD`, take payment, then mark `BOOKED`. A background task releases expired holds.\n\n**Approach 2: counting for \"any k seats\".** A `Semaphore(capacity)` per show with `tryAcquire(k)` rejects early when the show is full. It only counts capacity; you still need to choose concrete seats safely.\n\n```java\nboolean book(Show s, List<Integer> ids, String user) {\n  List<Integer> sorted = ids.stream().sorted().toList();\n  List<Seat> got = new ArrayList<>();\n  for (int id : sorted) {\n    Seat seat = s.seat(id);\n    if (seat.tryHold(user)) got.add(seat);   // CAS AVAILABLE -> HELD\n    else { got.forEach(x -> x.release(user)); return false; }\n  }\n  got.forEach(x -> x.confirm(user));\n  return true;\n}\n```\n\n**Where `CyclicBarrier` fits:** mostly in your test harness. N threads wait at the barrier and then all call `book` for the same seat at the same instant. Assert that exactly one succeeds. It is not normally needed in the production path, and saying so shows you understand the tool.\n\n**Pitfalls to name:** check-then-act races (`if available then book` without atomicity), holding a lock during slow payment calls, forgetting to release on exceptions (use `finally`), and unbounded holds.\n\n**Beyond one JVM:** use a DB row-level conditional update (`UPDATE seat SET status='HELD' WHERE id=? AND status='AVAILABLE'`) or a distributed lock with TTL.",
+ "followUps": [
+  "Why sort seat ids before locking?",
+  "How do you expire seat holds without a thread per hold?",
+  "How would this change with multiple application servers?",
+  "What is the difference between a Semaphore and a lock here?",
+  "How would you test for races reliably?"
+ ]
+}

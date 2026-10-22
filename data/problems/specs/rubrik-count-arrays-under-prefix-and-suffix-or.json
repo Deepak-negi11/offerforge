@@ -1,0 +1,49 @@
+{
+ "pid": "rubrik-count-arrays-under-prefix-and-suffix-or",
+ "title": "Count Arrays Under Prefix AND, Suffix OR",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "A distributed snapshot consists of `N` storage nodes. Node `j` holds a `K`-bit integer, giving an array `A` of length `N` with `0 ≤ A[j] < 2^K`.\n\nThe system supports two kinds of batch operations, which may be applied any number of times in any order (possibly zero times):\n\n- **Prefix Compression**: choose an index `i` (`1 ≤ i ≤ N`) and a `K`-bit mask `x` (`0 ≤ x < 2^K`). For every `j` with `1 ≤ j ≤ i`, set `A[j] := A[j] & x`.\n- **Suffix Expansion**: choose an index `i` (`1 ≤ i ≤ N`) and a `K`-bit mask `x` (`0 ≤ x < 2^K`). For every `j` with `i ≤ j ≤ N`, set `A[j] := A[j] | x`.\n\nCount the number of **distinct arrays** that can be produced (the starting array included). Two arrays differ if they differ at some index. Print the count modulo `998244353`.",
+ "input_format": "The first line contains `N` and `K`.\nThe second line contains `N` integers `A[1] ... A[N]`.",
+ "output_format": "Print a single integer: the number of reachable arrays modulo 998244353.",
+ "constraints": [
+  "1 ≤ N ≤ 10^5",
+  "1 ≤ K ≤ 20",
+  "0 ≤ A[j] < 2^K"
+ ],
+ "examples": [
+  {
+   "input": "1 2\n1",
+   "output": "4",
+   "explanation": "With a single node, one AND followed by one OR can turn the value into any 2-bit number, so all 2^2 = 4 values are reachable."
+  },
+  {
+   "input": "2 1\n1 0",
+   "output": "4",
+   "explanation": "The reachable arrays are [1,0] (start), [0,0] (AND the prefix of length 1 with 0), [1,1] (OR the suffix starting at 2 with 1) and [0,1] (AND the first element with 0, then OR the second with 1). All 4 binary arrays of length 2 are reachable."
+  },
+  {
+   "input": "3 1\n0 1 0",
+   "output": "5",
+   "explanation": "Reachable arrays are [0,1,0] (start), [0,0,0], [0,0,1], [0,1,1] and [1,1,1]. The arrays [1,0,0], [1,0,1] and [1,1,0] are impossible because the first element can only become 1 together with everything after it."
+  }
+ ],
+ "complexity": {
+  "time": "O(N · K)",
+  "space": "O(N)"
+ },
+ "hints": [
+  "A mask can leave some bits untouched (AND with 1, OR with 0), so each bit position can be treated as its own independent binary array of length N; the answer is the product over bits of the number of reachable binary arrays.",
+  "For a single binary array: an AND-prefix can only write zeros over a prefix, an OR-suffix can only write ones over a suffix. A final array is the original with some prefix turned to 0s and some suffix turned to 1s, or an array 0...01...1 when they overlap or touch.",
+  "Count distinct results: there are N + 1 sorted arrays 0^a 1^(N-a), plus one extra array for every pair of positions l < r with s[l] = 1 and s[r] = 0 (that pair is the shortest untouched window that cannot be shrunk). Count such pairs per bit in O(N)."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0]); k = int(data[1])\n    A = [int(x) for x in data[2:2 + n]]\n    MOD = 998244353\n    res = 1\n    for b in range(k):\n        ones = 0\n        pairs = 0\n        for a in A:\n            if (a >> b) & 1:\n                ones += 1\n            else:\n                pairs += ones\n        res = res * ((n + 1 + pairs) % MOD) % MOD\n    print(res)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0]); k = int(data[1])\nA = tuple(int(x) for x in data[2:2 + n])\nfull = (1 << k) - 1\nseen = {A}\nstack = [A]\nwhile stack:\n    cur = stack.pop()\n    for i in range(n):\n        for x in range(1 << k):\n            nxt = list(cur)\n            for j in range(i + 1):\n                nxt[j] &= x\n            nxt = tuple(nxt)\n            if nxt not in seen:\n                seen.add(nxt)\n                stack.append(nxt)\n            nxt = list(cur)\n            for j in range(i, n):\n                nxt[j] |= x\n            nxt = tuple(nxt)\n            if nxt not in seen:\n                seen.add(nxt)\n                stack.append(nxt)\nprint(len(seen) % 998244353)\n",
+ "generator": "def gen(rng):\n    def fmt(k, A):\n        return f\"{len(A)} {k}\\n\" + ' '.join(map(str, A))\n\n    tests = [fmt(1, [0]), fmt(1, [1]), fmt(2, [1]), fmt(1, [1, 0]), fmt(1, [0, 1, 0]), fmt(2, [3, 0]),\n             fmt(2, [0, 0, 0]), fmt(2, [3, 3, 3]), fmt(3, [5, 2, 7, 0])]\n    for n, k in ((1, 3), (2, 2), (2, 3), (3, 2), (3, 3), (4, 2), (4, 3), (5, 1), (5, 2), (6, 1)):\n        for _ in range(2):\n            tests.append(fmt(k, [rng.randint(0, (1 << k) - 1) for _ in range(n)]))\n    N, K = 100000, 20\n    tests.append(fmt(K, [rng.randint(0, (1 << K) - 1) for _ in range(N)]))\n    tests.append(fmt(K, [((1 << K) - 1) if i < N // 2 else 0 for i in range(N)]))\n    tests.append(fmt(K, [(1 << K) - 1] * N))\n    tests.append(fmt(K, [0] * N))\n    tests.append(fmt(K, [rng.randint(0, (1 << K) - 1) | rng.randint(0, (1 << K) - 1) for _ in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_arrays(n: int, k: int, a: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    print(count_arrays(n, k, a))\n\n\nmain()\n",
+  "javascript": "function countArrays(n, k, a) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst a = t.slice(2, 2 + n)\nconsole.log(String(countArrays(n, k, a)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countArrays(int n, int k, vector<int>& a) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    cout << countArrays(n, k, a) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countArrays(int n, int k, int[] a) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        int[] a = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (int) in.nval;\n        }\n        System.out.println(countArrays(n, k, a));\n    }\n}\n"
+ }
+}

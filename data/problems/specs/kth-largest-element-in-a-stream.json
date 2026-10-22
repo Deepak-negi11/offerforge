@@ -1,0 +1,50 @@
+{
+ "pid": "kth-largest-element-in-a-stream",
+ "title": "Kth Largest Element in a Stream",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A system keeps a dynamic collection of numbers (test scores, rankings or other metrics) and must report thresholds in real time, such as the current admission cut-off. The collection starts with `m` values and then receives a sequence of `q` operations, applied in order:\n\n- `insert x`: add the value `x` to the collection. Duplicates are allowed and are stored separately.\n- `find k`: report the **k-th largest** value currently in the collection, counting duplicates. That is, if the values are sorted in descending order, report the one at position `k` (1-based).\n\nThe value of `k` is **different for each query**, so you cannot keep a fixed-size structure for a single `k`. Every `find k` is guaranteed to satisfy `1 ≤ k ≤` the current number of values.\n\nPrint the answer to every `find` operation, in order.\n\n**Follow-up:** if `k` is fixed for the whole stream (the classic version of this problem), a min-heap that never holds more than `k` values answers each insert in O(log k); extend that to report the k-th largest after every position of an unbounded stream. Why does that approach break when `k` changes per query, and which data structure replaces it (order-statistic tree, Fenwick tree or segment tree over compressed values)?",
+ "input_format": "The first line contains `m`. The second line contains `m` space-separated integers (the line is empty when `m = 0`).\nThe third line contains `q`. Each of the next `q` lines is either `insert x` or `find k`.",
+ "output_format": "For every `find` operation print the answer on its own line, in the order the operations appear.",
+ "constraints": [
+  "0 ≤ m ≤ 20000",
+  "1 ≤ q ≤ 20000, with at least one find operation",
+  "-10^9 ≤ x ≤ 10^9 for every value in the collection",
+  "1 ≤ k ≤ the number of values in the collection at the time of the find"
+ ],
+ "examples": [
+  {
+   "input": "3\n3 7 1\n5\nfind 3\ninsert 4\ninsert 9\nfind 2\nfind 4",
+   "output": "1\n7\n3",
+   "explanation": "Initially the values are {3, 7, 1}; descending 7, 3, 1, so the 3rd largest is 1. After inserting 4 and 9 the descending order is 9, 7, 4, 3, 1: the 2nd largest is 7 and the 4th largest is 3."
+  },
+  {
+   "input": "1\n10\n5\nfind 1\ninsert -3\nfind 2\ninsert 12\nfind 2",
+   "output": "10\n-3\n10",
+   "explanation": "{10}: the largest is 10. After inserting -3 the descending order is 10, -3, so the 2nd largest is -3. After inserting 12 it is 12, 10, -3 and the 2nd largest is 10."
+  },
+  {
+   "input": "2\n5 5\n3\ninsert 5\nfind 3\nfind 1",
+   "output": "5\n5",
+   "explanation": "Duplicates count separately: the collection is {5, 5, 5}, so both the 3rd largest and the largest are 5."
+  }
+ ],
+ "complexity": {
+  "time": "O((m + q) log(m + q))",
+  "space": "O(m + q)"
+ },
+ "hints": [
+  "A heap of size k only works for one fixed k. Here k changes, so you need to answer 'what is the element of rank r?' after arbitrary insertions.",
+  "Read all operations first. Sort the distinct values that will ever appear and map each to a position 1..d. The collection is then a count per position.",
+  "Store the counts in a Fenwick tree (or segment tree). The k-th largest of a collection of size s is the (s - k + 1)-th smallest, which a tree descent finds in O(log d)."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    p = 0\n    m = int(data[p]); p += 1\n    init = [int(x) for x in data[p:p + m]]\n    p += m\n    q = int(data[p]); p += 1\n    ops = []\n    for _ in range(q):\n        ops.append((data[p], int(data[p + 1])))\n        p += 2\n    vals = sorted(set(init + [v for t, v in ops if t == 'insert']))\n    idx = {v: i + 1 for i, v in enumerate(vals)}\n    sz = len(vals)\n    tree = [0] * (sz + 1)\n\n    def add(i):\n        while i <= sz:\n            tree[i] += 1\n            i += i & -i\n\n    top = 1\n    while (top << 1) <= sz:\n        top <<= 1\n\n    def kth_smallest(k):\n        pos = 0\n        b = top\n        while b:\n            nxt = pos + b\n            if nxt <= sz and tree[nxt] < k:\n                pos = nxt\n                k -= tree[nxt]\n            b >>= 1\n        return vals[pos]\n\n    for v in init:\n        add(idx[v])\n    size = m\n    out = []\n    for t, v in ops:\n        if t == 'insert':\n            add(idx[v])\n            size += 1\n        else:\n            out.append(kth_smallest(size - v + 1))\n    print('\\n'.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\np = 0\nm = int(data[p]); p += 1\ncur = [int(x) for x in data[p:p + m]]\np += m\nq = int(data[p]); p += 1\nout = []\nfor _ in range(q):\n    t, v = data[p], int(data[p + 1])\n    p += 2\n    if t == 'insert':\n        cur.append(v)\n    else:\n        out.append(sorted(cur, reverse=True)[v - 1])\nprint('\\n'.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def fmt(init, ops):\n        lines = [str(len(init)), ' '.join(map(str, init)), str(len(ops))]\n        lines += [f'{t} {v}' for t, v in ops]\n        return '\\n'.join(lines)\n    def make(m, q, lo, hi, pfind=0.5):\n        init = [rng.randint(lo, hi) for _ in range(m)]\n        size = m\n        ops = []\n        for i in range(q):\n            can_find = size >= 1\n            if can_find and (rng.random() < pfind or i == q - 1):\n                ops.append(('find', rng.randint(1, size)))\n            else:\n                ops.append(('insert', rng.randint(lo, hi)))\n                size += 1\n        if not any(t == 'find' for t, _ in ops):\n            if size == 0:\n                ops[-1] = ('insert', lo)\n                size = 1\n            ops.append(('find', 1))\n        return init, ops\n    tests = [\n        fmt([3, 7, 1], [('find', 3), ('insert', 4), ('insert', 9), ('find', 2), ('find', 4)]),\n        fmt([10], [('find', 1)]),\n        fmt([], [('insert', 5), ('find', 1)]),\n        fmt([], [('insert', -1), ('insert', -1), ('insert', 2), ('find', 1), ('find', 2), ('find', 3)]),\n        fmt([5, 5], [('insert', 5), ('find', 3), ('find', 1)]),\n        fmt([10 ** 9, -10 ** 9], [('find', 1), ('find', 2), ('insert', 0), ('find', 2)]),\n    ]\n    for _ in range(40):\n        m = rng.randint(0, 8)\n        q = rng.randint(1, 15)\n        lo, hi = rng.choice([(-5, 5), (0, 3), (-20, 20), (-10 ** 9, 10 ** 9)])\n        init, ops = make(m, q, lo, hi)\n        tests.append(fmt(init, ops))\n    L = 20000\n    tests.append(fmt(*make(L, L, -10 ** 9, 10 ** 9, 0.5)))\n    tests.append(fmt(*make(L, L, -10 ** 9, 10 ** 9, 0.9)))\n    tests.append(fmt(*make(0, L, -10 ** 9, 10 ** 9, 0.5)))\n    tests.append(fmt(*make(10000, L, -50, 50, 0.7)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef kth_largest_queries(initial: List[int], ops: List[Tuple[str, int]]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    p = 0\n    m = int(data[p]); p += 1\n    initial = [int(x) for x in data[p:p + m]]\n    p += m\n    q = int(data[p]); p += 1\n    ops = []\n    for _ in range(q):\n        ops.append((data[p], int(data[p + 1])))\n        p += 2\n    print('\\n'.join(map(str, kth_largest_queries(initial, ops))))\n\n\nmain()\n",
+  "javascript": "function kthLargestQueries(initial, ops) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nlet p = 0\nconst m = parseInt(t[p++])\nconst initial = []\nfor (let i = 0; i < m; i++) initial.push(parseInt(t[p++]))\nconst q = parseInt(t[p++])\nconst ops = []\nfor (let i = 0; i < q; i++) {\n  const type = t[p++]\n  const v = parseInt(t[p++])\n  ops.push([type, v])\n}\nconsole.log(kthLargestQueries(initial, ops).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> kthLargestQueries(vector<long long>& initial, vector<pair<string, long long>>& ops) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int m;\n    cin >> m;\n    vector<long long> initial(m);\n    for (int i = 0; i < m; i++) cin >> initial[i];\n    int q;\n    cin >> q;\n    vector<pair<string, long long>> ops(q);\n    for (int i = 0; i < q; i++) cin >> ops[i].first >> ops[i].second;\n    vector<long long> res = kthLargestQueries(initial, ops);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String[] readTokens() throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder sb = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) sb.append(line).append(' ');\n        String text = sb.toString().trim();\n        return text.isEmpty() ? new String[0] : text.split(\"\\\\s+\");\n    }\n\n    // ops[i] = {type, value}, where type is \"insert\" or \"find\"\n    static List<Long> kthLargestQueries(long[] initial, String[] types, long[] values) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        String[] t = readTokens();\n        int p = 0;\n        int m = Integer.parseInt(t[p++]);\n        long[] initial = new long[m];\n        for (int i = 0; i < m; i++) initial[i] = Long.parseLong(t[p++]);\n        int q = Integer.parseInt(t[p++]);\n        String[] types = new String[q];\n        long[] values = new long[q];\n        for (int i = 0; i < q; i++) {\n            types[i] = t[p++];\n            values[i] = Long.parseLong(t[p++]);\n        }\n        StringBuilder sb = new StringBuilder();\n        for (long x : kthLargestQueries(initial, types, values)) sb.append(x).append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

@@ -1,0 +1,19 @@
+{
+ "qid": "42704a2ee0",
+ "question": "Media.net SDE-2 (experienced), Technical Round. After project discussion you are asked to **design an IRCTC-like train ticket booking system**, with the interviewer putting **more focus on the database schema**.",
+ "lookingFor": [
+  "Do you capture the real domain (trains, stations, routes, coaches, seats, journey dates)?",
+  "Can you design a schema that prevents double booking of a seat?",
+  "Do you understand transactions, locking and consistency under heavy concurrency?",
+  "Can you reason about search and read scale as well as the write-heavy booking peak?",
+  "Do you handle payment, cancellation, waitlist and RAC states?"
+ ],
+ "answer": "**Requirements and scale (state assumptions).** Search trains between two stations on a date, check availability, book, pay, cancel, view tickets. Reads (searches) vastly outnumber bookings, but booking peaks (for example when tickets open) are intense and must never double-sell a seat.\n\n**Entities (schema).**\n- `stations(id, code, name, city)`\n- `trains(id, number, name, type)`\n- `train_stops(train_id, station_id, stop_seq, arrival_time, departure_time, distance_km)`. A route is an ordered list of stops.\n- `coaches(id, train_id, class, coach_no)` and `seats(id, coach_id, seat_no, berth_type)`\n- `train_runs(id, train_id, journey_date)`. One row per day the train runs.\n- `seat_inventory(train_run_id, seat_id, from_stop_seq, to_stop_seq, status)`. A seat can be sold for a segment of the route; this is the key detail interviewers like. Alternatively model availability per class per segment as counters.\n- `users(id, ...)`, `passengers(id, booking_id, name, age, gender, berth_pref)`\n- `bookings(id, pnr, user_id, train_run_id, from_station, to_station, status, fare, booked_at)` with status values such as CONFIRMED, RAC, WAITLIST, CANCELLED\n- `payments(id, booking_id, provider_ref, status, amount)`\n\n**Booking flow.** Search (read replicas, cached), select, then in one transaction check and reserve the seats with row-level locks (`SELECT ... FOR UPDATE`) or an atomic conditional update, hold them with a short expiry while payment runs, then confirm or release. Use a unique constraint on `(train_run_id, seat_id, segment)` as a last line of defence against double booking.\n\n**Scale and bottlenecks.** Cache train and route data (rarely changes); partition inventory by `train_run_id` or date; use a queue and rate limiting or a virtual waiting room during peak; make payment callbacks idempotent; waitlist promotion on cancellation via a background job.\n\n**Trade-off.** Strong consistency for inventory (relational database) vs eventual consistency for search results.",
+ "followUps": [
+  "How do you prevent two users from booking the last seat at the same time?",
+  "How would you model a segment-based seat (A to C, then C to E)?",
+  "How would you handle the booking-open traffic spike?",
+  "What happens if payment succeeds but the confirmation fails?",
+  "How would you implement waitlist promotion?"
+ ]
+}

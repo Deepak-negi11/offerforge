@@ -1,0 +1,18 @@
+{
+ "qid": "c8a7e50802",
+ "question": "Machine coding round at PhonePe (90 minutes): design and implement **Snake and Ladder**. The code should be modular and demoable.\n\nThe interviewer said the design must handle adding a **new type of obstacle** alongside snakes and ladders, and **any number of players** in the game.",
+ "lookingFor": [
+  "Can you identify the entities and keep game logic separate from board setup and I/O?",
+  "Is the design extensible to a new obstacle type without modifying existing code?",
+  "Do you handle rules and edge cases (exact finish, overshoot, jump chains, invalid boards)?",
+  "Is the code modular, runnable end to end and easy to test?",
+  "Do you keep randomness (the dice) injectable so tests are deterministic?"
+ ],
+ "answer": "**Clarify the rules:** board size (default 10x10 = 100), must the player land exactly on 100 or does overshoot stay in place, does rolling a 6 give another turn, one or two dice, and what if a ladder ends on a snake.\n\n**Entities:**\n- `Player(name, position)`.\n- `Dice` interface with `roll()`, and implementations `RandomDice(count)` and a `FixedDice` for tests.\n- `Board(size)` holding `Map<Integer, BoardEntity>` that maps a square to an obstacle.\n- `BoardEntity` interface with `int apply(int position)` (or `start()` and `end()`). Implementations: `Snake(head, tail)`, `Ladder(start, end)`. A new obstacle (for example a `Portal`, or `SkipTurn`) is a **new class implementing the interface**, registered on the board; nothing else changes. That is the Open/Closed answer the interviewer wants.\n- `Game(board, dice, Queue<Player> players)`.\n\n**Turn loop:** pop the next player, roll, compute `next = pos + roll`. If `next > size`, stay (state your rule). Otherwise move; while the new square has an entity, apply it (loop, with a guard against cycles, and validate at setup that no cycles exist). If `next == size`, the player wins; otherwise push the player back to the queue. Using a `Queue` makes **any number of players** natural, and a winner can be removed so the game continues until a chosen number of finishers.\n\n**Validation at setup:** a snake head must be above its tail, a ladder start below its end, no two entities on one square, and none on square 1 or `size`. Fail with a clear exception.\n\n**Separation of concerns:** `Game` does not print; a `GameListener`/Observer receives events (moved, bitten, climbed, won) so a console view can be swapped for another one.\n\n**Demo:** a `main` building the board from config, three players, and a seeded dice for a repeatable run.\n\n**Mistakes to avoid:** hard-coding snakes and ladders in `if` chains, mixing console I/O into game logic, and hard-coding two players.",
+ "followUps": [
+  "How would you add a new obstacle, such as a trap that skips the next turn?",
+  "How do you make the game deterministic for unit tests?",
+  "What if rolling a 6 gives an extra turn, and three 6s in a row cancels the move?",
+  "How would you extend this to an online multiplayer version?"
+ ]
+}

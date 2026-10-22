@@ -1,0 +1,17 @@
+{
+ "qid": "7d425c454b",
+ "question": "Infosys Specialist Programmer / Digital Specialist Engineer, technical interview. Asked in the DBMS section: **what are transactions, and explain the ACID properties with a bank-transfer example.** Related questions in the same loops covered deadlocks, normalization and basic transaction concepts, with the interviewer looking for reasoning rather than definitions.",
+ "lookingFor": [
+  "Correct definition of a transaction and its commit/rollback lifecycle.",
+  "Ability to map each ACID property to a specific failure or concurrency scenario.",
+  "Awareness of isolation levels and anomalies.",
+  "Link to real mechanisms: logging, locking, MVCC."
+ ],
+ "answer": "**Transaction.** A sequence of operations that the database treats as a single unit: it either fully succeeds (`COMMIT`) or has no effect (`ROLLBACK`).\n\n**Bank transfer.** Move 1000 from account A (balance 5000) to account B (balance 2000):\n\n    BEGIN;\n    UPDATE accounts SET balance = balance - 1000 WHERE id = 'A';\n    UPDATE accounts SET balance = balance + 1000 WHERE id = 'B';\n    COMMIT;\n\n**Atomicity.** If the system crashes after the debit but before the credit, the database rolls back, so money is not lost. Implemented with undo information from a log.\n\n**Consistency.** The rules of the data stay true: for example balance cannot go negative (a `CHECK` constraint), and the total of A + B is unchanged (7000). The transaction moves the database between valid states. Note that part of consistency is the application's job (writing correct logic); the database enforces declared constraints.\n\n**Isolation.** If another transaction reads A and B halfway through the transfer, it must not see 4000 and 2000 (money seemingly vanished). Isolation levels control this:\n- Read uncommitted: dirty reads possible.\n- Read committed: no dirty reads, but non-repeatable reads possible.\n- Repeatable read: the same row reads the same value; phantoms may appear depending on the engine.\n- Serializable: behaves as if transactions ran one at a time.\nHigher isolation means more locking or aborts and lower throughput. Engines implement this with locks or MVCC (multi-version concurrency control).\n\n**Durability.** After `COMMIT` returns, the transfer survives a power failure, because the change is recorded in the write-ahead log on disk before acknowledging. On restart the database replays committed work and undoes uncommitted work.\n\n**Related:** two transfers touching the same accounts in opposite order can deadlock; the DBMS detects it and aborts one transaction, so applications should be ready to retry.",
+ "followUps": [
+  "What is a deadlock in a database, and how is it detected or avoided?",
+  "What is the difference between a dirty read and a phantom read?",
+  "How does MVCC let readers avoid blocking writers?",
+  "How would you handle a transfer between two accounts in different databases?"
+ ]
+}

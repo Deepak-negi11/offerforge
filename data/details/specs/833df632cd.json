@@ -1,0 +1,18 @@
+{
+ "qid": "833df632cd",
+ "question": "Meesho Data Scientist-1, Technical Interview 2 (ML depth). Topics reported: **layer vs batch normalisation**, **convex vs non-convex loss functions**, **CNN pooling techniques** and **segmentation basics** (including pooling in that context), **classification metrics under class imbalance**, comparing **ROC-AUC vs PR-AUC**, and **possible reasons for a NaN loss**. Several of these arose from the candidate's computer-vision projects.",
+ "lookingFor": [
+  "Do you understand the mechanics and purpose of each technique, not just the names?",
+  "Can you pick metrics suited to imbalanced data?",
+  "Can you debug training failures like NaN loss systematically?",
+  "Can you connect theory to your own project choices?"
+ ],
+ "answer": "**Batch norm vs layer norm.** Both normalise activations to zero mean and unit variance, then apply learned scale and shift. **Batch norm** computes statistics per feature across the **batch** (uses running averages at inference); it works well for CNNs with reasonably large batches but is sensitive to small batches and awkward for sequences. **Layer norm** computes statistics across the **features of each sample**, so it is batch-size independent and identical at train and test time, which is why transformers and RNNs use it.\n\n**Convex vs non-convex loss.** For a convex loss (linear or logistic regression), every local minimum is global and gradient descent converges with a suitable step size. Neural network losses are **non-convex**: many saddle points and local minima, so results depend on initialisation, learning rate and optimiser; in practice good minima are usually found anyway.\n\n**Pooling.** Max pooling keeps the strongest activation (translation tolerance, downsampling); average pooling smooths; global average pooling replaces fully connected layers. Strided convolutions can learn downsampling. In **segmentation** (pixel-wise labels), pooling loses spatial detail, so architectures like U-Net use an encoder with pooling plus a decoder with upsampling or transposed convolution and **skip connections** to recover resolution; dilated convolutions keep resolution while enlarging the receptive field.\n\n**Class imbalance: ROC-AUC vs PR-AUC.** ROC-AUC plots TPR against FPR; FPR uses the huge negative class in its denominator, so a model can look excellent (AUC about 0.95) while precision is poor. **PR-AUC** (precision vs recall) focuses on the positive class and reflects the cost of false positives, so it is more informative when positives are rare. Also use F1 at a chosen threshold, class weights or resampling, and avoid plain accuracy.\n\n**Reasons for NaN loss.**\n- Learning rate too high (divergence) or exploding gradients; fix with a lower rate or gradient clipping.\n- Numerical issues: `log(0)`, division by zero, overflow in `exp` (use stable log-sum-exp, add epsilon).\n- Bad data: NaN or inf in inputs or labels, wrong label range.\n- Bad initialisation or a missing normalisation; mixed precision overflow (use loss scaling).\nDebug by checking inputs, running a tiny batch, and logging gradient norms.",
+ "followUps": [
+  "Why does batch norm behave differently in training and inference?",
+  "How would you pick a decision threshold for an imbalanced classifier?",
+  "How does a U-Net skip connection help segmentation?",
+  "Can ROC-AUC ever be misleading even when the model is good?",
+  "How does gradient clipping prevent NaN losses?"
+ ]
+}

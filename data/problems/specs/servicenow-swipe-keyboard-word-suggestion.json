@@ -1,0 +1,50 @@
+{
+ "pid": "servicenow-swipe-keyboard-word-suggestion",
+ "title": "Swipe Keyboard Word Suggestion",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A swipe keyboard lets a user draw a single finger path over the keys instead of tapping letters. You are given `path`, the string of keys the finger passed over, in order, and a `dictionary` of candidate words.\n\nA dictionary word **matches** the swipe if its letters can be picked from `path` in order, not necessarily consecutively. In other words, the word is a subsequence of `path`. For example `quick` matches the path `qwertyuiujhgcvghbnjk`, taking `q`, `u`, `i`, `c`, `k` from left to right.\n\nThe suggestion is the **longest** matching word. Comparisons ignore case: treat `path` and every word as lowercase. If several matching words have the same maximum length, suggest the one that is smallest in alphabetical (lexicographic) order. Print the suggested word in lowercase, or `-1` if no dictionary word matches.",
+ "input_format": "The first line contains the string `path`.\nThe second line contains an integer `m`, the number of dictionary words.\nEach of the next `m` lines contains one dictionary word.",
+ "output_format": "Print the suggested word in lowercase, or `-1` if no word matches.",
+ "constraints": [
+  "1 ≤ |path| ≤ 10^4",
+  "1 ≤ m ≤ 10^5",
+  "Every word is non-empty; the total length of all words is at most 10^6",
+  "`path` and the words consist of English letters (either case)"
+ ],
+ "examples": [
+  {
+   "input": "qwertyuiujhgcvghbnjk\n8\naardvark\nangel\ndog\nquick\nquickly\nquickening\nTikTok\nzebra",
+   "output": "quick",
+   "explanation": "Only `quick` can be picked in order from the path: `quickly` and `quickening` need letters (`l`, `e`) that do not appear after `k`, and `aardvark`, `angel`, `dog` and `zebra` use letters missing from the path. `tiktok` needs a `t` after the `k`, which does not exist."
+  },
+  {
+   "input": "abcabc\n5\ncba\nabc\nbca\ncab\nacb",
+   "output": "abc",
+   "explanation": "`cba` is not possible, but `abc`, `bca`, `cab` and `acb` all are subsequences (for `acb`: `a`, `c`, then the `b` of the second block). All have length 3, so the alphabetically smallest, `abc`, is suggested."
+  },
+  {
+   "input": "xyz\n2\nab\nXYZW",
+   "output": "-1",
+   "explanation": "Neither word is a subsequence of the path (the second needs a `w`), so there is no suggestion."
+  }
+ ],
+ "complexity": {
+  "time": "O(26·|path| + total word length)",
+  "space": "O(26·|path|)"
+ },
+ "hints": [
+  "A word matches exactly when it is a subsequence of `path`. Checking one word with two pointers costs O(|path|), which is too slow for 10^5 words.",
+  "Precompute, for every position in `path` and every letter, where that letter next occurs at or after that position.",
+  "Then a word is checked in O(its length) by jumping from letter to letter. Track the best word so far with the length-then-alphabetical rule."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    path = data[0].lower()\n    m = int(data[1])\n    words = data[2:2 + m]\n    n = len(path)\n    tbl = {}\n    for c in range(26):\n        ch = chr(97 + c)\n        arr = [n + 1] * (n + 1)\n        for i in range(n - 1, -1, -1):\n            arr[i] = i + 1 if path[i] == ch else arr[i + 1]\n        tbl[ch] = arr\n    best = ''\n    for w in words:\n        w = w.lower()\n        lw = len(w)\n        if lw > n or lw < len(best) or (lw == len(best) and w >= best):\n            continue\n        pos = 0\n        for ch in w:\n            pos = tbl[ch][pos]\n            if pos > n:\n                break\n        else:\n            best = w\n    print(best if best else '-1')\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\npath = data[0].lower()\nm = int(data[1])\nwords = [w.lower() for w in data[2:2 + m]]\ncands = []\nfor w in words:\n    i = 0\n    for ch in path:\n        if i < len(w) and ch == w[i]:\n            i += 1\n    if i == len(w):\n        cands.append(w)\nif not cands:\n    print(-1)\nelse:\n    print(min(cands, key=lambda w: (-len(w), w)))\n",
+ "generator": "def gen(rng):\n    def fmt(path, words):\n        return path + '\\n' + str(len(words)) + '\\n' + '\\n'.join(words)\n    def rs(n, alpha):\n        return ''.join(rng.choice(alpha) for _ in range(n))\n    tests = [\n        fmt('qwertyuiujhgcvghbnjk', ['aardvark', 'angel', 'dog', 'quick', 'quickly', 'quickening', 'TikTok', 'zebra']),\n        fmt('abc', ['d']), fmt('a', ['a']), fmt('a', ['aa']), fmt('abcabc', ['cba', 'abc', 'bca', 'cab']),\n        fmt('AbC', ['aBc', 'ABC', 'ac']), fmt('hello', ['hello', 'hell', 'helo', 'hxllo']),\n        fmt('zyx', ['x', 'y', 'z']), fmt('aaaa', ['aa', 'aaa', 'aaaaa', 'a']),\n    ]\n    for _ in range(40):\n        alpha = rng.choice(['ab', 'abc', 'abcd', 'abcdef'])\n        path = rs(rng.randint(1, 20), alpha)\n        words = [rs(rng.randint(1, 6), alpha) for _ in range(rng.randint(1, 8))]\n        words = [''.join(c.upper() if rng.random() < 0.2 else c for c in w) for w in words]\n        if rng.random() < 0.3:\n            path = ''.join(c.upper() if rng.random() < 0.2 else c for c in path)\n        tests.append(fmt(path, words))\n    letters = 'abcdefghijklmnopqrstuvwxy'\n    path = rs(10000, letters)\n    words = []\n    for _ in range(100000):\n        w = rs(9, letters + 'z')\n        w += 'z' if rng.random() < 0.9 else rng.choice(letters)\n        words.append(w)\n    tests.append(fmt(path, words))\n    path = rs(10000, 'abc')\n    words = []\n    for _ in range(100000):\n        words.append(rs(10, 'abc') if rng.random() < 0.5 else rs(9, 'abc') + 'd')\n    tests.append(fmt(path, words))\n    path = rs(10000, letters)\n    words = []\n    for _ in range(100):\n        picks = sorted(rng.sample(range(10000), 2000))\n        w = ''.join(path[i] for i in picks)\n        k = rng.randint(1000, 2000)\n        words.append(w[:k] + ('z' if rng.random() < 0.5 else ''))\n    tests.append(fmt(path, words))\n    path = rs(10000, letters)\n    words = []\n    for _ in range(1000):\n        picks = sorted(rng.sample(range(10000), 1000))\n        words.append(''.join(path[i] for i in picks))\n    tests.append(fmt(path, words))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef best_word(path: str, words: List[str]) -> str:\n    # Write your solution here\n    return \"-1\"\n\n\ndef main():\n    data = sys.stdin.read().split()\n    path = data[0]\n    m = int(data[1])\n    words = data[2:2 + m]\n    print(best_word(path, words))\n\n\nmain()\n",
+  "javascript": "function bestWord(path, words) {\n  // Write your solution here\n  return '-1'\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst m = parseInt(t[1])\nconsole.log(bestWord(t[0], t.slice(2, 2 + m)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring bestWord(const string& path, const vector<string>& words) {\n    // Write your solution here\n    return \"-1\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string path;\n    int m;\n    cin >> path >> m;\n    vector<string> words(m);\n    for (int i = 0; i < m; i++) cin >> words[i];\n    cout << bestWord(path, words) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String bestWord(String path, String[] words) {\n        // Write your solution here\n        return \"-1\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder sb = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) sb.append(line).append(' ');\n        String[] t = sb.toString().trim().split(\"\\\\s+\");\n        int m = Integer.parseInt(t[1]);\n        String[] words = new String[m];\n        for (int i = 0; i < m; i++) words[i] = t[2 + i];\n        System.out.println(bestWord(t[0], words));\n    }\n}\n"
+ }
+}

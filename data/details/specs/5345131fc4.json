@@ -1,0 +1,18 @@
+{
+ "qid": "5345131fc4",
+ "question": "In the LLD/HLD round for a Software Engineer III role at Walmart (onsite), the question was **Ledger System Design**. The interviewer asked about both low-level and high-level design: **functional requirements, non-functional requirements, schema design, DB design and design patterns**.\n\nThe post gives no further constraints, so clarify whether the ledger is for payments, wallets or accounting, and state your assumptions: an immutable record of money movements between accounts that must always balance.",
+ "lookingFor": [
+  "Can you extract functional and non-functional requirements for a financial system?",
+  "Do you understand double-entry bookkeeping and immutability of ledger records?",
+  "Can you design a schema and choose a database with the right consistency guarantees?",
+  "Do you address idempotency, concurrency and auditability?",
+  "Can you name suitable design patterns and where they apply?"
+ ],
+ "answer": "**Functional requirements.** Create accounts; record transactions that move value between accounts; query balance and transaction history; reverse (not delete) a mistaken transaction; produce statements.\n\n**Non-functional.** Strong consistency and correctness above all; **durability** (no lost entries); **auditability** (append-only history); idempotent writes; high availability for reads; throughput for writes (assume thousands per second); security and access control; retention.\n\n**Core model (double-entry).** Every transaction has two or more **entries** whose debits and credits sum to zero. This invariant makes the books self-checking.\n\n- `accounts(id, owner_id, currency, type, created_at)`.\n- `transactions(id, idempotency_key UNIQUE, type, status, created_at, metadata)`.\n- `ledger_entries(id, transaction_id, account_id, direction, amount_minor, currency, created_at)`, indexed on `(account_id, created_at)`.\n- Optionally `balances(account_id, balance, version)` as a derived, cached running balance updated in the same database transaction.\n\n**Rules.**\n- Entries are **immutable**; corrections are new reversing transactions.\n- Amounts are integers in minor units, never floating point.\n- Post a transaction in one ACID database transaction: insert the transaction and all entries, update balances. Use optimistic locking (`version`) or row locks on the balance rows, always acquiring them in a fixed order to avoid deadlocks.\n- A unique `idempotency_key` makes client retries safe.\n\n**Database choice.** A relational database (PostgreSQL, MySQL) fits: ACID transactions, constraints, joins for reporting. Scale by sharding on account id; cross-shard transfers need a saga or two-phase approach, so keep transfers within a shard when possible. Read replicas serve statements; archive old data.\n\n**Patterns.** Command (post transaction), Strategy (fee or validation rules), Repository, State (transaction lifecycle PENDING, POSTED, REVERSED), and Outbox to publish events reliably after commit.\n\n**Reconciliation.** A periodic job verifies that sum of entries per transaction is zero and that balances match the entries.",
+ "followUps": [
+  "Why store entries immutably instead of updating balances in place?",
+  "How would you do a transfer between accounts that live on different shards?",
+  "How do you compute the balance at a past date?",
+  "How would you reconcile with an external bank?"
+ ]
+}

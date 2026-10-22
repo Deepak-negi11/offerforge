@@ -1,0 +1,18 @@
+{
+ "qid": "0b89cd6081",
+ "question": "Microsoft Data Science intern online assessment (summer 2027). Write a Python function using **SymPy** that balances a chemical equation: `balanceEquation(chemicalEquation: str) -> list[int]`.\n\n- Reactants and products are separated by `\" - \"`; several compounds on one side are separated by `\" + \"`.\n- Each element starts with a capital letter; a number after it is its count, and no number means 1. Elements can repeat within a compound. There are no brackets.\n- Return the coefficients **in the order the compounds appear**. They must be integers with the **minimal sum**.\n\nExample: `HCl + NaOH - H2O + NaCl` gives `[1, 1, 1, 1]` (already balanced). The reported approach was to solve a homogeneous linear system.",
+ "lookingFor": [
+  "Modelling a domain problem as linear algebra (atoms per element, one equation each)",
+  "Using the null space to get a solution and scaling to the smallest integers",
+  "Careful parsing, including repeated elements and multi-letter symbols",
+  "Handling edge cases: sign convention, non-unique or no solution",
+  "Clean, tested code"
+ ],
+ "answer": "**Idea.** Let the coefficients be unknowns x_1..x_n, one per compound. For each element, atoms on the left equal atoms on the right. Build a matrix A with one row per element and one column per compound, where entry A[e][j] is the count of element e in compound j, positive for reactants and negative for products. Balancing means A x = 0, a homogeneous linear system. A balanced equation corresponds to a vector in the **null space** of A with all entries positive.\n\n**Algorithm.**\n1. Split on `\" - \"`, then on `\" + \"` to get compounds and note how many are reactants.\n2. Parse each compound with the regex `([A-Z][a-z]*)(\\d*)`, summing counts for repeated elements.\n3. Build the sympy `Matrix` and take `nullspace()`. For a well-posed equation it is one-dimensional.\n4. The vector has rational entries. Multiply by the LCM of the denominators, then divide by the GCD of the numerators so the integers are as small as possible (this minimises the sum).\n5. Fix the sign so entries are positive and return them.\n\n```python\nimport re\nfrom sympy import Matrix, ilcm, igcd\n\ndef balanceEquation(eq):\n    left, right = eq.split(\" - \")\n    L, R = left.split(\" + \"), right.split(\" + \")\n    comps = L + R\n    cols = []\n    for c in comps:\n        d = {}\n        for el, n in re.findall(r\"([A-Z][a-z]*)(\\d*)\", c):\n            d[el] = d.get(el, 0) + int(n or 1)\n        cols.append(d)\n    elems = sorted({e for d in cols for e in d})\n    M = Matrix([[(1 if j < len(L) else -1) * cols[j].get(e, 0)\n                 for j in range(len(comps))] for e in elems])\n    v = M.nullspace()[0]\n    v = v * ilcm(*[x.q for x in v])\n    v = v / igcd(*[int(x) for x in v])\n    if v[0] < 0:\n        v = -v\n    return [int(x) for x in v]\n```\n\nChecks: `Fe + O2 - Fe2O3` gives `[4, 3, 2]`, and `C3H8 + O2 - CO2 + H2O` gives `[1, 5, 3, 4]`.\n\n**Gotchas.** Use `[A-Z][a-z]*` so `Cl` is one element, not `C` and `l`. Repeated elements in one compound must be summed. Because the null space is one-dimensional, the minimal positive integer vector is unique. Complexity is dominated by exact rational elimination on a small matrix.",
+ "followUps": [
+  "What happens if the null space has dimension greater than one?",
+  "How would you extend the parser to handle brackets like Ca(OH)2?",
+  "Why does the sign convention (reactants positive, products negative) work?",
+  "How would you detect an equation that cannot be balanced?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "b32160e33e",
+ "question": "Snowflake frontend phone screen. Two async functions exist: `getTemperatureData(day)` returns a Promise of an object mapping cities to temperatures; `getRainData(day)` returns a Promise mapping cities to rainfall, but **fails on every alternate call and takes up to 3 seconds** to respond. Render, for each city, a line like `Seattle - 75 22` (city, temperature, rainfall). **If the rain call fails, omit the rainfall** (`Seattle - 75`). Rain data is not guaranteed and the UI **must not be blocked for 3 seconds** because of it. React or vanilla JS is allowed.",
+ "lookingFor": [
+  "Do you start both requests in parallel rather than sequentially?",
+  "Do you handle failures per request with `Promise.allSettled` or a catch, not a single all-or-nothing await?",
+  "Can you render the temperature immediately and enrich it when rain arrives?",
+  "Do you handle loading state, errors and stale responses (race conditions)?",
+  "Can you structure the React code cleanly, with state and effects?"
+ ],
+ "answer": "**Key idea.** Temperature is the primary data; rain is optional enrichment. So start both calls at once, render as soon as temperature arrives, and merge rain in later (or never).\n\n**Why not `Promise.all`?** It rejects if any promise rejects, so one rain failure would lose the temperatures too. It also waits for the slowest call, which would block the UI for up to 3 seconds.\n\n**Approach in React.**\n```\nfunction Weather({ day }) {\n  const [temp, setTemp] = useState(null);\n  const [rain, setRain] = useState(null);\n  useEffect(() => {\n    let cancelled = false;\n    setTemp(null); setRain(null);\n    getTemperatureData(day).then(t => { if (!cancelled) setTemp(t); });\n    getRainData(day).then(r => { if (!cancelled) setRain(r); }).catch(() => {});\n    return () => { cancelled = true; };\n  }, [day]);\n  if (!temp) return <p>Loading...</p>;\n  return Object.keys(temp).map(city => (\n    <div key={city}>{city} - {temp[city]}{rain && rain[city] != null ? ' ' + rain[city] : ''}</div>\n  ));\n}\n```\nEach promise updates its own state; the list renders once temperature is available and re-renders when rain resolves. The `cancelled` flag ignores late responses after `day` changes or the component unmounts, preventing stale data (a race condition). An `AbortController` is better with `fetch`, but these mocks are plain promises.\n\n**Alternative.** `Promise.allSettled([temp, rain])` gives both outcomes, but it still waits for the slow rain call, so it only suits cases where waiting is acceptable. A timeout via `Promise.race` can cap the wait on rain.\n\n**Improvements to mention.** A small \"loading rain\" indicator, an optional retry for the failed rain call (with a limit), cities present in only one response, and extracting a custom hook such as `useWeather(day)`.",
+ "followUps": [
+  "How would you add a retry with backoff for the rain API without blocking the UI?",
+  "What if the user changes the day quickly, and an older response arrives later?",
+  "How does `Promise.allSettled` differ from `Promise.all` and `Promise.race`?",
+  "How would you cache results per day?"
+ ]
+}

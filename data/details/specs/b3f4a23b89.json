@@ -1,0 +1,18 @@
+{
+ "qid": "b3f4a23b89",
+ "question": "Apple, Software Developer (GenAI/MLOps team), first round with the hiring manager (about 45 minutes). The recruiter said it would cover GenAI, LLM and MLOps concepts. The round had **deep technical questions on supervised fine-tuning (SFT) of LLMs**, followed by a medium-difficulty probability coding problem on CoderPad. The exact questions were not reported, so expect the general SFT topics below.",
+ "lookingFor": [
+  "A correct end-to-end understanding of the SFT pipeline: data, loss, training, evaluation.",
+  "Knowing how SFT differs from pretraining and from preference tuning (RLHF, DPO).",
+  "Awareness of parameter-efficient methods like LoRA and why they are used.",
+  "Practical judgement: data quality, overfitting, catastrophic forgetting, evaluation.",
+  "Comfort with the underlying math (cross-entropy, probability)."
+ ],
+ "answer": "**What SFT is.** Starting from a pretrained base model (trained to predict the next token on large unlabelled text), SFT continues training on curated **(prompt, response)** pairs so the model follows instructions and a desired format and tone. It is ordinary supervised learning with the next-token **cross-entropy loss**, usually computed only on the response tokens (the prompt tokens are masked out of the loss).\n\n**Pipeline.**\n1. **Data:** collect or generate high-quality demonstrations; quality beats quantity (thousands of clean examples can matter more than a noisy million). Deduplicate, filter, check for leakage with evaluation sets, and keep a diverse task mix. Format with a consistent chat template.\n2. **Training:** small learning rate (for example 1e-5 to 2e-5 for full fine-tuning), warm-up and decay schedule, 1-3 epochs, packing or padding for batches, gradient accumulation and mixed precision (bf16). Watch the validation loss for overfitting.\n3. **Parameter-efficient fine-tuning:** **LoRA** freezes the base weights and learns low-rank updates `W + BA` for selected layers, drastically cutting trainable parameters and optimizer memory; **QLoRA** also quantises the frozen base to 4-bit. Adapters are small to store and swap per task.\n4. **Evaluation:** held-out task metrics, benchmark suites, human or LLM-as-judge comparison, and regression checks on general ability.\n\n**Trade-offs and failure modes.** **Catastrophic forgetting** (mitigate with low learning rate, LoRA, mixing in general data); overfitting to formatting; the model imitating demonstration errors; SFT teaches style and format more than new knowledge, so for fresh facts consider retrieval. Preference methods (RLHF, DPO) follow SFT to optimise for what humans prefer rather than imitate.\n\n**MLOps angle.** Version datasets and configs, track experiments, make training reproducible, and monitor the deployed model for drift and regression.\n\n**Probability coding.** Practise expected value, linearity of expectation, simulation versus exact dynamic programming, and conditional probability problems; state assumptions and verify with a small simulation.",
+ "followUps": [
+  "Why do we mask the prompt tokens in the loss during SFT?",
+  "How does LoRA reduce memory, and what are its limitations?",
+  "How would you detect and reduce catastrophic forgetting after fine-tuning?",
+  "When would you choose RAG over fine-tuning?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "0142d2dae9",
+ "question": "Media.net SDE-2 (experienced), round 1. The interviewer opened with CS fundamentals. OS question: **if you are given one core and a process, how will you execute it in parallel?** The interviewer was really asking about **context switching**. (Other basics in the same round: what happens when you type in a browser, and a second-highest-salary SQL query.)",
+ "lookingFor": [
+  "Do you distinguish concurrency from true parallelism?",
+  "Do you understand scheduling, time slicing and what a context switch saves and restores?",
+  "Can you discuss overhead and trade-offs?",
+  "Can you correct the premise of an imprecise question politely?"
+ ],
+ "answer": "**Correct the premise first.** On a single core, true parallelism (two instructions executing at the same instant) is impossible. What the OS provides is **concurrency**: several tasks make progress by **time-sharing** the CPU, so they appear to run in parallel.\n\n**Mechanism.**\n1. A **scheduler** keeps a ready queue of runnable processes or threads (for example round-robin with a time quantum such as a few milliseconds, or priority-based).\n2. A hardware **timer interrupt** fires at the end of a quantum, or the running task blocks for I/O or yields.\n3. The kernel performs a **context switch**: save the running task's state (registers, program counter, stack pointer, and so on) into its process control block (PCB), pick the next task, restore its saved state, and resume it.\n4. Switching happens fast enough that users perceive simultaneous execution.\n\n**Cost.** A context switch is overhead: kernel entry, saving and restoring registers, possible TLB flush or loss of cache warmth (more for process switches than thread switches in the same process), and scheduler time. Too small a quantum wastes time on switching; too large hurts responsiveness. Threads are cheaper to switch than processes because they share the address space.\n\n**Why it still helps.** While a task waits for disk or network, the CPU runs another task, so utilisation improves even on one core. CPU-bound work gains nothing in total speed from time-slicing; it only gets shared.\n\n**Real parallelism needs more hardware.** Multiple cores or processors, hardware threads (hyper-threading, which shares one core's execution units), or vector instructions (SIMD) operating on several data items in one instruction. Distributed machines are another route.\n\n**Sample sentence.** \"With one core I can give concurrency, not parallelism: the scheduler time-slices the process with others using context switches.\"\n\nMention the contrast with multi-core: the OS can then place threads on different cores for real parallel execution.",
+ "followUps": [
+  "What exactly is saved and restored in a context switch?",
+  "How is a process switch different from a thread switch?",
+  "What are the pros and cons of a small time quantum?",
+  "What is the difference between concurrency and parallelism?",
+  "Which scheduling algorithms do you know and how do they differ?"
+ ]
+}

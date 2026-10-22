@@ -1,0 +1,48 @@
+{
+ "pid": "microsoft-sort-a-2d-array-in-o-1-space",
+ "title": "Sort a 2D Array in O(1) Space",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a 2D array (matrix) of integers with `R` rows and `C` columns. Rearrange its values so that reading the matrix in row-major order (row 0 from left to right, then row 1, and so on) gives a **non-decreasing** sequence. In other words, the smallest value goes to the top-left cell, the largest to the bottom-right cell, and every row is filled completely before the next row starts. The dimensions of the matrix do not change, and duplicate values are allowed.\n\nPrint the sorted matrix.\n\n**Follow-up:** the interviewer asked for the sort to be done **in place using only O(1) extra space**: you may not copy the values into a second array or matrix. Hint for the discussion: treat cell `(i, j)` as position `i * C + j` of a virtual one-dimensional array and run an in-place sort such as heap sort over those positions.",
+ "input_format": "The first line contains `R` and `C`. Each of the next `R` lines contains `C` space-separated integers.",
+ "output_format": "Print `R` lines with `C` space-separated integers each: the sorted matrix.",
+ "constraints": [
+  "1 ≤ R, C and R * C ≤ 20000",
+  "-10^9 ≤ matrix[i][j] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3 3\n9 4 7\n1 8 2\n6 3 5",
+   "output": "1 2 3\n4 5 6\n7 8 9",
+   "explanation": "The nine values in order are 1 to 9, laid out row by row."
+  },
+  {
+   "input": "2 4\n5 -1 5 0\n3 3 -7 2",
+   "output": "-7 -1 0 2\n3 3 5 5",
+   "explanation": "Sorted, the eight values are -7, -1, 0, 2, 3, 3, 5, 5. The first four fill row 0 and the last four fill row 1."
+  },
+  {
+   "input": "4 1\n8\n-2\n5\n0",
+   "output": "-2\n0\n5\n8",
+   "explanation": "With a single column the matrix is simply a list; the sorted values are written top to bottom."
+  }
+ ],
+ "complexity": {
+  "time": "O(R*C*log(R*C))",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Number the cells 0 to R*C-1 in row-major order. Cell k lives at row k // C, column k % C, so you can address the matrix as if it were a flat array without copying it.",
+  "Which comparison sorts work in place and still guarantee O(n log n) time? Merge sort normally needs extra space, but heap sort does not.",
+  "Build a max-heap over the virtual flat array, then repeatedly swap the root with the last unsorted cell and sift down within the shrinking prefix."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    data = sys.stdin.read().split()\n    R, C = int(data[0]), int(data[1])\n    g = [[int(data[2 + i * C + j]) for j in range(C)] for i in range(R)]\n    n = R * C\n\n    def sift(root, end):\n        while True:\n            child = 2 * root + 1\n            if child >= end:\n                return\n            if child + 1 < end and g[child // C][child % C] < g[(child + 1) // C][(child + 1) % C]:\n                child += 1\n            ra, ca = divmod(root, C)\n            rb, cb = divmod(child, C)\n            if g[ra][ca] < g[rb][cb]:\n                g[ra][ca], g[rb][cb] = g[rb][cb], g[ra][ca]\n                root = child\n            else:\n                return\n\n    for s in range(n // 2 - 1, -1, -1):\n        sift(s, n)\n    for e in range(n - 1, 0, -1):\n        r, c = divmod(e, C)\n        g[0][0], g[r][c] = g[r][c], g[0][0]\n        sift(0, e)\n    print('\\n'.join(' '.join(map(str, row)) for row in g))\n\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nR, C = int(data[0]), int(data[1])\nvals = sorted(int(x) for x in data[2:2 + R * C])\nprint('\\n'.join(' '.join(map(str, vals[i * C:(i + 1) * C])) for i in range(R)))\n",
+ "generator": "def gen(rng):\n    def fmt(R, C, vals):\n        return '%d %d\\n' % (R, C) + '\\n'.join(' '.join(map(str, vals[i * C:(i + 1) * C])) for i in range(R))\n\n    def rnd(R, C, lo, hi):\n        return fmt(R, C, [rng.randint(lo, hi) for _ in range(R * C)])\n\n    tests = [\n        fmt(1, 1, [5]),\n        fmt(1, 1, [-10**9]),\n        fmt(1, 5, [5, 4, 3, 2, 1]),\n        fmt(5, 1, [1, 2, 3, 4, 5]),\n        fmt(2, 2, [7, 7, 7, 7]),\n        fmt(2, 3, [10**9, -10**9, 0, 10**9, -10**9, 0]),\n        fmt(3, 3, [9, 4, 7, 1, 8, 2, 6, 3, 5]),\n        fmt(3, 3, [1, 2, 3, 4, 5, 6, 7, 8, 9]),\n        fmt(3, 3, [9, 8, 7, 6, 5, 4, 3, 2, 1]),\n    ]\n    for _ in range(14):\n        R = rng.randint(1, 6)\n        C = rng.randint(1, 6)\n        lo, hi = rng.choice([(-3, 3), (-100, 100), (-10**9, 10**9), (0, 1)])\n        tests.append(rnd(R, C, lo, hi))\n    tests.append(rnd(141, 141, -10**9, 10**9))\n    tests.append(rnd(1, 20000, -10**9, 10**9))\n    tests.append(rnd(20000, 1, -5, 5))\n    tests.append(rnd(100, 200, -10**9, 10**9))\n    vals = sorted(rng.randint(-10**9, 10**9) for _ in range(20000))\n    tests.append(fmt(125, 160, vals[::-1]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef sort_matrix(grid: List[List[int]]) -> List[List[int]]:\n    # Write your solution here\n    return grid\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    grid = [[int(data[2 + i * c + j]) for j in range(c)] for i in range(r)]\n    res = sort_matrix(grid)\n    print('\\n'.join(' '.join(map(str, row)) for row in res))\n\n\nmain()\n",
+  "javascript": "function sortMatrix(grid) {\n  // Write your solution here\n  return grid\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst r = t[0], c = t[1]\nconst grid = []\nfor (let i = 0; i < r; i++) grid.push(t.slice(2 + i * c, 2 + (i + 1) * c))\nconst res = sortMatrix(grid)\nconsole.log(res.map(row => row.join(' ')).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvoid sortMatrix(vector<vector<long long>>& grid) {\n    // Write your solution here\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<vector<long long>> grid(r, vector<long long>(c));\n    for (int i = 0; i < r; i++)\n        for (int j = 0; j < c; j++) cin >> grid[i][j];\n    sortMatrix(grid);\n    for (int i = 0; i < r; i++) {\n        for (int j = 0; j < c; j++) cout << grid[i][j] << (j + 1 < c ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static void sortMatrix(long[][] grid) {\n        // Write your solution here\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int r = (int) in.nval;\n        in.nextToken();\n        int c = (int) in.nval;\n        long[][] grid = new long[r][c];\n        for (int i = 0; i < r; i++)\n            for (int j = 0; j < c; j++) {\n                in.nextToken();\n                grid[i][j] = (long) in.nval;\n            }\n        sortMatrix(grid);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < r; i++) {\n            for (int j = 0; j < c; j++) sb.append(grid[i][j]).append(j + 1 < c ? \" \" : \"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

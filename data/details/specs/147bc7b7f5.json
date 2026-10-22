@@ -1,0 +1,18 @@
+{
+ "qid": "147bc7b7f5",
+ "question": "Cisco internship managerial round. During the project in-depth discussion the candidate chose the project they were most confident in. The interviewer then asked them to **elaborate on how they uploaded files to S3 and retrieved them**, **what problems they faced during development, and how they resolved them**. This is a prompt to be ready to defend every technical choice in a resume project.",
+ "lookingFor": [
+  "Real hands-on knowledge of how the project works end to end.",
+  "Understanding of S3 basics: buckets, keys, permissions, signed URLs.",
+  "Debugging stories with root causes, not just symptoms.",
+  "Security and cost awareness (credentials, public access, file validation).",
+  "Honesty: separating what you built from what you used as a library."
+ ],
+ "answer": "You cannot fake this one, so build the answer from your own project. Use this structure.\n\n**1. One-line context.** What the app does and why files go to S3 (images, documents, user uploads).\n\n**2. The upload flow, step by step.** Be able to draw it. Two common designs:\n- **Through your server:** the client posts the file to your API (e.g. with `multer` in Node), and the server calls the AWS SDK `PutObject`. Simple, but the file passes through your server, costing bandwidth, memory and timeouts.\n- **Direct upload with a presigned URL:** the client asks your API for a short-lived presigned PUT/POST URL, then uploads straight to S3. The server never handles the bytes. For large files, use **multipart upload**.\n\n**3. The retrieval flow.** Store the **object key** (not a permanent public URL) in your database along with metadata (owner, content type, size). To read: make a **presigned GET URL** for private files, or serve public assets through **CloudFront**. Explain why the bucket is private by default (block public access).\n\n**4. Decisions to justify.** Key naming (unique ids or UUIDs to avoid collisions), file type and size validation, content type, IAM role with least privilege (only the needed actions on the one bucket), credentials in environment variables and never in code or Git.\n\n**5. Problems and fixes.** Choose real ones. Typical, genuine issues: **CORS** errors on browser uploads (fix the bucket CORS rules), `AccessDenied` from missing IAM permissions or a wrong region, expired presigned URLs, large files timing out, wrong `Content-Type` causing files to download instead of display, and leaked keys. For each: symptom, how you found the cause (logs, error code), fix, and what you learned.\n\n**6. Improvements.** Virus or type scanning, lifecycle rules, image resizing, retries, progress bars.\n\n**Avoid:** vague answers like \"I used a library\", claiming features you did not build, and saying you stored files in the database or on the server disk without explaining why.",
+ "followUps": [
+  "Why use a presigned URL instead of uploading through your server?",
+  "How do you keep users from reading each other's files?",
+  "How would you handle a 2 GB upload or a flaky connection?",
+  "What would you change if the app had 100x more users?"
+ ]
+}

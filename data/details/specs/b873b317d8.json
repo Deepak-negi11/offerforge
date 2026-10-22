@@ -1,0 +1,19 @@
+{
+ "qid": "b873b317d8",
+ "question": "Razorpay Lead Software Engineer LLD round, follow-ups in the final 15 minutes. The candidate had implemented an in-memory pub/sub with per-subscriber offsets. The interviewer then asked:\n\n- Concurrency: how would you make this thread-safe?\n- Scalability and memory: what happens if a topic has millions of messages and one subscriber is offline for a week? What is the problem?\n- Guaranteed delivery: your consume method returns a message and moves on; what if the consumer crashes after consuming but before processing, so the message is lost?",
+ "lookingFor": [
+  "Reasoning about lock granularity and contention, not just adding a mutex",
+  "Recognising unbounded growth and designing retention and garbage collection",
+  "Understanding delivery semantics: at-most-once vs at-least-once",
+  "Knowledge of acknowledgement, in-flight tracking and redelivery",
+  "Awareness of trade-offs, including duplicates and idempotent consumers"
+ ],
+ "answer": "**1. Thread safety.** A single global mutex is correct but serialises everything: publishers to unrelated topics block each other. Use finer locks: one lock (or a read-write lock) per topic protecting its message log and subscriber offsets, so different topics run in parallel. Topic creation and subscriber registration need their own concurrent map (`ConcurrentHashMap`, or a lock on the registry only). Keep critical sections short (append and offset update only, never run user callbacks while holding the lock), and use a condition variable so consumers can wait for new messages without spinning. Mention lock ordering to avoid deadlocks if an operation needs two topics.\n\n**2. A subscriber offline for a week.** The topic keeps every message that the slow subscriber has not read, so the log grows without bound and can cause out-of-memory. Options:\n- Garbage collect up to the minimum offset across all active subscribers; everything before it has been read by everyone. Use a deque, a segmented log or a ring buffer so deleting from the front is cheap, and keep a base offset so absolute offsets stay valid.\n- Retention by TTL or size: messages older than a limit are dropped, and a subscriber that falls behind that point jumps to the earliest retained message (or is told it lost data).\n- Quotas and backpressure: cap the backlog per subscriber, and drop, disconnect or expire the lagging subscription.\n- Spill old segments to disk instead of holding them in memory.\nThe slowest consumer must not be allowed to hold everyone else's resources hostage forever.\n\n**3. Crash after consume (guaranteed delivery).** Do not advance the offset on read. Split consumption into two steps: `poll` returns the message and marks it in-flight with a visibility timeout; the consumer calls `ack` after successful processing, and only then does the committed offset advance. If no ack arrives before the timeout (or the consumer disconnects), the message is redelivered. This gives at-least-once delivery. The cost is possible duplicates, so consumers should be idempotent (deduplicate by message id). Add a retry limit and a dead-letter queue for poison messages.",
+ "followUps": [
+  "How would you implement exactly-once delivery, or why can it only be approximated?",
+  "How would you detect and handle a poison message that always crashes the consumer?",
+  "When would you prefer a read-write lock over a plain mutex here?",
+  "What data structure would you use for the log so that truncation from the front is O(1)?",
+  "How does Kafka handle consumer offsets and retention?"
+ ]
+}

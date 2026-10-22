@@ -1,0 +1,19 @@
+{
+ "qid": "4730e23323",
+ "question": "Software Engineer system design question reported for Uber: **design a real-time top-K ranking system.** The report gives only the title; related Uber design rounds describe top-K variants such as most-viewed items in a sliding window or a driver heatmap. State your assumptions about what is being ranked, the window, K and the scale, and design accordingly.",
+ "lookingFor": [
+  "Clarifying what is ranked, over which window, and how fresh results must be.",
+  "Knowing exact vs approximate top-K trade-offs.",
+  "Stream aggregation and sharding of counters.",
+  "Merging partial results across partitions.",
+  "Serving, caching and failure recovery."
+ ],
+ "answer": "**Clarify and assume.** Rank items (videos, products, drivers) by event count in the last hour, update within seconds, K is 10-100, millions of events per second, reads heavy but cheap.\n\n**API.** `POST /events` (internal producers), `GET /top?k=10&window=1h&category=`.\n\n**Pipeline**\n1. Events go to a log (Kafka-like) partitioned by item id, so all events for one item reach one worker.\n2. Stream workers keep **counts per item per time bucket** (for example 1-minute buckets). The window is the sum of the last 60 buckets, so expiring old data means dropping a bucket, which is cheaper than decrementing per event.\n3. Each worker maintains a **local top-K** with a min-heap of size K plus a hash map of counts. Every second it publishes its local top-K.\n4. An aggregator merges the local lists. Because items are partitioned by id, each item's count lives in exactly one partition, so the global top-K is contained in the union of local top-Ks and the merge is exact. Merge with a size-K heap.\n5. Store the result in Redis (a sorted set or a plain key) and serve reads from there, with a CDN or short TTL cache.\n\n**Exact vs approximate.** With a huge, skewed key space, use a **Count-Min Sketch plus heap** or Space-Saving/heavy-hitters algorithms to bound memory, accepting a small overcount error. Say what error is acceptable for the product.\n\n**Hot keys.** A single viral item can overload its partition. Split it with a salt (`item#0..n`), count partially, and sum in the aggregator.\n\n**Fault tolerance.** Checkpoint worker state and offsets so a restart replays from the log; keep the previous result served until recovery. Handle late events with a small watermark, and decide whether to drop or correct them.\n\n**Variants.** All-time top-K needs only counters and a heap, while per-region or per-category top-K just adds a key prefix.",
+ "followUps": [
+  "Why is merging local top-K lists exact when items are partitioned by id, and when does it stop being exact?",
+  "How does the sliding window expire old counts efficiently?",
+  "When would you pick Count-Min Sketch over exact counting?",
+  "How do you handle one extremely hot item?",
+  "How do you serve millions of reads per second for the same list?"
+ ]
+}

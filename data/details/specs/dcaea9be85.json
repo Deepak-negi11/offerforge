@@ -1,0 +1,18 @@
+{
+ "qid": "dcaea9be85",
+ "question": "Microsoft SDE-2 Low Level Design round: **design a meeting scheduler**.\n\nFunctional requirements: schedule a meeting with participants, check for conflicts, and **reject the meeting if a conflict exists**. A conflict means the time slots overlap *and* at least one participant is shared. Notifications, UI, time zones, recurring meetings and persistence were treated as out of scope to keep the design simple.\n\nThe interviewer specifically asked: **where does the conflict checking live?**",
+ "lookingFor": [
+  "Clarifying requirements and scoping out non-essentials before designing.",
+  "Clean entities (User, TimeSlot, Meeting) with clear responsibilities.",
+  "Correct interval-overlap logic, including boundary cases.",
+  "Placing conflict checking in the right class and justifying it.",
+  "Awareness of complexity and how the design would scale or extend."
+ ],
+ "answer": "**Clarify first.** In scope: schedule a meeting, add participants, detect conflicts, reject on conflict. Out of scope: notifications, time zones, recurrence, persistence. Confirm whether back-to-back meetings (one ends at 10:00, next starts at 10:00) are allowed. They normally are.\n\n**Entities.**\n- `User { id, name }`\n- `TimeSlot { start, end }` with `overlaps(other)`.\n- `Meeting { id, participants, timeSlot }`\n- `MeetingScheduler`: owns the list of meetings and decides whether a new one is allowed.\n\n**Overlap rule.** Two half-open intervals `[s1, e1)` and `[s2, e2)` overlap iff `s1 < e2 && s2 < e1`. This one expression covers partial overlap, containment and identical slots, and treats touching endpoints as non-overlapping.\n\n**Where conflict checking lives.** `TimeSlot` knows only whether two slots overlap (a pure, easily tested function). `Meeting` can expose `conflictsWith(other)`, which is `timeSlot.overlaps(other.timeSlot) && shareParticipant(other)`. The `MeetingScheduler` is the only class that knows about all meetings, so it loops over existing meetings, calls `conflictsWith`, and rejects the new one if any returns true. This keeps each class single-purpose: the slot knows time, the meeting knows its attendees, the scheduler enforces the policy.\n\n**Complexity.** The naive scheduler scan is O(M) per schedule call across M meetings. Improve it by keeping a per-user list of meetings sorted by start time (or a balanced tree / interval tree), so you only check the meetings of the new meeting's participants: O(P log M) for P participants.\n\n**Concurrency and extension.** The check-and-insert must be atomic, otherwise two concurrent requests can both pass the check. Lock per scheduler (simple) or per user in a fixed order (finer grained, avoids deadlock). Make the conflict rule a `ConflictPolicy` interface so room booking or buffer time can be added later.\n\n**Mistakes to avoid:** using `<=` and rejecting back-to-back meetings accidentally, checking overlap without checking participants, and putting the logic in `User` or `Meeting` so that every class needs global knowledge.",
+ "followUps": [
+  "How would you make the check efficient when a user has thousands of meetings?",
+  "How do you handle two concurrent schedule requests for the same participant?",
+  "How would you add meeting rooms as a second resource that can conflict?",
+  "How would you support recurring meetings and time zones?"
+ ]
+}

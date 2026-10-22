@@ -1,0 +1,47 @@
+{
+ "pid": "phonepe-minimum-journey-cost-between-primes",
+ "title": "Minimum Journey Cost Between Primes",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "Every positive integer is a location. You start at location `n1` and want to reach location `n2` as cheaply as possible. A journey is a sequence of moves, and only these two kinds of moves exist:\n\n- **Prime to prime:** you may move from any prime `p` directly to any other prime `q`. The cost is the difference `|p - q|`.\n- **Digit link:** for any number `x`, repeatedly replace it by the sum of its decimal digits until a single digit remains; call it the digit root of `x`. If the digit root is a prime (`2`, `3`, `5` or `7`), you may move between `x` and that digit at cost `0`, in both directions. For example `785 -> 20 -> 2`, so `785` and `2` are linked at zero cost. If `x` is itself a single digit, it is its own digit root.\n\nTwo non-prime numbers can never be connected by paying money, so a move that does not follow one of these two rules is not allowed. Remember that `1` is not a prime.\n\nPrint the minimum total cost of a journey from `n1` to `n2`, or `-1` if no journey exists. If `n1 = n2` the cost is `0`.",
+ "input_format": "A single line with two integers `n1` and `n2`.",
+ "output_format": "Print a single integer: the minimum cost, or `-1` if it is impossible.",
+ "constraints": [
+  "1 ≤ n1, n2 ≤ 10^6"
+ ],
+ "examples": [
+  {
+   "input": "2 785",
+   "output": "0",
+   "explanation": "The digit root of 785 is 2 (785 -> 20 -> 2), and 2 is prime, so 785 and 2 are linked at cost 0."
+  },
+  {
+   "input": "13 29",
+   "output": "2",
+   "explanation": "13 and 29 are both prime but 13 has digit root 4, so it has no free link. Move 13 -> 11 for 2. The digit root of 11 is 2, so 11 links to 2 for free, and 29 (digit root 2) links to 2 for free. Total cost 2."
+  },
+  {
+   "input": "4 7",
+   "output": "-1",
+   "explanation": "4 is not prime and its digit root is 4, which is not prime either, so it has no allowed move at all."
+  }
+ ],
+ "complexity": {
+  "time": "O(M log log M + π(M) log π(M))",
+  "space": "O(M)"
+ },
+ "hints": [
+  "Only primes and the digit links matter. A non-prime number that is not `n1` or `n2` is useless: it only links back to its digit root.",
+  "Moving from prime `p` to prime `q` costs `|p - q|`, which is exactly the cost of walking through every prime in between. So you only need edges between consecutive primes.",
+  "Sieve the primes a bit beyond `max(n1, n2)`, add zero-cost edges between each number and its prime digit root (the four digits 2, 3, 5, 7 act as hubs), and run Dijkstra from `n1`."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    a, b = map(int, sys.stdin.read().split())\n    if a == b:\n        print(0)\n        return\n    B = max(a, b) + 5000\n    sieve = bytearray([1]) * (B + 1)\n    sieve[0] = sieve[1] = 0\n    for i in range(2, int(B ** 0.5) + 1):\n        if sieve[i]:\n            sieve[i * i::i] = bytearray(len(range(i * i, B + 1, i)))\n    primes = [i for i in range(2, B + 1) if sieve[i]]\n    P = len(primes)\n    index = {p: i for i, p in enumerate(primes)}\n    root = lambda x: 1 + (x - 1) % 9\n    digit_idx = {2: index[2], 3: index[3], 5: index[5], 7: index[7]}\n    extra = []\n    for v in (a, b):\n        if not sieve[v] and v not in extra:\n            extra.append(v)\n    ids = dict(index)\n    node_val = list(primes)\n    for v in extra:\n        ids[v] = len(node_val)\n        node_val.append(v)\n    group = {2: [], 3: [], 5: [], 7: []}\n    for node, v in enumerate(node_val):\n        r = root(v)\n        if r in group and v != r:\n            group[r].append(node)\n    zero_to = {}\n    for d, members in group.items():\n        for m in members:\n            zero_to[m] = digit_idx[d]\n    src, dst = ids[a], ids[b]\n    INF = float('inf')\n    dist = [INF] * len(node_val)\n    dist[src] = 0\n    heap = [(0, src)]\n    while heap:\n        du, u = heapq.heappop(heap)\n        if du > dist[u]:\n            continue\n        if u == dst:\n            break\n        nbrs = []\n        if u < P:\n            if u > 0:\n                nbrs.append((u - 1, du + primes[u] - primes[u - 1]))\n            if u + 1 < P:\n                nbrs.append((u + 1, du + primes[u + 1] - primes[u]))\n            if node_val[u] in group:\n                for m in group[node_val[u]]:\n                    nbrs.append((m, du))\n        if u in zero_to:\n            nbrs.append((zero_to[u], du))\n        for v, nd in nbrs:\n            if nd < dist[v]:\n                dist[v] = nd\n                heapq.heappush(heap, (nd, v))\n    print(dist[dst] if dist[dst] < INF else -1)\n\nmain()\n",
+ "brute": "import sys, heapq\n\na, b = map(int, sys.stdin.read().split())\nif max(a, b) > 2000:\n    while True:  # this brute force is only meant for small values; let the checker time it out\n        pass\nL = 3 * max(a, b) + 1000\nisp = [x >= 2 and all(x % d for d in range(2, int(x ** 0.5) + 1)) for x in range(L + 1)]\nprimes = [x for x in range(L + 1) if isp[x]]\n\ndef root(x):\n    while x >= 10:\n        x = sum(int(c) for c in str(x))\n    return x\n\nzero = {x: [] for x in range(1, L + 1)}\nfor x in range(1, L + 1):\n    r = root(x)\n    if isp[r] and r != x:\n        zero[x].append(r)\n        zero[r].append(x)\ndist = {a: 0}\nheap = [(0, a)]\ndone = set()\nwhile heap:\n    d, u = heapq.heappop(heap)\n    if u in done:\n        continue\n    done.add(u)\n    if u == b:\n        break\n    cand = [(v, d) for v in zero[u]]\n    if isp[u]:\n        cand += [(q, d + abs(u - q)) for q in primes if q != u]\n    for v, nd in cand:\n        if nd < dist.get(v, 1 << 60):\n            dist[v] = nd\n            heapq.heappush(heap, (nd, v))\nprint(dist.get(b, -1))\n",
+ "generator": "def gen(rng):\n    def fmt(a, b):\n        return f\"{a} {b}\"\n    tests = [fmt(1, 1), fmt(4, 4), fmt(2, 2), fmt(1, 2), fmt(7, 4), fmt(2, 785), fmt(785, 2), fmt(13, 29),\n             fmt(3, 7), fmt(11, 7), fmt(5, 23), fmt(2, 3), fmt(8, 9), fmt(10, 11), fmt(7, 43), fmt(17, 19)]\n    for _ in range(40):\n        tests.append(fmt(rng.randint(1, 60), rng.randint(1, 60)))\n    for _ in range(25):\n        tests.append(fmt(rng.randint(1, 2000), rng.randint(1, 2000)))\n    # large values: primes without a digit link, composites with a prime digit root\n    tests.append(fmt(999983, 999979))\n    tests.append(fmt(999983, 2))\n    tests.append(fmt(1, 10**6))\n    tests.append(fmt(10**6, 10**6))\n    tests.append(fmt(999999, 5))\n    tests.append(fmt(999997, 100003))\n    for _ in range(12):\n        tests.append(fmt(rng.randint(10**5, 10**6), rng.randint(10**5, 10**6)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef min_cost(n1: int, n2: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n1, n2 = int(data[0]), int(data[1])\n    print(min_cost(n1, n2))\n\n\nmain()\n",
+  "javascript": "function minCost(n1, n2) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconsole.log(String(minCost(t[0], t[1])))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minCost(int n1, int n2) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n1, n2;\n    cin >> n1 >> n2;\n    cout << minCost(n1, n2) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minCost(int n1, int n2) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n1 = (int) in.nval;\n        in.nextToken();\n        int n2 = (int) in.nval;\n        System.out.println(minCost(n1, n2));\n    }\n}\n"
+ }
+}

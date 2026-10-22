@@ -1,0 +1,18 @@
+{
+ "qid": "b39fe7bbce",
+ "question": "Apple Software Engineer, IS&T Backend (Hyderabad), System Design round. **Design BookMyShow end to end.** The interviewer focused on the **booking flow, onboarding of shows, searching for nearby cinema halls, and analytics.**",
+ "lookingFor": [
+  "Scoping and structuring a broad product design.",
+  "Solving the double-booking problem correctly under concurrency.",
+  "Designing search by location and a read-heavy catalogue.",
+  "Handling payments, timeouts and failures.",
+  "Analytics pipeline and scaling for spikes."
+ ],
+ "answer": "**Requirements.** Functional: browse movies and shows, search cinemas near me, view the seat map, book seats and pay, cancel; theatre admins onboard shows; analytics for the business. Non-functional: strong correctness for seats (never sell one seat twice), high availability for browsing, low latency, spikes on popular releases. Assume 10M daily users and peak booking bursts.\n\n**Entities.** City, Cinema, Screen, Seat, Movie, Show(screen, movie, start time, price), Booking, Payment, User.\n\n**Booking flow (the core).**\n1. User picks a show; the seat map comes from the cache and database.\n2. Seat selection creates a temporary **hold** for about 5 to 10 minutes. Implementation: an atomic conditional write, for example `UPDATE show_seat SET status='HELD', held_by=?, expires_at=? WHERE show_id=? AND seat_id=? AND (status='AVAILABLE' OR expires_at < now())`, checking affected rows is 1; or a Redis `SET key NX EX`. A unique constraint on confirmed `(show_id, seat_id)` is the final safeguard.\n3. Payment via an external gateway using an idempotency key; on success, mark seats BOOKED and create the booking in one transaction; on failure or timeout the hold expires and seats return.\n4. Publish a booking event for tickets, notifications and analytics.\n\n**Onboarding shows.** An admin service writes shows and seat inventory in a relational store, validated for overlapping times on a screen, then publishes events that refresh the search index and caches.\n\n**Searching nearby cinemas.** Store cinema coordinates; use a geospatial index (geohash, quadtree, or a search engine with geo queries) filtered by city, movie and date. The catalogue is read-heavy, so cache it and serve it from read replicas or an index.\n\n**Analytics.** Stream booking events to a queue and then a warehouse for revenue, occupancy and funnel drop-off; keep it off the transactional database.\n\n**Scale and bottlenecks.** Seat inventory per show is the hot spot: partition by show or city, rate-limit and queue users on huge releases, and keep the browse path separate from the booking path.",
+ "followUps": [
+  "How do you prevent two users from booking the same seat at the same moment?",
+  "What happens if payment succeeds but the confirmation call fails?",
+  "How would you handle the traffic spike when a major film opens bookings?",
+  "How would you rank search results for nearby cinemas?"
+ ]
+}

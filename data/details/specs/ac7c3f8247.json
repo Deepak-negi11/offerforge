@@ -1,0 +1,17 @@
+{
+ "qid": "ac7c3f8247",
+ "question": "In an Arcesium Senior Software Engineer (about 2.2 years of experience) Hiring Manager round, a theory-heavy interview, the candidate was asked to **explain how database indexing works, the difference between clustered and non-clustered indexes, with diagrams**. The feedback for this candidate said theoretical concepts needed more clarity, depth and examples.",
+ "lookingFor": [
+  "Accurate mental model of the index structure (B-tree) and lookup cost.",
+  "Clear distinction of clustered versus non-clustered storage.",
+  "Understanding read/write trade-offs and when indexes help or hurt.",
+  "Ability to illustrate with a diagram and examples."
+ ],
+ "answer": "**Why indexes.** Without one, a query on a column does a full table scan, O(n). An index is a separate sorted structure on one or more columns that lets the database locate rows quickly, typically via a **B+ tree**: a balanced, shallow tree (often 3 to 4 levels for millions of rows) whose leaves are ordered, so lookups and range queries cost roughly O(log n).\n\n**Clustered index.** Defines the **physical (or logical) order of the table's rows**: the leaf level *is* the data. So a table has **only one** clustered index. In SQL Server and InnoDB (MySQL) the primary key is the clustered index by default. Excellent for range scans and for lookups by that key, because there is no extra hop to the row.\n\n```\nClustered:       [root] -> [internal] -> [leaf = actual rows, ordered by key]\n```\n\n**Non-clustered (secondary) index.** A separate structure whose leaves hold the indexed column values plus a **pointer to the row**: a row locator (the clustered key in InnoDB/SQL Server, or a row id/heap pointer). A table can have many. A lookup goes through the index and then a **key lookup** (extra read) to fetch the other columns, unless the index is **covering** (contains every column the query needs, e.g. via `INCLUDE` columns).\n\n```\nNon-clustered:   [root] -> [internal] -> [leaf = (indexed value, pointer)] -> row in table\n```\n\n**Comparison:**\n- Number per table: one versus many.\n- Leaf content: data rows versus key plus pointer.\n- Extra storage: none (it is the table) versus additional structure.\n- Best for: primary key and range scans versus alternate search columns.\n\n**Trade-offs.** Indexes speed reads but cost storage and slow `INSERT`/`UPDATE`/`DELETE`, since each index must be maintained; random clustered keys (e.g. random UUIDs) cause page splits and fragmentation. Composite indexes follow the **leftmost-prefix** rule. Low-selectivity columns (e.g. a boolean) benefit little. Check with `EXPLAIN` to confirm the index is used.",
+ "followUps": [
+  "Why can a random UUID as a clustered key hurt performance?",
+  "What is a covering index?",
+  "How does a composite index on (a, b) serve queries filtering on b alone?",
+  "What is the difference between a B-tree and a hash index?"
+ ]
+}

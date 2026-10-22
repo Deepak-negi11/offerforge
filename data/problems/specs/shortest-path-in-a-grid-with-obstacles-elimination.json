@@ -1,0 +1,50 @@
+{
+ "pid": "shortest-path-in-a-grid-with-obstacles-elimination",
+ "title": "Shortest Path in a Grid with Obstacles Elimination",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given a grid with `r` rows and `c` columns. Each cell is either `0` (empty) or `1` (an obstacle). You start in the top-left cell `(0, 0)` and want to reach the bottom-right cell `(r-1, c-1)`.\n\nIn one step you move to a neighbouring cell: up, down, left or right. You are allowed to walk through obstacles, but only **at most `k` times in total**: every time you step onto an obstacle cell, it counts as one elimination. (A shortest walk never needs to revisit a cell, so this is the same as removing at most `k` obstacle cells.)\n\nPrint the minimum number of steps needed to reach the bottom-right cell, or `-1` if it cannot be done. The start and end cells are always empty.\n\n**Follow-up:** The interviewer first asked the version where you may only move right or down, and then allowed all four directions. Think about how the solution and its complexity change when moves are restricted to right and down.",
+ "input_format": "The first line contains three integers `r`, `c` and `k`.\nEach of the next `r` lines contains `c` space-separated integers (`0` or `1`).",
+ "output_format": "Print a single integer: the minimum number of steps, or `-1` if the bottom-right cell is unreachable.",
+ "constraints": [
+  "1 ≤ r, c ≤ 40",
+  "0 ≤ k ≤ r * c",
+  "Each grid value is 0 or 1",
+  "grid[0][0] = grid[r-1][c-1] = 0"
+ ],
+ "examples": [
+  {
+   "input": "3 3 1\n0 1 0\n0 1 0\n1 0 0",
+   "output": "4",
+   "explanation": "The shortest possible path has Manhattan length 4. Walking down the left column, stepping onto the obstacle at the bottom-left corner (1 elimination) and then right twice takes 4 steps. With the budget of 1 this is allowed."
+  },
+  {
+   "input": "3 3 0\n0 1 0\n0 1 0\n1 0 0",
+   "output": "-1",
+   "explanation": "Same grid but no eliminations: from the start you can only reach the two empty cells of the left column, and both are walled in by obstacles, so the target is unreachable."
+  },
+  {
+   "input": "3 5 0\n0 1 0 0 0\n0 0 0 1 0\n1 1 1 1 0",
+   "output": "8",
+   "explanation": "With no eliminations the only route is (0,0) -> (1,0) -> (1,1) -> (1,2), then up to (0,2), right through (0,3) and (0,4), and down to (1,4) and (2,4). That is 8 steps and it needs one upward move, so right/down-only movement would not work here."
+  }
+ ],
+ "complexity": {
+  "time": "O(r · c · min(k, r + c))",
+  "space": "O(r · c · min(k, r + c))"
+ },
+ "hints": [
+  "A plain BFS on cells is not enough: reaching the same cell with fewer eliminations left is a different (and better) situation. Include the number of eliminations used in the state.",
+  "Run BFS over states `(row, col, eliminations used)`. Each move costs 1 step, so the first time you reach the target cell with any number of eliminations ≤ k, you have the answer.",
+  "A path of Manhattan length `r + c - 2` passes through at most `r + c - 3` obstacles, so if `k` is at least that, the answer is simply `r + c - 2`. This also lets you cap `k` and keep the state space small."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c, k = int(data[0]), int(data[1]), int(data[2])\n    g = [[int(data[3 + i * c + j]) for j in range(c)] for i in range(r)]\n    if k >= r + c - 3:\n        print(r + c - 2)\n        return\n    K = k + 1\n    seen = bytearray(r * c * K)\n    seen[0] = 1\n    frontier = [(0, 0, 0)]\n    steps = 0\n    while frontier:\n        nxt = []\n        for x, y, used in frontier:\n            if x == r - 1 and y == c - 1:\n                print(steps)\n                return\n            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n                nx, ny = x + dx, y + dy\n                if 0 <= nx < r and 0 <= ny < c:\n                    nu = used + g[nx][ny]\n                    if nu <= k:\n                        key = (nx * c + ny) * K + nu\n                        if not seen[key]:\n                            seen[key] = 1\n                            nxt.append((nx, ny, nu))\n        frontier = nxt\n        steps += 1\n    print(-1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c, k = int(data[0]), int(data[1]), int(data[2])\ng = [[int(data[3 + i * c + j]) for j in range(c)] for i in range(r)]\nINF = 10 ** 9\ndist = [[[INF] * (k + 1) for _ in range(c)] for _ in range(r)]\ndist[0][0][0] = 0\nchanged = True\nwhile changed:\n    changed = False\n    for x in range(r):\n        for y in range(c):\n            for j in range(k + 1):\n                d = dist[x][y][j]\n                if d >= INF:\n                    continue\n                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n                    nx, ny = x + dx, y + dy\n                    if 0 <= nx < r and 0 <= ny < c:\n                        nj = j + g[nx][ny]\n                        if nj <= k and d + 1 < dist[nx][ny][nj]:\n                            dist[nx][ny][nj] = d + 1\n                            changed = True\nbest = min(dist[r - 1][c - 1])\nprint(best if best < INF else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(g, k):\n        r, c = len(g), len(g[0])\n        return f'{r} {c} {k}\\n' + '\\n'.join(' '.join(map(str, row)) for row in g)\n    def rg(r, c, p):\n        g = [[1 if rng.random() < p else 0 for _ in range(c)] for _ in range(r)]\n        g[0][0] = 0\n        g[r - 1][c - 1] = 0\n        return g\n    tests = [fmt([[0]], 0), fmt([[0]], 5), fmt([[0, 0]], 0), fmt([[0, 1, 0]], 0), fmt([[0, 1, 0]], 1),\n             fmt([[0, 1], [1, 0]], 1), fmt([[0, 1], [1, 0]], 0), fmt([[0, 1], [1, 0]], 2),\n             fmt([[0, 1, 0], [0, 1, 0], [1, 0, 0]], 1), fmt([[0, 1, 0], [0, 1, 0], [1, 0, 0]], 0),\n             fmt([[0, 1, 0, 0, 0], [0, 0, 0, 1, 0], [1, 1, 1, 1, 0]], 0),\n             fmt([[0, 1, 0, 0, 0], [0, 0, 0, 1, 0], [1, 1, 1, 1, 0]], 1),\n             fmt([[0], [1], [1], [0]], 2), fmt([[0], [1], [1], [0]], 1)]\n    for _ in range(40):\n        r, c = rng.randint(1, 5), rng.randint(1, 5)\n        tests.append(fmt(rg(r, c, rng.choice([0.2, 0.4, 0.55])), rng.randint(0, 5)))\n    for r, c in ((8, 8), (12, 7)):\n        for _ in range(2):\n            tests.append(fmt(rg(r, c, rng.choice([0.3, 0.45])), rng.randint(0, 6)))\n    tests.append(fmt(rg(40, 40, 0.3), 8))\n    tests.append(fmt(rg(40, 40, 0.42), 25))\n    tests.append(fmt(rg(40, 40, 0.25), 70))\n    tests.append(fmt(rg(40, 40, 0.5), 1600))\n    tests.append(fmt(rg(40, 40, 0.38), 40))\n    tests.append(fmt(rg(40, 40, 0.45), 5))\n    # snake corridor with walls that have a single gap\n    r, c = 39, 40\n    g = [[0] * c for _ in range(r)]\n    for i in range(1, r, 2):\n        for j in range(c):\n            g[i][j] = 1\n        g[i][c - 1 if i % 4 == 1 else 0] = 0\n    tests.append(fmt(g, 0))\n    tests.append(fmt(g, 3))\n    tests.append(fmt(g, 12))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef shortest_path(grid: List[List[int]], k: int) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c, k = int(data[0]), int(data[1]), int(data[2])\n    grid = [[int(data[3 + i * c + j]) for j in range(c)] for i in range(r)]\n    print(shortest_path(grid, k))\n\n\nmain()\n",
+  "javascript": "function shortestPath(grid, k) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst r = t[0], c = t[1], k = t[2]\nconst grid = []\nfor (let i = 0; i < r; i++) grid.push(t.slice(3 + i * c, 3 + (i + 1) * c))\nconsole.log(shortestPath(grid, k))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint shortestPath(vector<vector<int>>& grid, int k) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c, k;\n    cin >> r >> c >> k;\n    vector<vector<int>> grid(r, vector<int>(c));\n    for (int i = 0; i < r; i++)\n        for (int j = 0; j < c; j++) cin >> grid[i][j];\n    cout << shortestPath(grid, k) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int shortestPath(int[][] grid, int k) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int r = (int) in.nval;\n        in.nextToken();\n        int c = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        int[][] grid = new int[r][c];\n        for (int i = 0; i < r; i++) {\n            for (int j = 0; j < c; j++) {\n                in.nextToken();\n                grid[i][j] = (int) in.nval;\n            }\n        }\n        System.out.println(shortestPath(grid, k));\n    }\n}\n"
+ }
+}

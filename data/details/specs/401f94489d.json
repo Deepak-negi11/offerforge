@@ -1,0 +1,18 @@
+{
+ "qid": "401f94489d",
+ "question": "Design an autocomplete (search suggestions) system for an e-commerce platform. It must support **category filtering**, **relevance ranking**, **partial matches**, **recent queries by the user** and **fast retrieval at scale**.\n\nThe candidate started from use-cases and user flows, then proposed a trie plus an inverted index for text search, a Redis cache, Kafka for query logs, an ML pipeline for ranking suggestions, and REST APIs. The discussion went on to **scaling the trie, distributed sharding, fallback strategies and catalog synchronisation**.",
+ "lookingFor": [
+  "Do you clarify requirements (latency budget, languages, typo tolerance, personalisation) before drawing boxes?",
+  "Do you understand trie versus inverted-index trade-offs and when each fits?",
+  "Can you shard and cache a read-heavy, latency-critical service and describe failure fallbacks?",
+  "Do you separate the offline ranking and indexing pipeline from the online serving path?",
+  "Do you consider freshness: catalog updates, trending queries, deletions?"
+ ],
+ "answer": "**Requirements.** Suggestions in under about 100 ms per keystroke (p99), top 5-10 results, prefix and partial (token) matches, optional category filter, personalised recent queries. Assume 50M daily users and 10 searches each, with several keystroke requests per search: tens of thousands of QPS at peak. Debounce on the client and cache aggressively.\n\n**API.** `GET /suggest?q=lap&category=electronics&user=...` returns a ranked list of suggestions (query text, optional product or category).\n\n**Components.**\n1. **Suggestion index.** A trie (or an FST or sorted prefix map) where each node stores the top-K completions precomputed with scores. Lookup is O(prefix length) because the top-K is stored at the node. Items come from popular queries, product titles and brands. For partial or mid-word matches add an inverted index from token to suggestions.\n2. **Category filtering.** Keep a separate top-K per (prefix, category), or filter a larger candidate list at query time; precompute for common categories only.\n3. **Recent queries.** Per-user list in Redis (capped, with a TTL); merge ahead of global suggestions.\n4. **Ranking pipeline (offline).** Kafka collects search and click logs; batch or stream jobs compute query frequency with time decay, click-through and conversion rate; an ML ranker may blend these with personalisation. The result builds a new index version which is swapped in atomically.\n5. **Cache.** CDN or Redis for hot prefixes (short prefixes cover most traffic).\n\n**Scaling.** Shard by prefix range or hash of the first two characters, with replicas for reads; the hottest short prefixes live in memory on every node. Skew is the main risk: single letters get huge traffic, so cache them aggressively.\n\n**Fallbacks.** If the personalised or ML part is slow, return global top-K; if the index is unavailable, serve the cached copy or plain prefix search on the catalog.\n\n**Catalog sync.** Publish product change events; apply incremental updates to the index and rebuild fully on a schedule. Remove delisted items quickly through a deny-list checked at serving time.",
+ "followUps": [
+  "Trie versus a search engine such as Elasticsearch: when would you pick each?",
+  "How do you handle typos and misspellings?",
+  "How would you keep suggestions fresh for trending queries within minutes?",
+  "How would you measure suggestion quality?"
+ ]
+}

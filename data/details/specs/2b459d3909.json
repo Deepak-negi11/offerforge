@@ -1,0 +1,16 @@
+{
+ "qid": "2b459d3909",
+ "question": "Infosys Specialist Programmer interview (DBMS opening). The interviewer gave two queries to write on a notepad: print the top 7 employees with the maximum salary, and **change the name of a column of a table** (rename a column). The candidate wrote both, then was asked about BCNF and 3NF.",
+ "lookingFor": [
+  "Knowing the DDL command (`ALTER TABLE`) versus a query alias.",
+  "Awareness of dialect differences across MySQL, PostgreSQL, Oracle and SQL Server.",
+  "Thinking about impact on dependent objects."
+ ],
+ "answer": "**Renaming a column is a DDL change, done with `ALTER TABLE`.** Syntax depends on the database, so state which one you are assuming.\n\n**Standard form (PostgreSQL, Oracle, MySQL 8.0+, MariaDB 10.5.2+, SQLite 3.25+):**\n```sql\nALTER TABLE employees RENAME COLUMN emp_name TO full_name;\n```\n\n**Older MySQL (5.7 and earlier):** use `CHANGE`, which requires restating the full column definition:\n```sql\nALTER TABLE employees CHANGE emp_name full_name VARCHAR(100) NOT NULL;\n```\n(MySQL 8.0 also supports `RENAME COLUMN`, which does not need the type.)\n\n**SQL Server:** there is no `ALTER TABLE ... RENAME COLUMN`; use the stored procedure:\n```sql\nEXEC sp_rename 'employees.emp_name', 'full_name', 'COLUMN';\n```\n\n**If the question only means \"show a different name in the output\"**, use an alias, which changes nothing in the table:\n```sql\nSELECT emp_name AS full_name FROM employees;\n```\n\n**What to point out**\n- The data and the type are unchanged; only the name changes.\n- Anything that refers to the old name will break: views, stored procedures, triggers, queries in application code, ORMs and reports. Search for usages and deploy code and migration together.\n- Constraints and indexes that use the column normally follow the rename automatically.\n- Renaming can take a metadata lock; on a very large table with older engines `CHANGE` may rebuild the table, so check before running in production.\n- Do it in a migration script under version control, and consider a transitional step (add the new column, backfill, switch code, drop the old one) when a zero-downtime deploy is needed.\n\n**Related:** renaming a table is `ALTER TABLE old RENAME TO new` (PostgreSQL, MySQL, Oracle), or `sp_rename` in SQL Server.",
+ "followUps": [
+  "How would you rename a column with zero downtime in a live system?",
+  "Write a query for the top 7 employees by salary (and handle ties).",
+  "What is the difference between BCNF and 3NF?",
+  "Is ALTER TABLE a DDL or DML command, and can it be rolled back?"
+ ]
+}

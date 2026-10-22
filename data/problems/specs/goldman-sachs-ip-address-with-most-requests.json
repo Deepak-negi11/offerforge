@@ -1,0 +1,48 @@
+{
+ "pid": "goldman-sachs-ip-address-with-most-requests",
+ "title": "IP Address With Most Requests",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "A web server writes one log line per request. Each log line consists of three fields separated by spaces: the client IP address, the requested path and the HTTP status code. None of the fields contains a space. The IP address is always the first field.\n\nFind the IP address that made the most requests.\n\nReal logs are messy, so apply these rules:\n\n- A line counts only if its IP field is a **valid IPv4 address**: exactly four decimal numbers separated by single dots, each made only of digits, with a value from `0` to `255` and **no leading zeros** (so `0` is valid, `01` and `007` are not). Lines with any other IP field (such as `256.1.1.1`, `1.2.3`, `1.2.3.4.5`, `a.b.c.d`, `1..2.3`) are ignored.\n- If several valid IP addresses have the same highest count, report the one that is smallest when compared **numerically** field by field (so `8.8.8.8` comes before `10.1.1.1`).\n- If there is no valid line at all, the answer is `NONE`.\n\nThe original interview discussed several follow-ups and corner cases around this task; the rules above pin down the ones that matter for the output.",
+ "input_format": "The first line contains an integer `n`, the number of log lines.\nEach of the next `n` lines contains three space-separated fields: `ip path status`.",
+ "output_format": "Print the winning IP address and its request count separated by a space, or `NONE` if no line has a valid IP address.",
+ "constraints": [
+  "1 ≤ n ≤ 5 * 10^4",
+  "Each field is a non-empty string of at most 20 characters with no spaces"
+ ],
+ "examples": [
+  {
+   "input": "6\n10.0.0.5 /home 200\n192.168.1.1 /login 200\n10.0.0.5 /cart 404\n192.168.1.1 /home 200\n10.0.0.5 /home 500\n172.16.0.9 /home 200",
+   "output": "10.0.0.5 3",
+   "explanation": "10.0.0.5 appears 3 times, 192.168.1.1 twice and 172.16.0.9 once."
+  },
+  {
+   "input": "7\n300.1.1.1 /a 200\n300.1.1.1 /b 200\n300.1.1.1 /c 200\n10.1.1.1 /a 200\n8.8.8.8 /a 200\n8.8.8.8 /b 200\n10.1.1.1 /b 200",
+   "output": "8.8.8.8 2",
+   "explanation": "300.1.1.1 is not a valid address, so its three lines are ignored. 8.8.8.8 and 10.1.1.1 tie with 2 requests each; numerically 8 is less than 10, so 8.8.8.8 wins."
+  },
+  {
+   "input": "3\nabc /x 200\n1.2.3 /y 200\n01.2.3.4 /z 404",
+   "output": "NONE",
+   "explanation": "`abc` and `1.2.3` are not IPv4 addresses and `01.2.3.4` has a leading zero, so no line is valid."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Write a small function that decides whether a string is a valid IPv4 address and, if so, returns its four numbers.",
+  "Count requests per valid address with a hash map keyed by the address (or by its tuple of four numbers).",
+  "To break ties numerically, compare the tuples of four integers rather than the raw strings."
+ ],
+ "reference": "import sys\n\ndef parse(s):\n    p = s.split('.')\n    if len(p) != 4:\n        return None\n    r = []\n    for x in p:\n        if not x or len(x) > 3:\n            return None\n        for c in x:\n            if c < '0' or c > '9':\n                return None\n        if len(x) > 1 and x[0] == '0':\n            return None\n        v = int(x)\n        if v > 255:\n            return None\n        r.append(v)\n    return tuple(r)\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    cnt = {}\n    for i in range(n):\n        t = parse(data[1 + 3 * i])\n        if t is not None:\n            cnt[t] = cnt.get(t, 0) + 1\n    if not cnt:\n        print('NONE')\n        return\n    best = min(cnt, key=lambda k: (-cnt[k], k))\n    print('.'.join(map(str, best)), cnt[best])\n\nmain()\n",
+ "brute": "import sys, re\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nips = [data[1 + 3 * i] for i in range(n)]\npat = re.compile(r'(0|[1-9][0-9]{0,2})(\\.(0|[1-9][0-9]{0,2})){3}')\ngood = []\nfor s in ips:\n    if pat.fullmatch(s) and all(int(x) <= 255 for x in s.split('.')):\n        good.append(s)\nif not good:\n    print('NONE')\nelse:\n    best = None\n    for s in good:\n        c = good.count(s)\n        key = (-c, [int(x) for x in s.split('.')])\n        if best is None or key < best[0]:\n            best = (key, s, c)\n    print(best[1], best[2])\n",
+ "generator": "def gen(rng):\n    def fmt(lines):\n        return str(len(lines)) + '\\n' + '\\n'.join(lines)\n\n    def valid():\n        return '.'.join(str(rng.randint(0, 255)) for _ in range(4))\n\n    BAD = ['256.0.0.1', '1.2.3', '1.2.3.4.5', 'a.b.c.d', '01.2.3.4', '1..3.4', '1.2.3.', '-1.2.3.4',\n           '1.2.3.4a', '::1', '999.999.999.999', '1.2.3.04', '1.2.3.1000', '.1.2.3', '1.2.3.4.', '0.0.0.00',\n           '1,2,3,4', 'localhost', '1.2.3.256']\n    PATHS = ['/', '/a', '/home', '/login', '/api/v1', '/x?y=1']\n    STAT = ['200', '404', '500', '301']\n\n    def line(ip):\n        return ip + ' ' + rng.choice(PATHS) + ' ' + rng.choice(STAT)\n\n    tests = [fmt([line('1.1.1.1')]), fmt([line('abc')]), fmt([line('0.0.0.0'), line('255.255.255.255')]),\n             fmt([line('10.0.0.1'), line('9.0.0.1')]),\n             fmt([line('1.2.3.04'), line('1.2.3.4'), line('1.2.3.4')]),\n             fmt([line('256.1.1.1')] * 3 + [line('1.1.1.1')]),\n             fmt([line('0.0.0.0'), line('0.0.0.0'), line('0.0.0.1')]),\n             fmt([line(b) for b in BAD])]\n    for _ in range(30):\n        n = rng.randint(1, 12)\n        pool = [valid() for _ in range(rng.randint(1, 4))] + rng.sample(BAD, 2)\n        tests.append(fmt([line(rng.choice(pool)) for _ in range(n)]))\n    for _ in range(8):\n        n = rng.randint(2, 14)\n        pool = ['%d.%d.0.%d' % (rng.randint(0, 12), rng.randint(0, 12), rng.randint(0, 3)) for _ in range(3)]\n        tests.append(fmt([line(rng.choice(pool)) for _ in range(n)]))\n    N = 50000\n    pool = [valid() for _ in range(25000)]\n    tests.append(fmt([line(rng.choice(pool) if rng.random() < 0.9 else rng.choice(BAD)) for _ in range(N)]))\n    tests.append(fmt([line('172.16.254.1') for _ in range(N)]))\n    ips = [valid() for _ in range(25000)]\n    ls = [line(ip) for ip in ips] + [line(ip) for ip in ips]\n    rng.shuffle(ls)\n    tests.append(fmt(ls))\n    tests.append(fmt([line(valid()) for _ in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef busiest_ip(ips: List[str]) -> str:\n    # Write your solution here\n    return \"\"\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    ips = [data[1 + 3 * i] for i in range(n)]\n    print(busiest_ip(ips))\n\n\nmain()\n",
+  "javascript": "function busiestIp(ips) {\n  // Write your solution here\n  return \"\"\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0])\nconst ips = []\nfor (let i = 0; i < n; i++) ips.push(t[1 + 3 * i])\nconsole.log(busiestIp(ips))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring busiestIp(vector<string>& ips) {\n    // Write your solution here\n    return \"\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<string> ips(n);\n    for (int i = 0; i < n; i++) {\n        string path, status;\n        cin >> ips[i] >> path >> status;\n    }\n    cout << busiestIp(ips) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String busiestIp(String[] ips) {\n        // Write your solution here\n        return \"\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        List<String> tok = new ArrayList<>();\n        String line;\n        while ((line = br.readLine()) != null) {\n            StringTokenizer st = new StringTokenizer(line);\n            while (st.hasMoreTokens()) tok.add(st.nextToken());\n        }\n        int n = Integer.parseInt(tok.get(0));\n        String[] ips = new String[n];\n        for (int i = 0; i < n; i++) ips[i] = tok.get(1 + 3 * i);\n        System.out.println(busiestIp(ips));\n    }\n}\n"
+ }
+}

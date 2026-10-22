@@ -1,0 +1,19 @@
+{
+ "qid": "d74c83f1c1",
+ "question": "Design a mobile messaging application such as WhatsApp. The candidate began with the features, gave a first design for one-to-one messages only (no groups) and discussed sockets for real-time message passing. The interviewer then increased the number of users to an extremely large number and asked how to scale: more servers, load balancers sending requests to the least loaded server, and a distributed database with data stored across data centres close to users.",
+ "lookingFor": [
+  "Can you scope requirements before designing (one-to-one, groups, media, receipts, offline)?",
+  "Do you understand persistent connections (WebSocket/TCP) and routing messages to the right server?",
+  "Can you scale connection handling, storage and fan-out, and discuss bottlenecks?",
+  "Do you handle reliability: offline delivery, ordering, retries, idempotency?",
+  "Do you consider security (end-to-end encryption) and data locality?"
+ ],
+ "answer": "**Requirements.** 1:1 and group chat, sent/delivered/read receipts, offline delivery, media, last seen. Assume 500M daily active users and about 40 messages each per day: about 20B messages per day, or roughly 230k messages/s on average (several times higher at peak). Latency target: under a second online.\n\n**API / entities.** `User`, `Conversation`, `Message(id, conversationId, senderId, body, timestamp, status)`. Clients keep a **WebSocket** (or other persistent TCP) connection to a **gateway** server; HTTP for login, media upload and history.\n\n**Components:**\n- **Load balancer** distributes new connections to gateway servers (least connections). Each gateway holds many mostly idle connections (tens of thousands or more each), so you need a fleet.\n- **Session/presence service** (for example Redis): maps `userId -> gateway server` so a message can be routed to the receiver's connection.\n- **Chat service:** receives a message, assigns an id, **persists it first**, then pushes to the receiver if online; otherwise stores it in the offline queue and sends a push notification (APNs/FCM). Receipts flow back the same way.\n- **Group fan-out:** write once, then deliver to each member (fan-out on write for small groups).\n- **Media:** upload to object storage via CDN; only the URL travels in the message.\n- **Message store:** write-heavy and append-style, so a wide-column or key-value store (Cassandra or HBase style) partitioned by `conversationId`, ordered by time. Messages can be deleted from the server after delivery.\n\n**Ordering and reliability.** Per-conversation sequence numbers; clients ack each message; retries with idempotent message ids to avoid duplicates (at-least-once delivery plus dedup).\n\n**Scaling.** Stateless chat services behind load balancers; shard stores by conversation or user; place users in the nearest data centre, replicate across regions; use a message queue to decouple delivery from persistence; shard presence by userId.\n\n**Security.** End-to-end encryption (for example the Signal protocol), so servers relay ciphertext only.",
+ "followUps": [
+  "How does the server find which gateway holds the recipient's connection?",
+  "How do you guarantee ordering and avoid duplicate delivery?",
+  "How would you implement groups with 100k members?",
+  "How do you handle a user on several devices?",
+  "What changes when end-to-end encryption is required?"
+ ]
+}

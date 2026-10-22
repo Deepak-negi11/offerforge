@@ -1,0 +1,49 @@
+{
+ "pid": "google-simplify-an-algebraic-expression",
+ "title": "Simplify an Algebraic Expression",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an algebraic expression made of single-letter variables (lowercase `a` to `z`), the operators `+` and `-`, and parentheses. Parentheses are **at most one level deep**: a group never contains another group. There are no spaces and no numeric coefficients.\n\nFormally, an expression is a sequence of terms. Each term is either a single letter or a parenthesized group of letters joined by `+` and `-`. Terms are separated by `+` or `-`, and the expression (or the contents of a group) may start with a `-`. A `-` in front of a group negates every term inside it.\n\nSimplify the expression by combining like terms: the result has each variable at most once, with its net coefficient.\n\nPrint the result using these rules:\n\n- Variables appear in alphabetical order. Variables whose net coefficient is `0` are omitted.\n- A coefficient of `1` or `-1` is written as just the letter or `-` followed by the letter (`d`, `-d`); otherwise the integer coefficient is written before the letter (`2a`, `-2b`).\n- Between terms, write the sign: `+` before a positive coefficient and `-` before a negative one. The first term has no leading `+`.\n- If every variable cancels, print `0`.",
+ "input_format": "A single line containing the expression.",
+ "output_format": "A single line containing the simplified expression.",
+ "constraints": [
+  "1 ≤ length of the expression ≤ 10^5",
+  "Only the characters `a`-`z`, `+`, `-`, `(` and `)` appear; groups are not nested",
+  "The expression is well formed according to the description above"
+ ],
+ "examples": [
+  {
+   "input": "a+b+a+c-b-b-b+(d+c)",
+   "output": "2a-2b+2c+d",
+   "explanation": "a appears twice (+2). b appears once positive and three times negative (-2). c appears once outside and once in the group (+2). d appears once in the group (+1)."
+  },
+  {
+   "input": "-(c+b)-a+(b-c)",
+   "output": "-a-2c",
+   "explanation": "-(c+b) gives -c and -b. Then -a. The group (b-c) gives +b and -c. So b cancels (0), a is -1, and c is -2."
+  },
+  {
+   "input": "q-q+(p-p)",
+   "output": "0",
+   "explanation": "Every variable cancels out."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "You only need one pass over the characters and a count per letter (26 counters).",
+  "Track the sign of the next term, and a second flag for whether you are inside a group that was preceded by a minus. The sign of a letter is the product of the two.",
+  "Output formatting is where the bugs are: omit a coefficient of 1, handle -1, skip zeros, and do not put a plus sign on the first term."
+ ],
+ "reference": "import sys\n\ndef main():\n    s = sys.stdin.read().strip()\n    cnt = [0] * 26\n    sgn = 1\n    mult = 1\n    for ch in s:\n        if ch == '+':\n            sgn = 1\n        elif ch == '-':\n            sgn = -1\n        elif ch == '(':\n            mult = sgn\n            sgn = 1\n        elif ch == ')':\n            mult = 1\n            sgn = 1\n        else:\n            cnt[ord(ch) - 97] += mult * sgn\n            sgn = 1\n    parts = []\n    for i in range(26):\n        c = cnt[i]\n        if c == 0:\n            continue\n        letter = chr(97 + i)\n        if c == 1:\n            body = letter\n        elif c == -1:\n            body = '-' + letter\n        else:\n            body = str(c) + letter\n        if c > 0 and parts:\n            body = '+' + body\n        parts.append(body)\n    print(''.join(parts) if parts else '0')\n\nmain()\n",
+ "brute": "import sys, re\n\ns = sys.stdin.read().strip()\n\ndef flip(inner):\n    out = []\n    i = 0\n    if not inner.startswith('-') and not inner.startswith('+'):\n        inner = '+' + inner\n    for ch in inner:\n        out.append('-' if ch == '+' else '+' if ch == '-' else ch)\n    return ''.join(out)\n\ndef expand(m):\n    sign = m.group(1)\n    inner = m.group(2)\n    if not inner.startswith('-') and not inner.startswith('+'):\n        inner = '+' + inner\n    if sign == '-':\n        inner = flip(inner)\n    return inner\n\ns = re.sub(r'([+-]?)\\(([^()]*)\\)', expand, s)\ntotal = {}\nfor sg, v in re.findall(r'([+-]?)([a-z])', s):\n    total[v] = total.get(v, 0) + (-1 if sg == '-' else 1)\nres = ''\nfor v in sorted(total):\n    c = total[v]\n    if c == 0:\n        continue\n    if c == 1:\n        t = ('+' if res else '') + v\n    elif c == -1:\n        t = '-' + v\n    else:\n        t = ('+' if c > 0 and res else '') + str(c) + v\n    res += t\nprint(res if res else '0')\n",
+ "generator": "def gen(rng):\n    def term_letters(letters, k):\n        return [rng.choice(letters) for _ in range(k)]\n\n    def expr(nterms, letters, pgroup, lead_minus):\n        out = ''\n        for i in range(nterms):\n            if rng.random() < pgroup:\n                inner = ''\n                m = rng.randint(1, 4)\n                for j in range(m):\n                    if j == 0:\n                        inner += ('-' if rng.random() < 0.2 else '') + rng.choice(letters)\n                    else:\n                        inner += rng.choice('+-') + rng.choice(letters)\n                t = '(' + inner + ')'\n            else:\n                t = rng.choice(letters)\n            if i == 0:\n                out += ('-' if lead_minus else '') + t\n            else:\n                out += rng.choice('+-') + t\n        return out\n\n    tests = ['a', '-a', 'a-a', '(a)', '-(a)', '(a+b)', '-(a+b)', '(a-b)-(a-b)', 'z+y+x-(x+y+z)',\n             'a+b+a+c-b-b-b+(d+c)', '-(c+b)-a+(b-c)', 'q-q+(p-p)', '(-a+b)+(-b)', '-(-a)', 'a+(b+c)-(d+e)+(f)',\n             'a+a+a+a', 'a-a-a-a-a']\n    for _ in range(60):\n        letters = rng.choice(['ab', 'abc', 'abcdef', 'abcdefghijklmnopqrstuvwxyz'])\n        tests.append(expr(rng.randint(1, 12), letters, rng.choice([0.0, 0.3, 0.6]), rng.random() < 0.3))\n    n = 100000\n    tests.append('-a' + '+a' * 49999)\n    tests.append('-a' + '-a' * 49998)\n    tests.append(''.join(('+' if i % 2 == 0 else '-') + 'z' for i in range(n // 2))[1:])\n    letters = 'abcdefghijklmnopqrstuvwxyz'\n    parts = []\n    size = 0\n    first = True\n    while size < 99990:\n        if rng.random() < 0.3:\n            t = '(' + rng.choice(letters) + ''.join(rng.choice('+-') + rng.choice(letters) for _ in range(rng.randint(0, 5))) + ')'\n        else:\n            t = rng.choice(letters)\n        if not first:\n            t = rng.choice('+-') + t\n        first = False\n        parts.append(t)\n        size += len(t)\n    tests.append(''.join(parts))\n    tests.append('-(' + 'a+b-' * 20000 + 'c)' + '+(b+a)' * 3000)\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef simplify(expr: str) -> str:\n    # Write your solution here\n    return ''\n\n\ndef main():\n    expr = sys.stdin.read().strip()\n    print(simplify(expr))\n\n\nmain()\n",
+  "javascript": "function simplify(expr) {\n  // Write your solution here\n  return ''\n}\n\nconsole.log(simplify(input.trim()))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring simplify(const string& expr) {\n    // Write your solution here\n    return \"\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string expr;\n    cin >> expr;\n    cout << simplify(expr) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String simplify(String expr) {\n        // Write your solution here\n        return \"\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String expr = br.readLine().trim();\n        System.out.println(simplify(expr));\n    }\n}\n"
+ }
+}

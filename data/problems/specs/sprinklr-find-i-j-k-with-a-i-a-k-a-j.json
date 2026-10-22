@@ -1,0 +1,48 @@
+{
+ "pid": "sprinklr-find-i-j-k-with-a-i-a-k-a-j",
+ "title": "Find i<j<k With A[i]>A[k]>A[j]",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "An array `A` of `n` integers is called **good** if there are three indices `i < j < k` such that `A[i] > A[k] > A[j]`. Both inequalities are strict, so equal values never form a pattern.\n\nDetermine whether the given array is good. Print `YES` if it is and `NO` otherwise.\n\n**Follow-up:** the interviewer asked for `O(n log n)` time and `O(n)` space, and then asked several variations of the question (for example, other orderings of the three values), so be ready to adapt your solution.",
+ "input_format": "The first line contains `n`.\nThe second line contains `n` integers `A[0] ... A[n-1]`.",
+ "output_format": "Print `YES` if the array is good, otherwise `NO`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "-10^9 ≤ A[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "5\n4 1 3 2 5",
+   "output": "YES",
+   "explanation": "Take i = 0, j = 1, k = 2: A[0] = 4 > A[2] = 3 > A[1] = 1."
+  },
+  {
+   "input": "3\n5 1 5",
+   "output": "NO",
+   "explanation": "The only candidate is i = 0, j = 1, k = 2, but A[0] = 5 is not strictly greater than A[2] = 5."
+  },
+  {
+   "input": "5\n9 7 5 3 1",
+   "output": "NO",
+   "explanation": "The array is decreasing, so A[j] < A[k] can never hold for j < k."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Checking all triples is O(n^3). In the pattern, A[j] is the smallest value, A[k] the middle and A[i] the largest. If you fix `k`, what do you need to know about the elements before it?",
+  "Negate every element. The condition becomes B[i] < B[k] < B[j], the well-known 132 pattern. Scan from the right with a monotonic stack.",
+  "While scanning from the right, keep a stack and the largest value that was popped (a valid `B[k]` that has a larger element to its left in the scan). If the current value is smaller than that, you have found the pattern."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.buffer.read().split()\n    n = int(data[0])\n    b = [-int(x) for x in data[1:1 + n]]\n    third = float('-inf')\n    st = []\n    for i in range(n - 1, -1, -1):\n        x = b[i]\n        if x < third:\n            print('YES')\n            return\n        while st and st[-1] < x:\n            third = st.pop()\n        st.append(x)\n    print('NO')\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + n]]\nfound = False\nfor i in range(n):\n    for j in range(i + 1, n):\n        for k in range(j + 1, n):\n            if a[i] > a[k] > a[j]:\n                found = True\nprint('YES' if found else 'NO')\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n\n    def avoiding(n):\n        # permutation of ranks that avoids B[i] < B[k] < B[j] (i<j<k); negated, it avoids A[i] > A[k] > A[j]\n        out = []\n        st = [('r', 0, n - 1)]\n        while st:\n            it = st.pop()\n            if it[0] == 'v':\n                out.append(it[1])\n                continue\n            lo, hi = it[1], it[2]\n            if lo > hi:\n                continue\n            s = rng.choice((0, hi - lo, rng.randint(0, hi - lo), rng.randint(0, hi - lo)))\n            st.append(('r', lo, hi - s - 1))\n            st.append(('v', hi))\n            st.append(('r', hi - s, hi - 1))\n        return out\n\n    def avoid_arr(n, lim=10**9):\n        ranks = avoiding(n)\n        vals = sorted(rng.sample(range(-lim, lim + 1), n))\n        return [-vals[r] for r in ranks]\n\n    tests = [fmt([5]), fmt([1, 2]), fmt([3, 1, 2]), fmt([3, 2, 1]), fmt([5, 1, 5]), fmt([2, 1, 2, 1, 2]),\n             fmt([4, 1, 3, 2, 5]), fmt([1, 2, 3, 4]), fmt([9, 7, 5, 3, 1])]\n    for _ in range(8):\n        n = rng.randint(3, 10)\n        tests.append(fmt([rng.randint(-4, 4) for _ in range(n)]))\n    for _ in range(6):\n        n = rng.randint(3, 10)\n        a = avoid_arr(n, 50)\n        if rng.random() < 0.5:\n            x, y = rng.randrange(n), rng.randrange(n)\n            a[x], a[y] = a[y], a[x]\n        tests.append(fmt(a))\n    N = 10**5\n    tests.append(fmt(avoid_arr(N)))\n    tests.append(fmt(avoid_arr(N)))\n    a = avoid_arr(N)\n    a[rng.randrange(N)], a[rng.randrange(N)] = a[0], a[N - 1]\n    tests.append(fmt(a))\n    a = avoid_arr(N - 3, 10**9 - 10)\n    big = max(a) + 5\n    tests.append(fmt(a + [big, big - 4, big - 2]))\n    tests.append(fmt([rng.randint(-10**9, 10**9) for _ in range(N)]))\n    tests.append(fmt(list(range(N))))\n    tests.append(fmt(list(range(N, 0, -1))))\n    tests.append(fmt([7] * N))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef has_pattern(a: List[int]) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    print('YES' if has_pattern(a) else 'NO')\n\n\nmain()\n",
+  "javascript": "function hasPattern(a) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst a = t.slice(1, 1 + n)\nconsole.log(hasPattern(a) ? 'YES' : 'NO')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool hasPattern(vector<long long>& a) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    cout << (hasPattern(a) ? \"YES\" : \"NO\") << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean hasPattern(long[] a) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); a[i] = (long) in.nval; }\n        System.out.println(hasPattern(a) ? \"YES\" : \"NO\");\n    }\n}\n"
+ }
+}

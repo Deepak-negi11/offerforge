@@ -1,0 +1,16 @@
+{
+ "qid": "aa2c711fba",
+ "question": "In a Zomato SDE-1 interview, the interviewer asked: **how is `std::map` implemented in the C++ STL?**",
+ "lookingFor": [
+  "Do you know the underlying data structure and its guarantees?",
+  "Can you connect implementation to complexity and iterator behaviour?",
+  "Do you know when `std::unordered_map` is the better choice?"
+ ],
+ "answer": "**Short answer.** `std::map` is an ordered associative container of key-value pairs, typically implemented as a **self-balancing binary search tree**, in practice a **red-black tree** in the common implementations (libstdc++, libc++ and MSVC). The C++ standard specifies the complexity and behaviour, not the exact structure, but the red-black tree is what you get.\n\n**Structure.** Each node stores a `pair<const Key, T>`, pointers to left, right and parent, and a colour bit (red or black). The red-black properties (root is black, red nodes have black children, every path has the same number of black nodes) keep the height at most about `2 log2(n+1)`, so the tree stays balanced via rotations and recolouring on insert and erase.\n\n**Complexity.**\n- `find`, `insert`, `erase`, `operator[]`: **O(log n)**.\n- In-order iteration visits keys in **sorted order**, O(n) for a full traversal; `lower_bound` and `upper_bound` give range queries.\n- Space O(n), with per-node overhead for pointers and the colour.\n\n**Guarantees and behaviour.**\n- Keys are unique (use `multimap` for duplicates) and ordered by a comparator (`std::less<Key>` by default), which must be a strict weak ordering.\n- Iterators and references stay valid after insertions, and after erasing other elements; only the erased element's iterator is invalidated. Nodes never move, which is also why `extract` and `merge` (C++17) can transfer nodes without copying.\n- `operator[]` inserts a default-constructed value if the key is missing, so it can modify the map.\n\n**map vs unordered_map.** `unordered_map` uses a hash table with average O(1) lookups and no ordering; `map` has O(log n) worst-case guarantees, sorted traversal and no rehashing. Choose `map` when you need ordering or predictable worst-case time.\n\nA good follow-on is to mention that `set` is implemented the same way, and that trees have poor cache locality compared to arrays.",
+ "followUps": [
+  "Why is a red-black tree used rather than an AVL tree?",
+  "What is the difference between map::operator[] and map::at or insert?",
+  "How do you use a custom comparator or a custom struct as key?",
+  "When is unordered_map slower than map?"
+ ]
+}

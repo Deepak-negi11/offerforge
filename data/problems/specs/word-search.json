@@ -1,0 +1,50 @@
+{
+ "pid": "word-search",
+ "title": "Word Search",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given a rectangular grid of lowercase letters and a word. Decide whether the word can be traced in the grid.\n\nA word is traced by choosing a starting cell holding its first letter and then repeatedly stepping to a neighbouring cell that holds the next letter. Every cell may be used **at most once** in a single trace.\n\nThe input gives a movement mode `d`:\n\n- `d = 4`: a step goes to one of the four orthogonal neighbours (up, down, left, right).\n- `d = 8`: a step may also go to a diagonal neighbour, so up to eight neighbours.\n\nPrint `true` if the word can be traced under the given mode, otherwise print `false`. A word of length 1 is traced if any cell holds that letter.",
+ "input_format": "The first line contains three integers `r`, `c` and `d`: the number of rows, the number of columns and the movement mode (`4` or `8`).\nEach of the next `r` lines contains a string of `c` lowercase letters.\nThe last line contains the word to trace.",
+ "output_format": "Print `true` if the word can be traced in the grid, otherwise `false`.",
+ "constraints": [
+  "1 ≤ r, c ≤ 6",
+  "d is 4 or 8",
+  "1 ≤ length of word ≤ 15",
+  "The grid and the word contain only lowercase English letters"
+ ],
+ "examples": [
+  {
+   "input": "3 4 4\ncats\norae\ndent\ncoder",
+   "output": "true",
+   "explanation": "Start at the `c` in the top-left corner, step down to `o`, down to `d`, right to `e`, then up to `r`. Every step is orthogonal and no cell is reused."
+  },
+  {
+   "input": "3 4 8\ncats\norae\ndent\ncart",
+   "output": "true",
+   "explanation": "Trace `c` (0,0), `a` (0,1), `r` (1,1), then step diagonally up-right to `t` (0,2). The diagonal step is allowed because d = 8."
+  },
+  {
+   "input": "3 4 4\ncats\norae\ndent\ncart",
+   "output": "false",
+   "explanation": "The only `c` is in the top-left corner and its only `a` neighbour is (0,1). From `r` at (1,1) the orthogonal neighbours are `a`, `e`, `o` and `a`, none of which is `t`, so the trace fails when diagonal moves are not allowed."
+  }
+ ],
+ "complexity": {
+  "time": "O(r · c · 3^L)",
+  "space": "O(L + r · c)"
+ },
+ "hints": [
+  "Try every cell holding the first letter as a starting point and extend the trace one letter at a time.",
+  "Use depth-first search with backtracking: mark the current cell as used, try each neighbour holding the next letter, then unmark it before returning.",
+  "Prune early: if the grid has fewer copies of some letter than the word needs, the answer is false. Starting from the rarer end of the word also cuts the search."
+ ],
+ "reference": "import sys\nfrom collections import Counter\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c, d = int(data[0]), int(data[1]), int(data[2])\n    g = data[3:3 + r]\n    w = data[3 + r]\n    cnt = Counter(''.join(g))\n    for ch, k in Counter(w).items():\n        if cnt[ch] < k:\n            print('false')\n            return\n    if cnt[w[0]] > cnt[w[-1]]:\n        w = w[::-1]\n    dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)]\n    if d == 8:\n        dirs += [(1, 1), (1, -1), (-1, 1), (-1, -1)]\n    L = len(w)\n    seen = [[False] * c for _ in range(r)]\n\n    def dfs(i, j, k):\n        if k == L - 1:\n            return True\n        seen[i][j] = True\n        ch = w[k + 1]\n        for di, dj in dirs:\n            a, b = i + di, j + dj\n            if 0 <= a < r and 0 <= b < c and not seen[a][b] and g[a][b] == ch:\n                if dfs(a, b, k + 1):\n                    seen[i][j] = False\n                    return True\n        seen[i][j] = False\n        return False\n\n    for i in range(r):\n        for j in range(c):\n            if g[i][j] == w[0] and dfs(i, j, 0):\n                print('true')\n                return\n    print('false')\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c, d = int(data[0]), int(data[1]), int(data[2])\ng = data[3:3 + r]\nw = data[3 + r]\nsteps = [(di, dj) for di in (-1, 0, 1) for dj in (-1, 0, 1) if (di, dj) != (0, 0) and (d == 8 or di == 0 or dj == 0)]\n\ndef go(path):\n    k = len(path)\n    if k == len(w):\n        return True\n    i, j = path[-1]\n    for di, dj in steps:\n        a, b = i + di, j + dj\n        if 0 <= a < r and 0 <= b < c and (a, b) not in path and g[a][b] == w[k]:\n            if go(path + [(a, b)]):\n                return True\n    return False\n\nok = any(g[i][j] == w[0] and go([(i, j)]) for i in range(r) for j in range(c))\nprint('true' if ok else 'false')\n",
+ "generator": "def gen(rng):\n    def fmt(g, w, d):\n        return f'{len(g)} {len(g[0])} {d}\\n' + '\\n'.join(g) + '\\n' + w\n    tests = [\n        fmt(['a'], 'a', 4),\n        fmt(['a'], 'b', 8),\n        fmt(['ab'], 'ba', 4),\n        fmt(['ab', 'ba'], 'aa', 4),\n        fmt(['aaa'], 'aaaa', 4),\n        fmt(['abc', 'def', 'ghi'], 'aei', 8),\n        fmt(['aab'], 'aba', 4),\n    ]\n    for idx, (r, c, al, wl) in enumerate(((2, 3, 'ab', 4), (3, 3, 'ab', 5), (3, 4, 'abc', 6), (4, 4, 'ab', 7), (4, 4, 'abc', 6), (3, 5, 'ab', 8), (5, 5, 'ab', 9), (4, 6, 'abc', 8), (3, 3, 'abc', 4))):\n        for d in (4 + 4 * (idx % 2),):\n            if True:\n                g = [''.join(rng.choice(al) for _ in range(c)) for _ in range(r)]\n                if rng.random() < 0.6:\n                    # plant a path so that true answers are common\n                    i, j = rng.randrange(r), rng.randrange(c)\n                    used = {(i, j)}\n                    w = g[i][j]\n                    for _ in range(wl - 1):\n                        opts = [(i + a, j + b) for a in (-1, 0, 1) for b in (-1, 0, 1) if (a or b) and (d == 8 or not (a and b)) and 0 <= i + a < r and 0 <= j + b < c and (i + a, j + b) not in used]\n                        if not opts:\n                            break\n                        i, j = rng.choice(opts)\n                        used.add((i, j))\n                        w += g[i][j]\n                else:\n                    w = ''.join(rng.choice(al) for _ in range(wl))\n                tests.append(fmt(g, w, d))\n    # max-size cases: 6 x 6 grid, word of length 15\n    g = ['aaaxbb'] * 6\n    tests.append(fmt(g, 'a' * 14 + 'b', 4))\n    g = ['aaaaaa'] * 5 + ['aaaaab']\n    tests.append(fmt(g, 'a' * 14 + 'b', 8))\n    g = [''.join(rng.choice('ab') for _ in range(6)) for _ in range(6)]\n    tests.append(fmt(g, ''.join(rng.choice('ab') for _ in range(15)), 8))\n    g = ['aaaaaa', 'aaaaaa', 'aaaaaa', 'aaaaaa', 'aaaaaa', 'aaaaab']\n    tests.append(fmt(g, 'a' * 8 + 'ba' * 3 + 'a', 4))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef can_trace(board: List[str], word: str, d: int) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r = int(data[0])\n    d = int(data[2])\n    board = data[3:3 + r]\n    word = data[3 + r]\n    print('true' if can_trace(board, word, d) else 'false')\n\n\nmain()\n",
+  "javascript": "function canTrace(board, word, d) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst r = parseInt(t[0])\nconst d = parseInt(t[2])\nconst board = t.slice(3, 3 + r)\nconst word = t[3 + r]\nconsole.log(canTrace(board, word, d) ? 'true' : 'false')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool canTrace(vector<string>& board, const string& word, int d) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c, d;\n    cin >> r >> c >> d;\n    vector<string> board(r);\n    for (int i = 0; i < r; i++) cin >> board[i];\n    string word;\n    cin >> word;\n    cout << (canTrace(board, word, d) ? \"true\" : \"false\") << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean canTrace(String[] board, String word, int d) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int r = Integer.parseInt(st.nextToken());\n        int c = Integer.parseInt(st.nextToken());\n        int d = Integer.parseInt(st.nextToken());\n        String[] board = new String[r];\n        for (int i = 0; i < r; i++) board[i] = br.readLine().trim();\n        String word = br.readLine().trim();\n        System.out.println(canTrace(board, word, d) ? \"true\" : \"false\");\n    }\n}\n"
+ }
+}

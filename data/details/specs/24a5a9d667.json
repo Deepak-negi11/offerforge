@@ -1,0 +1,18 @@
+{
+ "qid": "24a5a9d667",
+ "question": "In the first round for a **Senior System Software Engineer (PCIe team)** role at NVIDIA, the questions began with **basic C: `static` and `volatile`**, and then asked the candidate to **discuss a Bluetooth Low Energy (BLE) use case from past work**, for example how to design a **BLE-based key using calibration of signals**.\n\nThis write-up covers the C semantics and how to structure a BLE design discussion.",
+ "lookingFor": [
+  "Do you know C storage classes and the compiler's view of `volatile` precisely?",
+  "Do you know where `volatile` is not enough (atomicity, memory ordering)?",
+  "Can you design a wireless proximity feature considering signal noise, security and calibration?",
+  "Can you discuss past work with depth and honest limits?"
+ ],
+ "answer": "**`static` in C.**\n- File-scope `static` variables/functions have **internal linkage** (not visible to other translation units).\n- Function-local `static` variables have static storage duration: initialised once, persist across calls, live in `.data`/`.bss`.\n\n**`volatile`.** It tells the compiler the value may change outside the program's visible control flow, so every read and write must really happen and not be cached in a register or reordered away by the compiler. Uses: memory-mapped hardware registers, variables modified by an ISR or signal handler, polling loops. Combined with `const`, `const volatile` fits a read-only status register.\nLimits: `volatile` does **not** make operations atomic and does **not** provide memory barriers or inter-thread synchronisation. For threads use atomics or locks.\n\n**Discussing a BLE-based key (structure your own experience this way).**\n- *Goal:* unlock when an authorised phone or fob is near, and lock when away.\n- *BLE basics:* the key advertises or connects via GATT; the receiver measures **RSSI** (signal strength).\n- *Calibration:* RSSI is noisy and depends on device, antenna, orientation, body and environment. Measure RSSI at a known reference distance per device, filter samples (moving average or Kalman filter), and map to distance with a path-loss model, `d = 10^((TxPower - RSSI) / (10 n))`, where `n` is an environment factor. Use thresholds with hysteresis so it does not flicker.\n- *Security:* RSSI alone is spoofable; a **relay attack** can extend range. Use authenticated pairing/bonding (LE Secure Connections), challenge-response with fresh nonces, encrypted links, and, where available, more reliable ranging such as time-of-flight techniques.\n- *Power and reliability:* advertising interval versus latency and battery; connection parameters; reconnect handling.\n- *Testing:* field tests across devices and environments, measuring false accept and false reject rates.\n\nBe honest about what you built versus read, and state numbers or results if you have them.",
+ "followUps": [
+  "Can a `volatile` variable be shared safely between two threads?",
+  "Where would you place a function-local static and what are its thread-safety issues?",
+  "How would you defend a BLE key against relay attacks?",
+  "What is the difference between advertising and a connected GATT session?",
+  "How would you measure false accept and false reject rates?"
+ ]
+}

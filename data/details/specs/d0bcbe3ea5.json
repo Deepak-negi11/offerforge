@@ -1,0 +1,18 @@
+{
+ "qid": "d0bcbe3ea5",
+ "question": "D. E. Shaw, Member Technical (about 1.5 years of experience), screening round. After a DSA problem, the interviewer held a **low-level design discussion on a Stack Overflow-like Q&A site**, covering users, questions, answers, votes and tags. It was a discussion rather than a coding task, so be ready to talk through classes, relationships and behaviour.",
+ "lookingFor": [
+  "Requirement gathering: can you scope the problem and state assumptions.",
+  "Object modelling: sensible entities, responsibilities and relationships.",
+  "OOP and design principles: encapsulation, SOLID, extensibility.",
+  "Handling rules such as voting, reputation and tags cleanly.",
+  "Awareness of concurrency, persistence and what to leave out."
+ ],
+ "answer": "**1. Clarify requirements.** Functional: register users; post questions with tags; answer; comment; upvote/downvote questions and answers; accept one answer; search by tag/keyword; reputation from votes. Out of scope unless asked: moderation tools, badges, notifications, full-text ranking.\n\n**2. Core entities**\n- `User` (id, name, reputation, createdAt).\n- `Post` as an abstract base with `id`, `author`, `body`, `createdAt`, votes; subclasses `Question` (title, tags, answers, acceptedAnswer) and `Answer` (question, isAccepted). `Comment` attaches to any `Post`.\n- `Tag` (name), a many-to-many with `Question`.\n- `Vote` (voter, post, value +1/-1), unique per (voter, post).\n- Services: `QuestionService`, `AnswerService`, `VoteService`, `SearchService`, `ReputationService`.\n\n**3. Key behaviours**\n- Posting a question: validate, create or reuse tags, store, and index for search.\n- Voting: a user cannot vote on their own post; one vote per post, and changing it replaces the old one. Votes update the post score and the author's reputation (for example via an observer on a `VoteCast` event, which keeps `VoteService` decoupled).\n- Accepting an answer: only the question's author may do it, and only one answer is accepted at a time.\n- Reputation rules can sit behind a `ReputationPolicy` interface (strategy pattern) so the numbers can change.\n- Search: a `SearchStrategy` (by tag, by keyword) behind an interface.\n\n**4. Design points to mention**\n- Composition and inheritance: shared voting and comment logic lives in `Post`.\n- Open/closed: new post types or policies plug in without editing services.\n- Concurrency: guard vote counts with atomic updates or a database unique constraint on (voter, post).\n- Persistence: repositories behind interfaces, so storage can be swapped.\n\nDraw a quick class diagram first, then walk through one flow (cast a vote) end to end.",
+ "followUps": [
+  "How would you stop a user from voting twice, even with concurrent requests?",
+  "How would you add comments, badges or moderation without changing existing classes?",
+  "How would you make tag search and the 'top questions' list fast?",
+  "Which design patterns did you use and why?"
+ ]
+}

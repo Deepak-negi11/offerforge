@@ -1,0 +1,18 @@
+{
+ "qid": "702c20b472",
+ "question": "In the low level design round for a Senior Software Engineer (IN4) role at Walmart, the question was to **design a feature toggle service** for an application such as a streaming platform like Netflix, allowing features to be enabled or disabled dynamically.\n\nRequirements: **add, enable, disable and remove features**. Each feature may have rules: **subscription-based** (for example Premium) and **region-based** (for example IN). If a feature has **no rule, it is available to all users**. The service must **check whether a feature is enabled for a given user**.",
+ "lookingFor": [
+  "Can you translate a short requirement list into clean classes and APIs?",
+  "Do you model rules in an extensible way (Strategy / Specification) instead of hard-coded `if`s?",
+  "Do you decide clearly how rules combine (AND vs OR) and state your assumption?",
+  "Do you handle thread safety since reads vastly outnumber writes?",
+  "Can you think about extensions such as percentage rollouts or user allow-lists?"
+ ],
+ "answer": "**Requirements and assumptions.** `addFeature`, `enableFeature`, `disableFeature`, `removeFeature`, and `isEnabled(featureName, user)`. A feature has a global on/off flag and optional rules. State the assumption: **a feature is on for a user only if it is enabled globally and all of its rules pass** (AND). With no rules, any user passes.\n\n**Entities.**\n- `User(id, region, subscriptionTier)`.\n- `Feature(name, enabled, List<Rule> rules)`.\n- `interface Rule { boolean isSatisfiedBy(User u); }` with `SubscriptionRule(Set<Tier>)` and `RegionRule(Set<String>)`. This is the Strategy / Specification pattern, so a new rule type is a new class with no change to existing code.\n- `FeatureToggleService` holds a `Map<String, Feature>` in a `ConcurrentHashMap` and exposes the operations.\n\n**Check logic.**\n```java\nboolean isEnabled(String name, User u) {\n  Feature f = features.get(name);\n  if (f == null || !f.isEnabled()) return false;\n  for (Rule r : f.getRules()) if (!r.isSatisfiedBy(u)) return false;\n  return true;   // empty rule list means everyone\n}\n```\n\n**Decisions to call out.**\n- Unknown feature returns false (fail closed).\n- Duplicate `addFeature` should throw or be rejected clearly; `removeFeature` on a missing name too.\n- Rules are held in an immutable list inside `Feature`; updating a feature replaces the object atomically (copy-on-write) so readers never see a half-updated rule set.\n- Concurrency: reads dominate, so `ConcurrentHashMap` with immutable `Feature` objects avoids locks on the read path.\n\n**Extensions.** Percentage rollout (hash of userId modulo 100), explicit allow/deny lists, composite rules (`AndRule`, `OrRule`, `NotRule`), persisting flags in a database or config store with a refresh/watch mechanism, an audit log, and caching evaluation results per user.\n\n**Testing.** Cases: no rules, one rule passing, one failing, two rules where only one passes, disabled feature, removed feature.",
+ "followUps": [
+  "How would you support OR conditions or nested rule groups?",
+  "How would you implement a gradual rollout to 10% of users consistently?",
+  "How would this work across many service instances when a flag changes?",
+  "Where would you store flags and how would you make evaluation fast?"
+ ]
+}

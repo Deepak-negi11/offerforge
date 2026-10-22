@@ -1,0 +1,19 @@
+{
+ "qid": "9dc962563d",
+ "question": "Flipkart SDE-2 machine-coding evaluation (45 minutes). The task was a **Distributed Task Scheduler with Dynamic Load Management**. While reviewing the submitted code the interviewer pointed out missing validations, then asked: instead of **sorting tasks**, could a **priority queue** be used, and what is its **time complexity**? Finally, a concurrency question: **what if two tasks arrive at the same time?**",
+ "lookingFor": [
+  "Choosing the right data structure and knowing its complexity.",
+  "Reasoning about concurrent producers and consumers.",
+  "Handling ties and fairness among equal-priority tasks.",
+  "Defensive validation of inputs.",
+  "Honest discussion of what could be improved."
+ ],
+ "answer": "**Why a priority queue.** If the scheduler re-sorts the whole task list every time it needs the next task, each pick costs O(n log n). With n tasks, scheduling everything one by one gives O(n² log n). A binary heap gives **O(log n) insert** (`offer`) and **O(log n) extract-min/max** (`poll`), with **O(1) peek**, so processing n tasks costs O(n log n). Building a heap from n existing tasks in bulk is O(n). Use `PriorityQueue` in Java with a `Comparator` on priority, then on submit time as a tie-breaker.\n\n**Caveats.** A heap does not support efficient arbitrary removal or priority updates (O(n) to find, then O(log n)); if tasks are cancelled or re-prioritised often, use a lazy-deletion flag, or an indexed heap, or a `TreeSet` (O(log n) for all operations but heavier).\n\n**Ties.** Equal-priority tasks need a deterministic order, otherwise the heap order is arbitrary. Add a monotonically increasing sequence number (`AtomicLong`) as the second comparator key for FIFO fairness.\n\n**Two tasks at the same time.** Java's `PriorityQueue` is **not thread-safe**; concurrent `offer` calls can corrupt the array. Options: wrap with a `ReentrantLock`/`synchronized`, or use `PriorityBlockingQueue`, which is thread-safe and lets worker threads block on `take()`. Both give a total order: whichever acquires the lock first is inserted first, and the sequence number settles the tie-break. For multiple scheduler nodes, you need a shared store (database or a Redis sorted set) and an atomic claim operation so a task is picked by only one worker.\n\n**Validation gaps worth fixing.** Null or duplicate task ids, negative priority or execution time, invalid dependencies, scheduling when no worker is available.",
+ "followUps": [
+  "What is the complexity of inserting n tasks and extracting them all from the heap?",
+  "How would you cancel or reprioritise a task already in the queue?",
+  "Why is `PriorityQueue` unsafe under concurrent insertion, and what would you use instead?",
+  "How do you guarantee two workers never run the same task?",
+  "How would you prevent starvation of low-priority tasks?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "ae36a10d90",
+ "question": "IBM ISDL Linux Kernel Developer interview (experienced candidate), round 2, focused on kernel internals, WiFi and debugging experience. Questions reported:\n\n- What is a driver?\n- How does a page fault work?\n- How is a system call implemented in the kernel?\n- Explain the basic WiFi association process.\n- How do you debug a kernel call trace?\n- How does hardware memory allocation work?\n- What is the use of virtual memory if only one process is running?\n\nThe round also asked about the candidate's WiFi work, bugs they had fixed, and why they wanted the role.",
+ "lookingFor": [
+  "Kernel fundamentals explained step by step: faults, drivers, memory.",
+  "Real debugging method for kernel oops and panics.",
+  "Domain knowledge of 802.11 basics (scan, authenticate, associate, key handshake).",
+  "Ability to connect theory to actual work you have done.",
+  "Reasoning about why abstractions such as virtual memory exist."
+ ],
+ "answer": "**Driver:** kernel code that lets the OS talk to a hardware device (or a virtual one). It exposes a standard interface (for example a network device, block device or character device) and handles device registration, interrupts, DMA and power management.\n\n**Page fault:** the CPU raises an exception when a virtual address has no valid mapping or violates permissions. The kernel handler looks up the faulting address in the process's memory regions. If valid, it fixes the mapping: allocate a zero page, load from the file or swap, or break a copy-on-write. Then the instruction is retried. If invalid, the process gets SIGSEGV (or the kernel oopses if it was a kernel bug).\n\n**Virtual memory with only one process:** it is still useful. It protects the kernel from the process, gives the program a simple contiguous address space regardless of physical fragmentation, enables lazy allocation, memory-mapped files and demand paging, allows running programs larger than free RAM, and allows shared libraries and copy-on-write. Even one user process shares the machine with the kernel and other tasks.\n\n**Hardware memory allocation:** physical memory is managed in page frames. Linux uses a buddy allocator for page-sized blocks and the slab/slub allocator for small kernel objects. Drivers needing DMA may require physically contiguous memory.\n\n**Basic WiFi association (802.11 station):**\n1. **Scan** for networks (listen to beacons, or send probe requests).\n2. **Authentication** frame exchange (open system; WPA3 uses SAE here).\n3. **Association** request and response; the access point assigns an association ID and negotiates capabilities.\n4. For protected networks, a **4-way handshake** derives encryption keys.\n5. Then DHCP gets an IP address.\n\n**Debugging a kernel call trace**\n- Read the top lines first: the oops message type, the faulting address (NULL dereference?), and the **RIP/PC** with function name plus offset.\n- Read the stack trace from the top (innermost) down to identify the call path.\n- Resolve addresses to source lines with `addr2line`, `gdb vmlinux` (`list *func+offset`), or `objdump`.\n- Check the kernel taint flags, recent changes, and `dmesg` lines before the trace.\n- Reproduce and add `pr_debug`, `ftrace`, or enable KASAN or lockdep for memory and locking bugs.\n\nAnchor your answer with a bug you actually fixed.",
+ "followUps": [
+  "How do you tell a NULL pointer dereference from a use-after-free in an oops?",
+  "What is the difference between a minor and a major page fault?",
+  "How does DMA work, and what role does the IOMMU play?",
+  "What happens after association if the 4-way handshake fails?"
+ ]
+}

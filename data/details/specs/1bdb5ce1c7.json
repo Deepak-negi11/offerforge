@@ -1,0 +1,17 @@
+{
+ "qid": "1bdb5ce1c7",
+ "question": "Dream11 SDE-2 (Android), onsite round: **design Netflix**. The role was Android, so the discussion could include client-side concerns as well as the backend.",
+ "lookingFor": [
+  "Separating the content pipeline from playback delivery.",
+  "CDN and adaptive streaming understanding.",
+  "Metadata, recommendations and scale reasoning.",
+  "For an Android role, client design: playback, caching, offline."
+ ],
+ "answer": "**Requirements.** Functional: browse and search titles, personalised home screen, stream video with good quality on varying networks, resume playback across devices, profiles, and optional downloads. Non-functional: very high availability, low start-up latency, very high read volume, a global audience. Scope: video upload and encoding pipeline, delivery, metadata and recommendations.\n\n**Content pipeline (offline).** Uploaded masters go to object storage. A transcoding pipeline produces multiple **resolutions and bitrates**, split into short segments, packaged for adaptive streaming (HLS or DASH) with DRM. Outputs are pushed to CDN edge caches in advance.\n\n**Playback flow.** The app calls the API for the title's manifest. The player picks segment URLs from the **CDN** (served from edge servers close to the user, so origin load stays low) and uses **adaptive bitrate streaming**, switching quality according to bandwidth and buffer level. Large providers place cache appliances inside ISP networks; mention this as an example, not a requirement.\n\n**Backend services.** API gateway, user/profile service, catalogue/metadata (a database with heavy caching), search, **recommendation** (offline model training plus a serving layer), playback-position service (write-heavy, key-value store), and analytics through event streaming.\n\n**Data.** Metadata in a database with cache; watch history and positions in a scalable NoSQL store; media in object storage and CDN.\n\n**Android client**\n- ExoPlayer/Media3 for adaptive playback, buffering and DRM.\n- Image and metadata caching; paginated rows with efficient lists.\n- **Offline downloads** with encrypted storage and licence expiry.\n- Handling network changes, background playback, battery and memory; reporting playback metrics.\n- Architecture such as MVVM with repositories.\n\n**Scaling and trade-offs.** CDN for bandwidth, stateless services behind load balancers, regional deployments with failover, graceful degradation (a cached or non-personalised home page if recommendations fail).",
+ "followUps": [
+  "How does adaptive bitrate streaming choose the quality?",
+  "How would you design the download-for-offline feature on Android?",
+  "How do you keep playback position in sync across devices?",
+  "What happens to the service if the recommendation system is down?"
+ ]
+}

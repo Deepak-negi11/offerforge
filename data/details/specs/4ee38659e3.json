@@ -1,0 +1,19 @@
+{
+ "qid": "4ee38659e3",
+ "question": "Mastercard SDE-II (experienced), round 1. Along with other questions (linked-list middle element, project discussion, Java streams), you were asked about the **circumstances in which a monolith or microservices is the better choice**, **database sharding**, and **consistent hashing**.",
+ "lookingFor": [
+  "Can you reason about architecture choices from team size, scale and operational cost, not fashion?",
+  "Do you understand sharding strategies and their downsides?",
+  "Can you explain consistent hashing and why it limits data movement?",
+  "Do you recognise failure modes: hot shards, cross-shard queries, rebalancing?",
+  "Can you explain with a concrete example?"
+ ],
+ "answer": "**Monolith vs microservices.**\n- A monolith is one deployable unit. It is simple to develop, test and deploy, has in-process calls and easy transactions, and suits small teams and early products. Downsides: it scales as one unit, a large codebase slows teams, and one bug can take everything down.\n- Microservices split by business capability, each independently deployable and scalable, with its own data. They suit large organisations with many teams and uneven scaling needs. Costs: network latency and failures, distributed transactions (sagas, eventual consistency), versioned APIs, observability and operational overhead.\n- A sensible default is a well-structured (modular) monolith, extracting services when a clear scaling or team boundary appears.\n\n**Sharding.** Splitting one logical dataset across several databases so that no node holds everything. Used when a single node cannot handle the data size or write throughput.\n- Range-based: simple range queries, but hot spots (for example the latest timestamps).\n- Hash-based: even spread, but range scans become scatter-gather.\n- Directory/lookup-based: flexible, but the lookup service is a dependency.\n- Problems: cross-shard joins and transactions, resharding, skew from a bad shard key (choose high cardinality, matches query pattern).\n\n**Consistent hashing.** With `hash(key) % N`, changing N remaps almost every key. Instead, place nodes and keys on a hash ring; a key belongs to the first node clockwise from its position. Adding or removing a node only moves the keys in the adjacent arc, roughly `K/N` keys. Real systems use **virtual nodes** (many ring positions per physical node) to even out load and let stronger machines take more. Replication can place copies on the next distinct nodes on the ring. It is used in distributed caches and stores such as Dynamo-style databases.",
+ "followUps": [
+  "How would you split a monolith safely without a big rewrite?",
+  "How do you handle a transaction spanning two microservices?",
+  "What is a hot shard and how do you mitigate it?",
+  "Why are virtual nodes needed in consistent hashing?",
+  "How do you add a shard to a live system with minimal downtime?"
+ ]
+}

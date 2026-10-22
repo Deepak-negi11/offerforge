@@ -1,0 +1,44 @@
+{
+ "pid": "media-net-reconstruct-order-from-arrow-hits",
+ "title": "Reconstruct Order From Arrow Hits",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "`n` soldiers stand in a single line, numbered by position `1` to `n` from the left. Each soldier wears a badge, an integer. A cannon on the left fires `n` arrows, one after another.\n\nArrow `i` (for `i = 1 ... n`) is described by two numbers `(d_i, a_i)`: at the moment it is fired, it kills the soldier who is currently standing at position `d_i` among the soldiers still alive (counted from the left, starting at `1`), and that soldier wears badge `a_i`. Whenever a soldier dies, every soldier behind him steps one place forward to fill the gap, so the positions of the survivors are renumbered before the next arrow.\n\nAfter `n` arrows every soldier is dead. You are given all `n` arrows in the order they were fired. Reconstruct the original line-up and print the badges from left to right.\n\nThe input is always consistent: when arrow `i` is fired exactly `n - i + 1` soldiers are alive, and `1 ≤ d_i ≤ n - i + 1`. Badges are not necessarily distinct.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains two integers `d_i` and `a_i`, the arrows in the order they were fired.",
+ "output_format": "Print `n` space-separated integers: the badges of the soldiers in the original line, from left to right.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ d_i ≤ n - i + 1",
+  "1 ≤ a_i ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3\n3 30\n1 20\n1 10",
+   "output": "20 10 30",
+   "explanation": "The original line is 20, 10, 30. Arrow 1 kills position 3 (badge 30), leaving 20, 10. Arrow 2 kills position 1 (badge 20), leaving 10. Arrow 3 kills position 1 (badge 10)."
+  },
+  {
+   "input": "4\n2 7\n2 8\n1 9\n1 5",
+   "output": "9 7 8 5",
+   "explanation": "Work backwards. Start with an empty line and insert the last arrow's badge at its position: [5]. Then 9 at position 1: [9, 5]. Then 8 at position 2: [9, 8, 5]. Finally 7 at position 2: [9, 7, 8, 5]."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Run the process backwards: the last arrow kills the only soldier left, and each earlier arrow kills someone who was standing at position d_i in a longer line.",
+  "Going backwards, arrow i means: insert badge a_i at position d_i into the current line. Doing that with a plain list costs O(n) per insertion.",
+  "Instead, decide final slots directly. Arrow 1 takes slot d_1 of the final line, arrow 2 takes the d_2-th still-free slot, and so on. Find the k-th free slot with a Fenwick tree (binary lifting) or a segment tree."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    tree = [0] * (n + 1)\n    for i in range(1, n + 1):\n        tree[i] += 1\n        j = i + (i & -i)\n        if j <= n:\n            tree[j] += tree[i]\n    top = 1\n    while top * 2 <= n:\n        top *= 2\n    res = [0] * n\n    for i in range(n):\n        d = int(data[1 + 2 * i])\n        a = int(data[2 + 2 * i])\n        pos = 0\n        step = top\n        while step:\n            nxt = pos + step\n            if nxt <= n and tree[nxt] < d:\n                pos = nxt\n                d -= tree[nxt]\n            step >>= 1\n        res[pos] = a\n        p = pos + 1\n        while p <= n:\n            tree[p] -= 1\n            p += p & -p\n    print(' '.join(map(str, res)))\n\nmain()\n",
+ "brute": "import sys\ndata = sys.stdin.read().split()\nn = int(data[0])\nline = []\nfor i in range(n - 1, -1, -1):\n    d = int(data[1 + 2 * i])\n    a = int(data[2 + 2 * i])\n    line.insert(d - 1, a)\nprint(' '.join(map(str, line)))\n",
+ "generator": "def gen(rng):\n    def fmt(ds, As):\n        return str(len(ds)) + '\\n' + '\\n'.join('%d %d' % (d, a) for d, a in zip(ds, As))\n    B = 10 ** 9\n    tests = [fmt([1], [7]), fmt([3, 1, 1], [30, 20, 10]), fmt([2, 2, 1, 1], [7, 8, 9, 5]),\n             fmt([1, 1, 1], [5, 5, 5]), fmt([3, 2, 1], [1, 2, 3]), fmt([1, 1], [B, 1])]\n    for n in (2, 3, 4, 5, 8, 12, 20, 30):\n        for _ in range(2):\n            tests.append(fmt([rng.randint(1, n - i) for i in range(n)], [rng.randint(1, 9) for _ in range(n)]))\n    tests.append(fmt([1] * 20, [rng.randint(1, B) for _ in range(20)]))\n    tests.append(fmt([20 - i for i in range(20)], [rng.randint(1, B) for _ in range(20)]))\n    def big(n, mode):\n        if mode == 'rand':\n            ds = [rng.randint(1, n - i) for i in range(n)]\n        elif mode == 'front':\n            ds = [1] * n\n        elif mode == 'back':\n            ds = [n - i for i in range(n)]\n        else:\n            ds = [(n - i + 1) // 2 for i in range(n)]\n        return fmt(ds, [rng.randint(1, B) for _ in range(n)])\n    tests.append(big(2000, 'rand'))\n    N = 100000\n    for mode in ('rand', 'front', 'mid'):\n        tests.append(big(N, mode))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef reconstruct(d: List[int], a: List[int]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    d = [int(data[1 + 2 * i]) for i in range(n)]\n    a = [int(data[2 + 2 * i]) for i in range(n)]\n    print(' '.join(map(str, reconstruct(d, a))))\n\n\nmain()\n",
+  "javascript": "function reconstruct(d, a) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst d = [], a = []\nfor (let i = 0; i < n; i++) {\n  d.push(t[1 + 2 * i])\n  a.push(t[2 + 2 * i])\n}\nconsole.log(reconstruct(d, a).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> reconstruct(vector<int>& d, vector<long long>& a) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> d(n);\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> d[i] >> a[i];\n    vector<long long> res = reconstruct(d, a);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] reconstruct(int[] d, long[] a) {\n        // Write your solution here\n        return new long[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] d = new int[n];\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); d[i] = (int) in.nval;\n            in.nextToken(); a[i] = (long) in.nval;\n        }\n        long[] res = reconstruct(d, a);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

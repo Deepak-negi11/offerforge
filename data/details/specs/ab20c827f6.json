@@ -1,0 +1,19 @@
+{
+ "qid": "ab20c827f6",
+ "question": "Microsoft As Appropriate (AA) round with a senior head of an AI department (SDE-1 loop). The interviewer first asked how AI is used at the candidate's company (non-technical discussion), then asked the candidate to write working Tic-Tac-Toe code (a complete `playGame` method), then asked them to generate the same thing with ChatGPT and compare the output. A different Microsoft LLD round for Tic-Tac-Toe started from requirements and flow, drew a UML diagram, then coded `Player`, `PlayingPiece`, `PieceType` and `Board` for a 3 by 3 board with 2 players, later scaling it up.",
+ "lookingFor": [
+  "Ability to turn a simple game into a clean object model.",
+  "Correct win and draw detection, ideally efficient.",
+  "Extensibility to N by N boards and more players.",
+  "Critical evaluation of AI-generated code rather than blind acceptance.",
+  "Communication of how AI is used responsibly at work."
+ ],
+ "answer": "**Design.** Entities: `enum PieceType {X, O}`, `Player(name, piece)`, `Board(n)`, `Game` with `playGame()`. Keep rendering and input out of `Board` so it can be tested.\n\n**Board logic.** Store a grid of `PieceType` (or null). `place(row, col, piece)` rejects out-of-range or occupied cells. To detect a win in O(1) per move instead of scanning the grid, keep counters: `rows[n]`, `cols[n]`, `diag`, `antiDiag`, adding +1 for one player and -1 for the other. After a move by a player the game is won if any affected counter has absolute value `n`. A draw is when `moves == n * n` without a winner.\n\n```java\nboolean move(int r, int c, int player) { // player is +1 or -1\n    rows[r] += player; cols[c] += player;\n    if (r == c) diag += player;\n    if (r + c == n - 1) anti += player;\n    return Math.abs(rows[r]) == n || Math.abs(cols[c]) == n\n        || Math.abs(diag) == n || Math.abs(anti) == n;\n}\n```\n**Game loop.** `playGame()`: alternate players from a queue (poll, play, offer back), read a move, validate it, apply it, check win or draw, and print the board. Handle invalid input by asking again, not by skipping the turn.\n\n**Extensions.** N by N boards, more than 2 players (use a distinct id per player, and sum counters per player in maps), undo via a move stack, an AI opponent through a `MoveStrategy` interface (random, then minimax), and different win lengths.\n\n**The AI comparison.** Be ready to discuss: generate with ChatGPT, then review it like a pull request. Check win detection for both diagonals, input validation, off-by-one errors, and whether it hardcodes 3. Say what the tool did well (boilerplate, speed) and what you verified yourself (tests, edge cases). Responsible AI usage means you remain accountable for correctness, do not paste confidential code into public tools, and treat generated output as a draft.\n\n**How AI is used at work.** Give honest, specific examples (test generation, debugging help, code review aid, documentation), the limits you saw, and the guardrails you follow. If you have not used it professionally, say how you use it in study and projects.",
+ "followUps": [
+  "How would you make win detection O(1) and extend it to N by N?",
+  "What would you change to support an AI opponent with minimax?",
+  "What mistakes did you find in the ChatGPT version, and how would you catch them?",
+  "How would you unit test this game?",
+  "What are the risks of using AI coding tools at work?"
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "qid": "ef2caf1500",
+ "question": "In a CRED backend intern machine-coding round on HackerRank, candidates had to implement a **file manager system** supporting **insert file/folder, delete file/folder, move file/folder, search by exact name and search by pattern**. In the later interview the follow-ups were: how to handle moving or adding an item when the **destination already has the same name**, how to implement a **wildcard pattern** in search, how to **isolate users who lack permission** on a shared system, and a Disjoint Set Union problem similar to LeetCode's Accounts Merge.",
+ "lookingFor": [
+  "Modelling files and folders cleanly (tree, composite pattern).",
+  "Correctness on edge cases: duplicates, moving a folder into itself, deleting non-empty folders.",
+  "Choice of data structures for search (map, trie) and their cost.",
+  "Extensibility to wildcards and permissions.",
+  "Clean, testable code under time pressure."
+ ],
+ "answer": "**Requirements (clarify first):** hierarchical paths; operations `insert(path, type)`, `delete(path)`, `move(src, destDir)`, `searchExact(name)`, `searchPattern(pattern)`. Ask: are names unique per folder? Is the search by name or full path? Is deleting a non-empty folder allowed?\n\n**Model (Composite pattern):**\n```\nabstract class Node { String name; Folder parent; }\nclass File   extends Node { }\nclass Folder extends Node { Map<String, Node> children; }\n```\nA `FileManager` holds the root folder and a global index `Map<String, Set<Node>> byName` for fast exact search.\n\n**Operations**\n- **Insert:** walk the path to the parent (HashMap lookup per segment), reject if the name exists, add the child and update the index. O(depth).\n- **Delete:** locate the node, detach from its parent, then remove it and its subtree from the index.\n- **Move:** validate that the destination is a folder and that you are **not moving a folder into its own subtree** (walk up from destination to root). Detach, reattach, update the parent pointer. Index entries by name are unchanged.\n- **Exact search:** `byName.get(name)`: O(1) plus result size.\n- **Pattern search:** prefix patterns (`rep*`) via a **trie** over names; general wildcards by scanning names with matching.\n\n**Name collision on move/insert:** pick a policy and make it explicit: reject with an error, overwrite, or auto-rename (`file (1).txt`). A **merge** policy for two folders recurses on children.\n\n**Wildcard (`*` any sequence, `?` one char):** convert to a regex, or run a DP/two-pointer match, as in LeetCode 44. Use a trie only for prefix filtering and then verify matches. Cost is O(total names x pattern length) in the worst case.\n\n**Permissions:** add an owner and an ACL (read/write per user or role) to each node, with checks in the manager before every operation and inheritance from the parent folder. Use a `User` and `Permission` enum, not scattered `if`s.\n\n**Concurrency and tests:** a read-write lock on the tree (or per-folder locks), and unit tests for each edge case above.",
+ "followUps": [
+  "How would you support undo for delete and move operations?",
+  "What is the time complexity of searching by pattern, and how would you speed it up?",
+  "How would you extend this to many users with different permissions?",
+  "How would you persist the tree and recover it after a crash?",
+  "Solve Accounts Merge with Disjoint Set Union and explain its complexity."
+ ]
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "cc9f45bd48",
+ "question": "Tower Research Capital, Core Intern (6-month), Technical Interview 2, low-level design. The candidate was asked to **design an OS-style file system using OOP**: files and directories where **list and delete work on both** (composite pattern), then support **adding or removing functionality dynamically**. A follow-up asked **how database indexing works (B-trees)**.",
+ "lookingFor": [
+  "Recognising the composite pattern for part-whole hierarchies.",
+  "Clean abstractions: an abstract item, with file and directory subclasses.",
+  "Composition over inheritance for extensibility.",
+  "Basic database knowledge: indexes and B-tree behaviour."
+ ],
+ "answer": "**Requirements.** Create files and directories, nest directories, `list`, `delete`, get size and path; directories contain files and directories; later add features (permissions, compression, logging) without rewriting the core.\n\n**Entities (composite pattern).**\n\n```java\nabstract class Item {\n    protected String name; protected Directory parent;\n    abstract long getSize();\n    abstract void list(int depth);\n    void delete() { if (parent != null) parent.remove(this); }\n}\nclass File extends Item {\n    private byte[] content;\n    long getSize() { return content.length; }\n    void list(int d) { /* print name */ }\n}\nclass Directory extends Item {\n    private Map<String, Item> children = new HashMap<>();\n    void add(Item i) { children.put(i.name, i); i.parent = this; }\n    void remove(Item i) { children.remove(i.name); }\n    long getSize() { return children.values().stream().mapToLong(Item::getSize).sum(); }\n    void list(int d) { children.values().forEach(c -> c.list(d + 1)); }\n}\n```\nClients treat `File` and `Directory` uniformly through `Item`, and `list` and `delete` recurse naturally. The structure is a **tree**: a root `Directory` holds children. Use a map for O(1) lookup by name, and resolve paths by splitting on `/`.\n\n**Dynamic functionality.** Prefer **composition** to deep inheritance:\n- Give items optional components or strategies (a `PermissionPolicy`, `Compressor`, `Logger`) injected at construction or runtime.\n- Or wrap with the **decorator pattern** (`LoggedItem`, `EncryptedFile`) that implements `Item` and delegates.\n- Use interfaces to define contracts between parts.\n\n**Edge cases and trade-offs.** Name clashes, deleting non-empty directories (recursive delete), cycles (disallow moving a directory into its own descendant), thread safety on shared trees, and sizes cached versus computed.\n\n**Follow-up: database indexing and B-trees.** An index is a separate sorted structure mapping column values to row locations, turning a full scan O(n) into a lookup O(log n). A **B-tree (B+ tree)** is a balanced, wide, multi-way tree whose nodes match disk pages, so a lookup needs few disk reads (height is typically 3 to 4). B+ trees keep all keys in linked leaves, supporting range queries well. Cost: extra storage and slower writes, since indexes must be updated.",
+ "followUps": [
+  "How would you implement move and copy for directories?",
+  "How would you add permissions without modifying `File` and `Directory`?",
+  "Why use a B+ tree rather than a binary search tree for an index?",
+  "How would you handle concurrent access to the file tree?"
+ ]
+}

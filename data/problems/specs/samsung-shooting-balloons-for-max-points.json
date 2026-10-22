@@ -1,0 +1,48 @@
+{
+ "pid": "samsung-shooting-balloons-for-max-points",
+ "title": "Shooting Balloons for Max Points",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "There are `n` balloons in a row and `n` bullets. Balloon `i` has a score `a[i]`. You shoot the balloons one at a time, in any order you choose, until all of them are gone. After a balloon is shot it disappears, and its former neighbours become adjacent.\n\nThe score starts at zero. When you shoot a balloon, the score increases by an amount that depends on the balloons **currently remaining** next to it:\n\n- if it has both a left neighbour and a right neighbour, add the **product** of the two neighbours' scores;\n- if it has only a left neighbour (it is the rightmost remaining balloon), add the left neighbour's score;\n- if it has only a right neighbour (it is the leftmost remaining balloon), add the right neighbour's score;\n- if it is the only balloon left, add its **own** score.\n\nThe shot balloon's own score is not used in the first three cases. Find the **maximum total score** over all shooting orders.\n\nThis is a variant of the classic Burst Balloons problem in which the missing neighbours at the ends are handled by the rules above instead of by imaginary balloons.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` space-separated integers `a[0] ... a[n-1]`.",
+ "output_format": "Print a single integer: the maximum total score.",
+ "constraints": [
+  "1 ≤ n ≤ 150",
+  "1 ≤ a[i] ≤ 100"
+ ],
+ "examples": [
+  {
+   "input": "4\n1 2 3 4",
+   "output": "20",
+   "explanation": "Shoot 3 first: neighbours 2 and 4, score 8, leaving [1, 2, 4]. Shoot 2: neighbours 1 and 4, score 4, leaving [1, 4]. Shoot 1: only a right neighbour 4, score 4, leaving [4]. Shoot 4: it is alone, score 4. Total 8 + 4 + 4 + 4 = 20, which is the best possible."
+  },
+  {
+   "input": "3\n3 1 5",
+   "output": "25",
+   "explanation": "Shoot 1 first: 3 * 5 = 15, leaving [3, 5]. Shoot 3: right neighbour 5 gives 5, leaving [5]. Shoot 5 alone: 5. Total 25."
+  },
+  {
+   "input": "1\n7",
+   "output": "7",
+   "explanation": "A single balloon is alone, so shooting it scores its own value."
+  }
+ ],
+ "complexity": {
+  "time": "O(n^3)",
+  "space": "O(n^2)"
+ },
+ "hints": [
+  "Trying every shooting order is n! work. Think about the interval [l, r] of balloons between two balloons that stay until the interval is cleared.",
+  "Instead of choosing which balloon to shoot first in an interval, choose which one is shot LAST. When it is shot, its neighbours are exactly the two balloons just outside the interval, so the two sub-intervals on its sides become independent.",
+  "Let `f(l, r)` be the best score for clearing balloons l..r while balloons l-1 and r+1 (if they exist) stay. The last shot k scores the product of a[l-1] and a[r+1], or just one of them if one side is missing, or a[k] if both are missing. Then `f(l, r) = max over k of f(l, k-1) + score + f(k+1, r)`."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = list(map(int, data[1:1 + n]))\n    # f[l][r] for 0 <= l <= r < n; empty intervals are 0\n    f = [[0] * (n + 1) for _ in range(n + 1)]  # f[l][r+1]\n    for length in range(1, n + 1):\n        for l in range(0, n - length + 1):\n            r = l + length - 1\n            has_l = l > 0\n            has_r = r < n - 1\n            if has_l and has_r:\n                last = a[l - 1] * a[r + 1]\n                best = max(f[l][k] + f[k + 1][r + 1] for k in range(l, r + 1)) + last\n            elif has_l:\n                best = max(f[l][k] + f[k + 1][r + 1] for k in range(l, r + 1)) + a[l - 1]\n            elif has_r:\n                best = max(f[l][k] + f[k + 1][r + 1] for k in range(l, r + 1)) + a[r + 1]\n            else:\n                best = max(f[l][k] + f[k + 1][r + 1] + a[k] for k in range(l, r + 1))\n            f[l][r + 1] = best\n    print(f[0][n])\n\nmain()\n",
+ "brute": "import sys\nfrom functools import lru_cache\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = tuple(map(int, data[1:1 + n]))\n\n@lru_cache(maxsize=None)\ndef best(state):\n    if not state:\n        return 0\n    res = 0\n    m = len(state)\n    for i in range(m):\n        if m == 1:\n            gain = state[0]\n        elif i == 0:\n            gain = state[1]\n        elif i == m - 1:\n            gain = state[m - 2]\n        else:\n            gain = state[i - 1] * state[i + 1]\n        res = max(res, gain + best(state[:i] + state[i + 1:]))\n    return res\n\nprint(best(a))\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a)) + '\\n' + ' '.join(map(str, a))\n    tests = [fmt([1, 2, 3, 4]), fmt([3, 1, 5]), fmt([7]), fmt([5, 9]), fmt([1, 1]), fmt([100, 100]), fmt([2, 2, 2, 2, 2]),\n             fmt([1, 100, 1]), fmt([100, 1, 100])]\n    for n in (2, 3, 4, 5, 6, 7, 8, 9):\n        for _ in range(2):\n            hi = rng.choice([5, 20, 100])\n            tests.append(fmt([rng.randint(1, hi) for _ in range(n)]))\n    tests.append(fmt([rng.randint(1, 100) for _ in range(150)]))\n    tests.append(fmt([100] * 150))\n    tests.append(fmt([rng.choice([1, 100]) for _ in range(150)]))\n    tests.append(fmt(list(range(1, 101)) + list(range(50, 0, -1))))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_points(a: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    print(max_points(a))\n\n\nmain()\n",
+  "javascript": "function maxPoints(a) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst a = t.slice(1, 1 + n)\nconsole.log(String(maxPoints(a)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxPoints(vector<int>& a) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    cout << maxPoints(a) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxPoints(int[] a) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] a = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (int) in.nval;\n        }\n        System.out.println(maxPoints(a));\n    }\n}\n"
+ }
+}

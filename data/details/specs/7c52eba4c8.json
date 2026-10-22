@@ -1,0 +1,19 @@
+{
+ "qid": "7c52eba4c8",
+ "question": "In a Razorpay SDE machine coding round (about two years of experience, product-based company background) the candidate was asked to design a rating service, first for a single user and then for multiple users, similar to a survey. The solution had to be coded and tested; the reporter completed it and cleared the round.\n\nThe problem is open-ended: you decide what is rated (an item, a driver, a question), how ratings are submitted, and what summaries are reported.",
+ "lookingFor": [
+  "Stating assumptions and extending the design from one user to many",
+  "A clean model: rater, rated entity, question or survey, response",
+  "Correct aggregate calculations (average, count, distribution) computed efficiently",
+  "Validation and duplicate handling, such as one rating per user per item",
+  "Testing and incremental delivery under time pressure"
+ ],
+ "answer": "**Clarify.** What is rated: a product, a trip, or survey questions? Scale (1 to 5)? Can a user rate the same target twice, or change a rating? Required reports: average rating, number of ratings, per-star distribution, a user's own ratings? Is it in-memory? Write assumptions down. State them as stage 1 (single user) and stage 2 (multiple users).\n\n**Stage 1: single user.** `Rating{userId, targetId, score, comment?, timestamp}`, `RatingService.rate(userId, targetId, score)`, `getAverage(targetId)`. Validate that the score is within range and that the target exists. For a survey, model `Survey{id, questions}`, `Question{id, text, type, options}`, and `Response{surveyId, userId, answers}`.\n\n**Stage 2: multiple users.** Store ratings in `Map<targetId, Map<userId, Rating>>` so one user has at most one rating per target (a second submission updates it). Maintain aggregates incrementally instead of recomputing: per target keep `count`, `sum` and `histogram[1..5]`. On a new rating add it; on an update subtract the old score and add the new one; on a delete reverse it. The average is `sum / count` in O(1). Never average pre-rounded averages.\n\n**Design.** Interfaces for storage (`RatingRepository`) and for aggregation (`AggregationStrategy`) so you can add weighted ratings or time-decay later. Keep the service thin and put validation in one place. Use `ConcurrentHashMap` with atomic updates, or lock per target, if multiple users submit concurrently.\n\n**Extras if time allows.** Top-N targets by average with a minimum count threshold (a 5.0 from one vote should not beat a 4.8 from a thousand: mention a Bayesian or weighted average), paging through reviews, and rate-limiting a user.\n\n**Tests.** First rating, second user, update replaces rather than adds, invalid score rejected, unknown target, average rounding, histogram counts.",
+ "followUps": [
+  "How would you rank items fairly when some have very few ratings?",
+  "How would you prevent a user from rating the same item repeatedly or from fake accounts?",
+  "How would you scale this to millions of ratings per day?",
+  "How would you extend the design to multi-question surveys with different answer types?",
+  "How would you make the aggregate update thread-safe?"
+ ]
+}

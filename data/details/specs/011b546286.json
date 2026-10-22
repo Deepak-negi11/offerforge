@@ -1,0 +1,17 @@
+{
+ "qid": "011b546286",
+ "question": "American Express, Technology Engineer Trainee, managerial round (campus). The candidate was asked to write DBMS queries: **find the employee with the second highest salary**, and **find the employees with the 10th to 15th highest salary**.",
+ "lookingFor": [
+  "Correct SQL for ranking problems and awareness of several approaches.",
+  "Handling ties and duplicate salary values.",
+  "Knowledge of window functions and LIMIT/OFFSET.",
+  "Edge cases: fewer than two distinct salaries, NULLs."
+ ],
+ "answer": "Assume `employees(id, name, salary)`.\n\n**Second highest salary (employees who earn it)**\n\n```sql\nSELECT * FROM employees\nWHERE salary = (SELECT MAX(salary) FROM employees\n                WHERE salary < (SELECT MAX(salary) FROM employees));\n```\nThe inner query finds the maximum, the middle query finds the largest salary below it (the second highest *distinct* value), and the outer query returns everyone with that salary. It returns an empty set if there is no second value, and is portable across databases.\n\n**Window-function version (clearer and generalises)**\n\n```sql\nSELECT * FROM (\n  SELECT e.*, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk\n  FROM employees e\n) t\nWHERE rnk = 2;\n```\n`DENSE_RANK` gives ties the same rank and does not skip numbers, so rank 2 is the second highest distinct salary. `RANK` would skip (1,1,3) and `ROW_NUMBER` would break ties arbitrarily, so ask the interviewer how ties should be treated.\n\n**10th to 15th highest**\n\n```sql\nSELECT * FROM (\n  SELECT e.*, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk\n  FROM employees e\n) t\nWHERE rnk BETWEEN 10 AND 15;\n```\nThis returns every employee in salary ranks 10-15 including ties. If the interviewer means *rows* (positions) rather than distinct salary levels, use `ORDER BY salary DESC LIMIT 6 OFFSET 9` (MySQL/PostgreSQL) or `OFFSET 9 ROWS FETCH NEXT 6 ROWS ONLY` (standard SQL/SQL Server/Oracle 12c+). Position-based paging splits tied rows arbitrarily, so add a tiebreaker like `id` for stable results.\n\n**Edge cases:** NULL salaries (filter or `NULLS LAST`), fewer than two employees, and performance: an index on `salary` helps `ORDER BY ... LIMIT`, while window functions sort the whole table.",
+ "followUps": [
+  "What is the difference between RANK, DENSE_RANK and ROW_NUMBER?",
+  "How would you find the second highest salary per department?",
+  "What does LIMIT 1 OFFSET 1 return if the top two salaries are equal?",
+  "How would you do this without window functions or LIMIT?"
+ ]
+}

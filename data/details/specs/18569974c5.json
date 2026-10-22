@@ -1,0 +1,19 @@
+{
+ "qid": "18569974c5",
+ "question": "In a Senior Technical Lead system design round at Paytm, the candidate was asked to **design the system that tracks the view count and like count of videos** at scale.\n\nThe candidate proposed a **write-back caching** strategy, and the interviewer's feedback pointed out that the missing piece was **aggregating the writes before persisting them to the main database**.\n\nA follow-up asked how a **video streaming system works** and **how the stream switches to a lower video quality** when conditions get worse.",
+ "lookingFor": [
+  "Can you reason about extremely write-heavy counters (millions of views per second) instead of one DB write per event?",
+  "Do you know write-back, write-through and batching/aggregation trade-offs, including what happens on a cache crash?",
+  "Can you discuss consistency: exact vs approximate counts, idempotency for likes (one per user) and double-counting views?",
+  "Do you understand adaptive bitrate streaming (HLS/DASH) at a high level?",
+  "Do you structure the answer with requirements, API, data model, scaling and failure handling?"
+ ],
+ "answer": "**Requirements.** Record a view when a user watches a video, record like/unlike, and show counts quickly on the video page. Assume reads far outnumber writes per user but views on a popular video can reach hundreds of thousands of events per second. Views can be approximate and slightly stale; likes must be correct per user (one like per user per video).\n\n**API.** `POST /videos/{id}/view`, `PUT/DELETE /videos/{id}/like`, `GET /videos/{id}/stats`.\n\n**Views (high volume, approximate).**\n1. The app server publishes a view event to a log such as Kafka, partitioned by `videoId`, instead of touching the database.\n2. Increment a counter in Redis (`INCR views:{id}`) so reads are fast.\n3. A consumer or flush job **aggregates** events in memory per `videoId` over a short window (for example 1-5 seconds) and writes one `UPDATE views = views + N` per video per window. This is the aggregation the interviewer wanted: 100,000 events for one video become one write.\n4. Write-back means the cache is ahead of the database, so a crash can lose the un-flushed window. Because the event log is durable, the consumer can replay from its last committed offset. Accept small loss or double counting for views.\n5. For a hot video, shard the counter (`views:{id}:{0..N}`) and sum on read to avoid a single hot key.\n\n**Likes (must be correct).** Store `(userId, videoId)` as a unique row so a repeated like is idempotent, and update the count from the changes (or aggregate in batches the same way). Use the unique key, not the counter, as the source of truth, and periodically reconcile the counter from it.\n\n**Reads.** Serve counts from cache, fall back to the DB, and show rounded values for large numbers.\n\n**Trade-offs.** Freshness vs write load, durability vs latency, exactness (likes) vs approximation (views). Add bot filtering and dedupe views by a minimum watch time.\n\n**Adaptive streaming.** The video is encoded into several bitrates and split into a few seconds per segment, with a manifest (HLS or MPEG-DASH) listing them. The player downloads segment by segment, measures throughput and buffer level, and requests the next segment from a lower-bitrate rendition when the network slows, and a higher one when it recovers. Segments are served from a CDN.",
+ "followUps": [
+  "How would you handle a viral video where a single key receives most of the traffic?",
+  "How do you make sure one user cannot inflate the view count?",
+  "What is the difference between write-through, write-back and write-around caching?",
+  "How would you design the like count so it survives a Redis failure?",
+  "What is the role of a CDN and a manifest file in adaptive bitrate streaming?"
+ ]
+}

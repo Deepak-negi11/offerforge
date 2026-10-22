@@ -1,0 +1,18 @@
+{
+ "qid": "751175a230",
+ "question": "Hiring Manager round, Adobe MTS-2 Android (about 2 years of experience). Acrobat Reader shows too many banners, dialogs, ads and feature promotions, and users complain. **Design a promotion-processor infrastructure** whose only job is to decide *when* a promotion should be displayed and tell the UI layer *which* promotion to show. Go from high-level design to low-level design. The round followed 12-15 cultural-fit questions and ran over time.",
+ "lookingFor": [
+  "Requirement gathering: asking questions before designing.",
+  "Separation of concerns: decision engine versus UI rendering.",
+  "Rule/priority design to limit user annoyance (frequency capping).",
+  "Low-level class design, extensibility and testability on Android.",
+  "Handling remote config, persistence and offline behaviour."
+ ],
+ "answer": "**Clarify requirements first.** Who defines promos (marketing via remote config)? What surfaces exist (banner, dialog, toast)? Goals: show at most one promo at a time, respect cool-downs, avoid interrupting key flows (e.g. while the user is signing a document), and make it measurable. Non-goals: the processor does not render UI.\n\n**High-level design.**\n- **Promo catalog:** a list of promos fetched from a backend/remote config, each with id, type, priority, eligibility rules, start/end dates, max impressions and cool-down.\n- **Context provider:** current screen, user state (free/paid, new/returning), app version, locale, recent events.\n- **Promotion processor (decision engine):** given a trigger (screen opened, feature used, app start) and context, returns the single best promo or none.\n- **State store:** local DB or preferences holding impression counts, last-shown times, dismissals and conversions.\n- **UI layer:** observes the result and renders it, then reports back shown/dismissed/clicked events.\n- **Analytics:** logs events for experiments and tuning.\n\n**Low-level design.**\n- `Promotion` (data class), `PromoRule` interface with `evaluate(context, state): Boolean`, and concrete rules: `FrequencyCapRule`, `CooldownRule`, `ScreenRule`, `UserSegmentRule`, `DateRangeRule`.\n- `PromoProcessor.getPromo(trigger, context): Promotion?` runs all rules (chain of responsibility), filters eligible promos, then picks by priority; a global rule enforces a minimum gap between any two promos.\n- `PromoRepository` (remote plus cached copy) and `PromoStateStore` (Room). Use dependency injection so rules are unit-testable with fake state and a fake clock.\n\n**Trade-offs and edge cases:** evaluate on a background thread, deliver the result via a Flow/LiveData; handle offline by using the cached catalog; avoid races by recording an impression atomically; support kill-switch and A/B experiments through remote config.",
+ "followUps": [
+  "How would you stop two promos being shown at the same moment from different screens?",
+  "How would you A/B test promotion timing and measure whether fewer promos improves retention?",
+  "Where would you store state so it survives reinstall or syncs across devices?",
+  "How do you add a new rule type without changing the processor?"
+ ]
+}

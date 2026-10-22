@@ -1,0 +1,18 @@
+{
+ "qid": "f572bbb0f0",
+ "question": "JPMorgan Chase, Software Engineer II (Associate), System Design round. **Design a URL shortener.** The interviewer discussed the **algorithm**, then the **overall architecture and system flow**, **caching strategy**, **database design** and the **data storage approach**, and asked detailed questions about how the data would be stored in the database.",
+ "lookingFor": [
+  "Clear requirements and back-of-the-envelope capacity estimates.",
+  "A sound short-code generation strategy and collision handling.",
+  "A data model that fits the access pattern.",
+  "Caching, scaling and availability reasoning for a read-heavy system.",
+  "Trade-offs, such as redirect status code and analytics."
+ ],
+ "answer": "**Requirements.** Create a short URL from a long URL, redirect quickly, optional custom alias and expiry, basic click analytics. Assume (state your own): 100 million new URLs per month (about 40 writes per second) and a 100:1 read ratio (about 4,000 redirects per second, peaks several times higher). Low redirect latency and high availability matter most; a link must never point to the wrong place.\n\n**API.** `POST /urls {longUrl, alias?, expiresAt?}` returns the short URL. `GET /{code}` returns a redirect (`301` is cacheable by browsers and reduces load; `302` lets you count every click and change targets).\n\n**Generating the code.** Use **base62** (a-z, A-Z, 0-9). Seven characters give 62^7, about 3.5 trillion, ample for this volume.\n- **Counter or ID based (preferred):** get a unique number from a ticket server or from pre-allocated ID ranges handed to each app server (so no coordination per request), then base62-encode it. No collisions, but codes are guessable; shuffle or add a bit permutation if that matters.\n- **Hash based:** hash the long URL (MD5 or SHA), take the first 7 characters; on collision, rehash with a salt. It dedupes identical URLs but needs collision checks.\n- **Random:** random 7 characters with a uniqueness check using a unique index.\n\n**Data model.** One table or key-value store: `code (PK)`, `long_url`, `user_id`, `created_at`, `expires_at`. Lookup is always by `code`, so a key-value store (DynamoDB, Cassandra) or a sharded relational database (shard by code hash) works. Storage: 100M URLs a month at about 500 bytes is roughly 50 GB a month, which is easily manageable. Add a unique index on `code` and optionally on a hash of the long URL for dedup.\n\n**Architecture.** Client, load balancer, stateless app servers, a **cache** (Redis, LRU eviction, put the hot 20 percent of codes there), then the database. Read path: cache hit, return redirect; miss, read the database and populate the cache. A CDN can cache popular redirects. Analytics go through an async queue so redirects stay fast.\n\n**Scaling and reliability.** Replicate the database, shard by code, rate-limit creation, expire old links with a TTL or background job, and block malicious targets.",
+ "followUps": [
+  "How do you avoid collisions when several servers generate codes?",
+  "301 or 302, and what does each change for analytics?",
+  "How would you support custom aliases and prevent abuse?",
+  "How would you handle a viral link that suddenly gets huge traffic?"
+ ]
+}

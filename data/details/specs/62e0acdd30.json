@@ -1,0 +1,17 @@
+{
+ "qid": "62e0acdd30",
+ "question": "JPMorgan Chase, Software Engineer II (Associate), Technical Interview. **Explain the CAP theorem** and **how scaling works in Kubernetes**; then two coding-style questions: **find the K largest integers** and explain the **merge sort** logic.",
+ "lookingFor": [
+  "Correct statement of CAP, including that partition tolerance is not optional.",
+  "Understanding of Kubernetes autoscaling layers.",
+  "Choosing a heap for top-K and justifying the complexity.",
+  "Being able to explain merge sort, its cost and stability."
+ ],
+ "answer": "**CAP theorem.** A distributed data store can provide at most two of: **Consistency** (every read sees the latest write), **Availability** (every request to a working node gets a non-error response) and **Partition tolerance** (the system keeps working when messages between nodes are lost). Network partitions happen in real systems, so the real choice is during a partition: **CP** (refuse or delay some requests to stay consistent, for example systems built on consensus) or **AP** (answer, possibly with stale data, and reconcile later, for example Dynamo-style stores). Without a partition you can have both; PACELC adds that there is also a latency vs consistency trade-off in normal operation.\n\n**Scaling in Kubernetes.**\n- **Manual or declarative:** change `replicas` in a Deployment (`kubectl scale`).\n- **Horizontal Pod Autoscaler (HPA):** adds or removes pod replicas based on CPU, memory or custom metrics against a target.\n- **Vertical Pod Autoscaler (VPA):** adjusts a pod's resource requests and limits.\n- **Cluster Autoscaler:** adds or removes nodes when pods cannot be scheduled or nodes are underused.\nSet resource requests so the scheduler and HPA work properly; services and a load balancer spread traffic across replicas; stateless apps scale easily, stateful ones need StatefulSets and care.\n\n**K largest integers.** Keep a **min-heap of size K**: push each element, and when the size exceeds K, pop the smallest. After one pass the heap holds the K largest. Time O(n log k), space O(k).\n\n```java\nPriorityQueue<Integer> pq = new PriorityQueue<>();\nfor (int x : nums) { pq.offer(x); if (pq.size() > k) pq.poll(); }\n```\nAlternatives: sort and take the last K (O(n log n)), or **quickselect** (O(n) average, O(n^2) worst case).\n\n**Merge sort.** Divide the array into halves, recursively sort each, then **merge** two sorted halves with two pointers into a temporary array. Recurrence T(n) = 2T(n/2) + O(n), so **O(n log n)** in all cases, O(n) extra space, and it is **stable**. It suits linked lists and external sorting.",
+ "followUps": [
+  "Which would you pick for a banking ledger, CP or AP, and why?",
+  "Why can't HPA scale a database that holds state?",
+  "When is quickselect better than a heap for top-K?",
+  "How would you sort a file that does not fit in memory?"
+ ]
+}

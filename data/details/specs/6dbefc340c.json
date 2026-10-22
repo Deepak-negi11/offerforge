@@ -1,0 +1,17 @@
+{
+ "qid": "6dbefc340c",
+ "question": "Dream11 SDE-2, round 2 (datastores). The question: **how would you scale out an overloaded Kafka queue? How do you know it is under load, and how would you lessen the load, including rebalancing strategies?** (The candidate said they struggled here.)",
+ "lookingFor": [
+  "Knowing which metrics reveal an overloaded topic or consumer group.",
+  "Understanding of partitions and consumer group parallelism.",
+  "Correct trade-offs when adding partitions or consumers.",
+  "Rebalancing behaviour and how to reduce disruption."
+ ],
+ "answer": "**Detecting load.** First find which side is the bottleneck.\n- **Consumer lag** (log end offset minus committed offset) per partition, and its trend. Growing lag means consumers are slower than producers.\n- **Broker health:** CPU, disk I/O, network throughput, request queue time, produce/fetch latency, under-replicated partitions, ISR shrinks.\n- **Partition skew:** one hot partition (bad key distribution) while others are idle.\n- **Producer side:** send errors, retries, batch sizes, buffer exhaustion.\n- **Consumer side:** processing time per record, `max.poll.interval.ms` timeouts, frequent rebalances.\n\n**Reducing load**\n1. **Fix consumers first.** Optimise processing, batch downstream writes, move slow I/O off the poll thread, and use bounded concurrency.\n2. **Scale the consumer group.** Parallelism is limited by the number of partitions: consumers beyond that count sit idle.\n3. **Add partitions** if needed. Caveat: it changes key-to-partition mapping, so per-key ordering is broken for existing keys, and partitions cannot be reduced. Sometimes create a new topic with more partitions and migrate.\n4. **Fix key skew:** better partitioning key, salting hot keys.\n5. **Producers:** batching (`linger.ms`, `batch.size`), compression, and avoiding tiny messages.\n6. **Brokers:** add brokers and reassign partitions to spread leaders and replicas; use faster disks.\n7. **Tiered/priority topics, quotas, and back-pressure** to protect the cluster.\n\n**Rebalancing.** Adding or removing consumers triggers a group rebalance. The classic eager protocol stops all consumers; **cooperative incremental rebalancing** (`CooperativeStickyAssignor`) moves only the affected partitions. **Static group membership** (`group.instance.id`) with a session timeout avoids rebalances on brief restarts. Tune `session.timeout.ms` and `max.poll.records`.\n\n**Mention** idempotent consumers, because rebalances can cause reprocessing.",
+ "followUps": [
+  "Why can't you have more active consumers than partitions?",
+  "What problems come from adding partitions to an existing topic?",
+  "How would you handle one hot partition?",
+  "What is the difference between eager and cooperative rebalancing?"
+ ]
+}

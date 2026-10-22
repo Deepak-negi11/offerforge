@@ -1,0 +1,17 @@
+{
+ "qid": "14f94eaf08",
+ "question": "In C, differentiate a **structure** from a **union**. How is the **size of a structure** determined?",
+ "lookingFor": [
+  "Understanding of memory layout: separate members versus shared storage.",
+  "Knowing alignment and padding, not just \"sum of members\".",
+  "Ability to compute `sizeof` for a small example.",
+  "Practical uses of unions (tagged unions, type punning caveats)."
+ ],
+ "answer": "**Structure.** A `struct` groups members of possibly different types, and **each member has its own storage**, laid out in declaration order. All members can hold values at the same time.\n\n**Union.** A `union` also groups members, but **all members share the same memory**, starting at the same address. Only one member holds a valid value at a time; writing to one overwrites the others.\n\n| | struct | union |\n|---|---|---|\n| Memory | sum of members plus padding | size of the largest member (plus padding) |\n| Members active | all | one at a time |\n| Use | records, objects | save memory, variant data, reinterpreting bytes |\n\n**Size of a structure.** There is no fixed size. It depends on the member types and the target's **alignment rules**. The compiler inserts **padding** so each member sits at an address that is a multiple of its alignment, and pads the end so the total size is a multiple of the largest member's alignment (so arrays of the struct stay aligned).\n\n```c\nstruct A { char c; int i; char d; };   // typical sizeof = 12 (4-byte int)\nstruct B { int i; char c; char d; };   // typical sizeof = 8\nunion  U { char c; int i; double d; }; // typical sizeof = 8\n```\n\nFor `A`: `c` at offset 0, 3 bytes of padding, `i` at 4, `d` at 8, 3 bytes of tail padding, giving 12. Reordering members from largest to smallest in `B` reduces padding. Always use `sizeof(struct A)` rather than assuming numbers; the values above are for a common platform with a 4-byte `int`.\n\n**Uses of unions.** A tagged union stores a `type` field plus a union of possible payloads (for example a token that is an int, a float or a string), saving memory. Reading a different member than the one last written is implementation-defined in C89, and defined for reinterpretation in C99/C11 for many cases, but avoid relying on it.\n\n**Packing.** `#pragma pack` or `__attribute__((packed))` removes padding but may cause slower or unaligned access.",
+ "followUps": [
+  "Why does reordering struct members change its size?",
+  "What is a bit field, and how does it affect struct size?",
+  "How would you implement a variant type using a struct and a union?",
+  "What is structure padding and can it be removed safely?"
+ ]
+}

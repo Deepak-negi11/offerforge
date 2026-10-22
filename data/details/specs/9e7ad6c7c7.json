@@ -1,0 +1,18 @@
+{
+ "qid": "9e7ad6c7c7",
+ "question": "Reported from a Technical Interview 2 for a Senior Software Engineer (SDE-2) role at Paytm. You are given a **200GB CSV file** and must **process every row**; loading it fully into memory is not feasible.\n\n- How would you process the file row by row without loading all of it into memory?\n- What tools or techniques would you use to handle such a large file?\n- How would you optimise performance, and how would you handle bottlenecks such as **I/O speed and memory limits**?",
+ "lookingFor": [
+  "Do you know to stream (iterate lazily) instead of reading the whole file?",
+  "Can you separate I/O-bound from CPU-bound work and choose the right parallelism?",
+  "Do you handle correctness issues: quoted fields with newlines, bad rows, encoding, and restart after failure?",
+  "Do you know when to reach for bigger tools (chunking, Spark, a database bulk loader) versus a single-machine stream?",
+  "Do you measure and find the real bottleneck before optimising?"
+ ],
+ "answer": "**Core idea: stream, do not load.** Memory use should depend on the size of one row (or one chunk), not the file size. Open the file and read it incrementally with a buffered reader, one row or one block at a time. In Java use `BufferedReader` (or `Files.lines`); in Python iterate the file object or use `csv.reader`, or `pandas.read_csv(chunksize=...)`; in Node a read stream plus a CSV parser. Never call `readAll` or build a list of all rows.\n\n**Correctness details.**\n- Use a real CSV parser, not `split(\",\")`: quoted fields can contain commas and newlines.\n- Handle encoding (UTF-8), the header row, and malformed rows (log and skip, or send to a reject file).\n- Make progress **resumable**: record the byte offset or row count of the last committed batch, so a crash does not mean restarting 200GB.\n\n**Performance.**\n1. **Find the bottleneck first.** If the work is I/O bound (reading disk, writing to a database or calling an API), more CPU will not help. If it is CPU bound (parsing, transformation), use parallelism.\n2. **Batch output.** Write to the database in bulk (batched inserts or a bulk-load command) instead of one row at a time; this is usually the biggest win.\n3. **Parallelise safely.** Split the file into byte ranges (aligning each range to the next newline) and process ranges in parallel workers, or use one reader feeding a bounded queue consumed by a worker pool. The bounded queue gives backpressure so the reader cannot outrun the workers and fill memory.\n4. **Reduce I/O.** Sequential reads are fast; use large buffers, avoid re-reading, and compress intermediate data. Memory-mapped files can help but are not required.\n5. **Scale out if needed.** If one machine is too slow, put the file on distributed storage and use Spark, or split it into chunks and process in parallel jobs.\n\n**Operational points.** Keep the heap small and watch for accidental retention (for example, collecting results in a list). Track throughput (rows per second) and estimate completion. Make writes idempotent (upserts or unique keys) so retries are safe.",
+ "followUps": [
+  "How would you split the file into parallel chunks when rows can contain newlines inside quotes?",
+  "How do you make the job restartable after a failure at row 80 million?",
+  "When would you use Spark or a database bulk loader rather than a single-process stream?",
+  "How would you check that you are I/O bound and not CPU bound?"
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "qid": "8626a70a47",
+ "question": "System design round for an MTS role (experienced), combined with a hiring manager discussion. Design a **large-scale payment processing platform** end to end. The candidate started with a high-level architecture and then went into detail on:\n\n- request flow,\n- scalability and reliability,\n- consistency and idempotency,\n- failure handling and retry mechanisms,\n- database choices,\n- monitoring and observability.\n\nMost follow-up questions were about design trade-offs and non-functional requirements.",
+ "lookingFor": [
+  "Do you treat money as a correctness-first problem (no double charge, no lost payment)?",
+  "Do you understand idempotency keys, retries and exactly-once effects?",
+  "Can you reason about consistency, ledgers and reconciliation with external providers?",
+  "Do you design for failure: timeouts, partial failure, unknown outcome?",
+  "Can you discuss monitoring, alerting and auditability?"
+ ],
+ "answer": "**Requirements.** Merchants create a payment; customers pay by card, wallet or bank; the platform talks to external payment providers; supports refunds and webhooks. Non-functional: **correctness above all**, high availability, low latency for authorisation, auditability and security (PCI scope, tokenised card data). Assume thousands of payments per second at peak.\n\n**Request flow.** Client, then API gateway (auth, rate limit), then a payment service which validates the request, writes a `payment` record in state `CREATED`, calls the provider, and moves the state through `PENDING`, `SUCCEEDED` or `FAILED`. Slow steps (notifications, receipts, settlement) go through a message queue.\n\n**Idempotency.** Every create request carries an **idempotency key**. Store `(merchant, key) -> request hash and result` with a unique constraint; a repeated request returns the stored result instead of charging again. Pass the same key to the provider. This is what makes retries safe.\n\n**Failure handling.** The dangerous case is a **timeout with unknown outcome**: do not assume failure. Mark the payment `PENDING`, query the provider's status API or wait for a webhook, and reconcile. Retries use exponential backoff with jitter and a retry limit; use circuit breakers per provider and fail over to another provider where possible. Use a state machine with allowed transitions only; use an outbox table so state change and event publish are atomic.\n\n**Data and consistency.** Use a relational database with ACID transactions for payments and a **double-entry ledger** (every movement is a debit and a credit, entries immutable, balances derived). Partition by merchant or payment id for scale, with replicas for reads only. Do not use eventual consistency for the balance itself.\n\n**Reconciliation.** A daily job compares our ledger with provider settlement files and flags mismatches.\n\n**Observability.** Metrics (success rate, latency, provider error rates), structured logs with a payment id for tracing, alerts on success-rate drops and stuck `PENDING` payments, audit trail.",
+ "followUps": [
+  "What exactly does an idempotency key protect against, and how long do you keep it?",
+  "How do you handle a webhook that arrives twice or out of order?",
+  "How would you do a refund safely?",
+  "Why a relational database for the ledger rather than a NoSQL store?",
+  "How do you achieve this across two services without a distributed transaction?"
+ ]
+}

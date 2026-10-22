@@ -1,0 +1,48 @@
+{
+ "pid": "zomato-minimum-steps-to-fill-a-binary-matrix",
+ "title": "Minimum Steps to Fill a Binary Matrix",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a binary matrix with `r` rows and `c` columns. In one **step**, every cell containing `0` that is adjacent to a cell containing `1` (up, down, left or right) becomes `1`. All cells change at the same moment: a cell turned to `1` in a step does not affect other cells until the next step.\n\nReturn the minimum number of steps after which every cell of the matrix is `1`. If the matrix is already all `1`, the answer is `0`. If it can never become all `1` (because it contains no `1` at all), return `-1`.",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains a string of `c` characters, each `0` or `1`, describing one row (no spaces).",
+ "output_format": "Print a single integer: the number of steps, or `-1` if the matrix can never be all `1`.",
+ "constraints": [
+  "1 ≤ r, c ≤ 500",
+  "Each cell is `0` or `1`"
+ ],
+ "examples": [
+  {
+   "input": "3 3\n000\n010\n000",
+   "output": "2",
+   "explanation": "Step 1 turns the four neighbours of the centre into 1. Step 2 turns the four corners into 1, so the matrix is full after 2 steps."
+  },
+  {
+   "input": "2 4\n1000\n0001",
+   "output": "2",
+   "explanation": "Step 1 turns the neighbours of the two ones into 1, giving rows `1101` and `1011`. Only cells (0,2) and (1,1) are still 0, and both touch a 1, so step 2 fills the matrix."
+  },
+  {
+   "input": "2 2\n00\n00",
+   "output": "-1",
+   "explanation": "There is no 1 to spread from, so no cell ever changes."
+  }
+ ],
+ "complexity": {
+  "time": "O(r * c)",
+  "space": "O(r * c)"
+ },
+ "hints": [
+  "Think of the process as spreading outward from every `1` at the same time, one layer per step.",
+  "Start a breadth-first search with all the `1` cells in the queue at distance 0. The distance at which a cell is first reached is the step in which it turns into `1`.",
+  "The answer is the largest distance over all cells. If there was no `1` to start from, the queue is empty and the answer is -1."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    rows = data[2:2 + r]\n    dist = [-1] * (r * c)\n    q = []\n    for i in range(r):\n        row = rows[i]\n        for j in range(c):\n            if row[j] == '1':\n                dist[i * c + j] = 0\n                q.append(i * c + j)\n    if not q:\n        print(-1)\n        return\n    qi = 0\n    while qi < len(q):\n        x = q[qi]\n        qi += 1\n        i, j = divmod(x, c)\n        d = dist[x] + 1\n        if i > 0 and dist[x - c] < 0:\n            dist[x - c] = d\n            q.append(x - c)\n        if i < r - 1 and dist[x + c] < 0:\n            dist[x + c] = d\n            q.append(x + c)\n        if j > 0 and dist[x - 1] < 0:\n            dist[x - 1] = d\n            q.append(x - 1)\n        if j < c - 1 and dist[x + 1] < 0:\n            dist[x + 1] = d\n            q.append(x + 1)\n    print(max(dist))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\ng = [list(data[2 + i]) for i in range(r)]\nsteps = 0\nwhile True:\n    if all(ch == '1' for row in g for ch in row):\n        print(steps)\n        break\n    new = [row[:] for row in g]\n    changed = False\n    for i in range(r):\n        for j in range(c):\n            if g[i][j] == '0':\n                for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n                    a, b = i + di, j + dj\n                    if 0 <= a < r and 0 <= b < c and g[a][b] == '1':\n                        new[i][j] = '1'\n                        changed = True\n                        break\n    if not changed:\n        print(-1)\n        break\n    g = new\n    steps += 1\n",
+ "generator": "def gen(rng):\n    def fmt(rows):\n        return f\"{len(rows)} {len(rows[0])}\\n\" + '\\n'.join(rows)\n    def rnd(r, c, p):\n        return [''.join('1' if rng.random() < p else '0' for _ in range(c)) for _ in range(r)]\n    tests = [fmt(['0']), fmt(['1']), fmt(['0000']), fmt(['0', '0', '1']), fmt(['111', '111']), fmt(['000', '010', '000']), fmt(['1000', '0001'])]\n    for (r, c) in ((1, 5), (5, 1), (2, 3), (3, 3), (4, 4), (5, 6), (6, 7), (8, 8), (10, 9)):\n        for p in (0.02, 0.1, 0.4):\n            tests.append(fmt(rnd(r, c, p)))\n    R = C = 500\n    rows = [['0'] * C for _ in range(R)]\n    rows[0][0] = '1'\n    tests.append(fmt([''.join(x) for x in rows]))\n    rows = [['0'] * C for _ in range(R)]\n    rows[R // 2][C // 2] = '1'\n    tests.append(fmt([''.join(x) for x in rows]))\n    tests.append(fmt(rnd(R, C, 0.0005)))\n    tests.append(fmt(rnd(R, C, 0.3)))\n    tests.append(fmt(['0' * C for _ in range(R)]))\n    tests.append(fmt(['1' * C for _ in range(R)]))\n    tests.append(fmt(['0' * 500] * 1 ))\n    rows = [['0'] * 500 for _ in range(1)]\n    rows[0][0] = '1'\n    tests.append(fmt([''.join(x) for x in rows]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_steps(grid: List[str]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    grid = data[2:2 + r]\n    print(min_steps(grid))\n\n\nmain()\n",
+  "javascript": "function minSteps(grid) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst r = Number(t[0])\nconst grid = t.slice(2, 2 + r)\nconsole.log(minSteps(grid))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minSteps(vector<string>& grid) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<string> grid(r);\n    for (int i = 0; i < r; i++) cin >> grid[i];\n    cout << minSteps(grid) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minSteps(String[] grid) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int r = Integer.parseInt(st.nextToken());\n        int c = Integer.parseInt(st.nextToken());\n        String[] grid = new String[r];\n        for (int i = 0; i < r; i++) grid[i] = br.readLine().trim();\n        System.out.println(minSteps(grid));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "55e50ba39b",
+ "question": "Adobe MTS-2 (experienced), technical round 3 (60 minutes, hard). One question: **design efficient storage and lookup of words from a very large file.** The discussion covered using a **trie** for storage and how to handle **disk I/O** and **caching**. Assume the word list does not fit comfortably in memory, and clarify the operations (exact lookup, prefix search) and the read/write mix.",
+ "lookingFor": [
+  "Choosing a data structure with a memory and time justification.",
+  "Thinking about what happens when data exceeds RAM: on-disk layout and I/O cost.",
+  "Designing a caching strategy and measuring its value.",
+  "Awareness of alternatives such as hash indexes, B-trees and LSM trees."
+ ],
+ "answer": "**Clarify.** How many words (say 100M), average length, static or growing, exact lookup only or also prefix search, latency target (say under 10 ms), and how much RAM is available.\n\n**In-memory option: trie.** Lookup and insert are O(L) regardless of the number of words, and common prefixes are shared. Problem: a naive trie with 26 pointers per node is huge. Reduce memory with:\n- **Compressed (radix) tries**: merge single-child chains.\n- Sparse child storage (sorted arrays or hash maps) instead of fixed 26-slot arrays.\n- A **DAWG/FST** (finite state transducer) for static dictionaries, which shares suffixes too and can be orders of magnitude smaller. Lucene uses FSTs for its term dictionary.\n\n**When it does not fit in RAM.**\n- Store the structure on disk in **fixed-size pages** (4 KB) so one disk read fetches many nodes. Keep the top levels of the trie (which are hot and few) in memory, and fetch the deeper levels on demand. Lay out nodes so that a node's children are adjacent to reduce seeks.\n- Alternative: a **B-tree or B+ tree** keyed by word, which is inherently page-oriented and gives lookup in a few disk reads and cheap range or prefix scans. For write-heavy loads use an **LSM tree** (SSTables plus a Bloom filter to skip files that cannot contain the word).\n- A simple, cheap alternative for exact lookups: a sorted file plus a sparse in-memory index (every k-th word) and binary search, or a hash index.\n\n**Reducing disk I/O.** Build the index once from the file with an external sort. Use sequential reads for building and memory-mapped files (`mmap`) or direct page reads for lookup. Add a **Bloom filter** in memory to reject absent words without touching disk.\n\n**Caching.** An LRU cache of recently used pages (or of results). Word access is usually skewed (Zipf-like), so a small cache gets a high hit rate. Measure the hit ratio, and warm the cache with the most common words.\n\n**Scaling.** Shard by first characters or hash of the word across machines, replicate for availability, and update using a small in-memory delta merged periodically.",
+ "followUps": [
+  "How would you support prefix autocomplete returning the top 10 most frequent completions?",
+  "Compare a trie against a hash table for this problem in terms of memory and speed.",
+  "How would you build the index if the file is 500 GB?",
+  "What is a Bloom filter, and what is the cost of a false positive here?"
+ ]
+}

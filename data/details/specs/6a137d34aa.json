@@ -1,0 +1,18 @@
+{
+ "qid": "6a137d34aa",
+ "question": "In a Texas Instruments Embedded Software Intern interview (conducted in C), the candidate was asked: **What is a finite state machine (FSM), and write the code for an FSM with three states.** The use of the `switch` statement was also discussed, along with `volatile`, what an embedded system is, and microcontrollers.",
+ "lookingFor": [
+  "Do you understand states, events/inputs and transitions?",
+  "Can you turn a state diagram into clean C code?",
+  "Do you know the switch-based and table-driven styles and their trade-offs?",
+  "Do you handle invalid states and keep the logic testable?",
+  "Do you connect FSMs to real embedded uses?"
+ ],
+ "answer": "**What an FSM is**\nA finite state machine is a model with a finite set of **states**, of which exactly one is active at a time, plus **events or inputs** that cause **transitions** between states and optional **actions** (outputs) on entry, exit or transition. It makes the behaviour of a device predictable and easy to test. Embedded uses: traffic lights, button debouncing, protocol parsers (UART or I2C), motor control, device modes (idle, running, error).\n\n**Example: a traffic light with three states**\n```c\n#include <stdio.h>\n\ntypedef enum { STATE_RED, STATE_GREEN, STATE_YELLOW } state_t;\n\nstatic state_t next_state(state_t s)\n{\n    switch (s) {\n    case STATE_RED:    return STATE_GREEN;\n    case STATE_GREEN:  return STATE_YELLOW;\n    case STATE_YELLOW: return STATE_RED;\n    default:           return STATE_RED;   /* recover from invalid state */\n    }\n}\n\nint main(void)\n{\n    const char *names[] = { \"RED\", \"GREEN\", \"YELLOW\" };\n    state_t s = STATE_RED;\n    for (int tick = 0; tick < 6; tick++) {\n        printf(\"%s\\n\", names[s]);\n        s = next_state(s);\n    }\n    return 0;\n}\n```\nOutput: RED, GREEN, YELLOW, RED, GREEN, YELLOW.\n\nReal machines also react to **events**: the transition function takes `(state, event)`, for example in a `switch (state)` with an inner `if (event == EV_BUTTON)`. A timer tick or an interrupt flag normally supplies the event.\n\n**Switch vs table-driven**\n- *switch/case:* easy to read and add actions to, but grows large and needs care with `break`.\n- *Table-driven:* a 2D array `next[state][event]` (and optionally action function pointers) keeps the logic as data, which is compact and easy to extend.\n\n**Good practice**\n- Use an `enum` for states, never raw integers.\n- Add a `default` branch that moves to a safe state.\n- Keep the state variable private to the module; mark variables changed in an ISR as `volatile`.\n- Call the machine from a main loop or a periodic task; do not block inside states.",
+ "followUps": [
+  "How would you add an event input and an error state?",
+  "How would you write the same machine in table-driven form?",
+  "What is the difference between a Moore and a Mealy machine?",
+  "How would you debounce a button using an FSM?"
+ ]
+}

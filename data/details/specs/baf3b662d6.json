@@ -1,0 +1,19 @@
+{
+ "qid": "baf3b662d6",
+ "question": "In a combined LLD and HLD round (about 60 minutes) for an SDE-2 backend role at Swiggy, the candidate was asked to design a **train ticket booking system**.\n\nThe entities discussed were **Train, Coach, Seat, Booking, User and a Search Service**. The interviewer wanted the design to cover **seat allocation, concurrency control for simultaneous bookings, waitlist logic and a basic high-level design**.",
+ "lookingFor": [
+  "Can you model trains, journeys, coaches, seats and bookings with correct relationships?",
+  "Do you realise availability depends on the journey segment, not just the seat?",
+  "Do you prevent double-booking under concurrent requests, and explain the mechanism?",
+  "Can you design waitlist promotion and cancellation flows?",
+  "Can you extend the class design into a coherent high-level architecture?"
+ ],
+ "answer": "**Requirements.** Search trains between stations on a date, view seat availability, book seats for passengers, pay, cancel, and join a waitlist when full. Assume read-heavy search and bursty booking traffic (for example when a popular train opens for booking).\n\n**Entities.**\n- `Train(id, name, route: ordered list of stops)`; `Coach(id, trainId, type, seatCount)`; `Seat(id, coachId, number, berthType)`.\n- `Journey/Schedule(id, trainId, date)`: a train running on a date. Availability belongs here.\n- `Booking(id, userId, journeyId, fromStop, toStop, status: CONFIRMED | WAITLISTED | RAC | CANCELLED, pnr)` with `Passenger` lines that reference a seat.\n- `SearchService`, `BookingService`, `PaymentService`, `NotificationService`.\n\n**Key modelling point: segments.** A seat can be sold to A to B and again to B to C. Model seat occupancy per segment (journey, seat, segment index), or keep intervals per seat and check for overlap with the requested range.\n\n**Seat allocation.** A strategy interface (`SeatAllocationStrategy`) picks seats: honour preference (lower berth), keep family together, then fill lowest-fragmentation first. Strategy pattern keeps it swappable.\n\n**Concurrency.**\n- Booking is a transaction: reserve seats, take payment, confirm. Between reserve and pay, hold seats with a short expiry (for example a few minutes).\n- Prevent double-booking with a unique constraint on `(journeyId, seatId, segment)` or a conditional update; or a lock per journey/coach in memory for the LLD answer. Optimistic version checks with retry are fine when conflicts are rare.\n- Locks must be taken in a consistent order (sorted seat ids) to avoid deadlocks.\n\n**Waitlist.** If no seats remain, create a `WAITLISTED` booking with a queue position (FIFO per journey and class). On cancellation, free the segments and promote the head of the queue whose range fits.\n\n**High-level design.** API gateway, search service backed by a read replica or search index with cached availability counts, booking service on a relational database (strong consistency for seats), a message queue for notifications and waitlist promotion, Redis for seat holds.\n\n**Trade-offs.** Strong consistency for booking, eventual consistency for search counts; cache invalidation on every booking.",
+ "followUps": [
+  "How do you handle a booking that spans several stations when seats are sold per segment?",
+  "What happens if payment succeeds but the seat hold has already expired?",
+  "How would you handle a flash rush when booking opens for a popular train?",
+  "How would the waitlist promote a passenger whose requested segment is partly free?",
+  "How do you keep search availability counts fresh without hurting booking throughput?"
+ ]
+}

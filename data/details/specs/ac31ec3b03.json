@@ -1,0 +1,17 @@
+{
+ "qid": "ac31ec3b03",
+ "question": "Cisco software engineering intern, technical round. After project questions, the interviewer asked: **what is a REST API, what other API styles exist, and how does POST differ from PUT?** Basics followed: how you query and how you pass values in headers. Then: **web caches, conditional GET and proxy servers**, and which data structure to use to implement a cache. The candidate guessed hash map, then queues, then priority queue. The interviewer pushed for better and hinted at a doubly linked list, and then they coded an LRU cache together, using a set to check membership.",
+ "lookingFor": [
+  "Clear REST principles and HTTP method semantics, including idempotency.",
+  "Knowing other API styles and when each fits.",
+  "Understanding of HTTP caching and validators (ETag, Last-Modified).",
+  "Ability to design and code an LRU cache with O(1) operations."
+ ],
+ "answer": "**REST.** Representational State Transfer is an architectural style for HTTP APIs: resources identified by URLs (`/users/42`), manipulated with standard methods (GET, POST, PUT, PATCH, DELETE), **stateless** requests, representations (usually JSON), cacheable responses and a uniform interface. **Other styles:** SOAP (XML, strict contracts), GraphQL (client chooses fields from a single endpoint), gRPC (binary Protocol Buffers over HTTP/2, strongly typed), and WebSockets (bidirectional streaming).\n\n**POST vs PUT.** POST creates a subordinate resource or triggers an action; the server picks the URL; it is **not idempotent** (repeating it can create duplicates). PUT replaces the resource at a known URL with the given representation (or creates it there); it is **idempotent**: repeating gives the same state. PATCH applies a partial update. Parameters travel in the path, the query string, headers (auth tokens, content type) or the body.\n\n**HTTP caching.** A web cache stores responses to avoid refetching. `Cache-Control` (max-age, no-store) and `Expires` set freshness. When stale, the client revalidates with a **conditional GET**: `If-None-Match` with the stored ETag, or `If-Modified-Since`. If unchanged, the server returns **304 Not Modified** with no body, saving bandwidth. A **proxy server** sits between clients and servers (forward proxy for clients, reverse proxy in front of servers); it can cache, filter, load-balance and hide identities.\n\n**LRU cache design.** Need O(1) get and put. Use a **hash map** from key to node plus a **doubly linked list** ordered by recency. On `get`, move the node to the front; on `put`, insert at the front and, if over capacity, remove the tail node and its map entry. The map gives O(1) lookup and the list gives O(1) move and eviction. A priority queue costs O(log n) per update and a plain queue cannot move middle items. (The map already answers membership, so a separate set is unnecessary.)\n\n**Complexity.** O(1) per operation, O(capacity) space.",
+ "followUps": [
+  "Why is PUT idempotent but POST not? Give an example.",
+  "What status codes would you return for create, update and delete?",
+  "How would you make the LRU cache thread-safe?",
+  "What is the difference between a forward proxy and a reverse proxy?"
+ ]
+}

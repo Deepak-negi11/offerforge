@@ -1,0 +1,48 @@
+{
+ "pid": "groww-maximum-sum-of-gcd-pairs",
+ "title": "Maximum Sum of GCD Pairs",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given `2N` positive integers. Split them into `N` **pairs** so that every number belongs to exactly one pair. The score of a pair is the **greatest common divisor (GCD)** of its two numbers, and the score of a pairing is the sum of the scores of its `N` pairs.\n\nReturn the **maximum total score** over all possible ways to pair up the numbers. Numbers are distinguished by position, so equal values at different positions may be paired with each other.",
+ "input_format": "The first line contains an integer `N`.\nThe second line contains `2N` space-separated integers.",
+ "output_format": "Print one integer: the maximum total score.",
+ "constraints": [
+  "1 ≤ N ≤ 10",
+  "1 ≤ a[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "2\n12 18 8 6",
+   "output": "10",
+   "explanation": "Pairing `(12, 18)` and `(8, 6)` scores 6 + 2 = 8. Pairing `(12, 6)` and `(18, 8)` scores 6 + 2 = 8. Pairing `(12, 8)` and `(18, 6)` scores 4 + 6 = 10, which is the best of the three possible pairings."
+  },
+  {
+   "input": "3\n6 4 9 3 8 12",
+   "output": "13",
+   "explanation": "Pair `(6, 12)`, `(4, 8)` and `(9, 3)`: the scores are 6 + 4 + 3 = 13. A different pairing such as `(6, 4)`, `(9, 3)`, `(8, 12)` only scores 2 + 3 + 4 = 9."
+  },
+  {
+   "input": "1\n7 7",
+   "output": "7",
+   "explanation": "There is only one pairing, and gcd(7, 7) = 7."
+  }
+ ],
+ "complexity": {
+  "time": "O(2^(2N) · N)",
+  "space": "O(2^(2N))"
+ },
+ "hints": [
+  "Trying every pairing explicitly costs (2N-1)!! options, which is already hundreds of millions for N = 10. You need to share work between pairings.",
+  "Use a bitmask of the numbers that are already paired. From a mask, always take the lowest unpaired number, since it has to be paired with someone sooner or later, and try every other unpaired partner.",
+  "`dp[mask]` is the best total score for the numbers in `mask` that are already paired. Precompute the pairwise GCDs once so each transition is O(1)."
+ ],
+ "reference": "import sys\nfrom math import gcd\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    m = 2 * n\n    a = [int(x) for x in data[1:1 + m]]\n    g = [[gcd(a[i], a[j]) for j in range(m)] for i in range(m)]\n    full = (1 << m) - 1\n    NEG = -1\n    dp = [NEG] * (1 << m)\n    dp[0] = 0\n    for mask in range(full):\n        cur = dp[mask]\n        if cur < 0:\n            continue\n        i = 0\n        while mask >> i & 1:\n            i += 1\n        gi = g[i]\n        mi = mask | (1 << i)\n        for j in range(i + 1, m):\n            if not (mask >> j & 1):\n                nm = mi | (1 << j)\n                v = cur + gi[j]\n                if v > dp[nm]:\n                    dp[nm] = v\n    print(dp[full])\n\nmain()\n",
+ "brute": "import sys\nfrom math import gcd\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + 2 * n]]\n\ndef best(items):\n    if not items:\n        return 0\n    first = items[0]\n    res = 0\n    for k in range(1, len(items)):\n        rest = items[1:k] + items[k + 1:]\n        res = max(res, gcd(first, items[k]) + best(rest))\n    return res\n\nprint(best(a))\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return str(len(a) // 2) + '\\n' + ' '.join(map(str, a))\n    tests = [fmt([4, 6]), fmt([7, 7]), fmt([1, 1, 1, 1]), fmt([12, 18, 8, 6]), fmt([2, 3, 5, 7]),\n             fmt([10**9, 10**9, 10**9, 10**9 - 1]), fmt([6, 4, 9, 3, 8, 12]), fmt([5, 10, 15, 20, 25, 30])]\n    for n in (1, 2, 3, 4):\n        for _ in range(3):\n            tests.append(fmt([rng.randint(1, 30) for _ in range(2 * n)]))\n    for _ in range(4):\n        tests.append(fmt([rng.randint(1, 10**9) for _ in range(8)]))\n    for n in (5, 6):\n        tests.append(fmt([rng.randint(1, 60) for _ in range(2 * n)]))\n    for _ in range(3):\n        base = rng.randint(1, 10**3)\n        tests.append(fmt([base * rng.randint(1, 10**6) for _ in range(10)]))\n    N = 10\n    tests.append(fmt([rng.randint(1, 10**9) for _ in range(2 * N)]))\n    tests.append(fmt([rng.choice([2, 3, 5, 7, 6, 10, 14, 15, 21, 30, 35, 42, 70, 105, 210]) * rng.randint(1, 4) * 1000 for _ in range(2 * N)]))\n    tests.append(fmt([rng.randint(1, 120) for _ in range(2 * N)]))\n    tests.append(fmt([2**rng.randint(0, 29) * 3**rng.randint(0, 5) for _ in range(2 * N)]))\n    tests.append(fmt([10**9 - i for i in range(2 * N)]))\n    tests.append(fmt([rng.randint(1, 10**9) // 720720 * 720720 or 720720 for _ in range(2 * N)]))\n    tests.append(fmt([60060 * rng.randint(1, 10) if i % 2 else rng.randint(1, 10**9) for i in range(2 * N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_gcd_sum(a: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + 2 * n]]\n    print(max_gcd_sum(a))\n\n\nmain()\n",
+  "javascript": "function maxGcdSum(a) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst a = t.slice(1, 1 + 2 * n)\nconsole.log(String(maxGcdSum(a)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxGcdSum(vector<long long>& a) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> a(2 * n);\n    for (auto& x : a) cin >> x;\n    cout << maxGcdSum(a) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxGcdSum(long[] a) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] a = new long[2 * n];\n        for (int i = 0; i < 2 * n; i++) {\n            in.nextToken();\n            a[i] = (long) in.nval;\n        }\n        System.out.println(maxGcdSum(a));\n    }\n}\n"
+ }
+}

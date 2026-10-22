@@ -1,0 +1,49 @@
+{
+ "pid": "salesforce-add-two-polynomials",
+ "title": "Add Two Polynomials",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "An algebraic polynomial in one variable such as `a·x^n + b·x^(n-1) + c·x^(n-3) + …` is given as a list of **terms**, each a pair (coefficient, exponent). Exponents are non-negative integers, a polynomial only lists the terms it actually has (for example `x^(n-2)` may be missing), and terms are listed in **strictly decreasing** order of exponent. Every listed coefficient is non-zero and may be negative.\n\nGiven two polynomials `P` and `Q`, compute their sum `P + Q` in the same representation. Terms with the same exponent are added together; if the resulting coefficient is `0` the term is dropped from the result. The result lists its terms in strictly decreasing order of exponent. If every term cancels, the sum is the zero polynomial, which has no terms.",
+ "input_format": "The first line contains `n`, the number of terms of `P`, followed by `n` lines each holding `coefficient exponent`.\nThen a line with `m`, the number of terms of `Q`, followed by `m` lines each holding `coefficient exponent`.",
+ "output_format": "Print `k`, the number of terms of the sum, then `k` lines each holding `coefficient exponent`, in strictly decreasing order of exponent. For the zero polynomial print just `0`.",
+ "constraints": [
+  "1 ≤ n, m ≤ 5·10^4",
+  "0 ≤ exponent ≤ 10^9, exponents within a polynomial are strictly decreasing",
+  "1 ≤ |coefficient| ≤ 10^9 (never zero)"
+ ],
+ "examples": [
+  {
+   "input": "3\n3 4\n2 2\n-5 0\n3\n-2 2\n1 1\n7 0",
+   "output": "3\n3 4\n1 1\n2 0",
+   "explanation": "P = 3x^4 + 2x^2 - 5 and Q = -2x^2 + x + 7. The x^2 terms cancel (2 + -2 = 0) and are dropped, the constants give -5 + 7 = 2, and the sum is 3x^4 + x + 2."
+  },
+  {
+   "input": "2\n4 3\n-1 1\n2\n-4 3\n1 1",
+   "output": "0",
+   "explanation": "Both terms cancel exactly, so the sum is the zero polynomial and only `0` is printed."
+  },
+  {
+   "input": "1\n5 0\n1\n6 0",
+   "output": "1\n11 0",
+   "explanation": "Two constants add up to 11."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(1) extra (besides the output)"
+ },
+ "hints": [
+  "Both lists are already sorted by exponent, so you can walk them with two pointers like the merge step of merge sort.",
+  "Compare the current exponents: the larger one is copied as is; if they are equal, add the coefficients.",
+  "After adding equal exponents, do not forget to skip the term when the new coefficient is 0, and to copy whatever remains of the longer list at the end."
+ ],
+ "reference": "import sys\n\ndef main():\n    d = sys.stdin.read().split()\n    n = int(d[0])\n    p = [(int(d[1 + 2 * i]), int(d[2 + 2 * i])) for i in range(n)]\n    pos = 1 + 2 * n\n    m = int(d[pos])\n    q = [(int(d[pos + 1 + 2 * i]), int(d[pos + 2 + 2 * i])) for i in range(m)]\n    i = j = 0\n    out = []\n    while i < n or j < m:\n        if j >= m or (i < n and p[i][1] > q[j][1]):\n            c, e = p[i]\n            i += 1\n        elif i >= n or q[j][1] > p[i][1]:\n            c, e = q[j]\n            j += 1\n        else:\n            c = p[i][0] + q[j][0]\n            e = p[i][1]\n            i += 1\n            j += 1\n        if c != 0:\n            out.append(f\"{c} {e}\")\n    print(len(out))\n    if out:\n        print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\nd = sys.stdin.read().split()\nn = int(d[0])\nacc = {}\nfor i in range(n):\n    c, e = int(d[1 + 2 * i]), int(d[2 + 2 * i])\n    acc[e] = acc.get(e, 0) + c\npos = 1 + 2 * n\nm = int(d[pos])\nfor i in range(m):\n    c, e = int(d[pos + 1 + 2 * i]), int(d[pos + 2 + 2 * i])\n    acc[e] = acc.get(e, 0) + c\nterms = [(e, c) for e, c in acc.items() if c != 0]\nterms.sort(reverse=True)\nprint(len(terms))\nfor e, c in terms:\n    print(c, e)\n",
+ "generator": "def gen(rng):\n    def fmt(p, q):\n        return (f\"{len(p)}\\n\" + '\\n'.join(f\"{c} {e}\" for c, e in p) + f\"\\n{len(q)}\\n\" + '\\n'.join(f\"{c} {e}\" for c, e in q))\n\n    def rc(lim):\n        return rng.choice([-1, 1]) * rng.randint(1, lim)\n\n    tests = [fmt([(5, 0)], [(6, 0)]), fmt([(4, 3), (-1, 1)], [(-4, 3), (1, 1)]),\n             fmt([(3, 4), (2, 2), (-5, 0)], [(-2, 2), (1, 1), (7, 0)]),\n             fmt([(1, 10 ** 9)], [(1, 0)]), fmt([(10 ** 9, 5)], [(10 ** 9, 5)]),\n             fmt([(-10 ** 9, 5)], [(-10 ** 9, 5)]), fmt([(2, 3), (1, 2), (1, 1)], [(-1, 1)]),\n             fmt([(7, 9)], [(1, 8), (1, 7), (1, 6)])]\n    for _ in range(30):\n        pe = sorted(rng.sample(range(0, 9), rng.randint(1, 6)), reverse=True)\n        qe = sorted(rng.sample(range(0, 9), rng.randint(1, 6)), reverse=True)\n        p = [(rc(3), e) for e in pe]\n        q = [(rc(3), e) for e in qe]\n        tests.append(fmt(p, q))\n    N = 50000\n    L = 10 ** 9\n    pe = sorted(rng.sample(range(L + 1), N), reverse=True)\n    qe = sorted(rng.sample(range(L + 1), N), reverse=True)\n    tests.append(fmt([(rc(L), e) for e in pe], [(rc(L), e) for e in qe]))\n    # half shared exponents: some cancel, some add up past 32-bit range\n    shared = pe[::2]\n    others = sorted(rng.sample(range(L + 1), N // 2), reverse=True)\n    qe2 = sorted(set(shared) | set(others), reverse=True)[:N]\n    pc = {e: rc(L) for e in pe}\n    qc = {}\n    for k, e in enumerate(qe2):\n        if e in pc:\n            qc[e] = -pc[e] if k % 2 == 0 else pc[e]\n        else:\n            qc[e] = rc(L)\n    tests.append(fmt([(pc[e], e) for e in pe], [(qc[e], e) for e in qe2]))\n    tests.append(fmt([(pc[e], e) for e in pe], [(-pc[e], e) for e in pe]))\n    tests.append(fmt([(rc(L), e) for e in range(N - 1, -1, -1)], [(rc(L), e) for e in range(2 * N - 1, N - 1, -1)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef add_polynomials(p: List[Tuple[int, int]], q: List[Tuple[int, int]]) -> List[Tuple[int, int]]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    p = [(int(data[1 + 2 * i]), int(data[2 + 2 * i])) for i in range(n)]\n    pos = 1 + 2 * n\n    m = int(data[pos])\n    q = [(int(data[pos + 1 + 2 * i]), int(data[pos + 2 + 2 * i])) for i in range(m)]\n    res = add_polynomials(p, q)\n    print(len(res))\n    for c, e in res:\n        print(c, e)\n\n\nmain()\n",
+  "javascript": "function addPolynomials(p, q) {\n  // p and q are arrays of [coefficient, exponent] pairs\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst p = []\nfor (let i = 0; i < n; i++) p.push([t[1 + 2 * i], t[2 + 2 * i]])\nconst pos = 1 + 2 * n\nconst m = t[pos]\nconst q = []\nfor (let i = 0; i < m; i++) q.push([t[pos + 1 + 2 * i], t[pos + 2 + 2 * i]])\nconst res = addPolynomials(p, q)\nconst lines = [String(res.length)]\nfor (const [c, e] of res) lines.push(c + ' ' + e)\nconsole.log(lines.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<pair<long long, long long>> addPolynomials(vector<pair<long long, long long>>& p, vector<pair<long long, long long>>& q) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n;\n    vector<pair<long long, long long>> p(n);\n    for (int i = 0; i < n; i++) cin >> p[i].first >> p[i].second;\n    cin >> m;\n    vector<pair<long long, long long>> q(m);\n    for (int i = 0; i < m; i++) cin >> q[i].first >> q[i].second;\n    auto res = addPolynomials(p, q);\n    cout << res.size() << \"\\n\";\n    for (auto& t : res) cout << t.first << \" \" << t.second << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    // each row is {coefficient, exponent}\n    static long[][] addPolynomials(long[][] p, long[][] q) {\n        // Write your solution here\n        return new long[0][];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[][] p = new long[n][2];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); p[i][0] = (long) in.nval;\n            in.nextToken(); p[i][1] = (long) in.nval;\n        }\n        in.nextToken();\n        int m = (int) in.nval;\n        long[][] q = new long[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); q[i][0] = (long) in.nval;\n            in.nextToken(); q[i][1] = (long) in.nval;\n        }\n        long[][] res = addPolynomials(p, q);\n        StringBuilder sb = new StringBuilder();\n        sb.append(res.length).append(\"\\n\");\n        for (long[] t : res) sb.append(t[0]).append(\" \").append(t[1]).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

@@ -1,0 +1,50 @@
+{
+ "pid": "last-moment-before-all-ants-fall-out-of-a-plank",
+ "title": "Last Moment Before Ants Fall",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A wooden plank has length `n` units and lies along the number line from position `0` to position `n`. Some ants are walking on it. Every ant moves at a speed of one unit per second, either towards the left end or towards the right end, and each ant starts at its own integer position between `0` and `n`.\n\nWhen two ants walking in opposite directions meet at the same point, both of them immediately turn around and keep walking in the opposite direction. Turning around takes no time. An ant falls off the plank the moment it reaches position `0` while walking left, or position `n` while walking right.\n\nYou are given the starting positions of the ants walking left and of the ants walking right. Return the time (in seconds) at which the last ant falls off the plank. An ant that starts at the end it is walking towards falls off at time `0`.",
+ "input_format": "The first line contains `n`.\nThe second line contains `a` followed by `a` integers: the starting positions of the ants walking left (the line is just `0` when there are none).\nThe third line contains `b` followed by `b` integers: the starting positions of the ants walking right (the line is just `0` when there are none).",
+ "output_format": "Print a single integer: the time at which the last ant falls off the plank.",
+ "constraints": [
+  "1 ≤ n ≤ 10^9",
+  "a, b ≥ 0 and 1 ≤ a + b ≤ min(n + 1, 10^5)",
+  "0 ≤ every starting position ≤ n",
+  "All starting positions are distinct (no two ants start at the same point, and no position appears in both lists)"
+ ],
+ "examples": [
+  {
+   "input": "10\n2 3 7\n3 2 5 9",
+   "output": "8",
+   "explanation": "Without worrying about collisions: the left-walkers at 3 and 7 would fall at times 3 and 7, and the right-walkers at 2, 5, 9 would fall at times 8, 5, 1. The latest is 8. Collisions do not change the answer because two ants that turn around are the same as two ants that pass through each other."
+  },
+  {
+   "input": "5\n0\n2 1 4",
+   "output": "4",
+   "explanation": "Both ants walk right, so they never meet. The ant at 1 needs 4 seconds, the ant at 4 needs 1 second."
+  },
+  {
+   "input": "7\n1 7\n1 0",
+   "output": "7",
+   "explanation": "The ant at 7 walks left and the ant at 0 walks right; they meet in the middle after 3.5 seconds and bounce back, so the left-walker ends at 0 after 7 seconds and the right-walker ends at 7 after 7 seconds."
+  }
+ ],
+ "complexity": {
+  "time": "O(a + b)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Think about what a collision does to the set of positions the ants occupy at any moment. If two ants are exchanged for two identical ghosts that pass through each other, is anything different?",
+  "Since the ants are indistinguishable for the purpose of timing, a collision can be ignored: treat every ant as walking straight through the others.",
+  "An ant at position x walking left falls at time x, and one walking right falls at time n - x. The answer is the maximum over all ants."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = int(data[1])\n    left = [int(x) for x in data[2:2 + a]]\n    b = int(data[2 + a])\n    right = [int(x) for x in data[3 + a:3 + a + b]]\n    best = 0\n    if left:\n        best = max(best, max(left))\n    if right:\n        best = max(best, n - min(right))\n    print(best)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = int(data[1])\nleft = [int(x) for x in data[2:2 + a]]\nb = int(data[2 + a])\nright = [int(x) for x in data[3 + a:3 + a + b]]\n# doubled coordinates: every tick moves each ant by 1, so one real time unit is 2 ticks\nants = [[2 * x, -1] for x in left] + [[2 * x, 1] for x in right]\ntick = 0\nlast = 0\nwhile ants:\n    alive = []\n    for p, dr in ants:\n        if (p == 0 and dr == -1) or (p == 2 * n and dr == 1):\n            last = tick\n        else:\n            alive.append([p, dr])\n    ants = alive\n    for ant in ants:\n        ant[0] += ant[1]\n    seen = {}\n    for ant in ants:\n        seen.setdefault(ant[0], []).append(ant)\n    for grp in seen.values():\n        if len(grp) == 2:\n            grp[0][1] = -grp[0][1]\n            grp[1][1] = -grp[1][1]\n    tick += 1\nprint(last // 2)\n",
+ "generator": "def gen(rng):\n    def fmt(n, left, right):\n        return f'{n}\\n{len(left)} ' + ' '.join(map(str, left)) + f'\\n{len(right)} ' + ' '.join(map(str, right))\n    def pick(n, cnt):\n        s = set()\n        while len(s) < cnt:\n            s.add(rng.randint(0, n))\n        return list(s)\n    tests = [fmt(7, [7], [0]), fmt(5, [], [1, 4]), fmt(5, [2, 3], []), fmt(1, [0], []), fmt(1, [], [1]), fmt(10, [3, 7], [2, 5, 9])]\n    tests.append(fmt(6, [0, 1, 2], [3, 4, 5]))\n    tests.append(fmt(6, [3, 4, 5], [0, 1, 2]))\n    for n in (2, 3, 5, 8, 10, 12, 15):\n        for _ in range(3):\n            cnt = rng.randint(1, min(n + 1, 8))\n            pos = pick(n, cnt)\n            rng.shuffle(pos)\n            k = rng.randint(0, cnt)\n            tests.append(fmt(n, pos[:k], pos[k:]))\n    n = 10**9\n    for ca, cb in ((50000, 50000), (100000, 0), (0, 100000), (1, 99999)):\n        pos = pick(n, ca + cb)\n        rng.shuffle(pos)\n        tests.append(fmt(n, pos[:ca], pos[ca:]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef last_moment(n: int, left: List[int], right: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = int(data[1])\n    left = [int(x) for x in data[2:2 + a]]\n    b = int(data[2 + a])\n    right = [int(x) for x in data[3 + a:3 + a + b]]\n    print(last_moment(n, left, right))\n\n\nmain()\n",
+  "javascript": "function lastMoment(n, left, right) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nlet pos = 0\nconst n = t[pos++]\nconst a = t[pos++]\nconst left = t.slice(pos, pos + a)\npos += a\nconst b = t[pos++]\nconst right = t.slice(pos, pos + b)\nconsole.log(String(lastMoment(n, left, right)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long lastMoment(long long n, vector<long long>& left, vector<long long>& right) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    long long n;\n    int a, b;\n    cin >> n >> a;\n    vector<long long> left(a);\n    for (int i = 0; i < a; i++) cin >> left[i];\n    cin >> b;\n    vector<long long> right(b);\n    for (int i = 0; i < b; i++) cin >> right[i];\n    cout << lastMoment(n, left, right) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long lastMoment(long n, long[] left, long[] right) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        long n = (long) in.nval;\n        in.nextToken();\n        int a = (int) in.nval;\n        long[] left = new long[a];\n        for (int i = 0; i < a; i++) {\n            in.nextToken();\n            left[i] = (long) in.nval;\n        }\n        in.nextToken();\n        int b = (int) in.nval;\n        long[] right = new long[b];\n        for (int i = 0; i < b; i++) {\n            in.nextToken();\n            right[i] = (long) in.nval;\n        }\n        System.out.println(lastMoment(n, left, right));\n    }\n}\n"
+ }
+}

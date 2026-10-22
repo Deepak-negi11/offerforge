@@ -1,0 +1,18 @@
+{
+ "qid": "f4eba32f48",
+ "question": "Reported from a Meesho SDE system design / low-level design round (April 2025): build an **in-memory cache with an optional time-to-live (TTL)**.\n\nThe cache must support `set`, `update`, `put` and `get` operations, and expose **stats** (for example hits, misses and entries). Entries may or may not have a TTL, and expired entries must not be returned.",
+ "lookingFor": [
+  "Clean API and class design for a small component, with clear semantics for each operation",
+  "Correct TTL handling, including lazy versus active expiry",
+  "Thread safety and awareness of concurrency trade-offs",
+  "Extensibility, for example pluggable eviction policies like LRU",
+  "Edge cases: overwriting keys, update of a missing key, TTL of zero, clock handling"
+ ],
+ "answer": "**Clarify first.** What is the difference between `set`, `put` and `update`? A reasonable reading: `put`/`set` insert or overwrite; `update` only changes an existing, unexpired key and returns false otherwise. State this assumption. Ask: capacity limit and eviction? Thread safety? What do stats mean?\n\n**Design.**\n- `Cache<K, V>` interface: `put(key, value, ttlMillis?)`, `set` (alias of put), `update(key, value)`, `get(key)`, `stats()`.\n- Internal `Entry { value, expiresAt }` where `expiresAt` is null for no TTL.\n- Storage: a hash map `key -> Entry`. Use an injectable `Clock` so tests can control time.\n- `Stats { hits, misses, expired, evictions, size }`, updated on each operation.\n\n**Expiry strategies.**\n- *Lazy*: on `get`, if `now >= expiresAt`, remove the entry, count a miss and return nothing. Simple, no background work, but expired keys that are never read keep using memory.\n- *Active*: a background sweeper, or a min-heap/priority queue ordered by `expiresAt` that is drained periodically. Combine both: lazy for correctness, periodic cleanup for memory.\n- On overwrite, the heap may hold a stale item, so check that the entry's current `expiresAt` matches before deleting.\n\n**Concurrency.** For a simple version, guard operations with a lock or use a concurrent map plus atomic counters. A single global lock is correct but a bottleneck; sharding the map into segments reduces contention. Make `update` atomic (check-then-set under the same lock).\n\n**Eviction (extension).** With a max capacity, add an eviction policy interface (LRU via hash map plus doubly linked list, LFU, FIFO). TTL expiry should be checked before evicting live entries.\n\n**Complexity.** `get`, `put`, `update` are O(1) average. Heap-based cleanup costs O(log n) per insert and per expiry.\n\n**Edge cases.** TTL zero or negative (reject or treat as immediately expired), null keys, `update` on an expired key, clock going backwards (use a monotonic clock for TTL), and stats not double counting an expired read as both hit and miss.",
+ "followUps": [
+  "How would you add LRU eviction while keeping TTL?",
+  "How do you make this thread-safe without a single global lock?",
+  "Lazy versus active expiry: what are the memory and latency trade-offs?",
+  "How would you extend this into a distributed cache?"
+ ]
+}

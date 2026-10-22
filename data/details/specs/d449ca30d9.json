@@ -1,0 +1,19 @@
+{
+ "qid": "d449ca30d9",
+ "question": "Intuit phone screen (Software Engineer 1), a frontend-leaning technical screen: **implement `Promise.all` and `Promise.any`**, then discuss **React memoization, error boundaries and unit testing.**",
+ "lookingFor": [
+  "Deep understanding of promise semantics and the event loop.",
+  "Correct handling of non-promise values, ordering, empty input and errors.",
+  "Knowledge of AggregateError and the difference between all, allSettled, race and any.",
+  "React performance and resilience concepts used in practice.",
+  "Testing mindset: what to test and how."
+ ],
+ "answer": "**Promise.all.** Resolves with an array of results in input order when every input resolves; rejects immediately with the first rejection.\n\n    function promiseAll(items) {\n      return new Promise((resolve, reject) => {\n        const list = Array.from(items);\n        const results = new Array(list.length);\n        let pending = list.length;\n        if (pending === 0) return resolve(results);\n        list.forEach((item, i) => {\n          Promise.resolve(item).then(value => {\n            results[i] = value;            // keep order by index\n            if (--pending === 0) resolve(results);\n          }, reject);                       // first rejection wins\n        });\n      });\n    }\n\n**Promise.any.** Resolves with the first fulfilled value; rejects with an `AggregateError` only if all reject (or the input is empty).\n\n    function promiseAny(items) {\n      return new Promise((resolve, reject) => {\n        const list = Array.from(items);\n        const errors = new Array(list.length);\n        let pending = list.length;\n        if (pending === 0) return reject(new AggregateError([], 'All promises were rejected'));\n        list.forEach((item, i) => {\n          Promise.resolve(item).then(resolve, err => {\n            errors[i] = err;\n            if (--pending === 0) reject(new AggregateError(errors, 'All promises were rejected'));\n          });\n        });\n      });\n    }\n\nPoints to state: wrap each item in `Promise.resolve` so plain values work; store by index, not by completion order; handle empty arrays (`all` resolves `[]`, `any` rejects); later settlements are ignored because a promise settles only once.\n\n**React memoization.** `React.memo` skips re-rendering a component when props are shallow-equal; `useMemo` caches an expensive computed value; `useCallback` keeps a function reference stable so memoized children do not re-render. Measure first with the Profiler; memoization has its own cost and does nothing if props change every render (new objects or functions).\n\n**Error boundaries.** A class component implementing `getDerivedStateFromError` and/or `componentDidCatch` that catches errors during rendering, lifecycle and constructors of its children and shows a fallback UI. They do not catch errors in event handlers, async code, SSR or in the boundary itself. Place them around independent sections and log errors to a monitoring service.\n\n**Unit testing.** Test behaviour, not implementation: with Jest and React Testing Library, render, interact as a user would, assert on visible output; mock network calls; for promise utilities test ordering, rejection, empty and non-promise input.",
+ "followUps": [
+  "What is the difference between Promise.all, allSettled, race and any?",
+  "How would you limit concurrency to N promises at a time?",
+  "When does useMemo hurt rather than help?",
+  "Why can an error boundary not catch an error in an event handler, and what would you do instead?",
+  "How would you test a component that fetches data?"
+ ]
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "b592a6f6eb",
+ "question": "In the fourth technical round (about 1 hour, with the interviewer cross-questioning every aspect) for an Associate Software Engineer role at Qualcomm (off-campus), the candidate was asked to design a **Lottery Machine**:\n\n- Generate **non-repeating random numbers from 1 to N**, where N is the number of people holding lottery tickets numbered 1 to N.\n- When a random number is generated, **eliminate the person** with the matching ticket.\n- Generate the next random number but **count from the place of the last eliminated person**, not from the start, treating the people as a **circular queue**.\n- Continue until **one person is left, the winner**. Print a **continuous log** of all operations and the winner at the end.\n- The code should be **modular and readable**. Any language could be used.",
+ "lookingFor": [
+  "Do you clarify the ambiguous rule (how the random number maps to an elimination) before coding?",
+  "Do you choose a suitable data structure for circular removal and justify its cost?",
+  "Is the design modular (separate generator, circular structure, logger, engine)?",
+  "Do you handle edge cases (N=1, N=0, invalid input) and make it testable via an injected random source?"
+ ],
+ "answer": "**Clarify first.** The rule is ambiguous. The most natural reading is Josephus-style: the random number `r` is a **step count**; starting from the position after the last eliminated person, count `r` people circularly and eliminate that one. (Alternative: `r` is the ticket number to remove. That has no circular counting, so the circular description suggests the step reading.) State your assumption and confirm.\n\n**Requirements:** N players, repeated eliminations until one remains, log each step, deterministic when seeded for tests.\n\n**Components (small classes, single responsibility):**\n- `Participant { ticketNo }`.\n- `RandomSource` interface with `next()`; the default implementation draws without repeats, by shuffling `1..N` once (Fisher-Yates) and handing out values in order. Injecting a fake makes tests deterministic. If `r` exceeds the remaining count, use `(r-1) % size`.\n- `CircularRing`: holds participants and the current position; `removeAt(steps)` returns the eliminated one.\n- `Logger` (interface, console implementation).\n- `LotteryMachine`: orchestrates `while ring.size() > 1`, asks for a number, eliminates, logs; returns the winner.\n\n**Algorithm.** Keep a list and an index `pos` of the last eliminated slot: `idx = (pos + r - 1) % size; eliminated = list.remove(idx); pos = idx % newSize`. A dynamic array gives O(n) removal, so O(n^2) total, fine for modest N. A circular linked list needs O(r) walking per step. To reach O(n log n), use a Fenwick tree or order-statistic tree to find the k-th remaining.\n\n**Log lines** such as `Round 3: drew 7, eliminated ticket 12, 4 remaining`; final `Winner: ticket 5`.\n\n**Edge cases:** N=1 (winner immediately), N<=0 (reject), a single call per elimination.\n\n**Extensions:** strategy for elimination rule, seedable generator, running multiple draws.",
+ "followUps": [
+  "How would you change the design if the rule were 'eliminate the ticket equal to the random number'?",
+  "What is the time complexity, and how would you improve it for N = 10^6?",
+  "How would you unit test the machine?",
+  "How would you make it thread-safe or run many lotteries concurrently?"
+ ]
+}

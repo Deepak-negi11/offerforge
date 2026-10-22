@@ -1,0 +1,49 @@
+{
+ "pid": "google-split-a-b-string-fairly-with-two-cuts",
+ "title": "Split a/b String Fairly with Two Cuts",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "Alice and Bob want to share a string `s` made only of the letters `a` and `b`. The number of `a`s in `s` is even, and the number of `b`s is even.\n\nYou may make **at most 2 cuts** in the string. A cut at position `p` (`1 ≤ p ≤ n - 1`) separates `s[0..p-1]` from `s[p..n-1]`, and the two cuts must be at different positions. The cuts split `s` into at most 3 non-empty pieces. Each piece is then given entirely to Alice or entirely to Bob, in any combination.\n\nThe split is **fair** if Alice and Bob end up with the same number of `a`s **and** the same number of `b`s.\n\nReturn the position(s) of the cut(s). A fair split always exists for valid input. Several answers may exist, so print this canonical one:\n\n- Prefer the answer with the **fewest cuts**.\n- Among answers with the same number of cuts, print the one whose list of cut positions (in increasing order) is **lexicographically smallest**.",
+ "input_format": "A single line containing the string `s`.",
+ "output_format": "Print the cut positions in increasing order, separated by a space: one integer if the canonical answer uses one cut, two integers if it uses two.",
+ "constraints": [
+  "2 ≤ |s| ≤ 2 · 10^5",
+  "`s` consists only of the letters `a` and `b`",
+  "the number of `a`s and the number of `b`s in `s` are both even"
+ ],
+ "examples": [
+  {
+   "input": "aabb",
+   "output": "1 3",
+   "explanation": "One cut at 2 gives \"aa\" and \"bb\", which is not fair. Two cuts at 1 and 3 give \"a\", \"ab\", \"b\": Alice takes \"ab\" and Bob takes \"a\" and \"b\", so each has one `a` and one `b`."
+  },
+  {
+   "input": "abba",
+   "output": "2",
+   "explanation": "A single cut at 2 gives \"ab\" and \"ba\", each with one `a` and one `b`."
+  },
+  {
+   "input": "aaaabbbb",
+   "output": "2 6",
+   "explanation": "A single cut at 4 gives \"aaaa\" and \"bbbb\", which is unfair. Cuts at 1 and 5 would leave Alice with \"aaab\" (three `a`s), so they fail. Cuts at 2 and 6 give \"aa\", \"aabb\", \"bb\": Alice takes \"aabb\" and Bob takes \"aa\" and \"bb\", two of each letter."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Whatever the cuts are, one person ends up with either a prefix, a suffix, or the middle piece (the other gets the remaining pieces). So you are looking for a contiguous block holding exactly half of the `a`s and half of the `b`s.",
+  "Such a block must have exactly n/2 characters. Slide a window of length n/2 along the string and track how many `a`s it contains.",
+  "The window count changes by at most 1 per step, and the first and last windows have counts that sum to the total number of `a`s, so some window hits exactly half. Check the prefix window first (one cut), then scan for the smallest start."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    s = sys.stdin.read().split()[0]\n    n = len(s)\n    h = n // 2\n    A = s.count('a')\n    target = A // 2\n    cur = s[:h].count('a')\n    if cur == target:\n        print(h)\n        return\n    for i in range(1, h):\n        cur += (s[i + h - 1] == 'a') - (s[i - 1] == 'a')\n        if cur == target:\n            print(i, i + h)\n            return\n\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import combinations\n\ns = sys.stdin.read().split()[0]\nn = len(s)\nbest = None\nfor k in range(0, 3):\n    for cuts in combinations(range(1, n), k):\n        bounds = [0] + list(cuts) + [n]\n        pieces = [s[bounds[i]:bounds[i + 1]] for i in range(len(bounds) - 1)]\n        ok = False\n        for mask in range(1 << len(pieces)):\n            a1 = b1 = a2 = b2 = 0\n            for idx, pc in enumerate(pieces):\n                if mask >> idx & 1:\n                    a1 += pc.count('a')\n                    b1 += pc.count('b')\n                else:\n                    a2 += pc.count('a')\n                    b2 += pc.count('b')\n            if a1 == a2 and b1 == b2:\n                ok = True\n                break\n        if ok:\n            key = (len(cuts), cuts)\n            if best is None or key < best:\n                best = key\nprint(' '.join(map(str, best[1])))\n",
+ "generator": "def gen(rng):\n    def make(A, B):\n        l = ['a'] * A + ['b'] * B\n        rng.shuffle(l)\n        return ''.join(l)\n\n    tests = ['aa', 'bb', 'aabb', 'abba', 'aaaabbbb', 'bbaaaabb', 'abab', 'baba', 'aabbaabb', 'abbbbbaa'[:8], 'aaaaaabb', 'bbbbaaaabbbb'[:12]]\n    tests = [t for t in tests if t.count('a') % 2 == 0 and t.count('b') % 2 == 0]\n    for n in (4, 6, 8, 10, 12, 14, 16, 20, 30, 40, 56):\n        for _ in range(3):\n            A = rng.randrange(0, n + 1, 2)\n            B = n - A\n            if B % 2:\n                A -= 1\n                B += 1\n            tests.append(make(A, B))\n    # structured small ones with blocks\n    for _ in range(10):\n        parts = []\n        for _ in range(rng.randint(2, 5)):\n            parts.append(rng.choice('ab') * rng.randint(1, 6))\n        t = ''.join(parts)\n        if t.count('a') % 2 == 0 and t.count('b') % 2 == 0:\n            tests.append(t)\n    N = 200000\n    tests.append(make(N // 2, N // 2))\n    tests.append(make(N, 0))\n    m = 33000\n    tests.append('a' * (3 * m) + 'b' * (2 * m) + 'a' * m)\n    tests.append('a' * 50000 + 'b' * 100000 + 'a' * 50000)\n    tests.append('b' * 70000 + 'a' * 30000 + 'b' * 30000 + 'a' * 70000)\n    tests.append(make(2 * rng.randint(1, 40000), 2 * rng.randint(1, 40000)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef split_fairly(s: str) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    s = sys.stdin.read().split()[0]\n    print(' '.join(map(str, split_fairly(s))))\n\n\nmain()\n",
+  "javascript": "function splitFairly(s) {\n  // Write your solution here\n  return []\n}\n\nconst s = input.trim()\nconsole.log(splitFairly(s).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> splitFairly(const string& s) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s;\n    cin >> s;\n    vector<int> cuts = splitFairly(s);\n    for (size_t i = 0; i < cuts.size(); i++) cout << cuts[i] << (i + 1 < cuts.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] splitFairly(String s) {\n        // Write your solution here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String s = br.readLine().trim();\n        int[] cuts = splitFairly(s);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < cuts.length; i++) sb.append(cuts[i]).append(i + 1 < cuts.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

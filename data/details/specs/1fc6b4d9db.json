@@ -1,0 +1,19 @@
+{
+ "qid": "1fc6b4d9db",
+ "question": "Databricks Low Level Design round (Software Engineer). Design and implement a thread-safe `EventWriter` that many threads call (for example `appendEvent(buffer)`) to append small events or logs to a single file. Start with a simple synchronous version that writes to a file on disk, then make it multi-threaded and scalable. Writes must stay **ordered** and **well-formed** (no interleaved or torn records), and the design should support high throughput.",
+ "lookingFor": [
+  "Correct reasoning about shared mutable state and atomic appends to one file.",
+  "Ability to evolve a simple design into a scalable one (locking, then producer-consumer queue, then batching).",
+  "Understanding of ordering guarantees: what order, per thread or global, and how it is defined.",
+  "Failure handling: flush, fsync, shutdown, backpressure, I/O errors.",
+  "Clean class design and clear explanation of trade-offs and performance bottlenecks."
+ ],
+ "answer": "**Step 1: synchronous writer.** `append(event)` serialises the event into one record (for example a length prefix plus payload, or a newline-terminated line with escaping) and calls `write` on a file opened in append mode. Single thread, no problem.\n\n**Step 2: make it thread-safe.** The simplest fix is a mutex around serialise-and-write so each record is written as one unit. This guarantees well-formed records and a total order (the order locks are acquired). Weakness: every caller blocks on disk I/O while holding the lock, so throughput is limited by the slowest write.\n\n**Step 3: scalable design (producer-consumer).**\n- Producers only serialise the event and put it in a **bounded blocking queue** (or a lock-free MPSC ring buffer). This is cheap and does not touch the disk.\n- A **single writer thread** drains the queue and writes to the file. One writer means a total order and no interleaving, and no lock around the file is needed.\n- The writer **batches**: drain up to N events or T milliseconds, build one buffer, issue one `write`, then flush. Batching amortises syscall and disk cost (group commit).\n- The bounded queue gives **backpressure**: when full, producers either block, drop with a counter, or fail, according to the requirement. Never use an unbounded queue in a logging path.\n\n**Ordering.** State it explicitly: per-producer order is preserved by the FIFO queue, and global order is the enqueue order. If a global timestamp or sequence number is needed, assign it at enqueue time with an atomic counter.\n\n**Durability and lifecycle.** Decide on `flush` versus `fsync` policy (fsync per batch is a latency/durability trade-off). Provide `close()` that stops accepting events, drains the queue, flushes, then joins the writer. Handle I/O errors (retry, rotate, surface to a callback) and file rotation by size.\n\n**Scaling beyond one file writer.** If one thread saturates the disk, shard by key into several files or use per-thread buffers merged later, but that gives up a single global order.\n\n**Pitfalls to mention:** `synchronized` on the hot path, unbounded queues causing OOM, losing events on shutdown, partial writes, and checking that `write` wrote all bytes.",
+ "followUps": [
+  "Would you use a lock-free queue? What are the trade-offs versus a blocking queue?",
+  "How do you guarantee no events are lost on a crash, and what does it cost?",
+  "What happens when the queue is full? Compare blocking, dropping and failing.",
+  "How would you rotate the log file without pausing producers?",
+  "How would you test for races and ordering bugs?"
+ ]
+}

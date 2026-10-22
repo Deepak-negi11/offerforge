@@ -1,0 +1,18 @@
+{
+ "qid": "802f69a03c",
+ "question": "In an AMD Sr. Software System Designer interview (in-person Round 3 on systems and the candidate's current work), the candidate was asked a classic concurrency problem:\n\n**Solve the producer-consumer problem with proper synchronisation.**\n\nThe round also covered C/C++ fundamentals (free versus delete, malloc versus new) and high-performance, system-level programming concepts.",
+ "lookingFor": [
+  "Identifying the shared state and the two conditions: do not overfill, do not read from empty",
+  "Correct use of primitives (mutex plus condition variables, or semaphores)",
+  "No lost wakeups, no deadlock, correct handling of spurious wakeups",
+  "A clean, bounded buffer implementation, and extensions for multiple producers and consumers",
+  "Awareness of alternatives and performance (lock-free queues, batching)"
+ ],
+ "answer": "**Problem:** producers add items to a shared **bounded buffer**; consumers remove items. Producers must wait when the buffer is full, consumers must wait when it is empty, and access to the buffer must be mutually exclusive.\n\n**Solution 1: semaphores**\n\n```\nsemaphore empty = N      // free slots\nsemaphore full  = 0      // filled slots\nmutex     m\n\nproducer:                     consumer:\n  produce(item)                 wait(full)\n  wait(empty)                   lock(m)\n  lock(m)                       item = buffer.pop()\n  buffer.push(item)             unlock(m)\n  unlock(m)                     post(empty)\n  post(full)                    consume(item)\n```\n\n- `empty` counts free slots and blocks producers when it reaches 0; `full` counts items and blocks consumers.\n- The mutex only protects buffer indices. **Order matters:** waiting on the counting semaphore *before* taking the mutex. If you lock the mutex first and then block on `empty`, a consumer can never get the mutex to free a slot, causing **deadlock**.\n\n**Solution 2: mutex + condition variables (C++ style)**\n\n```cpp\nvoid put(T x) {\n  std::unique_lock<std::mutex> lk(m);\n  notFull.wait(lk, [&]{ return q.size() < N; });\n  q.push(x);\n  notEmpty.notify_one();\n}\nT get() {\n  std::unique_lock<std::mutex> lk(m);\n  notEmpty.wait(lk, [&]{ return !q.empty(); });\n  T x = q.front(); q.pop();\n  notFull.notify_one();\n  return x;\n}\n```\n\n- Always wait with a **predicate in a loop** (the lambda form does this) to survive spurious wakeups and multiple consumers.\n\n**Notes**\n- Works for many producers and consumers unchanged.\n- For shutdown, add a `closed` flag and `notify_all`.\n- Single producer and single consumer can use a lock-free ring buffer with atomic head and tail indices.\n- Performance: reduce contention by batching items, avoiding allocation in the critical section, and padding indices to avoid false sharing.",
+ "followUps": [
+  "Why can locking the mutex before waiting on the semaphore deadlock?",
+  "What is a spurious wakeup and how do you guard against it?",
+  "How would you implement graceful shutdown?",
+  "How would a lock-free single-producer single-consumer ring buffer work?"
+ ]
+}

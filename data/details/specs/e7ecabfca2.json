@@ -1,0 +1,17 @@
+{
+ "qid": "e7ecabfca2",
+ "question": "In a Round 2 (SDE-1) the candidate discussed a project deep dive and a dashboard-system design, and was also asked to **design an LLM-related feature**. The exact feature was not recorded. A natural version for a food-delivery company is something like a natural-language restaurant and dish search, or a review summariser.\n\nThe same round then moved on to core CS: ACID, OSI model, SQL vs NoSQL, TCP handshake, and TLS/mTLS.",
+ "lookingFor": [
+  "Can you scope an open-ended request: users, problem, success metric, and why an LLM is the right tool?",
+  "Do you understand the pipeline around the model (retrieval, prompts, caching, fallbacks) rather than just 'call the API'?",
+  "Do you plan for hallucination, latency, cost and safety?",
+  "Can you describe how you would evaluate and monitor quality?"
+ ],
+ "answer": "**Start by scoping, not designing.** Ask who the user is and what the success metric is. Example feature: *natural-language search* (\"spicy vegetarian under 300, delivers in 30 minutes\"). Say why an LLM helps (understanding free-form intent) and what the baseline is (keyword and filter search).\n\n**Requirements.** Latency target (for example under 1-2 s p95 for the visible step), cost per query, correctness (must not recommend items that do not exist or are unavailable), safety and privacy.\n\n**Architecture.**\n1. **Query understanding**: the LLM converts the text into a structured filter (cuisine, diet, price, location) using JSON/schema-constrained output.\n2. **Retrieval**: run that structured query against the existing search index or database, plus optionally a vector search over dish and review embeddings for fuzzy matches.\n3. **Ranking and answer**: the LLM (or a ranker) orders or explains only the retrieved candidates, so it cannot invent restaurants. This is retrieval-augmented generation.\n4. **Serving layer**: API gateway, rate limiting, a cache keyed on normalised queries, timeouts, and a fallback to plain keyword search when the model fails or is slow.\n\n**Quality and safety.** Validate model output against a schema, ground answers in retrieved data, filter unsafe input, and avoid sending personal data to the model unnecessarily.\n\n**Cost and latency.** Use a small model for parsing, cache repeated queries, stream the response, and cap tokens.\n\n**Evaluation.** Build a labelled set of queries, measure parsing accuracy and result relevance offline, then A/B test online (click-through, conversion), and monitor drift, failures and cost with logged prompts and outputs.\n\n**Trade-offs to name.** Prompting vs fine-tuning, hosted API vs self-hosted model, and when plain search is good enough.",
+ "followUps": [
+  "How would you reduce hallucinations in this feature?",
+  "How would you evaluate the feature before and after launch?",
+  "How would you cut cost and latency if traffic grows 10x?",
+  "What would you do if the LLM provider is down?"
+ ]
+}

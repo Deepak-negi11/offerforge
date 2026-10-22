@@ -1,0 +1,17 @@
+{
+ "qid": "11ab0453b3",
+ "question": "Reported in an NVIDIA Senior Software Engineer interview: write a custom `malloc` whose returned memory is aligned to a given size. The report does not say whether to build on the system allocator or to write a new allocator, so state both readings: a wrapper around `malloc`, and aligned allocation inside your own pool.",
+ "lookingFor": [
+  "Bit-mask alignment arithmetic and power-of-two validation",
+  "Handling free correctly via a stored header",
+  "Thinking about overhead, overflow and fragmentation",
+  "Knowing the standard APIs and when to prefer them"
+ ],
+ "answer": "**Reading 1: wrapper over `malloc`.** Over-allocate by `align - 1 + sizeof(void*)`, round up, and keep the original pointer just before the aligned address:\n\n```c\nvoid *amalloc(size_t size, size_t align) {\n    if (!align || (align & (align - 1))) return NULL;   // power of two only\n    if (align < sizeof(void *)) align = sizeof(void *);\n    if (size > SIZE_MAX - align - sizeof(void *)) return NULL; // overflow guard\n    void *raw = malloc(size + align + sizeof(void *));\n    if (!raw) return NULL;\n    uintptr_t a = ((uintptr_t)raw + sizeof(void *) + align - 1) & ~(uintptr_t)(align - 1);\n    ((void **)a)[-1] = raw;\n    return (void *)a;\n}\nvoid afree(void *p) { if (p) free(((void **)p)[-1]); }\n```\n\nThe mask `~(align - 1)` clears the low bits, and adding `align - 1` first rounds up instead of down. Waste is bounded by `align + sizeof(void*)` bytes per block.\n\n**Reading 2: inside your own allocator (pool or bump arena).** Keep a cursor into a big buffer and round the cursor up to `align` before handing out a block. For free-list allocators, store a small header (size, flags) immediately before the aligned address, and when the padding needed is larger than a minimum block, return the leading gap to the free list so it is not wasted.\n\n**Testing.** Assert `((uintptr_t)p % align) == 0` for several alignments (16, 64, 4096), sizes (0, 1, large) and many allocations, and run under AddressSanitizer to check the stored pointer is never overwritten.\n\n**Prefer the library when possible.** `posix_memalign`, C11 `aligned_alloc` (size must be a multiple of alignment), `_aligned_malloc` on Windows, `mmap` for page alignment. Why alignment matters: SIMD loads, DMA and GPU buffers, cache-line isolation against false sharing.",
+ "followUps": [
+  "Why does adding align - 1 and masking round up?",
+  "How would you return the unused leading gap to the allocator?",
+  "What alignment does plain malloc guarantee and why?",
+  "How does aligned allocation relate to false sharing?"
+ ]
+}

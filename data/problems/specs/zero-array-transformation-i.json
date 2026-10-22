@@ -1,0 +1,45 @@
+{
+ "pid": "zero-array-transformation-i",
+ "title": "Zero Array Transformation I",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given an array `nums` of `n` positive integers and a list of `q` range queries, where query `i` is a pair `(l, r)` of 0-indexed, inclusive positions.\n\nThe queries are processed one by one, and each query is used exactly once. When processing query `(l, r)` you may pick **any subset** of the indices in `[l, r]` (including none of them, or all of them) and decrement `nums[j]` by `1` for every picked index `j`. You choose the subset independently for every query.\n\nDecide whether, after all queries have been processed, it is possible to have turned `nums` into a **zero array** (every element equal to `0`). Print `true` if it is possible and `false` otherwise.",
+ "input_format": "The first line contains `n`. The second line contains `n` integers `nums[0..n-1]`. The third line contains `q`. Each of the next `q` lines contains two integers `l` and `r`.",
+ "output_format": "Print `true` or `false`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ nums[i] ≤ 10^5",
+  "1 ≤ q ≤ 10^5",
+  "0 ≤ l ≤ r < n"
+ ],
+ "examples": [
+  {
+   "input": "3\n1 2 1\n3\n0 2\n1 1\n1 2",
+   "output": "true",
+   "explanation": "Index 0 is covered by 1 query, index 1 by 3 queries and index 2 by 2 queries. Query (0,2): decrement indices 0 and 1 (array 0 1 1). Query (1,1): decrement index 1 (0 0 1). Query (1,2): decrement index 2 only (0 0 0)."
+  },
+  {
+   "input": "3\n4 1 3\n3\n0 1\n0 2\n2 2",
+   "output": "false",
+   "explanation": "Index 0 is covered by only 2 queries, but it has to be decremented 4 times, so it can never reach 0."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + q)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Since you may choose any subset of the range, every query that covers an index can decrement it, or leave it alone. What does that say about a single index in isolation?",
+  "An index i can be reduced to 0 if and only if the number of queries covering i is at least nums[i]. Different indices never compete for the same decrement.",
+  "Count, for every index, how many ranges cover it using a difference array (add 1 at l, subtract 1 at r + 1) and a running prefix sum."
+ ],
+ "reference": "import sys\n\ndef main():\n    d = sys.stdin.read().split()\n    n = int(d[0])\n    nums = d[1:1 + n]\n    q = int(d[1 + n])\n    diff = [0] * (n + 1)\n    p = 2 + n\n    for _ in range(q):\n        l = int(d[p]); r = int(d[p + 1]); p += 2\n        diff[l] += 1\n        diff[r + 1] -= 1\n    cur = 0\n    ok = True\n    for i in range(n):\n        cur += diff[i]\n        if int(nums[i]) > cur:\n            ok = False\n            break\n    print('true' if ok else 'false')\n\nmain()\n",
+ "brute": "import sys\n\nd = sys.stdin.read().split()\nn = int(d[0])\nnums = [int(x) for x in d[1:1 + n]]\nq = int(d[1 + n])\nqs = []\nfor i in range(q):\n    qs.append((int(d[2 + n + 2 * i]), int(d[3 + n + 2 * i])))\nok = True\nfor i in range(n):\n    cover = sum(1 for l, r in qs if l <= i <= r)\n    if cover < nums[i]:\n        ok = False\nprint('true' if ok else 'false')\n",
+ "generator": "def gen(rng):\n    def fmt(nums, qs):\n        return str(len(nums)) + '\\n' + ' '.join(map(str, nums)) + '\\n' + str(len(qs)) + '\\n' + '\\n'.join(f'{l} {r}' for l, r in qs)\n\n    def cover(n, qs):\n        diff = [0] * (n + 1)\n        for l, r in qs:\n            diff[l] += 1\n            diff[r + 1] -= 1\n        c, cur = [], 0\n        for i in range(n):\n            cur += diff[i]\n            c.append(cur)\n        return c\n\n    def mk(n, q, mode, vmax=10**5, full=True, minlen=1, maxlen=None):\n        qs = []\n        maxlen = maxlen or n\n        for _ in range(q):\n            ln = rng.randint(minlen, min(maxlen, n))\n            l = rng.randint(0, n - ln)\n            qs.append((l, l + ln - 1))\n        if full:\n            qs[rng.randrange(q)] = (0, n - 1)\n        c = cover(n, qs)\n        nums = [rng.randint(1, max(1, min(vmax, ci))) for ci in c]\n        if mode == 'false':\n            cand = [i for i in range(n) if c[i] < 10**5]\n            i = rng.choice(cand)\n            nums[i] = c[i] + 1\n        elif mode == 'tight':\n            nums = [max(1, min(vmax, ci)) for ci in c]\n        return fmt(nums, qs)\n\n    tests = [\n        fmt([1], [(0, 0)]),\n        fmt([2], [(0, 0)]),\n        fmt([1, 1, 1], [(0, 0), (2, 2)]),\n        fmt([1, 2, 1], [(0, 2), (1, 1), (1, 2)]),\n        fmt([5], [(0, 0)] * 5),\n    ]\n    for _ in range(30):\n        n = rng.randint(1, 8)\n        q = rng.randint(1, 8)\n        mode = rng.choice(['true', 'true', 'false', 'rand', 'tight'])\n        if mode == 'rand':\n            nums = [rng.randint(1, 4) for _ in range(n)]\n            qs = []\n            for _ in range(q):\n                l = rng.randint(0, n - 1)\n                qs.append((l, rng.randint(l, n - 1)))\n            tests.append(fmt(nums, qs))\n        else:\n            tests.append(mk(n, q, mode, vmax=6))\n    N = 10**5\n    tests.append(mk(N, N, 'true', minlen=1, maxlen=50))\n    tests.append(mk(N, N, 'false', minlen=1, maxlen=50))\n    tests.append(mk(N, N, 'tight'))\n    tests.append(mk(N, N, 'false', minlen=1000))\n    tests.append(fmt([10**5] * N, [(0, N - 1)] * N))\n    tests.append(mk(N, N, 'true', minlen=N // 2))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef can_zero(nums: List[int], queries: List[List[int]]) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    d = sys.stdin.read().split()\n    n = int(d[0])\n    nums = [int(x) for x in d[1:1 + n]]\n    q = int(d[1 + n])\n    queries = [[int(d[2 + n + 2 * i]), int(d[3 + n + 2 * i])] for i in range(q)]\n    print('true' if can_zero(nums, queries) else 'false')\n\n\nmain()\n",
+  "javascript": "function canZero(nums, queries) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst nums = t.slice(1, 1 + n)\nconst q = t[1 + n]\nconst queries = []\nfor (let i = 0; i < q; i++) queries.push([t[2 + n + 2 * i], t[3 + n + 2 * i]])\nconsole.log(canZero(nums, queries) ? 'true' : 'false')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool canZero(vector<int>& nums, vector<pair<int, int>>& queries) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> nums(n);\n    for (auto& x : nums) cin >> x;\n    int q;\n    cin >> q;\n    vector<pair<int, int>> queries(q);\n    for (auto& e : queries) cin >> e.first >> e.second;\n    cout << (canZero(nums, queries) ? \"true\" : \"false\") << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean canZero(int[] nums, int[][] queries) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] nums = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            nums[i] = (int) in.nval;\n        }\n        in.nextToken();\n        int q = (int) in.nval;\n        int[][] queries = new int[q][2];\n        for (int i = 0; i < q; i++) {\n            in.nextToken(); queries[i][0] = (int) in.nval;\n            in.nextToken(); queries[i][1] = (int) in.nval;\n        }\n        System.out.println(canZero(nums, queries) ? \"true\" : \"false\");\n    }\n}\n"
+ }
+}

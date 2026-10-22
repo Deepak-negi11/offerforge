@@ -1,0 +1,44 @@
+{
+ "pid": "degree-of-an-array",
+ "title": "Degree of an Array and Split Array Largest Sum",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given an array `a` of `n` non-negative integers and an integer `k`. Answer two independent questions about it. (A candidate was asked both in one 45-minute interview round, so this problem combines them.)\n\n**Part A: degree.** The *degree* of an array is the largest number of times any single value occurs in it. Find the length of the shortest contiguous subarray of `a` whose degree equals the degree of the whole array `a`.\n\n**Part B: split.** Split `a` into exactly `k` non-empty contiguous subarrays so that the **largest subarray sum** is as small as possible. Find that smallest possible largest sum.\n\nPrint the answer to Part A on the first line and the answer to Part B on the second line.",
+ "input_format": "The first line contains `n` and `k`.\nThe second line contains the `n` integers of the array.",
+ "output_format": "Print two lines: the answer to Part A, then the answer to Part B.",
+ "constraints": [
+  "1 ≤ n ≤ 5·10^4",
+  "1 ≤ k ≤ n",
+  "0 ≤ a[i] ≤ 10^6"
+ ],
+ "examples": [
+  {
+   "input": "6 4\n1 2 2 3 1 2",
+   "output": "5\n3",
+   "explanation": "Part A: the value 2 occurs 3 times, so the degree is 3. The first 2 is at index 1 and the last at index 5, so the shortest subarray with degree 3 is `2 2 3 1 2`, of length 5. Part B: with limit 3 we can cut into `1 2`, `2`, `3`, `1 2`, which is 4 pieces, and no piece can be below the largest element 3, so the answer is 3."
+  },
+  {
+   "input": "4 2\n5 1 1 5",
+   "output": "2\n6",
+   "explanation": "Part A: both 5 and 1 occur twice, so the degree is 2. The shortest subarray holding a value twice is `1 1`, of length 2. Part B: split into `5 1` and `1 5`; both sums are 6, and no split does better."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log(sum of a))",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Part A: record the count of each value together with the index where it first appears. The shortest subarray with a given value's full frequency runs from its first to its last occurrence.",
+  "Part B: the answer is at least the maximum element and at most the total sum. Ask the opposite question: given a limit L, what is the smallest number of pieces needed so that no piece exceeds L?",
+  "That piece count can be found greedily in one pass, and it never increases as L grows, so binary search over L. Since k ≤ n, a limit that needs fewer than k pieces can always be split further."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    first = {}\n    count = {}\n    span = {}\n    for i, x in enumerate(a):\n        if x not in first:\n            first[x] = i\n        count[x] = count.get(x, 0) + 1\n        span[x] = i - first[x] + 1\n    deg = max(count.values())\n    part_a = min(span[x] for x in count if count[x] == deg)\n    lo, hi = max(a), sum(a)\n    while lo < hi:\n        mid = (lo + hi) // 2\n        pieces = 1\n        cur = 0\n        for x in a:\n            if cur + x > mid:\n                pieces += 1\n                cur = x\n            else:\n                cur += x\n        if pieces <= k:\n            hi = mid\n        else:\n            lo = mid + 1\n    print(part_a)\n    print(lo)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, k = int(data[0]), int(data[1])\na = [int(x) for x in data[2:2 + n]]\n\ndef degree(b):\n    return max(b.count(x) for x in set(b))\n\nd = degree(a)\npart_a = min(j - i + 1 for i in range(n) for j in range(i, n) if degree(a[i:j + 1]) == d)\n\npre = [0]\nfor x in a:\n    pre.append(pre[-1] + x)\nINF = float('inf')\ndp = [[INF] * (n + 1) for _ in range(k + 1)]\ndp[0][0] = 0\nfor j in range(1, k + 1):\n    for i in range(1, n + 1):\n        for t in range(j - 1, i):\n            if dp[j - 1][t] != INF:\n                dp[j][i] = min(dp[j][i], max(dp[j - 1][t], pre[i] - pre[t]))\nprint(part_a)\nprint(dp[k][n])\n",
+ "generator": "def gen(rng):\n    def fmt(a, k):\n        return '%d %d\\n%s' % (len(a), k, ' '.join(map(str, a)))\n    tests = [\n        fmt([5], 1),\n        fmt([0, 0, 0], 2),\n        fmt([1, 2, 2, 3, 1, 2], 4),\n        fmt([5, 1, 1, 5], 2),\n        fmt([7, 7, 1, 7, 7], 2),\n        fmt([1, 2, 3, 4, 5], 5),\n        fmt([1, 2, 3, 4, 5], 1),\n        fmt([10**6, 10**6, 0, 10**6], 3),\n        fmt([3, 1, 4, 1, 5, 9, 2, 6], 3),\n    ]\n    for n in (2, 3, 4, 6, 8, 10, 12):\n        for _ in range(3):\n            hi = rng.choice([1, 2, 3, 5, 20])\n            a = [rng.randint(0, hi) for _ in range(n)]\n            tests.append(fmt(a, rng.randint(1, n)))\n    n = 50000\n    for hi, k in ((10**6, 7), (10**6, 25000), (5, 100), (10**6, 1), (10**6, n)):\n        tests.append(fmt([rng.randint(0, hi) for _ in range(n)], k))\n    tests.append(fmt([10**6] * n, 777))\n    tests.append(fmt([rng.randint(0, 1000) for _ in range(n)], 3000))\n    # few distinct values with long spans for part A\n    a = [rng.choice([1, 2, 3]) for _ in range(n)]\n    tests.append(fmt(a, 2))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef solve(a: List[int], k: int) -> List[int]:\n    # Return [shortest subarray length with the same degree as a, minimized largest sum of a k-way split].\n    # Write your solution here\n    return [0, 0]\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    print('\\n'.join(map(str, solve(a, k))))\n\n\nmain()\n",
+  "javascript": "function solve(a, k) {\n  // Return [shortest subarray length with the same degree as a, minimized largest sum of a k-way split].\n  // Write your solution here\n  return [0, 0]\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst a = t.slice(2, 2 + n)\nconsole.log(solve(a, k).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\n// Return {shortest subarray length with the same degree as a, minimized largest sum of a k-way split}.\nvector<long long> solve(vector<long long>& a, int k) {\n    // Write your solution here\n    return {0, 0};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<long long> a(n);\n    for (auto& x : a) cin >> x;\n    vector<long long> res = solve(a, k);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    // Return {shortest subarray length with the same degree as a, minimized largest sum of a k-way split}.\n    static long[] solve(long[] a, int k) {\n        // Write your solution here\n        return new long[] {0, 0};\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); a[i] = (long) in.nval; }\n        long[] res = solve(a, k);\n        StringBuilder sb = new StringBuilder();\n        for (long v : res) sb.append(v).append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

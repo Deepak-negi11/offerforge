@@ -1,0 +1,48 @@
+{
+ "pid": "apple-factorize-string-extremities",
+ "title": "Factorize String Extremities",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given two non-empty strings `a` and `b`. Merge them into a single string by concatenating them in one of the two orders, `a + b` or `b + a`, but whenever the end of the first string is equal to the beginning of the second, that shared part is written only once.\n\nFormally, for an ordered pair `(x, y)` the **overlap** is the largest `k` with `0 ≤ k ≤ min(|x|, |y|)` such that the last `k` characters of `x` are equal to the first `k` characters of `y`. Merging `x` followed by `y` gives `x` followed by `y` with its first `k` characters removed, so the result has length `|x| + |y| - k`.\n\nCompute the overlap of `(a, b)` and the overlap of `(b, a)`. Use the order with the **larger** overlap, since it gives the shorter merged string. If both orders have the same overlap, use `a + b`. Print the merged string.\n\nNote that the overlap may be a whole string: merging two identical strings gives that string itself.",
+ "input_format": "The first line contains the string `a`.\nThe second line contains the string `b`.",
+ "output_format": "Print the merged string on one line.",
+ "constraints": [
+  "1 ≤ |a|, |b| ≤ 2 · 10^5",
+  "`a` and `b` contain only letters and digits"
+ ],
+ "examples": [
+  {
+   "input": "1234yyabc\nabcxxxx1234",
+   "output": "abcxxxx1234yyabc",
+   "explanation": "For `(a, b)` the shared part is `abc` (overlap 3). For `(b, a)` the shared part is `1234` (overlap 4). The larger overlap wins, so the order is `b + a`, written as `abcxxxx1234` followed by `yyabc`."
+  },
+  {
+   "input": "UUUUUUUUUUUUUU\nUUUUU",
+   "output": "UUUUUUUUUUUUUU",
+   "explanation": "The whole of `b` (5 characters) is a suffix of `a`, so the overlap of `(a, b)` is 5 and nothing from `b` needs to be added. The order `b + a` also has overlap 5, which is a tie, so `a + b` is used: 14 `U` characters."
+  },
+  {
+   "input": "ab\nba",
+   "output": "aba",
+   "explanation": "The overlap of `(a, b)` is 1 (`b`), and the overlap of `(b, a)` is 1 (`a`). It is a tie, so `a + b` is used and the shared `b` is written once: `aba`."
+  }
+ ],
+ "complexity": {
+  "time": "O(|a| + |b|)",
+  "space": "O(|a| + |b|)"
+ },
+ "hints": [
+  "Write a helper that returns the overlap of an ordered pair `(x, y)`, then call it twice.",
+  "Checking every possible overlap length with string comparison costs O(n^2) in the worst case. You want the longest prefix of `y` that is also a suffix of `x`.",
+  "Compute the prefix function (KMP failure table) of `y + '#' + x`, where `#` is a separator that does not occur in the strings. The last value is the overlap."
+ ],
+ "reference": "import sys\n\ndef overlap(x, y):\n    s = y + '#' + x\n    pi = [0] * len(s)\n    for i in range(1, len(s)):\n        k = pi[i - 1]\n        while k and s[i] != s[k]:\n            k = pi[k - 1]\n        if s[i] == s[k]:\n            k += 1\n        pi[i] = k\n    return pi[-1]\n\ndef main():\n    a, b = sys.stdin.read().split()[:2]\n    k1 = overlap(a, b)\n    k2 = overlap(b, a)\n    if k2 > k1:\n        print(b + a[k2:])\n    else:\n        print(a + b[k1:])\n\nmain()\n",
+ "brute": "import sys\n\ndef overlap(x, y):\n    for k in range(min(len(x), len(y)), -1, -1):\n        if x[len(x) - k:] == y[:k]:\n            return k\n\na, b = sys.stdin.read().split()[:2]\nk1 = overlap(a, b)\nk2 = overlap(b, a)\nif k2 > k1:\n    print(b + a[k2:])\nelse:\n    print(a + b[k1:])\n",
+ "generator": "def gen(rng):\n    def fmt(a, b):\n        return a + '\\n' + b\n    def rs(n, alpha):\n        return ''.join(rng.choice(alpha) for _ in range(n))\n    tests = [fmt('a', 'a'), fmt('a', 'b'), fmt('ab', 'ba'), fmt('abc', 'xyz'),\n             fmt('1234yyabc', 'abcxxxx1234'), fmt('UUUUUUUUUUUUUU', 'UUUUU'),\n             fmt('abcd', 'cd'), fmt('cd', 'abcd'), fmt('aaaa', 'aaaa'),\n             fmt('abab', 'baba'), fmt('xyz', 'xyzxyz'), fmt('aab', 'aaab')]\n    for _ in range(45):\n        alpha = rng.choice(['ab', 'abc', 'ab1'])\n        a = rs(rng.randint(1, 12), alpha)\n        b = rs(rng.randint(1, 12), alpha)\n        if rng.random() < 0.5:\n            k = rng.randint(0, min(len(a), len(b)))\n            b = a[len(a) - k:] + b[k:]\n        tests.append(fmt(a, b))\n    N = 200000\n    tests.append(fmt('a' * N, 'b' + 'a' * (N - 1)))\n    tests.append(fmt('a' * N, 'a' * N))\n    tests.append(fmt('ab' * (N // 2), 'ba' * (N // 2)))\n    big = rs(N, 'abc')\n    k = N // 2\n    tests.append(fmt(big, big[N - k:] + rs(N - k, 'abc')))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef factorize(a: str, b: str) -> str:\n    # Write your solution here\n    return \"\"\n\n\ndef main():\n    data = sys.stdin.read().split()\n    print(factorize(data[0], data[1]))\n\n\nmain()\n",
+  "javascript": "function factorize(a, b) {\n  // Write your solution here\n  return ''\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconsole.log(factorize(t[0], t[1]))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring factorize(const string& a, const string& b) {\n    // Write your solution here\n    return \"\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string a, b;\n    cin >> a >> b;\n    cout << factorize(a, b) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String factorize(String a, String b) {\n        // Write your solution here\n        return \"\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        String a = st.nextToken();\n        st = new StringTokenizer(br.readLine());\n        String b = st.nextToken();\n        System.out.println(factorize(a, b));\n    }\n}\n"
+ }
+}

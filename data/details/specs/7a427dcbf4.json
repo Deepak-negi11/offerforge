@@ -1,0 +1,18 @@
+{
+ "qid": "7a427dcbf4",
+ "question": "Design a data structure with **constant-time** operations and **no restriction on space**, supporting:\n\n- `insert()`\n- `remove()`\n- `getRandom()`\n- `exists()`\n- `getLRU()`\n\nYou were expected to write the **complete implementation from scratch**, starting by defining the node and the doubly linked list. (New-grad onsite, second coding round of two, one hour each.)",
+ "lookingFor": [
+  "Combining a hash map, an array and a linked list correctly",
+  "Maintaining all structures consistently on every operation",
+  "Clarifying what counts as 'use' for the LRU order",
+  "Edge cases: empty structure, duplicate insert, removing the last or only element",
+  "Implementing the linked list yourself without library helpers"
+ ],
+ "answer": "**Clarify.** What are the elements (say keys of a generic type)? Are duplicates allowed (assume no)? What counts as a use for recency: just `insert`, or also `exists`? `getLRU` returns the least recently used element without removing it, unless told otherwise. Assume `exists` does not change recency, and note that you can change that in one line.\n\n**Idea: three structures kept in sync.**\n- **Hash map** `key -> Node` gives O(1) `exists` and O(1) access to a node for removal.\n- **Doubly linked list** ordered by recency (head is most recent, tail is least recent) gives O(1) `getLRU` (read the tail) and O(1) unlinking of any node, because you hold its pointers.\n- **Array (list) of nodes** `arr[]` with each node storing its `idx` gives O(1) `getRandom` (pick a random index).\n\n**Operations.**\n- `insert(x)`: if present, return (or move to head). Else create `Node(x)`, link it at the head of the list, append to `arr` and record `node.idx = arr.size - 1`, put in the map. O(1) amortised.\n- `exists(x)`: `map.containsKey(x)`.\n- `getRandom()`: `arr[random(arr.size)].value`.\n- `getLRU()`: `tail.value` (guard the empty case).\n- `remove(x)`: look up the node; unlink it from the list in O(1); delete from the array by swapping with the last element: `last = arr[size-1]; arr[node.idx] = last; last.idx = node.idx; arr.pop()`; delete from the map.\n\n```\nclass Node { val; prev; next; idx }\n```\n\nUse sentinel head and tail nodes in the linked list to avoid null checks. The swap-with-last trick is the key to O(1) removal from the array, at the cost of unordered storage (which is fine for random choice).\n\n**Edge cases.** Empty structure for `getRandom` and `getLRU`; removing the only element; removing the element that is last in the array (swap with itself); removing a non-existent key (return false).\n\n**Complexity.** All operations O(1), space O(n) for the map, list and array. A `LinkedHashMap` gives LRU but not random access, so the custom structure is needed.",
+ "followUps": [
+  "What changes if `exists` and `getRandom` should also refresh recency?",
+  "How would you support duplicate elements?",
+  "How would you make it thread-safe?",
+  "Why can't you use a hash set alone for getRandom in O(1)?"
+ ]
+}

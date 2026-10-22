@@ -1,0 +1,49 @@
+{
+ "pid": "all-paths-from-source-to-target",
+ "title": "All Paths From Source to Target",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given a **directed acyclic graph** (DAG) with `n` nodes labeled `0` to `n - 1`, described by its list of directed edges. Find every path that starts at node `0` and ends at node `n - 1`, and print them all.\n\nA path is a sequence of nodes where each consecutive pair is joined by a directed edge. Since the graph has no cycles, a node never repeats within a path. The graph has no self-loops and no duplicate edges. Node labels carry no ordering meaning: an edge may go from a larger label to a smaller one.\n\nThe paths must be printed in a canonical order: compare paths **lexicographically as sequences of node labels** (so `0 1 3` comes before `0 2 3`, and a path that is a prefix of another would come first, although this cannot happen here because every path ends at `n - 1`). If there is no path at all, print `0`.\n\nThe input guarantees that the total number of paths is at most `10^4`.",
+ "input_format": "The first line contains two integers `n` and `m`: the number of nodes and the number of directed edges.\nEach of the next `m` lines contains two integers `u` and `v`, meaning a directed edge from `u` to `v`.",
+ "output_format": "The first line contains `p`, the number of paths. Each of the next `p` lines contains one path as space-separated node labels, listed in lexicographic order.",
+ "constraints": [
+  "2 ≤ n ≤ 30",
+  "The graph is a DAG with no self-loops and no duplicate edges",
+  "The number of paths from node 0 to node n - 1 is at most 10^4"
+ ],
+ "examples": [
+  {
+   "input": "4 4\n0 1\n0 2\n1 3\n2 3",
+   "output": "2\n0 1 3\n0 2 3",
+   "explanation": "From node 0 you can go to 1 or 2, and both lead to 3. That gives exactly two paths, listed in lexicographic order."
+  },
+  {
+   "input": "5 7\n0 4\n0 1\n1 4\n0 2\n2 1\n2 4\n0 3",
+   "output": "4\n0 1 4\n0 2 1 4\n0 2 4\n0 4",
+   "explanation": "Node 3 is reachable but is a dead end (it has no way to node 4), so it never appears. The four complete paths, in lexicographic order, are 0 1 4, 0 2 1 4, 0 2 4 and 0 4."
+  },
+  {
+   "input": "3 1\n0 1",
+   "output": "0",
+   "explanation": "Node 2 cannot be reached from node 0, so there are no paths and the answer is 0."
+  }
+ ],
+ "complexity": {
+  "time": "O(P · n) where P is the number of paths",
+  "space": "O(n) besides the output"
+ },
+ "hints": [
+  "Because the graph is acyclic, a plain DFS from node 0 never needs a visited set to avoid loops.",
+  "Keep the current path in a list. Append a neighbour, recurse, then pop it (backtracking). When you reach n - 1, record a copy of the path.",
+  "Sort each node's neighbour list before the DFS, so that the paths come out already in lexicographic order."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    adj = [[] for _ in range(n)]\n    for i in range(m):\n        adj[int(data[2 + 2 * i])].append(int(data[3 + 2 * i]))\n    for lst in adj:\n        lst.sort()\n    paths = []\n    path = [0]\n\n    def dfs(u):\n        if u == n - 1:\n            paths.append(' '.join(map(str, path)))\n            return\n        for v in adj[u]:\n            path.append(v)\n            dfs(v)\n            path.pop()\n\n    dfs(0)\n    out = [str(len(paths))]\n    out.extend(paths)\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nedges = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(m)]\nfrontier = [[0]]\ndone = []\nfor _ in range(n + 1):\n    nxt = []\n    for p in frontier:\n        if p[-1] == n - 1:\n            done.append(p)\n            continue\n        for u, v in edges:\n            if u == p[-1]:\n                nxt.append(p + [v])\n    frontier = nxt\ndone.sort()\nprint(len(done))\nfor p in done:\n    print(' '.join(map(str, p)))\n",
+ "generator": "def gen(rng):\n    LIMIT = 10**4\n\n    def count_paths(n, edges):\n        adj = [[] for _ in range(n)]\n        for u, v in edges:\n            adj[u].append(v)\n        memo = {}\n        def f(u):\n            if u == n - 1:\n                return 1\n            if u in memo:\n                return memo[u]\n            r = sum(f(v) for v in adj[u])\n            memo[u] = r\n            return r\n        return f(0)\n\n    def build(n, density, fixed_ends, target):\n        # topological order of labels; 0 and n-1 at the two ends when fixed_ends\n        mid = list(range(1, n - 1))\n        rng.shuffle(mid)\n        order = [0] + mid + [n - 1] if fixed_ends else rng.sample(range(n), n)\n        cand = [(order[i], order[j]) for i in range(n) for j in range(i + 1, n)]\n        rng.shuffle(cand)\n        edges = []\n        chain = [(order[i], order[i + 1]) for i in range(n - 1)] if fixed_ends else []\n        for e in chain:\n            edges.append(e)\n        for e in cand:\n            if e in edges:\n                continue\n            if rng.random() > density:\n                continue\n            edges.append(e)\n            if count_paths(n, edges) > target:\n                edges.pop()\n        rng.shuffle(edges)\n        return edges\n\n    def fmt(n, edges):\n        return f\"{n} {len(edges)}\\n\" + '\\n'.join(f\"{u} {v}\" for u, v in edges)\n\n    tests = [\n        fmt(2, [(0, 1)]), fmt(2, []), fmt(3, [(0, 1), (1, 2), (0, 2)]), fmt(3, [(0, 1)]),\n        fmt(4, [(0, 1), (0, 2), (1, 3), (2, 3), (1, 2)]),\n        fmt(4, [(3, 0), (0, 1), (1, 2)]),\n        fmt(5, [(0, 4), (0, 1), (1, 4), (0, 2), (2, 1), (2, 4), (0, 3), (3, 4)]),\n    ]\n    for _ in range(14):\n        n = rng.randint(3, 8)\n        tests.append(fmt(n, build(n, rng.choice([0.3, 0.6, 0.9]), rng.random() < 0.7, 60)))\n    for _ in range(3):\n        n = rng.randint(10, 30)\n        tests.append(fmt(n, build(n, 0.15, True, LIMIT)))\n    tests.append(fmt(30, build(30, 0.2, True, LIMIT)))\n    tests.append(fmt(30, build(30, 1.0, True, LIMIT)))\n    tests.append(fmt(30, [(i, i + 1) for i in range(29)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef all_paths(n: int, edges: List[List[int]]) -> List[List[int]]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    edges = [[int(data[2 + 2 * i]), int(data[3 + 2 * i])] for i in range(m)]\n    paths = all_paths(n, edges)\n    print(len(paths))\n    for p in paths:\n        print(' '.join(map(str, p)))\n\n\nmain()\n",
+  "javascript": "function allPaths(n, edges) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst edges = []\nfor (let i = 0; i < m; i++) edges.push([t[2 + 2 * i], t[3 + 2 * i]])\nconst paths = allPaths(n, edges)\nconst out = [String(paths.length)]\nfor (const p of paths) out.push(p.join(' '))\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<vector<int>> allPaths(int n, vector<pair<int, int>>& edges) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<pair<int, int>> edges(m);\n    for (int i = 0; i < m; i++) cin >> edges[i].first >> edges[i].second;\n    vector<vector<int>> paths = allPaths(n, edges);\n    cout << paths.size() << \"\\n\";\n    for (auto& p : paths) {\n        for (size_t i = 0; i < p.size(); i++) cout << p[i] << (i + 1 < p.size() ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<List<Integer>> allPaths(int n, int[][] edges) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] edges = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); edges[i][0] = (int) in.nval;\n            in.nextToken(); edges[i][1] = (int) in.nval;\n        }\n        List<List<Integer>> paths = allPaths(n, edges);\n        StringBuilder sb = new StringBuilder();\n        sb.append(paths.size()).append(\"\\n\");\n        for (List<Integer> p : paths) {\n            for (int i = 0; i < p.size(); i++) sb.append(p.get(i)).append(i + 1 < p.size() ? \" \" : \"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

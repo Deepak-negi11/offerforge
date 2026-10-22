@@ -1,0 +1,18 @@
+{
+ "qid": "fc6236dce5",
+ "question": "In the technical round for an Associate Software Engineer role at ServiceNow (a DSA and DBMS round), the interviewer asked a basic DBMS design question: **how would you manage the conflict when two users try to book the same movie seat at the same time?**",
+ "lookingFor": [
+  "Do you recognise this as a race condition (lost update, double booking)?",
+  "Do you know database tools to prevent it: transactions, locks, constraints?",
+  "Can you compare pessimistic and optimistic concurrency control?",
+  "Do you think about the user experience: holding a seat while paying, timeouts?",
+  "Can you extend the idea to a distributed system?"
+ ],
+ "answer": "**The problem.** Two requests both read \"seat A5 is free\" and both write \"booked\". Without protection the last write wins and one customer is told a false story. The fix must make *check and book* a single atomic step.\n\n**Option 1: unique constraint (simplest, most robust).** Store bookings as rows and add `UNIQUE(show_id, seat_id)`. Both users try to insert; the database accepts one and rejects the other with a duplicate-key error, which you translate to \"seat just taken\". The constraint is the source of truth, so it holds even if application code has a bug.\n\n**Option 2: pessimistic locking.** Within a transaction:\n\n    BEGIN;\n    SELECT status FROM seats WHERE show_id = ? AND seat_id = ? FOR UPDATE;\n    -- if status = 'AVAILABLE'\n    UPDATE seats SET status = 'BOOKED', user_id = ? WHERE show_id = ? AND seat_id = ?;\n    COMMIT;\n\n`FOR UPDATE` locks the row, so the second transaction waits, then sees \"BOOKED\". Simple and safe; the cost is waiting and possible deadlocks (lock seats in a consistent order when booking several).\n\n**Option 3: optimistic locking.** Add a `version` column and update with a condition:\n\n    UPDATE seats SET status = 'BOOKED', version = version + 1\n    WHERE show_id = ? AND seat_id = ? AND status = 'AVAILABLE';\n\nIf the number of rows affected is 0, someone else got it, so tell the user. No locks held, good when conflicts are rare.\n\n**Holding the seat during payment.** In practice a seat is first **reserved temporarily** (status `HELD` with an expiry time of a few minutes, in the database or a store such as Redis with a TTL), then confirmed after payment. A background job or expiry releases abandoned holds. Payment must be idempotent, and booking confirmation and payment status must stay consistent.\n\n**Scaling.** For one show's popular seats, contention is on a few rows; keep transactions short. Across many servers the database still provides the guarantee, because the conflict is on a single seat row. If seats live in a cache, use atomic operations (such as set-if-not-exists).\n\n**Isolation levels.** Plain \"read, then write\" under read committed is not enough; use a lock, a constraint or a conditional update.",
+ "followUps": [
+  "What is the difference between pessimistic and optimistic locking and when would you choose each?",
+  "How would you hold a seat while the user pays?",
+  "What happens if the payment fails after the seat is held?",
+  "How would you handle booking several adjacent seats atomically?"
+ ]
+}

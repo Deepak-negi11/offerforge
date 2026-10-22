@@ -1,0 +1,18 @@
+{
+ "qid": "2dc5b06893",
+ "question": "Microsoft SWE-2 High-Level Design round: **design an online food delivery system**.\n\nThe requirements included scalability, fault tolerance and **real-time order tracking**. Multiple follow-ups probed design choices, such as **handling peak loads, database sharding, and ensuring data consistency across services**.",
+ "lookingFor": [
+  "Decomposing into services with clear ownership.",
+  "Order lifecycle and consistency across services (payments, restaurants, delivery).",
+  "Real-time location tracking design.",
+  "Sharding and handling peak (lunch and dinner) load.",
+  "Fault tolerance and failure handling."
+ ],
+ "answer": "**Requirements.** Customers browse restaurants and menus, place orders, pay, track delivery; restaurants accept and prepare; delivery partners are assigned. Non-functional: high availability for browse, strong correctness for orders and payments, peak traffic at meal times (often 5-10x average), low-latency tracking.\n\n**Services.** Catalog/Search (restaurants, menus, geo search), Cart and Order service, Payment service, Restaurant service, Dispatch/Assignment service, Location/Tracking service, Notification service. Use an API gateway and asynchronous events (Kafka) between services.\n\n**Order flow and consistency.** The order moves through states: CREATED, PAID, ACCEPTED, PREPARING, PICKED_UP, DELIVERED (or CANCELLED). Orders and payments span services, so use a **saga**: order service creates the order, calls payment, then notifies the restaurant; failures trigger compensating actions (refund, cancel). Use idempotency keys on payment and order creation, and the **outbox pattern** to publish events reliably. Within one service (the order DB) use ACID transactions; across services accept eventual consistency.\n\n**Real-time tracking.** The delivery app sends GPS every few seconds to the Location service (written to Redis, keyed by order or partner, with a TTL). Customers receive updates via WebSocket/SSE fed from pub/sub. Do not persist every ping in the main DB; sample into a time-series store for history.\n\n**Dispatch.** Index partners by geospatial cell (geohash/S2/H3), find nearby available partners, rank by distance and load, and offer with a timeout and retry.\n\n**Data and sharding.** Shard orders by `customer_id` or `order_id` (hash) for write scalability, and keep restaurant/menu data read-optimized with replicas and caches, sharded by city or region. Search uses Elasticsearch with geo filters.\n\n**Peak load.** Autoscaling, caching menus at CDN/Redis, queues to absorb bursts, rate limiting, load shedding of non-critical features, and pre-warming before known peaks.\n\n**Trade-offs.** Choose strong consistency for order and payment state, but eventual consistency for tracking and search.",
+ "followUps": [
+  "How do you ensure a customer is never charged twice for an order?",
+  "How do you choose a shard key for orders and what are its hot spots?",
+  "How does the system behave if the payment service is down?",
+  "How would you design the delivery assignment algorithm?"
+ ]
+}

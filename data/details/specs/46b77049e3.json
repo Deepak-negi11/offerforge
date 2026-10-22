@@ -1,0 +1,19 @@
+{
+ "qid": "46b77049e3",
+ "question": "Databricks new grad architecture round, run in CoderPad: **write pseudocode to design a durable in-memory key-value store**. Reads and writes are served from memory, but data must survive restarts and crashes. No further constraints were reported, so state your assumptions (single node first, then replication if time allows).",
+ "lookingFor": [
+  "Understanding what durable means for an in-memory system.",
+  "Write-ahead log, snapshot and recovery mechanics.",
+  "Concurrency control around the shared map.",
+  "Clear pseudocode with a sensible API.",
+  "Trade-offs between latency, durability and recovery time."
+ ],
+ "answer": "**Requirements and API.** `put(key, value)`, `get(key)`, `delete(key)`. Durability: once `put` returns, the write survives a process or machine crash. Reads are served from memory. Assume a single node and keys and values that fit in RAM.\n\n**Core design: write-ahead log plus snapshots.**\n- Keep a `HashMap` in memory (guarded by a read-write lock or a concurrent map).\n- Every mutation is first appended to a **log file** (sequential disk write) and flushed with `fsync`; only then is the in-memory map updated and the caller acknowledged. Sequential appends are fast, so durability costs little compared with random writes.\n- Periodically write a **snapshot** of the whole map to a new file (write to a temp file, `fsync`, then atomically rename). After the snapshot, start a new log segment and delete older ones. This bounds log size and recovery time.\n- **Recovery on startup:** load the latest snapshot, then replay log records after it in order. Each record has a length and checksum; stop at the first incomplete or corrupt record (a torn tail from a crash).\n\n**Pseudocode sketch:**\n```\nput(k, v):\n  lock(writeLock)\n  seq = nextSeq++\n  log.append(Record(seq, PUT, k, v, checksum))\n  log.fsync()        # or group commit\n  map[k] = v\n  unlock\n  return OK\n```\n\n**Trade-offs.**\n- `fsync` per write is safest but limits throughput; **group commit** batches several writes per fsync. Relaxing to periodic fsync (as some caches do) risks losing the last moments of writes.\n- Snapshot frequency trades CPU/disk I/O against recovery time. A fork or copy-on-write snapshot avoids pausing writes.\n- Memory-only state means restart time grows with data size.\n\n**Scaling and availability (if asked).** Replicate the log to followers (leader-based replication, ack after a majority for durability against machine loss), and shard keys by hash. Mention compaction, TTLs and memory limits as extensions.",
+ "followUps": [
+  "Why write to the log before updating the in-memory map?",
+  "How do you handle a crash in the middle of writing a snapshot?",
+  "How would you reduce the cost of fsync on every write?",
+  "How would you replicate this across machines?",
+  "What happens when the data no longer fits in memory?"
+ ]
+}

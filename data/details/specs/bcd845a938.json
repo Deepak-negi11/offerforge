@@ -1,0 +1,17 @@
+{
+ "qid": "bcd845a938",
+ "question": "Zoho intern selection, round 3: two **command-line application design** questions in 3 hours. One involved an **external .csv file** and asked the program to perform tasks based on **about five kinds of user queries** of the user's choice. The exact queries were not disclosed, so the version below is an honest reconstruction of the problem type.",
+ "lookingFor": [
+  "Can you parse real-world CSV, including quoted fields and embedded commas, correctly?",
+  "Is the query layer extensible (a new query type does not change old code)?",
+  "Do you handle bad input and large files sensibly?",
+  "Can you choose data structures that make repeated queries fast?"
+ ],
+ "answer": "**Clarify.** What does the CSV hold, is there a header, and what are the five queries? Typical ones: filter rows by a column value, count rows, sum or average a numeric column, sort by a column, and search by keyword or find min/max. State your assumed set.\n\n**Design.**\n\n- `CsvLoader` reads the file with `BufferedReader` and a parser that handles quotes (`\"a,b\"`), escaped quotes (`\"\"`), empty cells, and Windows line endings. Do not use naive `split(\",\")`.\n- `Table(headers, rows)`: `rows` is a `List<String[]>`; a `Map<String,Integer>` maps header name to column index.\n- `Query` interface with `execute(Table, args)`. Concrete classes: `FilterQuery`, `CountQuery`, `AggregateQuery` (sum/avg/min/max), `SortQuery`, `SearchQuery`. A `QueryFactory` or registry `Map<String, Query>` selects by command name. This is the command/strategy pattern, so adding a query is adding a class.\n- `Main` runs a loop: read a command line, parse it into command and arguments, run, print, until `exit`.\n\n**Details that earn marks.**\n\n- Type handling: keep cells as strings and parse to numbers only for numeric queries; report a clear error if a cell is not numeric, or skip blank cells.\n- Validation: unknown column, missing file, empty file, wrong argument count.\n- Output as an aligned table.\n- Performance: a filter or aggregate is O(rows). For repeated equality filters on one column, build a `Map<String, List<Row>>` index lazily and cache it. Sorting is O(n log n).\n\n**Edge cases.** Duplicate headers, trailing newline, extra whitespace, case-insensitive matches, and very large files (stream rather than load, if queries allow).\n\n**Testing.** Use a small sample CSV with tricky rows and check each query by hand.",
+ "followUps": [
+  "How would you support a query such as `group by city and sum sales`?",
+  "How would you handle a file too large to fit in memory?",
+  "How do you parse a field that contains a newline inside quotes?",
+  "How would you let users combine conditions with AND and OR?"
+ ]
+}

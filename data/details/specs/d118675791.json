@@ -1,0 +1,19 @@
+{
+ "qid": "d118675791",
+ "question": "In a combined HLD and LLD round for a Full Stack SDE-2 role at Swiggy, the candidate was given **book search functionality** as the problem statement.\n\nThe candidate followed a structured approach (**requirements, high-level design, deep dives**) and spent most of the time on HLD. The discussion then moved to the **frontend part**, where they explained **UI implementation, server-side rendering (SSR) and CDN usage**.",
+ "lookingFor": [
+  "Do you structure the answer: requirements, API, data, architecture, deep dives?",
+  "Do you know how search is built (indexing, ranking, typeahead)?",
+  "Can you reason about caching layers and where to apply them?",
+  "Can you explain frontend choices: SSR vs CSR, debouncing, pagination, CDN?",
+  "Do you connect backend and frontend concerns into one end-to-end design?"
+ ],
+ "answer": "**Requirements.** Functional: search books by title, author, ISBN or keyword; typeahead suggestions; filters (genre, rating, language); paginated results; book details page. Non-functional: low latency (a few hundred ms), high availability, read-heavy, eventual consistency is fine for new books appearing in search.\n\n**API.** `GET /search?q=&filters=&cursor=&limit=`, `GET /suggest?prefix=`, `GET /books/{id}`.\n\n**Data and indexing.**\n- Source of truth: relational or document database holding `Book(id, title, authors, isbn, genres, rating, ...)`.\n- Search index: an inverted index (for example Elasticsearch/OpenSearch) built from the database through change events or periodic reindex. It handles tokenization, stemming, typo tolerance and ranking (text relevance plus rating or popularity).\n- Typeahead: prefix index or a dedicated suggest structure (trie or edge n-grams) seeded with popular queries.\n\n**Architecture.** Client -> CDN -> load balancer -> search API (stateless) -> cache (Redis for popular queries) -> search cluster; book details served from cache over the database. A pipeline updates the index when books change.\n\n**Deep dives.**\n- *Caching:* cache result pages for popular queries with a short TTL; cache book details longer. Normalise queries (lowercase, trim) to raise hit rate.\n- *Scaling:* shard the index by book id and replicate for read throughput; scatter-gather queries across shards.\n- *Pagination:* cursor or `search_after` style rather than deep offsets.\n- *Ranking:* combine relevance with popularity; keep it configurable.\n\n**Frontend.**\n- Debounce typeahead input (for example 200-300 ms) and cancel stale requests so old responses do not overwrite new ones.\n- SSR for the search results and book pages gives faster first paint and SEO; CSR for interactive filtering afterwards (hydrate then fetch).\n- CDN: static assets with long-lived hashed filenames, and cache SSR HTML for popular pages where it is safe.\n- Virtualised or paginated lists, image lazy loading, skeleton states, accessible keyboard navigation for suggestions.\n\n**Trade-offs.** SSR improves SEO and first-load time but increases server cost; aggressive caching speeds responses but can show stale data.",
+ "followUps": [
+  "How would you build typeahead suggestions at scale?",
+  "How do you keep the search index in sync with the database?",
+  "SSR versus CSR for the search results page: which and why?",
+  "How do you avoid race conditions between rapid typeahead requests?",
+  "How would you handle misspelt queries?"
+ ]
+}

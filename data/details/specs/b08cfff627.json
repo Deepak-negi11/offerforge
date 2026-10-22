@@ -1,0 +1,18 @@
+{
+ "qid": "b08cfff627",
+ "question": "Microsoft SDE-2 high-level design round (a hiring-drive interview for a Windows team): **proximity search for a food delivery use case, find restaurants within a 10 km radius**.\n\nThe discussion went into the design in detail, included expanding follow-ups, and, per the candidate's summary, ended with the coding part of the approach.",
+ "lookingFor": [
+  "Choosing a geospatial index and explaining how it works.",
+  "Correct handling of radius queries and boundaries.",
+  "Data freshness, ranking and scaling reads.",
+  "Handling follow-ups such as expanding radius and dense versus sparse areas.",
+  "Ability to translate the approach into code."
+ ],
+ "answer": "**Requirements.** Given latitude and longitude, return open restaurants within 10 km, sorted by distance (or a relevance score). Reads dominate; restaurant locations change rarely, while status (open, busy) changes often. Latency under about 200 ms.\n\n**Naive approach.** Compute the distance to every restaurant: O(N), which does not scale. A relational query with a bounding box on lat and lon uses two B-tree ranges that intersect poorly.\n\n**Geospatial indexing options.**\n- **Geohash:** encode location into a string; nearby places share a prefix. Query the user's cell plus its 8 neighbours (to handle cell borders), then filter by exact distance (Haversine). Choose precision so the cell is a bit larger than the radius.\n- **Quadtree:** recursively subdivide space, splitting cells with too many points; adapts to dense cities and sparse areas.\n- **S2 or H3 cells:** a more uniform cell system with good neighbour handling.\n- Or use ready-made support: PostGIS, Redis GEO (`GEOSEARCH`), Elasticsearch geo queries.\n\n**Algorithm.** (1) Compute the covering cells for the 10 km circle; (2) fetch restaurant ids from those cells; (3) filter by exact distance and by open status and filters; (4) rank (distance, rating, ETA, popularity) and paginate.\n\n**Expanding follow-ups.** If too few results, increase the search radius by moving to a coarser cell level (expanding rings) until k results are found or a cap is reached. In dense areas, use finer cells or a top-k by ranking. Add filters like cuisine through composite indexes.\n\n**System design.** An API gateway to a Search service; an index store holding restaurants by cell (in-memory or Redis for speed, durable DB as source of truth); an ingestion pipeline updating the index when restaurants change; caching of results per cell for a short TTL. Shard by region or cell prefix with replicas, and choose shards by city to avoid hot cells.\n\n**Trade-offs.** Geohash is simple but has uneven cell shapes near poles and boundary effects; quadtrees adapt but are harder to distribute; precision versus number of cells scanned.\n\n**Delivery detail.** Straight-line distance is only a filter; the real delivery ETA should use road distance.",
+ "followUps": [
+  "How do you handle search near a geohash cell border?",
+  "What changes if the radius expands to 50 km or the area is very dense?",
+  "Geohash, quadtree or S2: how do you choose?",
+  "How would you write the code for the radius query?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "f9fb708fc4",
+ "question": "System design round for an AMTS role: design a simple **Library Management System**.\n\n- Entities discussed: Library, Book, Author, Transaction. Explain how the tables relate and how books can be queried by author and by book name.\n- API design: a request structure (gRPC-style request object) that supports filtering books by name, author and date.\n- Concurrency: how would you track **trending books**? The candidate suggested a thread-safe map holding the number of reads or checkouts per book, with a top-k structure such as a heap to get the top trending books.",
+ "lookingFor": [
+  "Can you derive a sensible relational schema with correct cardinalities?",
+  "Can you design a flexible, extensible search API with optional filters and pagination?",
+  "Do you understand thread-safe counters and top-k computation?",
+  "Do you spot where the simple in-memory solution fails at scale?"
+ ],
+ "answer": "**Requirements.** Members search and borrow books; the library tracks copies, loans and returns; staff add books; show trending books. Assume modest scale (one library chain, millions of books, thousands of requests per second at most), so a relational database is a good fit.\n\n**Data model.**\n\n- `author(id, name)`, `book(id, title, isbn, published_date, ...)`.\n- `book_author(book_id, author_id)`: many-to-many, since a book can have several authors.\n- `library(id, name, location)`, `book_copy(id, book_id, library_id, status)`: a **book** is the title, a **copy** is the physical item; loans are per copy.\n- `member(id, ...)`, `transaction(id, copy_id, member_id, checkout_at, due_at, returned_at)`.\n- Indexes: `book(title)` (or full-text index), `book_author(author_id)`, `book(published_date)`, `transaction(copy_id, returned_at)`.\n\n**Search API.** One RPC with a request message: `SearchBooksRequest { optional string name; optional string author; optional DateRange published; int32 page_size; string page_token; }`. Unset fields are ignored, which keeps the API extensible (adding a filter does not break clients). Use keyset pagination (`page_token` encodes the last seen key). For text matching use prefix or full-text indexes; for heavy search move it to a search engine such as Elasticsearch.\n\n**Checkout correctness.** Two members must not take the last copy: use a transaction with `UPDATE book_copy SET status='LOANED' WHERE id=? AND status='AVAILABLE'` and check the affected row count.\n\n**Trending books.**\n\n- Single node: a thread-safe counter map (`ConcurrentHashMap` with atomic increment or `LongAdder`) and a **min-heap of size k** to extract the top k in O(n log k). Computing it on every request is wasteful: recompute periodically and cache.\n- Real trending means recent activity, so count in time buckets (for example hourly) and sum a sliding window, or decay old counts.\n- Multi-node: counts live in one place, for example Redis sorted sets (`ZINCRBY`, `ZREVRANGE`), or are aggregated from an event stream, instead of per-server maps that disagree.",
+ "followUps": [
+  "Why separate Book from BookCopy?",
+  "How would you handle reservations and waiting lists for a popular book?",
+  "How would you scale the search and what would you index?",
+  "How would you build trending over the last 24 hours rather than all time?",
+  "What happens to your in-memory map when the server restarts?"
+ ]
+}

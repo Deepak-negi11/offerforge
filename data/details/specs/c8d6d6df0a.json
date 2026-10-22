@@ -1,0 +1,18 @@
+{
+ "qid": "c8d6d6df0a",
+ "question": "IBM managerial round (Software Developer, ISL/ISDL, on-campus). Question reported: **given a very long URL, how would you provide the customer a shortened URL that maps to the long URL?** (The candidate's note says the expected answer was a hash table.) The interviewer then asked, because the candidate had hands-on experience with Neo4j, MongoDB and MySQL: **what is the difference between Neo4j and MySQL, and when would you use each?**",
+ "lookingFor": [
+  "Turning a simple prompt into requirements (read-heavy mapping, uniqueness, expiry).",
+  "Choice of ID generation and its trade-offs (hash vs counter).",
+  "Basic scaling thinking: caching, partitioning, database choice.",
+  "Understanding of graph versus relational databases and honest use-case judgement."
+ ],
+ "answer": "**Requirements.** `shorten(longUrl) -> shortCode`, `redirect(shortCode) -> longUrl`. Reads (redirects) vastly outnumber writes. Codes must be unique and short; optionally custom alias and expiry.\n\n**Core idea: a key-value mapping** (the hash table the interviewer expects) from `shortCode` to `longUrl`, persisted in a database.\n\n**Generating the code**\n- *Counter + base62:* assign an incrementing numeric ID and encode it in base62 (`0-9a-zA-Z`). 7 characters give 62^7, about 3.5 trillion codes. No collisions, but codes are guessable and the counter needs coordination when scaled (ranges per server, or a ticket service).\n- *Hash the URL* (for example MD5/SHA-256, take the first 7 characters of the encoding): no central counter, but collisions are possible, so check the store and re-hash with a salt on conflict. Identical URLs can be deduplicated.\n- *Random code* with a uniqueness check on insert.\n\n**Flow.** Shorten: validate URL, generate code, store (code is the primary key). Redirect: look up the code (cache first, such as Redis, then DB), return HTTP 301 or 302 (302 if you need click analytics or edits).\n\n**Scaling.** Cache hot codes, shard the table by code, replicate for reads, add rate limiting and abuse checks.\n\n**Neo4j vs MySQL**\n- *MySQL* is a relational database: tables, fixed schema, SQL, joins, strong ACID transactions. Best for structured, tabular data such as users, orders, payments, and for this URL table.\n- *Neo4j* is a graph database: nodes and relationships stored so that traversals follow direct links, queried with Cypher. Best when the relationships are the point and queries walk many hops: social networks, recommendations, fraud rings, dependency or network topology. Deep multi-hop queries are costly as repeated joins in SQL.\n- Rule of thumb: use the relational store for transactions and reporting, a graph store for relationship-heavy traversal. The URL shortener needs neither a graph nor joins, so a key-value store or MySQL fits.",
+ "followUps": [
+  "How would you avoid collisions if two servers generate codes at the same time?",
+  "301 or 302 redirect: what are the trade-offs?",
+  "How would you support custom aliases and link expiry?",
+  "Give a concrete query that is easy in Neo4j but painful in MySQL.",
+  "How would you estimate storage for 100 million URLs?"
+ ]
+}

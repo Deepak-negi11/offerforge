@@ -1,0 +1,19 @@
+{
+ "qid": "7f1e5d255c",
+ "question": "A table has columns `(user_id, region)` and **over a million rows**. How do you **speed up lookups**? Discuss **indexing, partitioning, sharding, replication** and the **trade-offs** of each.",
+ "lookingFor": [
+  "Starting from the access pattern instead of jumping to sharding",
+  "Index types, composite and covering indexes, and their write cost",
+  "Difference between partitioning, sharding and replication",
+  "Awareness that a million rows is small for a single database",
+  "Using EXPLAIN to verify improvements"
+ ],
+ "answer": "**Start with the query.** The right fix depends on how the table is queried: `WHERE user_id = ?` (point lookup), `WHERE region = ?` (low-cardinality filter), or both. Use `EXPLAIN` to see whether the query does a full table scan.\n\n**1. Indexing (first and cheapest step).**\n- Make `user_id` the primary key or add a B-tree index on it. Lookups go from O(n) to O(log n).\n- For queries on both columns, a composite index `(region, user_id)` or `(user_id, region)`; column order matters, so put the column used in equality filters and with higher selectivity first. A covering index that contains all selected columns avoids touching the table.\n- An index on `region` alone is of limited value because few distinct values means low selectivity.\n- Trade-off: each index costs storage and slows `INSERT`/`UPDATE`/`DELETE`, so index only what queries need.\n\n**2. Partitioning.** Splitting one table into pieces inside one database, for example by `region` (list) or by hash of `user_id`. Partition pruning means a query touches only the relevant partition. It helps with very large tables, maintenance (dropping old partitions) and cache locality. It does not help if queries do not include the partition key. A million rows rarely needs this.\n\n**3. Replication.** Copies of the database on other servers, with writes to a primary and reads from replicas. This scales **read throughput** and gives availability, but not write capacity, and replicas may serve **stale data** because of replication lag.\n\n**4. Sharding.** Distribute rows across multiple independent databases by a shard key (for example hash of `user_id`). It scales both reads and writes and storage but adds complexity: cross-shard queries and joins, rebalancing, hot shards, and operational overhead. It is a last resort for data beyond a single machine.\n\n**5. Other options.** Caching hot lookups in Redis, and keeping the table lean.\n\n**Conclusion.** For one million rows, a correct index is the answer; add a cache or read replicas if throughput demands; partition or shard only when data or write volume outgrows one node. Always measure before and after.",
+ "followUps": [
+  "Why is an index on a low-cardinality column like region often not useful?",
+  "What is the difference between partitioning and sharding?",
+  "What is a covering index?",
+  "How does replication lag cause bugs, and how do you handle them?",
+  "How would you choose a shard key?"
+ ]
+}

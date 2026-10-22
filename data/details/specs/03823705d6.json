@@ -1,0 +1,17 @@
+{
+ "qid": "03823705d6",
+ "question": "In the second technical round of a Goldman Sachs Summer Analyst (on-campus) interview, the candidate was asked about the **difference between authentication and authorization**, **what a JWT (JSON Web Token) is**, and the **concept of access tokens and refresh tokens**, framed through scenarios such as: **\"If someone steals a token, how can we still protect user data? Does the user have to log in again every time?\"**",
+ "lookingFor": [
+  "Clear distinction between authentication and authorization",
+  "Understanding of how JWTs are structured and verified, and their limits",
+  "Knowledge of token lifetimes, refresh flow and revocation",
+  "Security thinking: threats such as token theft, XSS and CSRF, and mitigations"
+ ],
+ "answer": "**Authentication vs authorization**\n- **Authentication (authn):** verifying who you are (password, OTP, biometrics, SSO).\n- **Authorization (authz):** deciding what you are allowed to do (roles, permissions, resource ownership). It happens after authentication, for example an HTTP 401 means not authenticated and 403 means forbidden.\n\n**JWT**\nA compact token of three base64url parts, `header.payload.signature`. The payload carries **claims** such as user ID, roles, issued-at (`iat`) and expiry (`exp`). The server signs it (HMAC with a secret or RSA/ECDSA with a private key), and any service can verify the signature and read the claims without a database lookup, which makes it stateless and good for scaling APIs. Important: a JWT is **signed, not encrypted**, so do not put secrets in it. Always validate the signature, algorithm, expiry and audience.\n\n**Access vs refresh tokens**\n- **Access token:** short-lived (for example minutes), sent on each API call (usually in the `Authorization: Bearer` header).\n- **Refresh token:** long-lived, used only to get a new access token from the auth server. It is stored more securely (an HttpOnly, Secure, SameSite cookie, or a secure store on mobile) and tracked server-side so it can be revoked.\n- **Does the user log in again every time?** No. When the access token expires, the client silently exchanges the refresh token for a new one; the user logs in again only when the refresh token expires or is revoked.\n\n**If a token is stolen**\n- A stolen access token works only until it expires, which is why lifetimes are short.\n- **Refresh token rotation:** issue a new refresh token on every use and invalidate the old one; if an old one is reused, treat it as theft and revoke the whole session.\n- Allow server-side revocation (a blocklist or session store), detect anomalies, and let users log out of all devices.\n- Always use HTTPS, avoid storing tokens in `localStorage` where XSS can read them, set a Content Security Policy, and use CSRF protection with cookies.\n- Keep sensitive data out of the token, and add extra verification for sensitive actions.",
+ "followUps": [
+  "Where should a web app store tokens: localStorage or cookies, and why?",
+  "How would you log a user out or revoke a JWT before it expires?",
+  "HMAC (HS256) vs RSA (RS256) signing: when to use which?",
+  "What is the difference between OAuth 2.0 and OpenID Connect?"
+ ]
+}

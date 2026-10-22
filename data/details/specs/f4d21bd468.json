@@ -1,0 +1,18 @@
+{
+ "qid": "f4d21bd468",
+ "question": "Apple, Senior/Staff Software Engineer (Infra), hiring manager round. A system design problem: **parse and store an event stream on AWS**, then **change the design to support random-access reads**. The interviewer kept probing **API boundaries and data modelling**, mixed with questions about why Apple.",
+ "lookingFor": [
+  "Asking about the event format, volume, ordering, and access patterns before designing.",
+  "Clean API boundaries and contracts between ingest, processing, storage and query.",
+  "Data modelling that matches the read pattern (append-only versus keyed access).",
+  "Appropriate use of AWS building blocks, as examples rather than name-dropping.",
+  "Reasoning about trade-offs when requirements change."
+ ],
+ "answer": "**Clarify.** Event size and rate, format (JSON, Avro, protobuf), ordering and delivery needs, duplicates, retention, latency to availability, and who consumes the data. Initially the access pattern is \"ingest and keep\"; later it becomes \"fetch an event or range by key quickly\".\n\n**Version 1: parse and store the stream.**\n- **Ingest** with a stream service (Kinesis or Kafka/MSK) so producers are decoupled and bursts are buffered. Define an **event envelope**: `event_id`, `source`, `type`, `timestamp`, `schema_version`, `payload`.\n- **Parse/validate** in a stream processor or Lambda consumers: validate against a schema registry, route bad records to a dead-letter queue, make processing idempotent (dedupe by `event_id`), and add derived fields.\n- **Store** as batches of compressed columnar files (Parquet) or JSON lines in S3, partitioned by date and event type. This is cheap, durable and good for scans and analytics (query with Athena or Spark). Keep an offset or checkpoint per shard for exactly-once-like behaviour.\n\n**Version 2: random-access reads.** S3 files are bad for point lookups. Add an **indexed store** chosen by access pattern:\n- Lookup by id or entity: a key-value store (DynamoDB), partition key = entity or event id, sort key = timestamp for range reads on one entity. Hot partitions need key design care.\n- Rich filtering: a search index (OpenSearch) or relational DB for secondary indexes.\n- Keep S3 as the system of record and the key-value store as a serving index; rebuild it by replaying the stream or files if needed. A processor writes both (or writes S3 then an index builder follows via events).\n\n**API boundaries.** A narrow ingest API (`POST /events`, batch, with schema version), a read API (`GET /events/{id}`, `GET /entities/{id}/events?from=&to=&cursor=`) that hides storage details, and a stable event schema with backward-compatible evolution (add optional fields only). Consumers should never read the store directly.\n\n**Trade-offs.** Dual writes risk inconsistency; use the stream as the single source and derive the index from it. Consider cost (DynamoDB writes), TTLs for old data, and replay after a bug.",
+ "followUps": [
+  "How do you evolve the event schema without breaking old readers?",
+  "How would you handle out-of-order or duplicate events?",
+  "How do you choose between DynamoDB and a relational database for the lookup store?",
+  "How would you backfill the new index with the years of existing data in S3?"
+ ]
+}

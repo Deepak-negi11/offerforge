@@ -1,0 +1,48 @@
+{
+ "pid": "uber-min-cost-to-connect-hubs",
+ "title": "Min Cost to Connect Hubs",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "A ride-sharing company is building a communication network between `n` dispatch hubs placed on a city grid. Hub `i` is located at integer coordinates `(x[i], y[i])`. Several hubs may share the same location.\n\nAny two hubs `i` and `j` can be joined by a direct link. The cost of that link is\n\n`min(|x[i] - x[j]|, |y[i] - y[j]|)`\n\nFind the **minimum total cost** of a set of direct links such that every hub can reach every other hub, either through a direct link or through a chain of links.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains two integers `x[i]` and `y[i]`.",
+ "output_format": "Print a single integer: the minimum total cost to connect all hubs.",
+ "constraints": [
+  "2 ≤ n ≤ 10^5",
+  "0 ≤ x[i], y[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3\n0 0\n2 3\n5 1",
+   "output": "3",
+   "explanation": "Link costs: hubs 0-1 cost min(2, 3) = 2, hubs 0-2 cost min(5, 1) = 1, hubs 1-2 cost min(3, 2) = 2. The two cheapest links, 0-2 and one of the cost-2 links, connect everything for a total of 1 + 2 = 3."
+  },
+  {
+   "input": "4\n4 0\n4 10\n4 25\n4 7",
+   "output": "0",
+   "explanation": "All hubs share the same x coordinate, so every link has `|dx| = 0` and costs 0."
+  },
+  {
+   "input": "2\n0 0\n7 9",
+   "output": "7",
+   "explanation": "There is only one possible link, and it costs min(7, 9) = 7."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "This is a minimum spanning tree problem on a complete graph, but you cannot afford to build all pairs of hubs.",
+  "The graph has about n^2 links, far too many to list. Sort the hubs by x: a long link between two hubs that are not neighbours in this order is never needed, because the hubs lying between them can carry the connection at no greater cost. The same holds for the order sorted by y.",
+  "Create candidate links only between consecutive hubs in the x-sorted order (using the true link cost `min(|dx|, |dy|)`) and in the y-sorted order. That gives about 2n links; run Kruskal's algorithm on them with a disjoint-set union."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    xs = [int(data[1 + 2 * i]) for i in range(n)]\n    ys = [int(data[2 + 2 * i]) for i in range(n)]\n    edges = []\n    order = sorted(range(n), key=lambda i: xs[i])\n    for a, b in zip(order, order[1:]):\n        edges.append((min(xs[b] - xs[a], abs(ys[a] - ys[b])), a, b))\n    order = sorted(range(n), key=lambda i: ys[i])\n    for a, b in zip(order, order[1:]):\n        edges.append((min(ys[b] - ys[a], abs(xs[a] - xs[b])), a, b))\n    edges.sort()\n    parent = list(range(n))\n\n    def find(x):\n        while parent[x] != x:\n            parent[x] = parent[parent[x]]\n            x = parent[x]\n        return x\n\n    total = 0\n    used = 0\n    for w, a, b in edges:\n        ra, rb = find(a), find(b)\n        if ra != rb:\n            parent[ra] = rb\n            total += w\n            used += 1\n            if used == n - 1:\n                break\n    print(total)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nxs = [int(data[1 + 2 * i]) for i in range(n)]\nys = [int(data[2 + 2 * i]) for i in range(n)]\nINF = float('inf')\ndist = [INF] * n\ndone = [False] * n\ndist[0] = 0\ntotal = 0\nfor _ in range(n):\n    u = -1\n    for i in range(n):\n        if not done[i] and (u == -1 or dist[i] < dist[u]):\n            u = i\n    done[u] = True\n    total += dist[u]\n    for v in range(n):\n        if not done[v]:\n            c = min(abs(xs[u] - xs[v]), abs(ys[u] - ys[v]))\n            if c < dist[v]:\n                dist[v] = c\nprint(total)\n",
+ "generator": "def gen(rng):\n    def fmt(pts):\n        return str(len(pts)) + '\\n' + '\\n'.join('%d %d' % p for p in pts)\n    tests = [fmt([(0, 0), (7, 9)]), fmt([(5, 5), (5, 5)]), fmt([(0, 0), (2, 3), (5, 1)]),\n             fmt([(4, 0), (4, 10), (4, 25), (4, 7)]), fmt([(0, 0), (10**9, 10**9)]),\n             fmt([(0, 0), (1, 10), (2, 20), (3, 30)]), fmt([(0, 10**9), (10**9, 0), (5, 5)])]\n    for n in (3, 4, 5, 6, 8, 10, 14, 20, 25):\n        for rng_max in (5, 20, 1000):\n            tests.append(fmt([(rng.randint(0, rng_max), rng.randint(0, rng_max)) for _ in range(n)]))\n    for n in (8, 15):\n        tests.append(fmt([(rng.randint(0, 10**9), rng.randint(0, 10**9)) for _ in range(n)]))\n        tests.append(fmt([(rng.randint(0, 10**9), 7) for _ in range(n)]))\n        tests.append(fmt([(i * 3, rng.randint(0, 40)) for i in range(n)]))\n    N = 100000\n    tests.append(fmt([(rng.randint(0, 10**9), rng.randint(0, 10**9)) for _ in range(N)]))\n    tests.append(fmt([(rng.randint(0, 1000), rng.randint(0, 10**9)) for _ in range(N)]))\n    tests.append(fmt([(i * 10000, (N - i) * 10000) for i in range(N)]))\n    tests.append(fmt([(rng.randint(0, 300), rng.randint(0, 300)) for _ in range(N)]))\n    tests.append(fmt([(rng.randint(0, 10**9), rng.randint(0, 10**9)) for _ in range(30000)] +\n                     [(rng.randint(0, 10**9), 0) for _ in range(30000)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_cost(xs: List[int], ys: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    xs = [int(data[1 + 2 * i]) for i in range(n)]\n    ys = [int(data[2 + 2 * i]) for i in range(n)]\n    print(min_cost(xs, ys))\n\n\nmain()\n",
+  "javascript": "function minCost(xs, ys) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst xs = [], ys = []\nfor (let i = 0; i < n; i++) {\n  xs.push(t[1 + 2 * i])\n  ys.push(t[2 + 2 * i])\n}\nconsole.log(String(minCost(xs, ys)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minCost(vector<long long>& xs, vector<long long>& ys) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> xs(n), ys(n);\n    for (int i = 0; i < n; i++) cin >> xs[i] >> ys[i];\n    cout << minCost(xs, ys) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minCost(long[] xs, long[] ys) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] xs = new long[n], ys = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); xs[i] = (long) in.nval;\n            in.nextToken(); ys[i] = (long) in.nval;\n        }\n        System.out.println(minCost(xs, ys));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "312869d8b9",
+ "question": "Google Senior SWE (L5) onsite, Bangalore (2025), system design round. **Design Inshorts**, a short news-summary app. **Follow-up: how do you avoid duplicate summaries of the same article coming from different sources?**",
+ "lookingFor": [
+  "Scoping the product: feed, categories, freshness, personalisation, scale.",
+  "A sound ingestion pipeline, from crawling and fetching to summarisation and publishing.",
+  "Deduplication approaches with accuracy and cost trade-offs.",
+  "Feed serving: caching, pagination, low latency for many readers.",
+  "Considering quality, copyright and operational concerns."
+ ],
+ "answer": "**Requirements.** Functional: a feed of short (about 60-word) summaries with an image and a link to the source, categories, near-real-time freshness, bookmarks, maybe personalisation and notifications. Non-functional: low read latency, high availability, freshness within a few minutes. Assume 20 million daily users and roughly tens of thousands of new articles per day, which is a read-heavy system with a small write volume.\n\n**Components.**\n1. *Ingestion:* fetch from RSS feeds, publisher APIs and scrapers on a schedule; store the raw article in object storage and metadata in a database.\n2. *Processing pipeline (async, queue-based):* extract text, clean, classify the category, summarise (editors, an ML model, or both), pick an image, and run a quality check.\n3. *Dedupe* (below).\n4. *Feed service:* serves a ranked list per category and user; precompute the latest N items per category into a cache (Redis) and serve through a CDN where possible.\n5. *Clients and notifications:* paginated API using cursor or timestamp keys; push notifications for breaking news.\n\n**Data model.** `Article(id, sourceId, url, title, text, publishedAt, category, clusterId)`, `Summary(articleId, text, image, status)`, `Cluster(id, canonicalArticleId)`, `User` and `Bookmark`.\n\n**Avoiding duplicate summaries.**\n- *Exact duplicates:* canonicalise the URL (strip tracking parameters) and hash the normalised text.\n- *Near duplicates (same story, different words):* compute **SimHash or MinHash** over shingles of the text and use locality-sensitive hashing to find candidates cheaply; or compare **embeddings** with approximate nearest-neighbour search. Restrict candidates to a time window (for example the last 48 hours) and the same category to keep the search small.\n- When a match is found, assign the article to an existing **story cluster** and keep only one canonical summary (the first, or the one from the most reliable source), optionally linking the other sources (\"also reported by\"). Threshold tuning trades missed duplicates against wrongly merging distinct stories, so review borderline cases.\n\n**Scaling and bottlenecks.** Queues decouple stages; summarisation is the expensive step, so run it after dedupe, in batches and with autoscaled workers. Cache the feed aggressively; the write path is small. Shard by category or time.\n\n**Other.** Respect copyright and link back to the source, handle failures with retries and a dead-letter queue, and monitor freshness lag and duplicate rate.",
+ "followUps": [
+  "How would you choose the similarity threshold for near-duplicate detection?",
+  "How would you personalise the feed while keeping it fast?",
+  "How do you handle breaking news that updates an existing story?",
+  "How would you detect and handle low-quality or incorrect summaries?"
+ ]
+}

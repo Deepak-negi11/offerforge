@@ -1,0 +1,19 @@
+{
+ "qid": "22423f5d78",
+ "question": "American Express, Engineer III (Java Developer), technical round 1 (about 1 hour). After a deep dive into past microservice architecture, the coding question was: **implement a stack variant with FIFO behaviour, where new elements are put at the end, using classes and objects in Java.** The theory part covered microservice architecture, multithreading, abstract class vs interface, hashes (HashMap) in Redis, OOP concepts and GraphQL.",
+ "lookingFor": [
+  "Spotting that 'stack with FIFO' is effectively a queue and asking a clarifying question.",
+  "Clean class design: encapsulation, generics, clear API, error handling.",
+  "Choice of backing structure and its complexity.",
+  "Ability to talk through edge cases (empty, capacity, thread safety).",
+  "Solid Java OOP vocabulary for the follow-up theory questions."
+ ],
+ "answer": "**Clarify first.** A structure that inserts at the end and removes in FIFO order is a queue. Ask: is the API still `push/pop/peek`? Which end does `pop` remove from? Is there a capacity limit? Is thread safety needed? State your assumption: `push` appends at the tail, `pop` removes from the head (FIFO).\n\n**Design.** Write a generic class that hides the representation:\n\n```java\nclass FifoStack<T> {\n    private static class Node<T> { T val; Node<T> next; Node(T v){ val = v; } }\n    private Node<T> head, tail;\n    private int size;\n\n    public void push(T x) {            // O(1): add at the end\n        Node<T> n = new Node<>(x);\n        if (tail == null) head = tail = n; else { tail.next = n; tail = n; }\n        size++;\n    }\n    public T pop() {                   // O(1): remove from the front\n        if (head == null) throw new NoSuchElementException();\n        T v = head.val; head = head.next;\n        if (head == null) tail = null;\n        size--; return v;\n    }\n    public T peek() { if (head == null) throw new NoSuchElementException(); return head.val; }\n    public boolean isEmpty() { return size == 0; }\n    public int size() { return size; }\n}\n```\n\nBoth `push` and `pop` are O(1) because we keep both `head` and `tail`. Alternatives: `ArrayDeque` (circular array, usually faster in practice), or two stacks (amortised O(1)). In production you would just use `java.util.Queue`/`ArrayDeque`; implement it manually to show you understand the structure.\n\n**Points to mention:** generics, private nested node class (encapsulation), custom exception vs returning null, `Iterable` if needed, and for concurrency a `ReentrantLock` or `LinkedBlockingQueue`.\n\n**Test cases:** empty pop, single element (tail reset to null), many pushes then pops, ordering check.\n\nMistake to avoid: coding silently without noticing/naming that this is a queue.",
+ "followUps": [
+  "How would you make this thread-safe, and what are the trade-offs?",
+  "Abstract class vs interface in Java 8+?",
+  "How does a HashMap work internally, and what is a hash in Redis?",
+  "How would you implement a queue using two stacks?",
+  "What is GraphQL and how does it differ from REST?"
+ ]
+}

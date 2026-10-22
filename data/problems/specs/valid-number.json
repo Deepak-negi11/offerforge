@@ -1,0 +1,49 @@
+{
+ "pid": "valid-number",
+ "title": "Valid Number",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "Decide whether each given string represents a valid number. A string is a **valid number** if it can be written as a **decimal**, optionally followed by an **exponent**.\n\n- A **decimal** is an optional sign (`+` or `-`) followed by one of: digits only (`7`), digits and a dot (`7.`), digits, a dot and more digits (`7.25`), or a dot followed by digits (`.25`). A decimal needs at least one digit somewhere.\n- An **exponent** is the letter `e` or `E`, then an optional sign, then **at least one digit** (and no dot). It may only follow a decimal.\n\nSo `3.14`, `+.8`, `5.`, `-7e-2` and `9E5` are valid, while `.`, `e9`, `1e`, `1.2.3`, `--1` and `12e3.5` are not. The string contains only the characters `0`-`9`, `+`, `-`, `.`, `e` and `E`; no spaces appear and the empty string is never given.\n\nThis question tests whether you enumerate every case (signs, decimal points, exponents) correctly, rather than relying on a library parser. You answer many strings in one run.",
+ "input_format": "The first line contains an integer `t`. Each of the next `t` lines contains one string.",
+ "output_format": "Print `t` lines: `true` if the corresponding string is a valid number, otherwise `false`.",
+ "constraints": [
+  "1 ≤ t ≤ 5000",
+  "1 ≤ length of each string ≤ 20",
+  "Each string consists only of digits, `+`, `-`, `.`, `e` and `E`"
+ ],
+ "examples": [
+  {
+   "input": "6\n3.14\n+.8\n.\n1e\n-7e-2\n1.2.3",
+   "output": "true\ntrue\nfalse\nfalse\ntrue\nfalse",
+   "explanation": "`3.14` and `+.8` are decimals. A lone `.` has no digit. `1e` has an exponent letter with no digits after it. `-7e-2` is a signed integer with a signed exponent. `1.2.3` has two dots."
+  },
+  {
+   "input": "4\n5.\n.e1\n0e0\n+-3",
+   "output": "true\nfalse\ntrue\nfalse",
+   "explanation": "`5.` is digits followed by a dot. `.e1` has no digit before the exponent. `0e0` is valid. `+-3` has two signs in a row."
+  },
+  {
+   "input": "3\n9E5\n12e3.5\n+",
+   "output": "true\nfalse\nfalse",
+   "explanation": "An uppercase `E` is allowed. The exponent part cannot contain a dot. A sign alone is not a number."
+  }
+ ],
+ "complexity": {
+  "time": "O(total length of the strings)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Split the string mentally into three parts: sign, mantissa (digits and at most one dot), and an optional exponent. Decide exactly when each part is allowed.",
+  "Scan once with a cursor: skip an optional sign, count digits before the dot, skip the dot and count digits after it. The mantissa is valid only if the two counts together are at least 1.",
+  "If an `e` or `E` follows, skip an optional sign and require at least one digit. In the end the cursor must be at the end of the string. Test strings such as `.`, `5.`, `.5`, `e3`, `1e`, `1e+` and `+.e1`."
+ ],
+ "reference": "import sys\n\ndef valid(s):\n    n = len(s)\n    i = 0\n    if i < n and s[i] in '+-':\n        i += 1\n    d1 = 0\n    while i < n and '0' <= s[i] <= '9':\n        i += 1\n        d1 += 1\n    d2 = 0\n    if i < n and s[i] == '.':\n        i += 1\n        while i < n and '0' <= s[i] <= '9':\n            i += 1\n            d2 += 1\n    if d1 + d2 == 0:\n        return False\n    if i < n and s[i] in 'eE':\n        i += 1\n        if i < n and s[i] in '+-':\n            i += 1\n        d3 = 0\n        while i < n and '0' <= s[i] <= '9':\n            i += 1\n            d3 += 1\n        if d3 == 0:\n            return False\n    return i == n\n\ndef main():\n    data = sys.stdin.read().split()\n    t = int(data[0])\n    print('\\n'.join('true' if valid(s) else 'false' for s in data[1:1 + t]))\n\nmain()\n",
+ "brute": "import sys\nimport re\n\ndata = sys.stdin.read().split()\nt = int(data[0])\npat = re.compile(r'[+-]?([0-9]+\\.?[0-9]*|\\.[0-9]+)([eE][+-]?[0-9]+)?')\nprint('\\n'.join('true' if pat.fullmatch(s) else 'false' for s in data[1:1 + t]))\n",
+ "generator": "def gen(rng):\n    import itertools\n    def fmt(strs):\n        return str(len(strs)) + '\\n' + '\\n'.join(strs)\n    def digits(lo, hi):\n        return ''.join(rng.choice('0123456789') for _ in range(rng.randint(lo, hi)))\n    def valid_str():\n        s = rng.choice(['', '', '+', '-'])\n        k = rng.randint(0, 3)\n        if k == 0:\n            s += digits(1, 5)\n        elif k == 1:\n            s += digits(1, 4) + '.'\n        elif k == 2:\n            s += digits(1, 3) + '.' + digits(1, 3)\n        else:\n            s += '.' + digits(1, 4)\n        if rng.random() < 0.4:\n            s += rng.choice('eE') + rng.choice(['', '+', '-']) + digits(1, 3)\n        return s\n    def mutate(s):\n        alpha = '0123456789+-.eE'\n        r = rng.random()\n        pos = rng.randint(0, len(s))\n        if r < 0.35 and len(s) > 1:\n            pos = rng.randrange(len(s))\n            return s[:pos] + s[pos + 1:]\n        if r < 0.7:\n            return s[:pos] + rng.choice(alpha) + s[pos:]\n        if len(s) == 0:\n            return rng.choice(alpha)\n        pos = rng.randrange(len(s))\n        return s[:pos] + rng.choice(alpha) + s[pos + 1:]\n    def mixed(cnt, maxlen):\n        out = []\n        while len(out) < cnt:\n            s = valid_str()\n            if rng.random() < 0.55:\n                s = mutate(s)\n                if rng.random() < 0.3:\n                    s = mutate(s)\n            if 1 <= len(s) <= maxlen:\n                out.append(s)\n        return out\n    tests = [\n        fmt(['3.14', '+.8', '.', '1e', '-7e-2', '1.2.3']),\n        fmt(['5.', '.e1', '0e0', '+-3']),\n        fmt(['9E5', '12e3.5', '+']),\n        fmt(['0']), fmt(['.']), fmt(['e']), fmt(['+.']), fmt(['6e-1']), fmt(['-.5E+5']), fmt(['1e1e1']), fmt(['1.e5', '.1e', 'e.1']),\n    ]\n    for _ in range(10):\n        tests.append(fmt(mixed(rng.randint(3, 12), 20)))\n    al = '0.e+-'\n    allstr = []\n    for L in range(1, 5):\n        allstr += [''.join(p) for p in itertools.product(al, repeat=L)]\n    tests.append(fmt(allstr))\n    al2 = '01.eE+-'\n    allstr = []\n    for L in range(1, 4):\n        allstr += [''.join(p) for p in itertools.product(al2, repeat=L)]\n    tests.append(fmt(allstr))\n    tests.append(fmt(mixed(5000, 20)))\n    tests.append(fmt(mixed(5000, 20)))\n    tests.append(fmt([valid_str() if rng.random() < 0.5 else mutate(valid_str()) for _ in range(5000)][:5000]))\n    big = []\n    while len(big) < 5000:\n        s = ''.join(rng.choice('0123456789') for _ in range(rng.randint(10, 20)))\n        k = rng.random()\n        if k < 0.3:\n            p = rng.randrange(len(s))\n            s = s[:p] + '.' + s[p + 1:]\n        elif k < 0.6:\n            p = rng.randrange(1, len(s) - 3)\n            s = s[:p] + 'e' + rng.choice(['', '+', '-']) + s[p + 2:]\n        s = s[:20]\n        big.append(s)\n    tests.append(fmt(big))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef is_number(s: str) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    t = int(data[0])\n    print('\\n'.join('true' if is_number(s) else 'false' for s in data[1:1 + t]))\n\n\nmain()\n",
+  "javascript": "function isNumber(s) {\n  // Write your solution here\n  return false\n}\n\nconst tok = input.split(/\\s+/).filter(Boolean)\nconst t = Number(tok[0])\nconst out = []\nfor (let i = 0; i < t; i++) out.push(isNumber(tok[1 + i]) ? 'true' : 'false')\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool isNumber(const string& s) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int t;\n    cin >> t;\n    string out;\n    while (t--) {\n        string s;\n        cin >> s;\n        out += isNumber(s) ? \"true\\n\" : \"false\\n\";\n    }\n    cout << out;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean isNumber(String s) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        List<String> tok = new ArrayList<>();\n        String line;\n        while ((line = br.readLine()) != null) {\n            StringTokenizer st = new StringTokenizer(line);\n            while (st.hasMoreTokens()) tok.add(st.nextToken());\n        }\n        int t = Integer.parseInt(tok.get(0));\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < t; i++) sb.append(isNumber(tok.get(1 + i)) ? \"true\" : \"false\").append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

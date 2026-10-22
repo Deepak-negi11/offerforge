@@ -1,0 +1,49 @@
+{
+ "pid": "microsoft-race-finish-order-valid-complete-first-last",
+ "title": "Race Finish Order: Valid, Complete, First/Last",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A race has `n` racers numbered `0` to `n - 1`. You are given `m` records, each a pair `(a, b)` meaning that racer `a` finished **before** racer `b`. Nobody finishes at the same time as anyone else, so the race produces one strict finishing order of all `n` racers.\n\nAnswer three questions about the records:\n\n1. **Is the data valid?** The data is valid if at least one finishing order of all `n` racers agrees with every record. A pair `(a, a)` or a circular chain such as `a` before `b` before `c` before `a` makes it invalid. Repeated records are allowed and change nothing.\n2. **Is the data complete?** The data is complete if exactly **one** finishing order agrees with every record, so the records pin down the whole ranking.\n3. **Who finishes first and last?** List every racer who can finish first, meaning no record says someone finished before them, and every racer who can finish last, meaning no record says they finished before someone. When the data is complete each list has exactly one racer.\n\nPrint `INVALID` if the data is not valid. Otherwise print four lines as described in the output format.",
+ "input_format": "The first line contains two integers `n` and `m`.\nEach of the next `m` lines contains two integers `a` and `b`: racer `a` finished before racer `b`.",
+ "output_format": "If the data is invalid, print the single line `INVALID`.\nOtherwise print four lines: `VALID`; then `COMPLETE` or `INCOMPLETE`; then the racers who can finish first in increasing order, separated by spaces; then the racers who can finish last in increasing order, separated by spaces.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ m ≤ 2 · 10^5",
+  "0 ≤ a, b < n"
+ ],
+ "examples": [
+  {
+   "input": "4 3\n2 0\n0 3\n3 1",
+   "output": "VALID\nCOMPLETE\n2\n1",
+   "explanation": "The records chain together as 2, 0, 3, 1. Only this order satisfies them, so the data is complete, with racer 2 first and racer 1 last."
+  },
+  {
+   "input": "5 4\n0 1\n0 2\n1 3\n2 3",
+   "output": "VALID\nINCOMPLETE\n0 4\n3 4",
+   "explanation": "Racers 1 and 2 can swap places, and racer 4 appears in no record, so many orders fit. Nobody is known to finish before racers 0 and 4, and racers 3 and 4 are known to finish before nobody."
+  },
+  {
+   "input": "3 3\n0 1\n1 2\n2 0",
+   "output": "INVALID",
+   "explanation": "Racer 0 is before 1, 1 is before 2 and 2 is before 0. That is a cycle, so no finishing order exists."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Treat each record as a directed edge a -> b. A finishing order that satisfies all records is a topological order of this graph.",
+  "Run Kahn's algorithm with in-degrees (ignore repeated edges). If you cannot remove all n racers, there is a cycle.",
+  "The topological order is unique exactly when the queue of racers with in-degree 0 never holds more than one racer. The possible first and last racers are the ones with in-degree 0 and out-degree 0."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    edges = set()\n    for i in range(m):\n        edges.add((int(data[2 + 2 * i]), int(data[3 + 2 * i])))\n    adj = [[] for _ in range(n)]\n    indeg = [0] * n\n    outdeg = [0] * n\n    for a, b in edges:\n        adj[a].append(b)\n        indeg[b] += 1\n        outdeg[a] += 1\n    first = [i for i in range(n) if indeg[i] == 0]\n    last = [i for i in range(n) if outdeg[i] == 0]\n    q = deque(first)\n    done = 0\n    unique = True\n    deg = indeg[:]\n    while q:\n        if len(q) > 1:\n            unique = False\n        u = q.popleft()\n        done += 1\n        for v in adj[u]:\n            deg[v] -= 1\n            if deg[v] == 0:\n                q.append(v)\n    if done < n:\n        print('INVALID')\n        return\n    print('VALID')\n    print('COMPLETE' if unique else 'INCOMPLETE')\n    print(' '.join(map(str, first)))\n    print(' '.join(map(str, last)))\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import permutations\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nrecs = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(m)]\ngood = []\nfor p in permutations(range(n)):\n    pos = [0] * n\n    for i, x in enumerate(p):\n        pos[x] = i\n    if all(pos[a] < pos[b] for a, b in recs):\n        good.append(p)\nif not good:\n    print('INVALID')\nelse:\n    print('VALID')\n    print('COMPLETE' if len(good) == 1 else 'INCOMPLETE')\n    print(' '.join(map(str, sorted(set(p[0] for p in good)))))\n    print(' '.join(map(str, sorted(set(p[-1] for p in good)))))\n",
+ "generator": "def gen(rng):\n    def fmt(n, edges):\n        return f'{n} {len(edges)}\\n' + '\\n'.join(f'{a} {b}' for a, b in edges)\n    def dag(n, m, perm=None):\n        perm = perm or rng.sample(range(n), n)\n        es = []\n        for _ in range(m):\n            i, j = sorted(rng.sample(range(n), 2))\n            es.append((perm[i], perm[j]))\n        return perm, es\n    def chain(n, extra):\n        perm = rng.sample(range(n), n)\n        es = [(perm[i], perm[i + 1]) for i in range(n - 1)]\n        for _ in range(extra):\n            if n >= 2:\n                i, j = sorted(rng.sample(range(n), 2))\n                es.append((perm[i], perm[j]))\n        rng.shuffle(es)\n        return perm, es\n    tests = [\n        fmt(1, []), fmt(2, []), fmt(1, [(0, 0)]), fmt(2, [(0, 1), (1, 0)]),\n        fmt(2, [(1, 0), (1, 0), (1, 0)]), fmt(3, [(0, 1), (0, 1)]),\n        fmt(4, [(0, 1), (1, 2), (2, 3), (3, 1)]), fmt(3, [(2, 1), (1, 0)]),\n    ]\n    for _ in range(14):\n        n = rng.randint(2, 7)\n        _, es = dag(n, rng.randint(0, 9))\n        tests.append(fmt(n, es))\n    for _ in range(10):\n        n = rng.randint(2, 7)\n        _, es = chain(n, rng.randint(0, 3))\n        tests.append(fmt(n, es))\n    for _ in range(8):\n        n = rng.randint(3, 7)\n        _, es = chain(n, rng.randint(0, 3))\n        a, b = rng.sample(range(n), 2)\n        es.append((a, b))\n        es.append((b, a)) if rng.random() < 0.3 else None\n        rng.shuffle(es)\n        tests.append(fmt(n, es))\n    perm, es = chain(100000, 100000)\n    tests.append(fmt(100000, es))\n    perm, es = chain(100000, 0)\n    tests.append(fmt(100000, es))\n    perm, es = chain(100000, 99999)\n    es.append((perm[-1], perm[0]))\n    tests.append(fmt(100000, es))\n    perm, es = dag(100000, 200000)\n    tests.append(fmt(100000, es))\n    perm = rng.sample(range(100000), 100000)\n    es = [(perm[i], perm[i + 1]) for i in range(0, 99998, 2)] + [(perm[i], perm[i + 3]) for i in range(0, 99990, 2)]\n    tests.append(fmt(100000, es))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef analyze(n: int, records: List[Tuple[int, int]]) -> List[str]:\n    # Write your solution here\n    # Return the lines to print: ['INVALID'] or ['VALID', 'COMPLETE' / 'INCOMPLETE', first, last]\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    records = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(m)]\n    print('\\n'.join(analyze(n, records)))\n\n\nmain()\n",
+  "javascript": "function analyze(n, records) {\n  // Write your solution here\n  // Return the lines to print: ['INVALID'] or ['VALID', 'COMPLETE' / 'INCOMPLETE', first, last]\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst records = []\nfor (let i = 0; i < m; i++) records.push([t[2 + 2 * i], t[3 + 2 * i]])\nconsole.log(analyze(n, records).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<string> analyze(int n, vector<pair<int, int>>& records) {\n    // Write your solution here\n    // Return the lines to print: {\"INVALID\"} or {\"VALID\", \"COMPLETE\" / \"INCOMPLETE\", first, last}\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<pair<int, int>> records(m);\n    for (int i = 0; i < m; i++) cin >> records[i].first >> records[i].second;\n    vector<string> lines = analyze(n, records);\n    for (size_t i = 0; i < lines.size(); i++) cout << lines[i] << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<String> analyze(int n, int[][] records) {\n        // Write your solution here\n        // Return the lines to print: [\"INVALID\"] or [\"VALID\", \"COMPLETE\" / \"INCOMPLETE\", first, last]\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] records = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); records[i][0] = (int) in.nval;\n            in.nextToken(); records[i][1] = (int) in.nval;\n        }\n        StringBuilder sb = new StringBuilder();\n        for (String line : analyze(n, records)) sb.append(line).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

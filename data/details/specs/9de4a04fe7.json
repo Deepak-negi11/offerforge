@@ -1,0 +1,17 @@
+{
+ "qid": "9de4a04fe7",
+ "question": "Zoho technical HR round, December 2024 off-campus pool. **Scenario-based problem: reverse PIN for ATM security.** Implement functionality so that when a customer enters their **PIN reversed**, the ATM shows a **zero balance** to prevent theft (a duress signal for a customer who is forced to use the ATM). The report stated only this requirement, so details such as alerts and withdrawals are for you to define.",
+ "lookingFor": [
+  "Can you design a feature on top of an existing ATM model without breaking it?",
+  "Do you notice the corner cases (palindromic PINs, leading zeros, string vs integer)?",
+  "Do you think about the security and safety implications, not only the code?",
+  "Do you separate normal authentication from the duress mode cleanly?"
+ ],
+ "answer": "**Core idea.** Authentication returns not just success or failure but a *mode*: `NORMAL`, `DURESS` or `FAILED`. In `DURESS`, the ATM behaves as if the account works but shows a zero balance, and, in a real design, quietly alerts the bank.\n\n**Logic.**\n\n```\nAuthResult authenticate(account, enteredPin):\n  if hash(enteredPin) == account.pinHash:   return NORMAL\n  if hash(reverse(enteredPin)) == account.pinHash: return DURESS\n  return FAILED\n```\n\nNote the direction: the customer's PIN is 1234, and entering 4321 triggers duress. So compare `reverse(enteredPin)` with the stored PIN (or store the hash of the reversed PIN at PIN-setup time and compare directly).\n\n**Handling the duress session.** Keep a `sessionMode`. Balance enquiry returns 0. For withdrawals, decide a policy: refuse with a plausible message such as \"insufficient funds\", or dispense nothing (the main aim is to stop the theft); never reveal the real balance. Optionally log a silent alert with time and ATM id and notify security. The customer should not see any difference beyond the zero balance.\n\n**Corner cases.**\n\n- *Palindromic PINs* (1221, 7777) are the same reversed, so the duress PIN equals the normal PIN. Reject such PINs at PIN-setting time, or the feature cannot work for those customers.\n- *Leading zeros*: treat PINs as strings, not integers (0120 reversed is 0210; as an integer it would break).\n- *Brute force*: the duress path must count towards failed-attempt locking just as normal wrong PINs do, and the two paths should take similar time.\n- Store only hashes; reversing requires the entered value, which you have at login time.\n\n**Design.** Add `AuthResult` to the auth service, with the `ATM` controller branching on the mode, so account and transaction classes stay unchanged. Add a unit test per case: correct PIN, reversed PIN, wrong PIN, palindromic PIN rejected.\n\n**Honest note.** A thief who knows this feature may notice the zero balance, so real banks combine such signals with alerts and limits.",
+ "followUps": [
+  "What do you do for PINs that are palindromes, and how many 4-digit PINs are affected?",
+  "Should the ATM dispense cash in duress mode? Argue both sides.",
+  "How do you keep the duress check from leaking timing information?",
+  "How would you notify the bank without alerting the thief?"
+ ]
+}

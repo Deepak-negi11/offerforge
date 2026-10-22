@@ -1,0 +1,48 @@
+{
+ "pid": "matchsticks-to-square",
+ "title": "Matchsticks to Square",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given the lengths of `n` matchsticks. Decide whether all of them can be placed together to form a **square**.\n\nEvery matchstick must be used **exactly once**. Sticks may not be broken, but they may be joined end to end, so a side of the square can be made of one or several sticks. All four sides must have the same total length.\n\nPrint `true` if a square can be formed and `false` otherwise.",
+ "input_format": "The first line contains the integer `n`.\nThe second line contains `n` integers, the matchstick lengths.",
+ "output_format": "Print `true` or `false`.",
+ "constraints": [
+  "1 ≤ n ≤ 15",
+  "1 ≤ length ≤ 10^8"
+ ],
+ "examples": [
+  {
+   "input": "6\n4 2 2 3 1 4",
+   "output": "true",
+   "explanation": "The total is 16, so each side must be 4. Use the sticks {4}, {4}, {2, 2} and {3, 1}."
+  },
+  {
+   "input": "5\n3 3 3 3 4",
+   "output": "false",
+   "explanation": "The total is 16, so each side must be 4. The stick of length 4 can be one side, but each stick of length 3 would need a stick of length 1 to complete its side, and there are none. Joining two 3s gives 6, which is too long."
+  },
+  {
+   "input": "3\n5 5 5",
+   "output": "false",
+   "explanation": "The total 15 is not divisible by 4, so no square exists."
+  }
+ ],
+ "complexity": {
+  "time": "O(2^n · n)",
+  "space": "O(2^n)"
+ },
+ "hints": [
+  "A square needs a total length divisible by 4, and no stick can be longer than one side. Check these cheap conditions first.",
+  "Backtracking: place each stick on one of the four sides, pruning when a side exceeds the target. Trying longer sticks first fails faster.",
+  "For a guaranteed bound, use a bitmask over the used sticks. Let dp[mask] be the length of the partly built current side (modulo the side length) after using exactly the sticks in mask, or -1 if mask is unreachable."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    total = sum(a)\n    if total % 4 != 0:\n        print('false')\n        return\n    side = total // 4\n    if max(a) > side:\n        print('false')\n        return\n    full = (1 << n) - 1\n    dp = [-1] * (1 << n)\n    dp[0] = 0\n    for mask in range(1 << n):\n        cur = dp[mask]\n        if cur < 0:\n            continue\n        for i in range(n):\n            if not (mask >> i) & 1 and cur + a[i] <= side:\n                nm = mask | (1 << i)\n                if dp[nm] < 0:\n                    dp[nm] = (cur + a[i]) % side\n    print('true' if dp[full] == 0 else 'false')\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = sorted((int(x) for x in data[1:1 + n]), reverse=True)\ntotal = sum(a)\nok = False\nif total % 4 == 0:\n    side = total // 4\n    sides = [0, 0, 0, 0]\n    failed = set()\n\n    def go(i):\n        if i == n:\n            return all(s == side for s in sides)\n        key = (i, tuple(sorted(sides)))\n        if key in failed:\n            return False\n        for k in range(4):\n            if sides[k] + a[i] > side:\n                continue\n            sides[k] += a[i]\n            res = go(i + 1)\n            sides[k] -= a[i]\n            if res:\n                return True\n        failed.add(key)\n        return False\n\n    ok = go(0)\nprint('true' if ok else 'false')\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return f\"{len(a)}\\n\" + ' '.join(map(str, a))\n    tests = [fmt([1]), fmt([1, 1, 1, 1]), fmt([5, 5, 5, 5]), fmt([4, 2, 2, 3, 1, 4]), fmt([3, 3, 3, 3, 4]),\n             fmt([5, 5, 5]), fmt([10**8] * 4), fmt([10**8, 10**8, 10**8, 10**8 - 1]), fmt([2, 2, 2, 2, 2, 2, 2, 2]),\n             fmt([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]), fmt([3, 1, 1, 1, 4, 5, 2, 8])]\n    def build(parts, hi):\n        side = rng.randint(parts, max(parts, hi))\n        c = sorted(rng.sample(range(1, parts), 3))\n        counts = [c[0], c[1] - c[0], c[2] - c[1], parts - c[2]]\n        sticks = []\n        for cnt in counts:\n            cuts = sorted(rng.sample(range(1, side), cnt - 1)) if cnt > 1 else []\n            pts = [0] + cuts + [side]\n            sticks += [pts[i + 1] - pts[i] for i in range(cnt)]\n        rng.shuffle(sticks)\n        return sticks\n    for _ in range(40):\n        parts = rng.randint(4, 9)\n        a = build(parts, rng.choice([6, 12, 30]))\n        if rng.random() < 0.5 and len(a) >= 2:\n            i, j = rng.sample(range(len(a)), 2)\n            if a[i] > 1:\n                a[i] -= 1\n                a[j] += 1\n        tests.append(fmt(a))\n    for _ in range(10):\n        n = rng.randint(1, 8)\n        tests.append(fmt([rng.randint(1, 6) for _ in range(n)]))\n    # n = 15 cases\n    for hi in (10**8, 10**8, 10**6, 100):\n        a = build(15, hi)\n        tests.append(fmt(a))\n    a = build(15, 10**8)\n    a[0] += 1\n    a[1] -= 1 if a[1] > 1 else 0\n    tests.append(fmt(a))\n    a = build(15, 10**8)\n    i, j = 3, 7\n    d = min(a[i] - 1, 5)\n    a[i] -= d\n    a[j] += d\n    tests.append(fmt(a))\n    tests.append(fmt([3] * 12 + [1, 1, 1]))\n    tests.append(fmt([7] * 14 + [1]))\n    tests.append(fmt([2] * 13 + [1, 1]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef can_form_square(sticks: List[int]) -> bool:\n    # Write your solution here\n    return False\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    sticks = [int(x) for x in data[1:1 + n]]\n    print('true' if can_form_square(sticks) else 'false')\n\n\nmain()\n",
+  "javascript": "function canFormSquare(sticks) {\n  // Write your solution here\n  return false\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst sticks = t.slice(1, 1 + n)\nconsole.log(canFormSquare(sticks) ? 'true' : 'false')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nbool canFormSquare(vector<long long>& sticks) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> sticks(n);\n    for (int i = 0; i < n; i++) cin >> sticks[i];\n    cout << (canFormSquare(sticks) ? \"true\" : \"false\") << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean canFormSquare(long[] sticks) {\n        // Write your solution here\n        return false;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] sticks = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            sticks[i] = (long) in.nval;\n        }\n        System.out.println(canFormSquare(sticks) ? \"true\" : \"false\");\n    }\n}\n"
+ }
+}

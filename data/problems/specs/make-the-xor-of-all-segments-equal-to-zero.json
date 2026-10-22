@@ -1,0 +1,48 @@
+{
+ "pid": "make-the-xor-of-all-segments-equal-to-zero",
+ "title": "Make All K-Window XORs Zero",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given an array `a` of `n` non-negative integers and a window length `k`. In one operation you choose any index `i` and replace `a[i]` with **any** non-negative integer.\n\nFind the minimum number of operations needed so that every contiguous subarray of length `k` has bitwise XOR equal to `0`.\n\nAll original elements are smaller than `2^6 = 64`.",
+ "input_format": "The first line contains two integers `n` and `k`.\nThe second line contains `n` integers `a[0], a[1], ..., a[n-1]`.",
+ "output_format": "Print a single integer: the minimum number of operations.",
+ "constraints": [
+  "1 ≤ k ≤ n ≤ 1000",
+  "0 ≤ a[i] < 2^6"
+ ],
+ "examples": [
+  {
+   "input": "4 4\n1 2 4 8",
+   "output": "1",
+   "explanation": "There is a single window and its XOR is 15. Changing the last element from 8 to 7 makes the XOR of 1, 2, 4, 7 equal to 0, and one operation is clearly needed."
+  },
+  {
+   "input": "5 2\n1 2 1 2 1",
+   "output": "2",
+   "explanation": "Two adjacent elements have XOR 0 only if they are equal, and windows overlap, so all elements must become equal. Turning the two `2`s into `1` costs 2 operations."
+  },
+  {
+   "input": "6 3\n1 2 3 1 2 3",
+   "output": "0",
+   "explanation": "Every window of length 3 is a rotation of 1, 2, 3 and 1 ^ 2 ^ 3 = 0, so nothing has to change."
+  }
+ ],
+ "complexity": {
+  "time": "O(64 · n)",
+  "space": "O(n + 64)"
+ },
+ "hints": [
+  "Compare the XORs of two neighbouring windows. What does `window(i) = window(i+1) = 0` force about `a[i]` and `a[i+k]`?",
+  "So the final array repeats with period `k`, and the XOR of its first `k` elements is 0. Split the indices into `k` groups by `i mod k`; every group must end up holding a single value.",
+  "Run a DP over the groups with state = XOR of the chosen group values so far (64 states). For a group, either keep one of its existing values (cost = group size minus its frequency) or change the whole group, which can reach any XOR at cost = group size from the best previous state."
+ ],
+ "reference": "import sys\nfrom collections import Counter\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    INF = float('inf')\n    dp = [INF] * 64\n    dp[0] = 0\n    for j in range(k):\n        g = a[j::k]\n        s = len(g)\n        cnt = Counter(g)\n        base = min(dp) + s\n        new = [base] * 64\n        for v, c in cnt.items():\n            cost = s - c\n            for x in range(64):\n                t = dp[x ^ v] + cost\n                if t < new[x]:\n                    new[x] = t\n        dp = new\n    print(dp[0])\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import product\n\ndata = sys.stdin.read().split()\nn, k = int(data[0]), int(data[1])\na = [int(x) for x in data[2:2 + n]]\n# the final array must have period k, with the first k values XORing to 0\ncost = []\nfor j in range(k):\n    g = a[j::k]\n    cost.append([sum(1 for x in g if x != v) for v in range(64)])\nbest = n\nfor first in product(range(64), repeat=k - 1):\n    last = 0\n    for v in first:\n        last ^= v\n    vals = list(first) + [last]\n    c = sum(cost[j][vals[j]] for j in range(k))\n    if c < best:\n        best = c\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(a, k):\n        return f\"{len(a)} {k}\\n\" + \" \".join(map(str, a))\n    tests = [\n        fmt([5], 1), fmt([0], 1), fmt([0, 0, 0, 0], 2), fmt([63, 63, 63], 3),\n        fmt([1, 2, 3], 3), fmt([7, 7, 7, 7, 7], 1), fmt([1, 2, 4, 8], 4),\n        fmt([1, 2, 1, 2, 1], 2), fmt([1, 2, 3, 1, 2, 3], 3),\n    ]\n    for _ in range(40):\n        n = rng.randint(1, 18)\n        k = rng.randint(1, min(n, 3))\n        hi = rng.choice([1, 3, 7, 63])\n        tests.append(fmt([rng.randint(0, hi) for _ in range(n)], k))\n    for _ in range(8):\n        n = rng.randint(4, 14)\n        k = 4\n        tests.append(fmt([rng.randint(0, 63) for _ in range(n)], k))\n    # large cases\n    n = 1000\n    tests.append(fmt([rng.randint(0, 63) for _ in range(n)], 1))\n    tests.append(fmt([rng.randint(0, 63) for _ in range(n)], 1000))\n    tests.append(fmt([rng.randint(0, 63) for _ in range(n)], 2))\n    tests.append(fmt([rng.randint(0, 63) for _ in range(n)], 10))\n    tests.append(fmt([rng.randint(0, 63) for _ in range(n)], 31))\n    tests.append(fmt([rng.randint(0, 63) for _ in range(n)], 250))\n    tests.append(fmt([rng.randint(0, 63) for _ in range(n)], 500))\n    tests.append(fmt([rng.randint(0, 63) for _ in range(n)], 999))\n    # periodic with a few corruptions: answer is small\n    k = 40\n    base = [rng.randint(0, 63) for _ in range(k - 1)]\n    x = 0\n    for v in base:\n        x ^= v\n    base.append(x)\n    arr = [base[i % k] for i in range(n)]\n    for _ in range(15):\n        arr[rng.randrange(n)] = rng.randint(0, 63)\n    tests.append(fmt(arr, k))\n    tests.append(fmt([0] * n, 7))\n    tests.append(fmt([rng.choice([0, 63]) for _ in range(n)], 100))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_operations(n: int, k: int, a: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    print(min_operations(n, k, a))\n\n\nmain()\n",
+  "javascript": "function minOperations(n, k, a) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst a = t.slice(2, 2 + n)\nconsole.log(String(minOperations(n, k, a)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minOperations(int n, int k, vector<int>& a) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    cout << minOperations(n, k, a) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minOperations(int n, int k, int[] a) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        int[] a = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (int) in.nval;\n        }\n        System.out.println(minOperations(n, k, a));\n    }\n}\n"
+ }
+}

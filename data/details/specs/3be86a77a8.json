@@ -1,0 +1,18 @@
+{
+ "qid": "3be86a77a8",
+ "question": "Uber Senior SWE (L5A), Round 2 (LLD): write **running code for a Twitter-style newsfeed**. Users can follow other users and post. **Every user can customise how their feed is built**, and users choose a **ranking for their posts**. The candidate described the round as having running code with those customisation options.",
+ "lookingFor": [
+  "Can you identify entities and core APIs (follow, post, getFeed) and keep them cleanly separated?",
+  "Do you use Strategy or similar patterns so feed generation and ranking are pluggable per user?",
+  "Do you choose a feed algorithm (merge of k sorted lists with a heap, fan-out on write vs read) and explain the trade-offs?",
+  "Is the code runnable, tested and extensible, with sensible handling of pagination and concurrency?",
+  "Do you show senior-level judgement about scope and alternatives?"
+ ],
+ "answer": "**Clarify scope.** APIs: `follow(a, b)`, `unfollow`, `post(user, content)`, `getFeed(user, limit)`. \"Customise feed\" could mean filtering (only some followees, mute, only posts with media) and ordering (recent, popular, a personalised score). Agree on a small set and make the rest pluggable.\n\n**Entities.**\n\n- `User(id, following: Set<userId>, feedConfig)`.\n- `Post(id, authorId, text, timestamp, likes)`.\n- `PostRepository`: `Map<userId, List<Post>>` appended in time order.\n- `FeedService` facade.\n- `RankingStrategy` interface: `score(post, viewer)` or `compare(a, b)`; implementations `RecentFirst`, `MostLiked`, `WeightedScore`.\n- `FeedFilter` interface (mute list, media only) composed as a chain.\n\n**Feed generation (pull model).** For `getFeed(user, k)`: take each followee's posts (newest first), apply filters, then merge. For a recency ordering, use a max-heap of `(timestamp, followee, index)` and pop k times: O(k log f) for f followees. For a custom ranking, the per-user lists are not sorted by score, so either take a bounded candidate set (the latest N posts per followee) and sort or heap them by `ranking.score`, which is O(N f log k).\n\n**Fan-out choice.** Pull (fan-out on read) is simple and cheap on writes but slower to read. Push (fan-out on write) precomputes each follower's feed on `post`, making reads fast but writes costly for accounts with millions of followers (the celebrity problem); real systems use a hybrid. For a machine-coding round, implement pull and discuss push.\n\n**Pluggability.** `FeedConfig` holds the user's chosen `RankingStrategy` and filter list; `FeedService` uses it at read time. Adding a ranking requires no change to the service (Open/Closed).\n\n**Details.** Pagination by cursor (timestamp plus id) rather than offset, thread-safe collections or a lock around the follow graph, and immutable `Post`.\n\n**Tests.** No followees, ties in timestamp, switching ranking changes order, muted user not shown.",
+ "followUps": [
+  "How would you implement the feed with fan-out on write and handle users with millions of followers?",
+  "How would you paginate the feed so new posts do not shift results?",
+  "How would you add a personalised ML-based ranking?",
+  "How would you make follow and post thread-safe?"
+ ]
+}

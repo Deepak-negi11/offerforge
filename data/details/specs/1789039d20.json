@@ -1,0 +1,19 @@
+{
+ "qid": "1789039d20",
+ "question": "LinkedIn SRE intern service design and architecture round (about 1.5 hours, two interviewers, interactive and with no single right answer). They went through the resume and the projects, asked about choice of frameworks and future scope, then picked **one project that was only a prototype** and asked: **how would you build it at scale if you implemented it for the real world?** You draw an architecture and justify your component choices. They also asked questions about system design concepts and components.\n\nA second SRE intern report describes the same style: design a system based on projects you have done, discussing it with the interviewers first and explaining what you will do and why.",
+ "lookingFor": [
+  "Ability to extend a small project into a production architecture.",
+  "Understanding of core components: load balancer, cache, database, queue.",
+  "Reliability thinking: failures, monitoring and recovery, as expected of an SRE.",
+  "Justifying choices instead of naming tools.",
+  "Collaborative, structured discussion with the interviewers."
+ ],
+ "answer": "Choose the project you know best and treat the answer as a design discussion.\n\n**1. Clarify requirements and scale.** State assumptions: users (say 1 million daily), read to write ratio, latency target, availability target (for example 99.9 percent), data volume. Ask what matters most.\n\n**2. Start from the prototype.** Typically a single app server plus one database. Identify what breaks first as load grows: single point of failure, slow queries, CPU, and storage.\n\n**3. Scale step by step.**\n- **Stateless app servers** behind a **load balancer**, scaled horizontally; store sessions in a shared store or use tokens.\n- **Database:** add indexes, read replicas for read-heavy traffic, then partitioning (sharding) if one node cannot hold the data or writes. Pick SQL or NoSQL based on data shape and consistency needs.\n- **Cache** (for example Redis) for hot reads, with an explicit invalidation or TTL policy.\n- **Queue** for slow or bursty work (emails, image processing) so requests return fast and workers scale independently.\n- **CDN** for static content.\n\n**4. Reliability (the SRE angle).** Health checks, timeouts, retries with backoff, rate limiting, graceful degradation, multi-zone deployment, backups and tested restores. Define **SLIs and SLOs** (such as p99 latency, error rate), add metrics, logs, traces and alerts, and a simple rollout plan (canary or blue-green with rollback).\n\n**5. Data model and API sketch.** Name core entities and two or three endpoints.\n\n**6. Trade-offs.** For each component say why, what it costs, and the alternative. For example a cache adds staleness risk; sharding complicates joins and rebalancing.\n\n**Mistakes to avoid:** jumping to microservices and Kafka immediately, not estimating scale, ignoring failure cases, or being unable to explain why a chosen component is needed for this project.",
+ "followUps": [
+  "What is the first bottleneck you expect, and how would you confirm it?",
+  "How do you keep the cache consistent with the database?",
+  "What happens if one availability zone goes down?",
+  "How would you monitor this system and what would you alert on?",
+  "Why did you choose that database for the real-world version?"
+ ]
+}

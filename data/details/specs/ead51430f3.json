@@ -1,0 +1,18 @@
+{
+ "qid": "ead51430f3",
+ "question": "Amazon SDE Intern interview, follow-up after a sorted-array problem. The candidate said inserting into a map is O(1). The interviewer asked: **if we have a map of size 4 and are adding elements one by one, how do we keep constant time when the map reaches size 4?** and to explain why. In short: **why is hash map insertion O(1) amortized, and what happens when the map fills up (resizing and rehashing)?**",
+ "lookingFor": [
+  "Understanding of how hash tables work internally.",
+  "Knowing average versus worst-case complexity.",
+  "The concept of amortized analysis.",
+  "Load factor, resizing and collision handling.",
+  "Precise, correct language about complexity."
+ ],
+ "answer": "**How a hash map works.** A key is hashed to an integer, then mapped to a bucket index (`hash % capacity`). Collisions (two keys in one bucket) are handled by chaining (a list or tree per bucket, as in Java's `HashMap`) or open addressing (probing for the next free slot, as in Python's dict).\n\n**Why a normal insert is O(1).** Computing the hash and index is constant time, and with a good hash function and a bounded load factor the expected bucket length is a small constant, so the *average* insert touches O(1) entries. The worst case is O(n) if many keys collide (poor hash or adversarial keys); Java mitigates this by turning long buckets into balanced trees (O(log n)).\n\n**What happens when it fills up.** The *load factor* = entries / capacity. When it exceeds a threshold (Java uses 0.75), the table is resized: allocate a larger array, typically **double** the capacity, and **rehash** every existing key into the new array because the index depends on capacity. That single insert costs O(n).\n\n**Amortized O(1).** Because capacity doubles, resizes become rare. Starting from capacity 4, resizes occur at sizes about 4, 8, 16, ..., and the total copy work for n inserts is roughly 4 + 8 + ... + n, which is less than 2n. Spread over n inserts that is a constant number of operations per insert, so the amortized cost is O(1) even though one insert is occasionally O(n). If capacity grew by a fixed amount instead (say +4), total work would be O(n^2) and the amortization would fail; geometric growth is essential.\n\n**Answer to the \"size 4\" question.** When the fourth insert (or the load threshold) triggers a resize, that one insert takes linear time, but the cost is paid back across the many cheap inserts before the next resize. Constant time is guaranteed only in the amortized, average-case sense, not for every single call.\n\nMention trade-offs: memory overhead, pause latency during resizing (incremental rehashing in some systems), and preallocating capacity if the size is known.",
+ "followUps": [
+  "What is the worst-case insertion time and when does it occur?",
+  "Why double the capacity instead of adding a fixed amount?",
+  "Compare chaining with open addressing.",
+  "Why must keys be rehashed instead of just copied to the new array?"
+ ]
+}

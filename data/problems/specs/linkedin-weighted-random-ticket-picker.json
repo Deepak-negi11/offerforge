@@ -1,0 +1,44 @@
+{
+ "pid": "linkedin-weighted-random-ticket-picker",
+ "title": "Weighted Random Ticket Picker",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "LinkedIn is running a fair. For some good actions a member is given **one ticket**; for some bad actions one ticket is taken away from the member. Build a ticket pool that supports three operations:\n\n- `ADD m`: member `m` receives one ticket.\n- `REMOVE m`: one ticket is taken from member `m`. If `m` currently has no tickets, nothing happens.\n- `PICK r`: the raffle draw, `getRandom()` in the original question. A member must be picked with probability proportional to the number of tickets they hold: a member with 5 tickets is five times as likely to win as a member with 1 ticket.\n\nTo make the draw testable, the random number is supplied. Let `T` be the total number of tickets currently in the pool. Imagine all tickets listed in order of **member ID, ascending** (a member with `c` tickets appears `c` times in a row). `PICK r` prints the member ID of the ticket at position `r mod T` of that list (0-indexed). If `T = 0`, print `-1`. If `r` were uniformly random, every ticket would be equally likely to be hit, so each member is picked with probability proportional to their ticket count.\n\nProcess the operations in order and print one line for every `PICK`.\n\n**Follow-up:** in the interview all three methods had to run in `O(1)` average time with a genuinely random pick (a variant of Insert Delete GetRandom). The ordered, deterministic version above is checked with an `O(log M)` solution, where `M` is the largest member ID.",
+ "input_format": "The first line contains `q`, the number of operations. Each of the next `q` lines is one operation: `ADD m`, `REMOVE m` or `PICK r`.",
+ "output_format": "For every `PICK` operation, in order, print one line with the member ID, or `-1` if there are no tickets.",
+ "constraints": [
+  "1 ≤ q ≤ 10^5",
+  "1 ≤ m ≤ 10^5",
+  "0 ≤ r ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "7\nADD 7\nADD 3\nADD 7\nPICK 0\nPICK 1\nPICK 2\nPICK 5",
+   "output": "3\n7\n7\n7",
+   "explanation": "The pool is member 3 (1 ticket) and member 7 (2 tickets), listed as [3, 7, 7]. PICK 0 -> 3, PICK 1 -> 7, PICK 2 -> 7, and PICK 5 uses position 5 mod 3 = 2 -> 7. Member 7 is hit twice as often as member 3."
+  },
+  {
+   "input": "7\nPICK 4\nADD 2\nREMOVE 5\nREMOVE 2\nPICK 0\nADD 9\nPICK 8",
+   "output": "-1\n-1\n9",
+   "explanation": "The first PICK sees an empty pool. REMOVE 5 does nothing because member 5 has no tickets. After REMOVE 2 the pool is empty again, so PICK 0 prints -1. Finally the pool is [9], so any r gives 9."
+  }
+ ],
+ "complexity": {
+  "time": "O(q log M)",
+  "space": "O(M)"
+ },
+ "hints": [
+  "Weighted by ticket count means: if all tickets were laid out in a line, position `r mod T` identifies the winner. You need to turn a position into a member without building the line.",
+  "Keep an array `count[m]` of tickets per member and a running total `T`. Finding the member that owns position `p` means finding the smallest member ID whose prefix sum of counts exceeds `p`.",
+  "A Fenwick tree (binary indexed tree) over member IDs supports point updates and 'find the k-th element' by binary descent, both in O(log M). A linear scan over members would be too slow."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    M = 100000\n    tree = [0] * (M + 1)\n    cnt = [0] * (M + 1)\n    total = 0\n    top = 1 << 16\n    out = []\n    p = 1\n    for _ in range(q):\n        op = data[p]; x = int(data[p + 1]); p += 2\n        if op == 'ADD':\n            cnt[x] += 1\n            total += 1\n            i = x\n            while i <= M:\n                tree[i] += 1\n                i += i & -i\n        elif op == 'REMOVE':\n            if cnt[x] > 0:\n                cnt[x] -= 1\n                total -= 1\n                i = x\n                while i <= M:\n                    tree[i] -= 1\n                    i += i & -i\n        else:\n            if total == 0:\n                out.append('-1')\n                continue\n            rem = x % total + 1\n            pos = 0\n            step = top\n            while step:\n                nxt = pos + step\n                if nxt <= M and tree[nxt] < rem:\n                    pos = nxt\n                    rem -= tree[nxt]\n                step >>= 1\n            out.append(str(pos + 1))\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nq = int(data[0])\ncnt = {}\nout = []\np = 1\nfor _ in range(q):\n    op = data[p]; x = int(data[p + 1]); p += 2\n    if op == 'ADD':\n        cnt[x] = cnt.get(x, 0) + 1\n    elif op == 'REMOVE':\n        if cnt.get(x, 0) > 0:\n            cnt[x] -= 1\n    else:\n        line = []\n        for m in sorted(cnt):\n            line.extend([m] * cnt[m])\n        out.append(str(line[x % len(line)]) if line else '-1')\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    def fmt(ops):\n        return str(len(ops)) + '\\n' + '\\n'.join(ops)\n    tests = [fmt(['PICK 0']), fmt(['ADD 1', 'PICK 0', 'PICK 7', 'REMOVE 1', 'PICK 3']),\n             fmt(['ADD 7', 'ADD 3', 'ADD 7', 'PICK 0', 'PICK 1', 'PICK 2', 'PICK 5']),\n             fmt(['PICK 4', 'ADD 2', 'REMOVE 5', 'REMOVE 2', 'PICK 0', 'ADD 9', 'PICK 8']),\n             fmt(['REMOVE 1', 'REMOVE 1', 'ADD 100000', 'ADD 1', 'PICK 1', 'PICK 0'])]\n    def rnd(q, ids, rmax, pa, pr):\n        ops = []\n        for _ in range(q):\n            x = rng.random()\n            if x < pa:\n                ops.append('ADD %d' % rng.randint(1, ids))\n            elif x < pa + pr:\n                ops.append('REMOVE %d' % rng.randint(1, ids))\n            else:\n                ops.append('PICK %d' % rng.randint(0, rmax))\n        return ops\n    for _ in range(20):\n        ids = rng.choice([2, 4, 10, 100000])\n        tests.append(fmt(rnd(rng.randint(1, 25), ids, rng.choice([5, 10**9]), 0.4, 0.3)))\n    Q = 100000\n    # large: ids spread over the full range so linear scans over members are slow\n    ops = ['ADD %d' % rng.randint(1, 100000) for _ in range(40000)]\n    ops += rnd(Q - 40000, 100000, 10**9, 0.1, 0.1)\n    tests.append(fmt(ops))\n    ops = ['ADD %d' % rng.randint(99000, 100000) for _ in range(30000)] + ['PICK %d' % rng.randint(0, 10**9) for _ in range(Q - 30000)]\n    tests.append(fmt(ops))\n    tests.append(fmt(rnd(Q, 100000, 10**9, 0.5, 0.2)))\n    tests.append(fmt(rnd(Q, 50, 10**9, 0.45, 0.4)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef run(ops: List[tuple]) -> List[int]:\n    # ops are ('ADD', m), ('REMOVE', m) or ('PICK', r); return the result of every PICK\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    ops = [(data[1 + 2 * i], int(data[2 + 2 * i])) for i in range(q)]\n    print('\\n'.join(map(str, run(ops))))\n\n\nmain()\n",
+  "javascript": "function run(ops) {\n  // ops are [name, number] pairs: ['ADD', m], ['REMOVE', m] or ['PICK', r]\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst q = parseInt(t[0])\nconst ops = []\nfor (let i = 0; i < q; i++) ops.push([t[1 + 2 * i], parseInt(t[2 + 2 * i])])\nconsole.log(run(ops).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> run(vector<pair<string, long long>>& ops) {\n    // ops are (\"ADD\", m), (\"REMOVE\", m) or (\"PICK\", r); return the result of every PICK\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int q;\n    cin >> q;\n    vector<pair<string, long long>> ops(q);\n    for (int i = 0; i < q; i++) cin >> ops[i].first >> ops[i].second;\n    vector<int> res = run(ops);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<Integer> run(String[] names, long[] args) {\n        // names[i] is \"ADD\", \"REMOVE\" or \"PICK\"; args[i] is the member ID or r\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        int q = Integer.parseInt(br.readLine().trim());\n        String[] names = new String[q];\n        long[] vals = new long[q];\n        for (int i = 0; i < q; i++) {\n            StringTokenizer st = new StringTokenizer(br.readLine());\n            names[i] = st.nextToken();\n            vals[i] = Long.parseLong(st.nextToken());\n        }\n        StringBuilder sb = new StringBuilder();\n        for (int x : run(names, vals)) sb.append(x).append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

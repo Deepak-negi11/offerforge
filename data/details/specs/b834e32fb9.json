@@ -1,0 +1,19 @@
+{
+ "qid": "b834e32fb9",
+ "question": "In a Technical Interview for a Software Developer (new grad) role at Tower Research, which was mostly operating systems and computer architecture, the first question was: **what is a TLB and why is it used? What are huge pages and their advantages? Which is accessed first, the TLB or the cache? Can they be accessed in parallel?**",
+ "lookingFor": [
+  "Do you understand virtual-to-physical translation and its cost?",
+  "Can you explain how a TLB hit and miss work?",
+  "Do you know the benefit and cost of huge pages?",
+  "Can you reason about cache indexing (VIPT, PIPT, VIVT) and parallel lookup?",
+  "Can you explain the memory access path end to end?"
+ ],
+ "answer": "**TLB.** Programs use virtual addresses. Translating one requires walking the page table (several memory accesses on x86-64, which uses 4 levels). The **Translation Lookaside Buffer** is a small, fast cache inside the CPU (the MMU) holding recent virtual-page to physical-frame translations (plus permission bits). A **TLB hit** gives the physical address in about a cycle; a **TLB miss** triggers a page-table walk (in hardware on x86, sometimes in software on other architectures), after which the entry is cached. On a context switch the TLB must be flushed or tagged with address-space IDs (ASIDs/PCIDs).\n\n**Huge pages.** Normal pages are 4 KB; huge pages are 2 MB or 1 GB on x86-64. One TLB entry then covers much more memory, so large working sets (databases, JVM heaps, low-latency systems) get fewer TLB misses, and the page walk is shorter. Downsides: internal fragmentation, harder to allocate contiguous memory, more costly to zero or copy, and less flexible swapping.\n\n**Which is first, TLB or cache?** It depends on how the cache is indexed.\n\n- **PIPT** (physically indexed, physically tagged): translate first, then access the cache; correct but serial.\n- **VIVT**: no translation needed to access the cache, but aliasing and homonym problems arise.\n- **VIPT** (virtually indexed, physically tagged), common for L1: the **index** comes from address bits within the page offset (unchanged by translation), so the cache set lookup and the TLB lookup happen **in parallel**. The physical tag from the TLB is then compared against the tags in the set. This works when `cache size / associativity <= page size`, for example a 32 KB, 8-way L1 with 4 KB pages.\n\nSo, in general, translation precedes the tag comparison, but with a VIPT L1 the two proceed in parallel; lower-level caches (L2, L3) are typically physically addressed.\n\n**On a miss.** Page-table walk, then if the page is not present, a page fault handled by the OS.",
+ "followUps": [
+  "What is a page-table walk and how many memory accesses does it take on x86-64?",
+  "Why must the TLB be flushed on a context switch, and how do ASIDs avoid that?",
+  "What is a TLB shootdown?",
+  "Why can't a larger L1 cache simply index with virtual address bits?",
+  "What are transparent huge pages and what are their drawbacks?"
+ ]
+}

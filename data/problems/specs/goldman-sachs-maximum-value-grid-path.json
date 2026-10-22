@@ -1,0 +1,48 @@
+{
+ "pid": "goldman-sachs-maximum-value-grid-path",
+ "title": "Maximum Value Grid Path",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a grid with `r` rows and `c` columns. Each cell holds an integer value (for example the value of a stone or rock you can pick up there; values may be zero or negative).\n\nYou start in the **bottom-left** cell, `(r - 1, 0)`, and must reach the **top-right** cell, `(0, c - 1)`. Rows are numbered from the top, starting at 0. From a cell you may move only **up** (to row `i - 1`) or **right** (to column `j + 1`).\n\nEvery cell you visit, including the start and the end, contributes its value to your total. Find the **maximum total** you can collect along any valid path.\n\nIf the grid has a single cell, the start and the end are the same cell and the answer is that cell's value.",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains `c` space-separated integers: the values of one row of the grid, from top to bottom.",
+ "output_format": "Print a single integer: the maximum total value of a path from the bottom-left cell to the top-right cell.",
+ "constraints": [
+  "1 ≤ r, c ≤ 300",
+  "-1000 ≤ grid[i][j] ≤ 1000"
+ ],
+ "examples": [
+  {
+   "input": "3 5\n9 0 2 0 1\n0 1 1 1 0\n2 0 0 0 0",
+   "output": "14",
+   "explanation": "Start at the bottom-left cell (2), go up twice through 0 and 9, then right along the top row through 0, 2, 0 and 1: `2 + 0 + 9 + 0 + 2 + 0 + 1 = 14`. Leaving the left column early to use the 1s in the middle row only reaches 6."
+  },
+  {
+   "input": "2 3\n1 -5 2\n-2 3 -4",
+   "output": "-1",
+   "explanation": "Every path starts at -2 and ends at 2. Going up first collects `-2 + 1 - 5 + 2 = -4`; right, up, right gives `-2 + 3 - 5 + 2 = -2`; right, right, up gives `-2 + 3 - 4 + 2 = -1`, the maximum."
+  },
+  {
+   "input": "1 1\n7",
+   "output": "7",
+   "explanation": "The start and the end are the same cell, so the answer is 7."
+  }
+ ],
+ "complexity": {
+  "time": "O(r * c)",
+  "space": "O(c)"
+ },
+ "hints": [
+  "Think of the best total of a path that ends at a cell. Which two cells can you have come from?",
+  "Let `dp[i][j]` be the best total for a path from the start to `(i, j)`. Then `dp[i][j] = grid[i][j] + max(dp[i + 1][j], dp[i][j - 1])`, using only the neighbours that exist.",
+  "Fill rows from the bottom to the top and columns from left to right. Only the previous row is needed, so the table can be reduced to one row. Because values can be negative, mark unreachable cells as negative infinity rather than 0."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    a = [list(map(int, data[2 + i * c: 2 + (i + 1) * c])) for i in range(r)]\n    NEG = float('-inf')\n    # dp[j] = best total for a path ending at (i, j); rows processed from the bottom up\n    dp = [NEG] * c\n    for i in range(r - 1, -1, -1):\n        row = a[i]\n        for j in range(c):\n            if i == r - 1 and j == 0:\n                best = 0\n            else:\n                best = dp[j]  # arrived from below (dp[j] still holds row i+1)\n                if j > 0 and dp[j - 1] > best:\n                    best = dp[j - 1]  # arrived from the left (already updated for row i)\n            dp[j] = best + row[j]\n    print(dp[c - 1])\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\na = [list(map(int, data[2 + i * c: 2 + (i + 1) * c])) for i in range(r)]\n\ndef best(i, j):\n    # best total of a path that starts at (i, j) and ends at (0, c - 1)\n    if i == 0 and j == c - 1:\n        return a[i][j]\n    opts = []\n    if i > 0:\n        opts.append(best(i - 1, j))\n    if j < c - 1:\n        opts.append(best(i, j + 1))\n    return a[i][j] + max(opts)\n\nprint(best(r - 1, 0))\n",
+ "generator": "def gen(rng):\n    def fmt(g):\n        return f'{len(g)} {len(g[0])}\\n' + '\\n'.join(' '.join(map(str, row)) for row in g)\n    def rnd(r, c, lo, hi):\n        return [[rng.randint(lo, hi) for _ in range(c)] for _ in range(r)]\n    tests = [fmt([[9, 0, 2, 0, 1], [0, 1, 1, 1, 0], [2, 0, 0, 0, 0]]), fmt([[5]]), fmt([[-5]]),\n             fmt([[1, 2, 3, 4]]), fmt([[1], [2], [3], [4]]), fmt([[-1, -2, -3], [-4, -5, -6]]),\n             fmt([[0, 0], [0, 0]]), fmt([[1, -9, 1], [-9, -9, -9], [1, -9, 1]])]\n    for _ in range(14):\n        r, c = rng.randint(1, 6), rng.randint(1, 6)\n        tests.append(fmt(rnd(r, c, -9, 9)))\n    for _ in range(4):\n        r, c = rng.randint(1, 5), rng.randint(1, 5)\n        tests.append(fmt(rnd(r, c, 0, 9)))\n    tests.append(fmt(rnd(300, 300, -1000, 1000)))\n    tests.append(fmt(rnd(300, 300, -1000, -1)))\n    tests.append(fmt(rnd(300, 300, 0, 1000)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_value(grid: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    grid = [[int(x) for x in data[2 + i * c: 2 + (i + 1) * c]] for i in range(r)]\n    print(max_value(grid))\n\n\nmain()\n",
+  "javascript": "function maxValue(grid) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst r = t[0], c = t[1]\nconst grid = []\nfor (let i = 0; i < r; i++) grid.push(t.slice(2 + i * c, 2 + (i + 1) * c))\nconsole.log(String(maxValue(grid)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxValue(vector<vector<long long>>& grid) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<vector<long long>> grid(r, vector<long long>(c));\n    for (int i = 0; i < r; i++)\n        for (int j = 0; j < c; j++) cin >> grid[i][j];\n    cout << maxValue(grid) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxValue(long[][] grid) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int r = (int) in.nval;\n        in.nextToken();\n        int c = (int) in.nval;\n        long[][] grid = new long[r][c];\n        for (int i = 0; i < r; i++) {\n            for (int j = 0; j < c; j++) {\n                in.nextToken();\n                grid[i][j] = (long) in.nval;\n            }\n        }\n        System.out.println(maxValue(grid));\n    }\n}\n"
+ }
+}

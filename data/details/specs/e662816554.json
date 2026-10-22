@@ -1,0 +1,18 @@
+{
+ "qid": "e662816554",
+ "question": "Superday LLD for an Associate role. Design an **in-memory deduplication engine for a notification service** handling about **10,000 notifications per second**. A notification must be **dropped if the same UUID was seen in the last 10 minutes**. Memory must stay **bounded by expiring old IDs**, and the **check-and-insert must be O(1) or O(log N)**.",
+ "lookingFor": [
+  "Choosing the right data structures (hash set plus time-ordered expiry).",
+  "Reasoning about memory: how many IDs live in the window and their cost.",
+  "Thread safety and contention at 10k operations per second.",
+  "Defining the semantics precisely (does a duplicate refresh the window?).",
+  "Awareness of limits of in-memory state: restarts, multiple instances."
+ ],
+ "answer": "**Clarify semantics.** Duplicate means the same UUID within the last 10 minutes. Decide: a dropped duplicate does *not* extend the window (the ID expires 10 minutes after its first accepted sighting). State this assumption.\n\n**Size.** 10,000/s x 600 s = about 6 million live IDs. A UUID is 16 bytes of data, but boxed objects in a Java `HashMap` cost many times that (often 80-100 bytes per entry), so about 0.5 GB. Mention a compact alternative: store the two longs in a primitive open-addressing table.\n\n**Design (hash map plus FIFO queue).**\n- `Map<UUID, Long> seen` mapping id to first-seen time.\n- `Deque<Entry(id, time)> order` ordered by time, because events arrive in time order.\n\n```java\nsynchronized boolean accept(UUID id, long now) {\n  evict(now);                         // amortised O(1)\n  if (seen.containsKey(id)) return false;   // duplicate: drop\n  seen.put(id, now);\n  order.addLast(new Entry(id, now));\n  return true;\n}\nvoid evict(long now) {\n  while (!order.isEmpty() && order.peekFirst().time <= now - TTL) {\n    seen.remove(order.pollFirst().id);\n  }\n}\n```\nCheck-and-insert is O(1) expected; each ID is enqueued and removed once, so eviction is amortised O(1). Use a monotonic clock (`System.nanoTime`) so wall-clock jumps do not break expiry.\n\n**Concurrency.** One global lock may be fine at 10k/s, but to scale shard by `hash(uuid) % N` with a lock, map and queue per shard (an ID always lands in the same shard). `ConcurrentHashMap.putIfAbsent` gives an atomic check-and-insert; expiry can be done by a background thread or by time buckets (one set per minute, dropping whole buckets), which cuts per-entry bookkeeping.\n\n**Limits.** State is lost on restart and not shared across instances. For multiple instances use Redis `SET key NX EX 600` or route by UUID hash to the same instance. A Bloom filter per bucket saves memory but allows false positives (wrongly dropped notifications), so state that trade-off.",
+ "followUps": [
+  "What if events can arrive out of order?",
+  "How would the design change with several service instances?",
+  "How would a Bloom filter or cuckoo filter reduce memory, and what is the cost?",
+  "How do you test the expiry logic without waiting 10 minutes?"
+ ]
+}

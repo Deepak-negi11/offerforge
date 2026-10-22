@@ -1,0 +1,18 @@
+{
+ "qid": "9b54cd4aec",
+ "question": "Flipkart SDE-1, Technical Interview 2 (a low-level design round). Two reported tasks: a **low-level design of backend APIs that generate real-world data** (the exact domain was not reported), and **implementing autocomplete for a text-based application**. The interviewer stressed constant communication and discussion of approaches and design principles.",
+ "lookingFor": [
+  "Clean decomposition into layers, entities and interfaces.",
+  "Choosing the right data structure for prefix search (trie) and ranking.",
+  "Extensibility and testability of the design.",
+  "Clear communication of trade-offs while coding.",
+  "Handling edge cases and scale for the autocomplete."
+ ],
+ "answer": "The API task was reported only in general terms, so state your assumptions aloud, ask for the domain, expected consumers and constraints, then design. A reusable approach follows.\n\n**Backend API LLD.**\n\n- Clarify requirements: entities, read/write ratio, validation rules, error behaviour.\n- Layers: controller (HTTP, validation, mapping) calls a service (business rules) which uses a repository interface (storage). Program to interfaces so the storage can be swapped (in-memory for the interview, database later).\n- Model entities and DTOs separately; define clear endpoints (`POST /items`, `GET /items/{id}`), idempotency for creates, pagination for lists, and consistent error responses.\n- Mention extensibility (strategy pattern for generators or rules), thread safety (concurrent maps, locks around compound updates), and unit tests.\n\n**Autocomplete.**\n\nUse a **trie**. Each node holds a `Map<Character, Node>` (or a 26-array) and, to rank results, store per-word frequency or a precomputed top-k list per node.\n\n- `insert(word, freq)`: walk or create nodes, O(L) for word length L.\n- `suggest(prefix, k)`: walk to the prefix node in O(L), then collect completions. Naive DFS visits the whole subtree; a better design caches the top-k suggestions at each node (updated on insert) so a query is O(L + k).\n- Rank by frequency, recency or personalisation; keep ties deterministic (alphabetical).\n- `recordSelection(word)` increments the count so popular completions rise.\n\nComplexity: space O(total characters). Edge cases: empty prefix, case normalisation, duplicates, no match, unicode.\n\n**Scaling beyond one process.** Shard by prefix, cache hot prefixes (Redis, CDN), debounce requests on the client, and rebuild the trie offline from query logs, swapping it in atomically. Alternatives: sorted array plus binary search (simple, slow to update), or a ternary search tree to save memory.",
+ "followUps": [
+  "How would you store and update top-k suggestions per trie node efficiently?",
+  "How would you make the trie thread-safe for concurrent reads and writes?",
+  "How would you support typo tolerance (fuzzy matching)?",
+  "How would you scale autocomplete to millions of queries per second?"
+ ]
+}

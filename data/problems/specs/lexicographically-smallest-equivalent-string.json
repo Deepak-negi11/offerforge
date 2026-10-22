@@ -1,0 +1,49 @@
+{
+ "pid": "lexicographically-smallest-equivalent-string",
+ "title": "Lexicographically Smallest Equivalent String",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given two strings `s1` and `s2` of the same length, and a third string `baseStr`. The characters at equal positions of `s1` and `s2` are **equivalent**: `s1[i]` is equivalent to `s2[i]` for every `i`.\n\nEquivalence follows the usual rules:\n\n- Every character is equivalent to itself.\n- If `x` is equivalent to `y`, then `y` is equivalent to `x`.\n- If `x` is equivalent to `y` and `y` is equivalent to `z`, then `x` is equivalent to `z`.\n\nFor example, with `s1 = \"abc\"` and `s2 = \"cde\"`, the pairs `a~c`, `b~d`, `c~e` give the groups `{a, c, e}` and `{b, d}`.\n\nReplace every character of `baseStr` by the **smallest** character of its equivalence group. Print the resulting string, which is the lexicographically smallest string equivalent to `baseStr`.",
+ "input_format": "Three lines: the string `s1`, the string `s2`, and the string `baseStr`.",
+ "output_format": "Print the lexicographically smallest equivalent string of `baseStr`.",
+ "constraints": [
+  "1 ≤ |s1| = |s2| ≤ 10^5",
+  "1 ≤ |baseStr| ≤ 10^5",
+  "All strings consist of lowercase English letters"
+ ],
+ "examples": [
+  {
+   "input": "abc\ncde\nbed",
+   "output": "bab",
+   "explanation": "The groups are `{a, c, e}` and `{b, d}`. In `bed`, `b` stays `b`, `e` becomes `a`, and `d` becomes `b`."
+  },
+  {
+   "input": "mnop\nnopq\nquomp",
+   "output": "mummm",
+   "explanation": "The pairs chain `m~n~o~p~q` into one group whose smallest letter is `m`. `u` is in no pair, so it stays `u`."
+  },
+  {
+   "input": "ab\nba\nzab",
+   "output": "zaa",
+   "explanation": "`a` and `b` are equivalent, so both become `a`. `z` is alone and stays `z`."
+  }
+ ],
+ "complexity": {
+  "time": "O(|s1| + |baseStr|)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Equivalence is transitive, so the letters split into groups. Think about which structure maintains groups while merging pairs.",
+  "Use union-find over the 26 letters. When you merge two groups, keep the smaller letter as the representative.",
+  "After processing all pairs, map each character of `baseStr` to the representative of its group."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    s1, s2, base = data[0], data[1], data[2]\n    parent = list(range(26))\n    def find(x):\n        while parent[x] != x:\n            parent[x] = parent[parent[x]]\n            x = parent[x]\n        return x\n    for a, b in zip(s1, s2):\n        ra, rb = find(ord(a) - 97), find(ord(b) - 97)\n        if ra != rb:\n            if ra < rb:\n                parent[rb] = ra\n            else:\n                parent[ra] = rb\n    mp = [chr(97 + find(i)) for i in range(26)]\n    print(''.join(mp[ord(c) - 97] for c in base))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\ns1, s2, base = data[0], data[1], data[2]\nbest = list(range(26))\nchanged = True\nwhile changed:\n    changed = False\n    for a, b in zip(s1, s2):\n        x, y = ord(a) - 97, ord(b) - 97\n        m = min(best[x], best[y])\n        if best[x] != m or best[y] != m:\n            best[x] = best[y] = m\n            changed = True\n    for x in range(26):\n        for y in range(26):\n            if best[x] == y and best[y] < best[x]:\n                best[x] = best[y]\n                changed = True\nprint(''.join(chr(97 + best[ord(c) - 97]) for c in base))\n",
+ "generator": "def gen(rng):\n    def fmt(a, b, c):\n        return a + '\\n' + b + '\\n' + c\n    def rs(n, alpha):\n        return ''.join(rng.choice(alpha) for _ in range(n))\n    tests = [fmt('abc', 'cde', 'bed'), fmt('mnop', 'nopq', 'quomp'), fmt('a', 'a', 'a'), fmt('z', 'a', 'z'),\n             fmt('ab', 'ba', 'ba'), fmt('abc', 'abc', 'cba'), fmt('zyx', 'yxw', 'zzz'), fmt('b', 'a', 'cab')]\n    for n in (2, 3, 5, 8, 12, 20):\n        for alpha in ('abcd', 'abcdefgh', 'abcdefghijklmnopqrstuvwxyz'):\n            m = rng.randint(1, n)\n            tests.append(fmt(rs(m, alpha), rs(m, alpha), rs(rng.randint(1, 25), 'abcdefghijklmnopqrstuvwxyz')))\n    n = 100000\n    tests.append(fmt(rs(n, 'abcdefghijklmnopqrstuvwxyz'), rs(n, 'abcdefghijklmnopqrstuvwxyz'), rs(n, 'abcdefghijklmnopqrstuvwxyz')))\n    tests.append(fmt(rs(n, 'abcdefghijklmnopqrstuvwxyz'), rs(n, 'abcdefghijklmnopqrstuvwxyz'), rs(n, 'abcdefghijklmnopqrstuvwxyz')))\n    chain1 = 'abcdefghijklmnopqrstuvwxy' * 4000\n    chain2 = 'bcdefghijklmnopqrstuvwxyz' * 4000\n    tests.append(fmt(chain1, chain2, 'z' * 50000 + 'q' * 50000))\n    tests.append(fmt('az' * 50000, 'za' * 50000, 'bcz' * 33333 + 'a'))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef smallest_equivalent(s1: str, s2: str, base: str) -> str:\n    # Write your solution here\n    return \"\"\n\n\ndef main():\n    data = sys.stdin.read().split()\n    print(smallest_equivalent(data[0], data[1], data[2]))\n\n\nmain()\n",
+  "javascript": "function smallestEquivalent(s1, s2, base) {\n  // Write your solution here\n  return ''\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconsole.log(smallestEquivalent(t[0], t[1], t[2]))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring smallestEquivalent(const string& s1, const string& s2, const string& base) {\n    // Write your solution here\n    return \"\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string a, b, c;\n    cin >> a >> b >> c;\n    cout << smallestEquivalent(a, b, c) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String smallestEquivalent(String s1, String s2, String base) {\n        // Write your solution here\n        return \"\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder sb = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) sb.append(line).append(' ');\n        String[] t = sb.toString().trim().split(\"\\\\s+\");\n        System.out.println(smallestEquivalent(t[0], t[1], t[2]));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "9eb6f64ca0",
+ "question": "In both the tech screen and the onsite for a Senior Software Engineer role at NVIDIA, there was a **code review round**: you are shown a piece of Python code and must **review it and identify its problems** (bugs, design issues and risks).\n\nThe tech screen also included an easy or medium LeetCode problem and a design question related to a file scanner. The exact code under review was not reported, so this write-up focuses on how to run such a review.",
+ "lookingFor": [
+  "Can you read unfamiliar code quickly and find real defects rather than style nitpicks?",
+  "Do you prioritise issues by severity: correctness, security, concurrency, resource handling, then design and style?",
+  "Do you know common Python pitfalls?",
+  "Do you communicate findings constructively and propose concrete fixes?",
+  "Do you think about tests, observability and edge cases?"
+ ],
+ "answer": "**Approach: understand first, then review in passes, then prioritise.**\n\n1. **State the purpose.** Summarise what the code is supposed to do and ask about inputs, scale and callers. You cannot judge correctness without intent.\n2. **Pass 1, correctness.** Off-by-one errors, wrong conditions, unhandled `None`, empty input, unexpected types, integer or float assumptions, wrong return values on error paths.\n3. **Pass 2, Python-specific traps.**\n   - Mutable default arguments (`def f(x, items=[])`).\n   - Bare `except:` or `except Exception: pass` that swallows errors.\n   - Late-binding closures in loops, modifying a list while iterating over it.\n   - Comparing with `is` instead of `==`, and shadowing built-ins.\n   - Files or sockets not closed (use `with`).\n   - Building strings or lists with quadratic loops.\n4. **Pass 3, resources and concurrency.** Unbounded memory (reading a whole big file), no timeouts or retries on network calls, shared state across threads without locks, blocking calls inside async code, race conditions on files.\n5. **Pass 4, security.** Unsanitised input in SQL or shell commands (`subprocess` with `shell=True`), path traversal, `pickle` or `eval` on untrusted data, secrets in code or logs.\n6. **Pass 5, design and maintainability.** Functions doing too much, hidden global state, missing type hints, poor names, duplicated logic, no logging, hard to test because of tight coupling.\n7. **Report well.** Group findings as must-fix, should-fix and nit. For each, say what is wrong, why it matters (a concrete failure scenario) and a suggested fix. Start with what is good.\n8. **Close with tests.** Propose the cases that would have caught the bugs.\n\nFor a file-scanner style program, think about symlink loops, permission errors, huge files, and memory use when listing millions of files (use generators).\n\n**Mistake to avoid:** spending all the time on formatting while missing a data-loss or security bug.",
+ "followUps": [
+  "Which issue in the code would you fix first and why?",
+  "How would you make this code testable?",
+  "How do you review code from a junior colleague differently from your own?",
+  "What would you add for observability in production?"
+ ]
+}

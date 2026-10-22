@@ -1,0 +1,18 @@
+{
+ "qid": "974babcc61",
+ "question": "Meta IC6 Machine Learning Engineer, ML design round: **design an ML platform that generates general-purpose content embeddings** (for posts, images, videos or text) that downstream teams reuse for tasks such as **classification, recommendation and search**.",
+ "lookingFor": [
+  "Framing a platform (shared infrastructure) rather than a single model",
+  "Choosing training objectives and modalities for a general-purpose representation",
+  "Evaluation that proves reusability across downstream tasks",
+  "Serving, versioning and backward-compatibility of embeddings",
+  "Cost, freshness and privacy trade-offs at large scale"
+ ],
+ "answer": "**Clarify.** Who are the consumers (ranking, integrity classifiers, search retrieval), which content types (text, image, video, multimodal), what freshness is needed, and what latency and cost budgets exist. A platform means many teams depend on stable, well-measured embeddings.\n\n**Architecture.**\n1. **Data and training.** Collect content plus weak signals (engagement pairs, co-occurrence, captions and alt text, hashtags). Use self-supervised or contrastive objectives (image-text, text-text, video-text) so the representation is not tied to one task. Optionally add multi-task heads to inject task signal. Deduplicate, filter policy-violating content and avoid leakage between train and eval sets.\n2. **Model.** Per-modality encoders (transformer for text, vision transformer for images, frame sampling for video) projected into a shared space of fixed dimension. Consider Matryoshka-style or quantised vectors to cut storage.\n3. **Inference.** Batch pipeline for the back-catalogue, streaming pipeline for new content so embeddings are ready within minutes. Store in an **embedding store** keyed by `(content_id, model_version)` with an ANN index for retrieval use cases. Serve online via a feature store for low-latency lookups.\n4. **Versioning.** Embeddings from different model versions are not comparable. Publish versions explicitly, run old and new in parallel, provide migration tooling, and use alignment or re-embedding when downstream models must move.\n\n**Evaluation.** Intrinsic: retrieval recall, clustering quality. Extrinsic, which matters most: train small probes (linear heads) on a fixed benchmark of downstream tasks, and measure lift in real products through A/B tests. Slice by language, region and content type to catch bias.\n\n**Trade-offs.** One universal model versus specialised models (universal is cheaper to maintain, specialised is better per task). Fine-tune cost versus frozen embeddings. Freshness versus compute cost. Privacy: honour deletions by removing embeddings and retraining schedules.\n\n**Monitoring.** Drift in embedding distribution, coverage, latency and downstream metric regression.",
+ "followUps": [
+  "How do you migrate 50 downstream models when you ship a better embedding model?",
+  "How would you measure that an embedding is truly general purpose?",
+  "How would you embed videos efficiently without processing every frame?",
+  "How would you handle deletion requests for content that already has embeddings?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "525adcbd1d",
+ "question": "Amazon SDE-1 low-level design: you are given a **folder** and some **filter options** and must return the files that match. Design a `Filter` interface (for example by file type and by date), support a **list of filters**, and then support **AND / OR combinations** of filters.\n\nThe candidate report is brief, so clarify the file model and any other filter criteria (size, name) yourself.",
+ "lookingFor": [
+  "Choosing the right abstraction: a Filter interface with polymorphic implementations.",
+  "Recognising the Composite pattern for AND/OR combinations.",
+  "Open/closed design: new filters without changing the search code.",
+  "Handling directories recursively and edge cases.",
+  "Clean code and a small demo or test."
+ ],
+ "answer": "**Clarify.** Is the search recursive? What file attributes exist (name, extension, size, created/modified date)? Should results be a list or streamed? Are filters combined with nested logic like `(type=pdf AND size>1MB) OR modified>date`?\n\n**Model.**\n- `File` (or `FileNode`): name, extension, size, createdAt, modifiedAt, path. A `Directory` holds children (files and sub-directories).\n- `Filter` interface: `boolean matches(File file)`.\n- Concrete filters: `TypeFilter(ext)`, `DateFilter(from, to)`, `SizeFilter(min, max)`, `NameFilter(pattern)`. Each is small and independent.\n\n**Combining filters (Composite).**\n- `AndFilter(List<Filter>)`: matches only if all children match; short-circuit on the first false.\n- `OrFilter(List<Filter>)`: matches if any child matches; short-circuit on the first true.\n- Optionally `NotFilter(Filter)`.\nBecause composites are themselves `Filter`s, they nest to any depth with no extra code.\n\n**Search.**\n```java\nList<File> search(Directory dir, Filter f) {\n  List<File> out = new ArrayList<>();\n  for (Node n : dir.children()) {\n    if (n instanceof Directory d) out.addAll(search(d, f));\n    else if (f.matches((File) n)) out.add((File) n);\n  }\n  return out;\n}\n```\nA `FileSearcher` class owns this method so the filter and traversal concerns stay separate.\n\n**Complexity.** O(N * F) for N files and F filter evaluations per file (less with short-circuiting). Space is O(depth) for recursion plus the result list.\n\n**Extensibility.** New criterion means a new class implementing `Filter`; no change to the searcher (open/closed). A builder or fluent helper (`Filters.type(\"pdf\").and(Filters.size(...))`) makes composition readable.\n\n**Mistakes to avoid.** One method with many `if` flags, hardcoding AND-only logic, and ignoring empty filter lists (decide that an empty AND matches everything).",
+ "followUps": [
+  "How would you do this lazily for very large directory trees?",
+  "How would you parse a filter expression from a string?",
+  "How would you search in parallel?",
+  "How would you make date filters handle time zones?"
+ ]
+}

@@ -1,0 +1,49 @@
+{
+ "pid": "flipkart-minimum-uncovered-sum-with-dominoes",
+ "title": "Minimum Uncovered Sum with Dominoes",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given an `N x N` grid of non-negative integers and a number `K`. You have `K` rectangular slabs, each of which covers exactly **two adjacent cells** (two cells that share a side, either horizontally or vertically).\n\nPlace **at most `K` slabs** on the grid so that no cell is covered by more than one slab and every slab lies fully inside the grid. Your goal is to **minimise the sum of the values of the uncovered cells**.\n\nPrint that minimum sum. (Because all values are non-negative, covering more cells never hurts, so you only place fewer than `K` slabs when no further slab fits.)",
+ "input_format": "The first line contains two integers `N` and `K`.\nEach of the next `N` lines contains `N` space-separated integers: the rows of the grid.",
+ "output_format": "Print a single integer: the minimum possible sum of uncovered cells.",
+ "constraints": [
+  "1 ≤ N ≤ 500",
+  "1 ≤ K ≤ 8",
+  "0 ≤ grid[i][j] ≤ 10^4"
+ ],
+ "examples": [
+  {
+   "input": "2 1\n6 4\n8 7",
+   "output": "10",
+   "explanation": "With one slab the best placement covers the bottom row (8 and 7). The uncovered cells are 6 and 4, so the sum is 10."
+  },
+  {
+   "input": "3 2\n1 9 9\n1 5 1\n1 1 1",
+   "output": "5",
+   "explanation": "The total is 29. Cover the two 9s with one slab (18) and the 5 with an adjacent 1 (6): 24 is covered, leaving 5. No two slabs can cover more than 9 + 9 + 5 + 1 = 24."
+  },
+  {
+   "input": "1 3\n4",
+   "output": "4",
+   "explanation": "A 1 x 1 grid has no room for any slab, so the single cell stays uncovered."
+  }
+ ],
+ "complexity": {
+  "time": "O(N^2 log K)",
+  "space": "O(N^2)"
+ },
+ "hints": [
+  "Maximise the covered sum instead: answer = total of all cells minus the best sum covered by at most K non-overlapping slabs.",
+  "A slab overlaps at most 6 other slabs (each of its two cells belongs to at most 3 others). So in an optimal solution it is enough to consider the 6K heaviest slab positions: if the solution used a slab outside that set, one of the 6K candidates is free of conflicts and at least as heavy.",
+  "Pick the 6K heaviest positions (by sum of the two cells) and run a small DFS/branch-and-bound over them, choosing at most K that do not share a cell. Stop a branch when even the heaviest remaining slabs cannot beat the best answer so far."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.buffer.read().split()\n    n = int(data[0]); K = int(data[1])\n    g = [list(map(int, data[2 + i * n: 2 + (i + 1) * n])) for i in range(n)]\n    total = sum(map(sum, g))\n    m = 6 * K\n    cand = []\n    for i in range(n):\n        r = g[i]\n        base = i * n\n        if n > 1:\n            w = [a + b for a, b in zip(r, r[1:])]\n            top = heapq.nlargest(m, range(n - 1), key=lambda t: w[t])\n            for j in top:\n                cand.append((w[j], base + j, base + j + 1))\n        if i + 1 < n:\n            nx = g[i + 1]\n            w = [a + b for a, b in zip(r, nx)]\n            top = heapq.nlargest(m, range(n), key=lambda t: w[t])\n            for j in top:\n                cand.append((w[j], base + j, base + n + j))\n    cand.sort(reverse=True)\n    cand = cand[:m]\n    m = len(cand)\n    P = [0]\n    for c in cand:\n        P.append(P[-1] + c[0])\n    best = 0\n    used = set()\n\n    def dfs(i, left, cur):\n        nonlocal best\n        if cur > best:\n            best = cur\n        if left == 0:\n            return\n        for j in range(i, m):\n            if cur + P[min(m, j + left)] - P[j] <= best:\n                break\n            w, a, b = cand[j]\n            if a in used or b in used:\n                continue\n            used.add(a); used.add(b)\n            dfs(j + 1, left - 1, cur + w)\n            used.discard(a); used.discard(b)\n\n    dfs(0, K, 0)\n    print(total - best)\n\nmain()\n",
+ "brute": "import sys\nsys.setrecursionlimit(10000)\ndata = sys.stdin.read().split()\nn = int(data[0]); K = int(data[1])\ng = [[int(data[2 + i * n + j]) for j in range(n)] for i in range(n)]\ntotal = sum(map(sum, g))\nbest = 0\ncovered = [[False] * n for _ in range(n)]\n\ndef rec(pos, left, cur):\n    global best\n    if cur > best:\n        best = cur\n    if pos == n * n or left == 0:\n        return\n    i, j = divmod(pos, n)\n    rec(pos + 1, left, cur)\n    if covered[i][j]:\n        return\n    if j + 1 < n and not covered[i][j + 1]:\n        covered[i][j] = covered[i][j + 1] = True\n        rec(pos + 1, left - 1, cur + g[i][j] + g[i][j + 1])\n        covered[i][j] = covered[i][j + 1] = False\n    if i + 1 < n and not covered[i + 1][j]:\n        covered[i][j] = covered[i + 1][j] = True\n        rec(pos + 1, left - 1, cur + g[i][j] + g[i + 1][j])\n        covered[i][j] = covered[i + 1][j] = False\n\nrec(0, K, 0)\nprint(total - best)\n",
+ "generator": "def gen(rng):\n    def fmt(g, k):\n        n = len(g)\n        return f'{n} {k}\\n' + '\\n'.join(' '.join(map(str, r)) for r in g)\n\n    def rnd(n, hi):\n        return [[rng.randint(0, hi) for _ in range(n)] for _ in range(n)]\n\n    tests = [\n        fmt([[6, 4], [8, 7]], 1),\n        fmt([[4]], 3),\n        fmt([[0, 0], [0, 0]], 2),\n        fmt([[5, 5], [5, 5]], 8),\n        fmt([[1, 9, 9], [1, 5, 1], [1, 1, 1]], 2),\n        fmt([[7] * 3 for _ in range(3)], 8),\n    ]\n    for n in (1, 2, 3, 4):\n        for k in (1, 2, 3, 5, 8):\n            tests.append(fmt(rnd(n, rng.choice([1, 9])), k))\n    for _ in range(4):\n        tests.append(fmt(rnd(4, 3), rng.randint(2, 8)))\n    n = 500\n    tests.append(fmt(rnd(n, 10**4), 8))\n    tests.append(fmt([[10**4] * n for _ in range(n)], 8))\n    tests.append(fmt(rnd(n, 1), 8))\n    g = [[0] * n for _ in range(n)]\n    for i in range(4):\n        for j in range(4):\n            g[200 + i][300 + j] = rng.randint(9000, 10**4)\n    tests.append(fmt(g, 8))\n    g = [[rng.randint(0, 3) for _ in range(n)] for _ in range(n)]\n    for i in range(0, 20, 2):\n        g[i][i] = 10**4\n    tests.append(fmt(g, 1))\n    tests.append(fmt(rnd(n, 10**4), 5))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_uncovered_sum(n: int, k: int, grid: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    grid = [[int(data[2 + i * n + j]) for j in range(n)] for i in range(n)]\n    print(min_uncovered_sum(n, k, grid))\n\n\nmain()\n",
+  "javascript": "function minUncoveredSum(n, k, grid) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst grid = []\nfor (let i = 0; i < n; i++) grid.push(t.slice(2 + i * n, 2 + (i + 1) * n))\nconsole.log(String(minUncoveredSum(n, k, grid)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minUncoveredSum(int n, int k, vector<vector<long long>>& grid) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<vector<long long>> grid(n, vector<long long>(n));\n    for (int i = 0; i < n; i++)\n        for (int j = 0; j < n; j++) cin >> grid[i][j];\n    cout << minUncoveredSum(n, k, grid) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minUncoveredSum(int n, int k, long[][] grid) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        long[][] grid = new long[n][n];\n        for (int i = 0; i < n; i++)\n            for (int j = 0; j < n; j++) {\n                in.nextToken();\n                grid[i][j] = (long) in.nval;\n            }\n        System.out.println(minUncoveredSum(n, k, grid));\n    }\n}\n"
+ }
+}

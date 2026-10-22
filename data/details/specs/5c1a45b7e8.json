@@ -1,0 +1,19 @@
+{
+ "qid": "5c1a45b7e8",
+ "question": "In the second round of an Oracle campus interview for a Project Intern role, the OOP questions were:\n\n1. **Count how many objects of a class have been created.** The expected solution is a static counter incremented in the constructor.\n2. Then the discussion moved to **types of inheritance**, the **differences between C++ and Java inheritance**, **why Java does not support multiple inheritance with classes**, interfaces and interface inheritance, and the **diamond problem**, with the focus on **how C++ resolves it using virtual base classes**.",
+ "lookingFor": [
+  "Can you write the object counter correctly and know its limitations?",
+  "Do you know the inheritance types and how C++ and Java differ?",
+  "Can you explain the diamond problem and why it creates ambiguity?",
+  "Do you know how C++ virtual inheritance and Java interfaces with default methods each deal with it?",
+  "Can you connect language design choices to trade-offs?"
+ ],
+ "answer": "**Counting objects**\n\n```java\nclass Student {\n    private static int count = 0;\n    Student() { count++; }\n    static int getCount() { return count; }\n}\n```\nA `static` field belongs to the class, so all instances share one copy, and each constructor call increments it. Notes: with multiple threads use `AtomicInteger` (`count++` is not atomic); every constructor must increment (or chain via `this(...)`); objects created through cloning or deserialization can bypass constructors; and the count of *created* objects is not the number of *alive* ones. For that you would decrement on cleanup, which is unreliable in Java because finalization is not guaranteed.\n\n**Types of inheritance:** single, multilevel, hierarchical, multiple, and hybrid. Java supports single, multilevel and hierarchical with classes; multiple inheritance only through interfaces. C++ supports all with classes.\n\n**Diamond problem.** Classes B and C both extend A, and D extends both B and C. If B and C each override `show()`, which one does `D` inherit? With plain C++ multiple inheritance, D contains **two copies of A**, so a call on A's members is ambiguous.\n\n**Why Java disallows multiple class inheritance:** to avoid this ambiguity and the complexity of state (fields) inherited along multiple paths.\n\n**C++ solution: virtual inheritance.**\n```cpp\nclass A { public: int x; };\nclass B : virtual public A {};\nclass C : virtual public A {};\nclass D : public B, public C {};   // only one shared A subobject\n```\nWith `virtual`, D has a single shared A. Overridden functions can still be ambiguous, in which case D must override or qualify the call (`B::show()`).\n\n**Java:** interfaces carry no instance state. If two interfaces have the same `default` method, the class must override it, and can pick one with `B.super.show()`. Interfaces can extend multiple interfaces.",
+ "followUps": [
+  "What happens to the counter if the constructor throws an exception?",
+  "How does virtual inheritance change the order of constructor calls in C++?",
+  "Since Java 8 interfaces have default methods; is the diamond problem back?",
+  "Abstract class versus interface: when would you use each?",
+  "How would you make the counter thread-safe, and what is the cost?"
+ ]
+}

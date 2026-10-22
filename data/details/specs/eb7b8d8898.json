@@ -1,0 +1,18 @@
+{
+ "qid": "eb7b8d8898",
+ "question": "Design a **feature flag evaluation service** that lets engineers enable or disable named features for specific users at runtime without redeploying code.\n\nRequirements reported: up to **1,000 active flags**, each with a Boolean on/off state and a **user allowlist** targeting rule; **10,000 flag evaluations per second** from backend services; and **P95 latency below 10 ms** for both single and batched evaluations.\n\nThe accompanying low-level part of the same problem also mentions typed flags (Boolean, string, integer), AND/OR targeting rules and sticky percentage rollouts, so be ready to discuss how the design would extend to them.",
+ "lookingFor": [
+  "Doing the capacity math and noticing the data set is tiny (1,000 flags fits in memory)",
+  "Choosing local evaluation over a network call per check to meet the P95 target",
+  "Propagating flag changes to evaluators reliably (push, pull, versioning)",
+  "Deterministic, sticky bucketing for percentage rollouts",
+  "Failure behaviour: defaults, stale reads, audit and observability"
+ ],
+ "answer": "**Key observation.** 1,000 flags with allowlists is a small data set. 10k evals/s is modest. The 10 ms P95 is the real constraint, so avoid a database hit in the evaluation path.\n\n**Architecture.** Two planes:\n- *Control plane*: admin API/UI writes flag definitions to a durable store (Postgres) with a monotonically increasing version, plus an audit log. Writes are rare.\n- *Data plane*: evaluator instances keep the full flag set in memory and evaluate locally. They load a snapshot at startup and receive changes via push (pub/sub or streaming, e.g. SSE) with periodic polling as a fallback using the version number.\n\n**Evaluate API.** `POST /evaluate` with `{flag, userId, context}`, and a batch form `{flags:[...], userId, context}`. Batch evaluation is a loop over an in-memory map, so it is one network round trip and microseconds of CPU. Alternatively ship an SDK that embeds the evaluator so services need no network call at all.\n\n**Data structures.** `flags: map[name] -> {enabled, default, type, rules, version}`. Allowlist as a hash set for O(1) membership. Rules evaluated in order, first match wins, else default.\n\n**Percentage rollouts.** `bucket = hash(flagName + \":\" + bucketKey) mod 100`, serve the new value if bucket is below N. Salting with the flag name keeps buckets independent across flags and the hash makes results sticky across restarts.\n\n**Capacity.** 10k/s is easily handled by a few instances behind a load balancer. Memory is megabytes.\n\n**Failure modes.** If the control plane is down, evaluators keep serving the last snapshot. If a service never received a snapshot, return the flag default. Staleness is bounded by the poll interval; expose snapshot version and age as metrics.\n\n**Observability.** Evaluation counts, latency histograms, snapshot lag, change audit with who and when.\n\n**Trade-offs.** Push gives fast propagation but needs connection management; polling is simple but slower. Local evaluation means eventually consistent flags across instances.",
+ "followUps": [
+  "How would you make a kill switch take effect within one second everywhere?",
+  "How do you test that percentage rollouts are uniform and sticky?",
+  "How would you support user attributes such as country and plan in rules?",
+  "What happens if a flag is deleted while code still references it?"
+ ]
+}

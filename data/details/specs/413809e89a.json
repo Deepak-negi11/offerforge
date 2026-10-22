@@ -1,0 +1,17 @@
+{
+ "qid": "413809e89a",
+ "question": "Third round of an SDE-1 process (about 1 hour 40 minutes). Because the candidate had used ALB, NLB and Nginx, the interviewer asked **why each was used, when to use which, real production scenarios and implementation decisions**, plus **reverse proxy fundamentals**, about **40 minutes on Kafka**, **a known scaling problem Zomato faced and how you would solve it**, then an end-to-end HLD, **LLD of two features, producer-consumer, concurrency vs parallelism** and code-level discussion.",
+ "lookingFor": [
+  "Do you know the layer at which each load balancer works and when to choose each?",
+  "Can you explain Kafka in depth: partitions, consumer groups, delivery guarantees, ordering?",
+  "Can you explain a scaling problem methodically (measure, find the bottleneck, fix)?",
+  "Do you understand concurrency vs parallelism and the producer-consumer pattern?"
+ ],
+ "answer": "**ALB vs NLB vs Nginx.**\n- **ALB** (layer 7, HTTP): routes by host, path, header; supports WebSocket/gRPC, TLS termination, WAF integration, and per-request health checks. Use for web and microservice routing.\n- **NLB** (layer 4, TCP/UDP): very high throughput and low latency, static IPs, preserves client IP; use for non-HTTP protocols, extreme performance, or fronting an ALB.\n- **Nginx**: self-managed reverse proxy and load balancer with rich config (caching, rate limiting, rewrites, custom logic); more control, but you operate and scale it yourself.\n\n**Reverse proxy.** Sits in front of servers: TLS termination, load balancing, caching, compression, rate limiting, hiding backend topology, and connection pooling.\n\n**Kafka essentials.** A topic is split into partitions (ordered, append-only logs). Ordering is guaranteed only within a partition, so key by entity id. A consumer group divides partitions among consumers (parallelism is capped by partition count). Offsets track progress. Replication factor and `acks=all` with `min.insync.replicas` give durability. Delivery is at-least-once by default, so consumers must be idempotent; exactly-once is available with idempotent producers and transactions within Kafka. Lag, rebalancing, and poison messages are the usual production issues.\n\n**Producer-consumer.** A producer puts work on a bounded queue and consumers take it, which decouples rates and provides back-pressure. In code use a blocking queue, or locks and condition variables.\n\n**Concurrency vs parallelism.** Concurrency is dealing with many tasks at once (interleaving, even on one core); parallelism is executing tasks simultaneously on multiple cores.\n\n**Scaling problem approach.** The report does not say which problem it was, so use a method: clarify the symptom (peak-time overload), measure the bottleneck, add caching and queues, scale out stateless services, shed or degrade non-critical work, and add rate limiting and back-pressure.",
+ "followUps": [
+  "How would you increase Kafka consumer throughput, and what happens when lag grows?",
+  "How does Kafka guarantee ordering, and where can it be lost?",
+  "Why would you put an NLB in front of an ALB or Nginx?",
+  "Implement a thread-safe bounded producer-consumer queue."
+ ]
+}

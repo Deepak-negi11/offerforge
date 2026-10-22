@@ -1,0 +1,49 @@
+{
+ "pid": "goldman-sachs-microservice-deployment-order",
+ "title": "Microservice Deployment Order",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A platform runs `n` components numbered `0` to `n - 1`. They include databases (for example PostgreSQL or MongoDB), message brokers (a Kafka cluster), cache layers (Redis) and other microservices (an auth service, a payment service). For example, the Order Service cannot start until the User DB is running and the Kafka cluster is ready, and the Notification Service cannot start until the Payment Service is up.\n\nYou are given `m` dependency pairs `[A, B]`, each meaning that component `A` cannot start until component `B` is up. A component can be started at any moment once every component it depends on is already up, and components are started one at a time.\n\nProduce a valid deployment order: a sequence containing every component exactly once, in which every component appears **after** all the components it depends on.\n\nMany orders can be valid, so print the **lexicographically smallest** one (compare the sequences element by element; the first position where they differ decides). If the dependencies contain a cycle, so that no valid order exists, print `-1`.\n\nPairs may repeat, and a pair `[A, A]` is a cycle.",
+ "input_format": "The first line contains two integers `n` and `m`.\nEach of the next `m` lines contains two integers `A` and `B`: component `A` cannot start until component `B` is up.",
+ "output_format": "Print `n` space-separated integers: the lexicographically smallest valid deployment order, or `-1` if no valid order exists.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ m ≤ 10^5",
+  "0 ≤ A, B < n"
+ ],
+ "examples": [
+  {
+   "input": "5 4\n0 3\n0 4\n3 2\n4 2",
+   "explanation": "Component 0 needs 3 and 4, and both of those need 2. Components 1 and 2 have no dependencies, so start with 1, then 2. Now 3 and 4 are ready: start 3, then 4. Finally 0 is ready.",
+   "output": "1 2 3 4 0"
+  },
+  {
+   "input": "4 3\n0 1\n1 2\n2 0",
+   "explanation": "0 needs 1, 1 needs 2 and 2 needs 0, so no component of the cycle can ever start first. The answer is -1.",
+   "output": "-1"
+  },
+  {
+   "input": "3 0",
+   "explanation": "There are no dependencies, so the smallest order is simply the components in increasing order.",
+   "output": "0 1 2"
+  }
+ ],
+ "complexity": {
+  "time": "O((n + m) log n)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Model components as nodes and each dependency as an edge from B to A (B must come first). The task is a topological ordering.",
+  "Repeatedly start a component whose dependencies are all up. Track for each component how many of its dependencies are still missing.",
+  "Among the components that are ready, always start the smallest-numbered one (a min-heap); this gives the lexicographically smallest order. If you cannot start all n components, there is a cycle."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    after = [[] for _ in range(n)]   # after[b] = services that wait for b\n    indeg = [0] * n\n    for k in range(m):\n        a = int(data[2 + 2 * k])\n        b = int(data[3 + 2 * k])\n        after[b].append(a)\n        indeg[a] += 1\n    heap = [i for i in range(n) if indeg[i] == 0]\n    heapq.heapify(heap)\n    order = []\n    while heap:\n        u = heapq.heappop(heap)\n        order.append(u)\n        for v in after[u]:\n            indeg[v] -= 1\n            if indeg[v] == 0:\n                heapq.heappush(heap, v)\n    if len(order) < n:\n        print(-1)\n    else:\n        print(' '.join(map(str, order)))\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import permutations\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\ndeps = [(int(data[2 + 2 * k]), int(data[3 + 2 * k])) for k in range(m)]\nans = None\nfor p in permutations(range(n)):\n    pos = [0] * n\n    for idx, s in enumerate(p):\n        pos[s] = idx\n    if all(pos[b] < pos[a] for a, b in deps):\n        ans = p\n        break\nprint(-1 if ans is None else ' '.join(map(str, ans)))\n",
+ "generator": "def gen(rng):\n    def fmt(n, edges):\n        return f'{n} {len(edges)}\\n' + '\\n'.join(f'{a} {b}' for a, b in edges) if edges else f'{n} 0'\n    def dag(n, m, shuffle=True):\n        perm = list(range(n))\n        if shuffle:\n            rng.shuffle(perm)\n        edges = set()\n        tries = 0\n        while len(edges) < m and tries < 10 * m + 10:\n            tries += 1\n            i, j = rng.randrange(n), rng.randrange(n)\n            if i == j:\n                continue\n            if i < j:\n                i, j = j, i\n            edges.add((perm[i], perm[j]))   # perm[i] depends on perm[j] (earlier in the hidden order)\n        edges = list(edges)\n        rng.shuffle(edges)\n        return edges\n    tests = [fmt(1, []), fmt(1, [(0, 0)]), fmt(2, [(0, 1), (1, 0)]), fmt(3, []), fmt(4, [(0, 1), (0, 1), (2, 3)]),\n             fmt(5, [(4, 3), (3, 2), (2, 1), (1, 0)]), fmt(5, [(0, 1), (1, 2), (2, 3), (3, 4)])]\n    for n in (2, 3, 4, 5, 6, 7):\n        for _ in range(3):\n            m = rng.randint(0, min(12, n * (n - 1) // 2))\n            tests.append(fmt(n, dag(n, m)))\n        # one with an injected cycle\n        e = dag(n, rng.randint(1, min(10, n * (n - 1) // 2)))\n        a = rng.randrange(n)\n        b = rng.randrange(n)\n        e.append((a, b))\n        e.append((b, a))\n        rng.shuffle(e)\n        tests.append(fmt(n, e))\n    for n in (50, 2000):\n        tests.append(fmt(n, dag(n, 3 * n)))\n    N = 100000\n    tests.append(fmt(N, [(i + 1, i) for i in range(N - 1)]))\n    tests.append(fmt(N, [(i, i + 1) for i in range(N - 1)]))\n    tests.append(fmt(N, dag(N, 100000)))\n    e = dag(N, 99990)\n    e.append((5, 77777))\n    e.append((77777, 5))\n    tests.append(fmt(N, e))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef deployment_order(n: int, dependencies: List[List[int]]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    deps = [[int(data[2 + 2 * k]), int(data[3 + 2 * k])] for k in range(m)]\n    order = deployment_order(n, deps)\n    if not order:\n        print(-1)\n    else:\n        print(' '.join(map(str, order)))\n\n\nmain()\n",
+  "javascript": "function deploymentOrder(n, dependencies) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst deps = []\nfor (let k = 0; k < m; k++) deps.push([t[2 + 2 * k], t[3 + 2 * k]])\nconst order = deploymentOrder(n, deps)\nconsole.log(order.length === 0 ? '-1' : order.join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> deploymentOrder(int n, vector<pair<int, int>>& dependencies) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<pair<int, int>> deps(m);\n    for (int k = 0; k < m; k++) cin >> deps[k].first >> deps[k].second;\n    vector<int> order = deploymentOrder(n, deps);\n    if (order.empty()) {\n        cout << -1 << \"\\n\";\n    } else {\n        for (size_t i = 0; i < order.size(); i++) cout << order[i] << (i + 1 < order.size() ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] deploymentOrder(int n, int[][] dependencies) {\n        // Write your solution here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] deps = new int[m][2];\n        for (int k = 0; k < m; k++) {\n            in.nextToken(); deps[k][0] = (int) in.nval;\n            in.nextToken(); deps[k][1] = (int) in.nval;\n        }\n        int[] order = deploymentOrder(n, deps);\n        if (order.length == 0) {\n            System.out.println(-1);\n            return;\n        }\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < order.length; i++) sb.append(order[i]).append(i + 1 < order.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

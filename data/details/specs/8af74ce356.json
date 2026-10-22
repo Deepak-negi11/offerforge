@@ -1,0 +1,18 @@
+{
+ "qid": "8af74ce356",
+ "question": "Uber Software Engineer, Technical Interview. Implement a **thread-safe token-bucket rate limiter**. The reported detail is short, so be ready to define the interface (for example `allowRequest(key)` returning true or false), the capacity and refill rate, and what should happen under concurrent callers.",
+ "lookingFor": [
+  "Do you understand the token bucket algorithm and how it differs from fixed window, sliding window and leaky bucket?",
+  "Can you refill lazily using timestamps rather than a background thread?",
+  "Is your concurrency correct, with an atomic check-and-decrement and no race conditions?",
+  "Do you use a monotonic clock and handle floating-point or overflow issues?",
+  "Can you extend it to per-user limits and discuss memory and distributed deployment?"
+ ],
+ "answer": "**Algorithm.** A bucket holds up to `capacity` tokens and refills at `refillRate` tokens per second. Each request consumes one token (or `n` for weighted requests); if no tokens are available the request is rejected. This allows bursts up to `capacity` while enforcing the average rate.\n\n**Lazy refill (no background thread).** Store `tokens` and `lastRefillTime`. On each request:\n\n1. `now = monotonicClock()`.\n2. `elapsed = now - lastRefillTime`; `tokens = min(capacity, tokens + elapsed * refillRate)`; `lastRefillTime = now`.\n3. If `tokens >= 1`, `tokens -= 1`, return allowed; otherwise return rejected.\n\n**Thread safety.** Steps 2 and 3 are a compound read-modify-write, so they must be atomic.\n\n- Simplest correct version: a `synchronized` method or a `ReentrantLock` per bucket. Lock hold time is tiny, so this is fine for most cases.\n- Lock-free: pack `tokens` and the timestamp in an immutable state object and update it with a compare-and-swap loop (`AtomicReference`), retrying on contention.\n- Never check `tokens > 0` outside the lock and then decrement, which lets two threads both pass.\n\n**Per-user limiting.** Keep `ConcurrentHashMap<key, Bucket>` and create buckets with `computeIfAbsent`. Evict idle buckets (a bucket idle long enough to be full carries no state) to prevent unbounded memory growth.\n\n**Details that matter.** Use a monotonic clock (`System.nanoTime`), not wall-clock time that can jump. Use integer arithmetic (tokens in nano-units) or accept small floating-point error. Make the clock injectable so tests can be deterministic.\n\n**Distributed case.** In-process buckets only limit one node. For a global limit, keep the bucket in Redis and update it atomically with a Lua script, or divide the limit among nodes.\n\n**Testing.** Burst up to capacity, rejection afterward, refill after waiting (fake clock), and many threads hitting one bucket with a check that allowed requests never exceed capacity plus refill.",
+ "followUps": [
+  "Compare token bucket with leaky bucket, fixed window and sliding window log.",
+  "How would you implement this across multiple servers?",
+  "How would you avoid unbounded memory for per-user buckets?",
+  "Would you use a lock or a CAS loop here, and why?"
+ ]
+}

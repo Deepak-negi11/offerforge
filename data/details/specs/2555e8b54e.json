@@ -1,0 +1,19 @@
+{
+ "qid": "2555e8b54e",
+ "question": "Groww SDE-1 (backend) machine-coding round, about 90 minutes including problem explanation. Build an **executable, modular application that takes the moves of two chess players and validates each move**. The initial board is given as input. Moves are written in algebraic form (for example `Qxd4`). The program must have **proper logging** and return a **specific error for each kind of invalid move**. Candidates raised clarifying questions about the starting position and how moves are supplied. Validation includes: does the player have that piece, is the path clear (for sliding pieces), can the piece reach the target, and is there a piece to capture on a capture move.",
+ "lookingFor": [
+  "Requirement gathering in a time-boxed round: clarifying input and output formats.",
+  "Modular OOP design: board, pieces, moves, validators, game.",
+  "Correct chess movement rules with extensibility for new rules.",
+  "Specific error handling and logging.",
+  "Delivering running code and demonstrating it with test cases."
+ ],
+ "answer": "**First 10 minutes: clarify and plan.** Ask: what is the input (board layout, list of moves per turn)? Is the move notation full algebraic (`Nf3`, `exd5`, `Qxd4`)? Which rules are in scope: basic piece movement and captures first, then check, castling, en passant, promotion as extensions. Agree on this scope with the interviewer and say what you will skip.\n\n**Design.**\n- `Board`: an 8x8 grid of `Piece` (or null), with `get`, `move`, and `isPathClear(from, to)`.\n- `Piece` (abstract): `color`, `type`, and `canMove(board, from, to)`. Subclasses `King`, `Queen`, `Rook`, `Bishop`, `Knight`, `Pawn` implement their own geometry (pawns: forward one or two from the start rank, diagonal capture only).\n- `Move`: parsed fields (piece type, target square, capture flag, optional disambiguation file or rank, promotion).\n- `MoveParser`: turns `Qxd4` into a `Move`, and rejects malformed input with `InvalidNotationException`.\n- `MoveValidator`: a list of checks run in order, each throwing a specific exception: wrong turn, no such piece for this player, ambiguous piece, illegal geometry, path blocked, capture with no enemy on the target, capturing your own piece.\n- `Game`: holds the board and current player, applies valid moves, alternates turns, and logs every attempt and result.\n\n**Resolving `Qxd4`.** Find the current player's queens that can legally reach `d4` given the geometry and clear path. Exactly one means success. None means \"no piece can make this move\". More than one means ask for disambiguation. For a capture, the target must hold an opponent piece.\n\n**Error handling and logging.** Use custom exception types or error codes, log at INFO for accepted moves and WARN for rejected ones with the reason, and keep the output readable.\n\n**Verification.** Write a `main` that runs a scripted sequence with valid and invalid moves, and say how you would add unit tests per piece.\n\n**Time tip:** get a running game with pawn and rook first, then add the other pieces, so you always have something that executes.",
+ "followUps": [
+  "How would you detect check and checkmate?",
+  "How would you add castling and en passant without rewriting everything?",
+  "How would you support undo of the last move?",
+  "How would you design it to support another board game?",
+  "How would you structure the tests?"
+ ]
+}

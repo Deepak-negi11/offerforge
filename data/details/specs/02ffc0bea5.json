@@ -1,0 +1,18 @@
+{
+ "qid": "02ffc0bea5",
+ "question": "Product design round at Meta (E4): design a small-scale **concert ticket booking service**. The scope is one venue hosting many concerts.\n\nCover requirements, the booking flows, API design, the data model, and the bottlenecks you would expect, such as many people trying to buy the same seats at once.",
+ "lookingFor": [
+  "Scoping requirements and stating assumptions before designing",
+  "Correctness under concurrency: no double booking of a seat",
+  "Clean API design including idempotency and pagination",
+  "A sensible relational data model and state machine for a booking",
+  "Identifying the hot spot (on-sale rush) and how to protect the system"
+ ],
+ "answer": "**Requirements.** Functional: list concerts, view a seat map with availability, hold seats temporarily, pay, receive a confirmation, cancel. Non-functional: a seat is never sold twice, the browse path is fast, and the system survives an on-sale spike. Assume one venue, a few thousand seats per show, and bursts of tens of thousands of users when popular tickets open.\n\n**Entities.** `Concert(id, title, starts_at, status)`, `Seat(id, section, row, number)` for the venue, `ConcertSeat(concert_id, seat_id, price, status: AVAILABLE | HELD | SOLD, held_until)`, `Booking(id, user_id, concert_id, status: PENDING | CONFIRMED | EXPIRED | CANCELLED, total, idempotency_key)`, `BookingItem`, `Payment`.\n\n**API.**\n- `GET /concerts?cursor=` and `GET /concerts/{id}/seats`\n- `POST /bookings` with seat ids and an `Idempotency-Key` header; this creates a hold (for example 5 minutes)\n- `POST /bookings/{id}/pay`, `DELETE /bookings/{id}`\n\n**Booking flow.** Reserve seats in one transaction: `UPDATE concert_seat SET status='HELD', held_until=now()+5m WHERE concert_id=? AND seat_id IN (...) AND status='AVAILABLE'`, and succeed only if the affected rows equal the requested seats. The conditional update (or `SELECT ... FOR UPDATE`) makes double booking impossible without a distributed lock. Payment then confirms the booking and marks seats SOLD. A background job (or lazy check on read) releases expired holds. Payment callbacks must be idempotent.\n\n**Bottlenecks.** Reads dominate: cache the concert list and serve seat availability from a short-TTL cache or Redis, while writes always hit the database as the source of truth. On a hot on-sale, use a virtual waiting room or queue to throttle admission, rate limit per user, and shard by concert if needed. Single venue means one primary database is probably enough at first.\n\n**Trade-offs.** Hold with a timeout (better UX, a seat may sit idle) versus pay-first (no holds, more failed payments). Optimistic conditional updates versus pessimistic locks: choose conditional updates, since contention per seat is short.\n\n**Extensions.** Notifications, refunds, waitlist, multiple venues and sharding.",
+ "followUps": [
+  "How do you prevent the same seat being sold twice if two requests arrive simultaneously?",
+  "What happens if the user pays but your server crashes before marking the booking confirmed?",
+  "How would you handle a launch where 100,000 people hit the same concert at once?",
+  "How would you add general-admission tickets without seat numbers?"
+ ]
+}

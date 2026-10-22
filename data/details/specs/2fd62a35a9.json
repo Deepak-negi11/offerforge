@@ -1,0 +1,19 @@
+{
+ "qid": "2fd62a35a9",
+ "question": "Groww SDE intern technical interview. Reported question: **how would you implement a payment feature where a user can apply different types of discounts**, such as coupons and credit-card offers? Treat it as a low-level design question: model the classes, how discounts combine, and how the final payable amount is computed.",
+ "lookingFor": [
+  "Object-oriented modelling and use of fitting design patterns (Strategy, Decorator, Chain of Responsibility).",
+  "Extensibility: adding a new discount type without changing existing code.",
+  "Correctness with money: rounding, caps, validation and ordering rules.",
+  "Edge cases: stacking rules, expiry, usage limits, concurrency on coupon redemption.",
+  "Clean communication of assumptions."
+ ],
+ "answer": "**Clarify requirements.** Can discounts stack? In what order (percentage then flat, or the reverse)? Is there a cap, a minimum order value, an expiry, per-user or global usage limits? Can a card offer apply only for certain banks? Money is kept in the smallest unit (paise) as an integer or `BigDecimal`, never `double`.\n\n**Core model.**\n- `Order` (items, subtotal) and `PaymentRequest` (order, user, payment method, applied codes).\n- `interface Discount { boolean isApplicable(Order, PaymentContext); Money apply(Order, Money currentAmount); }`\n- Implementations: `PercentageCoupon`, `FlatCoupon`, `CardOffer` (bank/BIN check, cap), each holding its own rules.\n- `DiscountEngine` takes an ordered list of discounts and applies them one by one, producing a result with the final amount and an itemised breakdown.\n- `PaymentService.pay(request)`: validates, calls the engine, creates the payment through a `PaymentGateway` interface, and records the discounts used.\n\n**Patterns.** *Strategy* for each discount rule; *Chain* or *Decorator* to compose them in order; a *Factory* to build the discount from a coupon code. A new discount type means a new class and no change to the engine (open/closed principle).\n\n**Combination rules.** Define a policy: a priority per discount, an \"exclusive\" flag for non-stackable ones, and a global maximum so the total never exceeds the order value. Never let the payable amount go below zero.\n\n**Correctness and concurrency.** Validate coupons on the server at payment time (not just when applied in the cart). Redeem a limited coupon with an atomic update (for example `UPDATE coupons SET used = used + 1 WHERE code = ? AND used < limit`), and make payment creation idempotent with a request key so retries do not charge twice.\n\n**Testing.** Table-driven tests: stacking order, caps, expired coupon, ineligible card.\n\nState your assumptions and keep the first version simple, then extend.",
+ "followUps": [
+  "How would you change the design if two discounts must not be combined?",
+  "How would you stop a limited-use coupon from being redeemed by two users at once?",
+  "How do you represent money and rounding safely?",
+  "How would you add a new offer type like cashback after payment?",
+  "How would you make payment retries idempotent?"
+ ]
+}

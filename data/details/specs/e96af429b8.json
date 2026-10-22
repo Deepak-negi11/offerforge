@@ -1,0 +1,19 @@
+{
+ "qid": "e96af429b8",
+ "question": "In a Technical Interview 2 round (SDE-1 Backend Post Trade at Tower Research, 45 minutes, Java-heavy with rapid-fire questions), the candidate was asked about **connection pooling** and the **database connection process**.\n\nExplain what connection pooling is, how an application connects to a database (for example over JDBC), and which **Spring Boot** classes and components are involved in that connection.",
+ "lookingFor": [
+  "Do you know why opening a database connection per request is expensive?",
+  "Can you describe the JDBC flow: driver, URL, connection, statement, result set?",
+  "Do you know what a `DataSource` is and which pool Spring Boot uses by default?",
+  "Can you tune and reason about pool size and failure modes (exhaustion, leaks)?",
+  "Do you connect framework classes (auto-configuration, transaction manager) to the underlying JDBC mechanics?"
+ ],
+ "answer": "**Why pool.** Opening a database connection involves a TCP connect, often TLS, authentication and session setup. Doing this per request adds latency and can exhaust the database's connection limit. A **connection pool** keeps a set of already-open connections; a thread *borrows* one, uses it, and *returns* it (closing a pooled connection just returns it).\n\n**Plain JDBC flow.**\n\n1. Load the driver (automatic via the service loader in modern JDBC).\n2. `DriverManager.getConnection(url, user, password)` or, better, `dataSource.getConnection()`.\n3. Create a `PreparedStatement`, bind parameters, `executeQuery()` and read the `ResultSet`.\n4. Close resources (try-with-resources) so the connection goes back to the pool.\n\n**What a pool does.** It creates connections up to a maximum size, hands them out, blocks (with a timeout) when all are in use, validates or retires stale connections, and enforces idle and max lifetime. Key settings are maximum pool size, minimum idle, connection timeout and max lifetime.\n\n**Spring Boot pieces.**\n\n- `javax.sql.DataSource` / `HikariDataSource`: Spring Boot (2.x onward) uses **HikariCP** by default when it is on the classpath. It is created by `DataSourceAutoConfiguration` from `spring.datasource.url`, `username`, `password` and `spring.datasource.hikari.*` properties.\n- `JdbcTemplate` (or JPA's `EntityManager` via Hibernate) borrows a connection from the `DataSource` to run SQL.\n- `DataSourceTransactionManager` / `JpaTransactionManager` binds one connection to the current thread for the duration of an `@Transactional` method, so all statements share one transaction.\n\n**Sizing and pitfalls.** More connections is not better: the database has limited cores and I/O, so a small pool (often tens, not hundreds) plus queuing usually performs best. Common bugs are connection leaks (not closing), long transactions holding connections, and pool exhaustion causing request timeouts. With many app instances, total connections = instances x pool size, which must stay under the database limit.",
+ "followUps": [
+  "What happens when the pool is exhausted and a new request needs a connection?",
+  "How would you choose the maximum pool size?",
+  "What is the difference between `DriverManager` and a `DataSource`?",
+  "How does `@Transactional` interact with the connection pool?",
+  "How do you detect and debug a connection leak?"
+ ]
+}

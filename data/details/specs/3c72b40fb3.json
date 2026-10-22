@@ -1,0 +1,18 @@
+{
+ "qid": "3c72b40fb3",
+ "question": "Intel Software Engineering Intern (graduate intern, on-campus), coding section theory questions. Given:\n\n`struct Node { int data; Node *next; }`\n\n**What is `Node *next`? What if we remove the `*` from `Node *next`: will the compiler throw an error? What is the size of the structure?**",
+ "lookingFor": [
+  "Understanding of self-referential structures and linked-list nodes.",
+  "Knowing why a struct cannot contain itself by value (incomplete type, infinite size).",
+  "Ability to compute sizeof including alignment and padding.",
+  "Awareness that sizes are platform-dependent.",
+  "Careful reading of the code (for example the missing semicolon)."
+ ],
+ "answer": "**What `Node *next` is.** A pointer to another `Node`. It stores the address of the next node, which makes the struct *self-referential* and lets nodes be chained into a linked list. A pointer is allowed here because inside the definition the compiler already knows the name `Node`, and a pointer to an incomplete type has a known size (one address).\n\n**Remove the `*`: yes, the compiler errors.** `Node next;` would make each `Node` contain a whole `Node`, which would contain another, and so on. The type would need infinite size, and at that point `Node` is still an *incomplete type* (not yet fully defined), so the compiler rejects it (for example \"field has incomplete type\"). Only a pointer or reference can refer to the struct inside its own definition. (In C the pointer member must be written `struct Node *next;` unless a typedef exists. Also note that the snippet as printed is missing the closing semicolon after `}`, which is itself a compile error.)\n\n**Size.** On a typical 64-bit platform (4-byte `int`, 8-byte pointer):\n- `data`: 4 bytes at offset 0.\n- 4 bytes of **padding**, because the pointer must be aligned to 8 bytes.\n- `next`: 8 bytes at offset 8.\n- Total **sizeof(Node) = 16**, not 12.\n\nOn a 32-bit platform (4-byte int and pointer) there is no padding, so it is **8**. Since sizes depend on compiler and architecture, the safest answer states the assumptions and shows the layout. Reordering members does not shrink this struct, but for others, putting larger members first can reduce padding. You can check with `sizeof` and `offsetof`.\n\n**Why it matters.** Linked-list nodes are allocated individually, so the padding and pointer overhead cost memory, and each node access can be a cache miss.",
+ "followUps": [
+  "How would you reduce padding in a struct with mixed member sizes?",
+  "What is the size of a struct with a char, an int and a char?",
+  "Why can a struct contain a pointer to itself but not an instance of itself?",
+  "How do you create and insert a node into this list?"
+ ]
+}

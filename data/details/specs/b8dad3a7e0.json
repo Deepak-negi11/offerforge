@@ -1,0 +1,18 @@
+{
+ "qid": "b8dad3a7e0",
+ "question": "Microsoft SDE-2 (L61) Low Level Design round, reported in two parts.\n\n**Warm-up:** return the greater of two numbers **without using `if`, `&&` or `||`**.\n\n**Main question:** design a **timer-management system**. The candidate explained their understanding of a timer, then coded the public APIs `addTimer()`, `cancelTimer()` and `getTimer()`, and explained the underlying data structures: a **priority queue and a hash map**.",
+ "lookingFor": [
+  "Bit-level or arithmetic thinking for the warm-up.",
+  "Defining clear, minimal APIs for the timer service.",
+  "Choosing the right data structures and justifying complexity.",
+  "Handling cancellation of items inside a heap.",
+  "Thread-safety and how timers actually fire."
+ ],
+ "answer": "**Warm-up.** Without branching: `max(a, b) = (a + b + |a - b|) / 2`, which needs an absolute value. A sign-bit approach: `diff = a - b; k = (diff >> 31) & 1; return a - k * diff;` (k is 1 when a < b, 0 otherwise, for 32-bit ints). Mention overflow: if `a - b` can overflow, widen to `long`. Another option is to index an array by the boolean `a < b` where the language allows it.\n\n**Timer design.** A timer has an id, an expiry time (`now + delay`) and a callback.\n\n- `addTimer(delay, callback)` returns an id.\n- `cancelTimer(id)` returns whether it was removed.\n- `getTimer(id)` returns the timer or its remaining time and state.\n\n**Data structures.** A **min-heap keyed by expiry** gives O(1) access to the next timer and O(log n) insertion. A **hash map id to Timer** gives O(1) `getTimer` and lets `cancelTimer` find the entry. Arbitrary removal from a binary heap is O(n), so use **lazy deletion**: `cancelTimer` marks the timer as cancelled (or removes it from the map), and when the scheduler pops the heap it skips entries that are cancelled or missing from the map. A `TreeMap`/ordered set (O(log n) for removal) is an alternative that does not need the map-plus-heap pairing.\n\n**Firing.** One scheduler thread sleeps until the earliest expiry (`wait(timeout)` on a condition), wakes when a new earlier timer is added (signal), pops all expired timers, and hands callbacks to an executor so a slow callback cannot delay other timers.\n\n**Concurrency.** Guard the heap and map with one lock, or use a `ConcurrentHashMap` plus a `PriorityBlockingQueue` or `DelayQueue`. Use a monotonic clock, not wall time, to avoid clock adjustments.\n\n**Trade-offs.** For very many timers with coarse resolution, a hashed timing wheel gives O(1) insert and tick.\n\n**Mistakes to avoid:** busy-waiting, running callbacks on the scheduler thread, and forgetting stale heap entries after cancel.",
+ "followUps": [
+  "How would you handle thousands of timers firing at the same moment?",
+  "What is a timing wheel and when is it better than a heap?",
+  "How would you support recurring timers?",
+  "How would you make this durable across restarts?"
+ ]
+}

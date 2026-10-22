@@ -1,0 +1,48 @@
+{
+ "pid": "russian-doll-envelopes",
+ "title": "Russian Doll Envelopes",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given `n` envelopes, the `i`-th with width `w[i]` and height `h[i]`. An envelope can be put inside another one only if **both** its width and its height are **strictly smaller** than the width and height of the other envelope. Envelopes cannot be rotated: width must be compared with width, height with height.\n\nFind the maximum number of envelopes in a chain where each one fits inside the next (a \"Russian doll\" nesting). A single envelope is a valid chain.\n\n**Follow-up:** a quadratic dynamic programme over the envelopes sorted by width is the natural first solution, and it must handle ties in width correctly. The interviewer then asks you to improve it to `O(n log n)`.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains two integers `w[i]` and `h[i]`.",
+ "output_format": "Print a single integer: the length of the longest chain of nested envelopes.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ w[i], h[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "4\n5 4\n6 4\n6 7\n2 3",
+   "output": "3",
+   "explanation": "The chain (2,3) → (5,4) → (6,7) works: each width and each height is strictly larger than the previous. (6,4) cannot sit inside (6,7) because the widths are equal."
+  },
+  {
+   "input": "3\n4 4\n4 4\n4 4",
+   "output": "1",
+   "explanation": "Equal envelopes cannot nest, so the best chain has a single envelope."
+  },
+  {
+   "input": "5\n1 5\n2 4\n3 3\n4 9\n5 10",
+   "output": "3",
+   "explanation": "Heights fall along the first three, so no two of them nest. The best chains use widths in increasing order with increasing heights, e.g. (1,5) → (4,9) → (5,10) or (2,4) → (4,9) → (5,10)."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Sort by width. If widths were all distinct, the question would become: the longest strictly increasing subsequence of heights.",
+  "Envelopes with equal width must not chain together. Sort equal widths by height in decreasing order so that no increasing subsequence can use two of them.",
+  "Compute the strictly increasing subsequence in O(n log n) by keeping, for each length, the smallest possible last height, and use binary search (`bisect_left`) to place each new height."
+ ],
+ "reference": "import sys\nfrom bisect import bisect_left\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    env = [(int(data[1 + 2 * i]), int(data[2 + 2 * i])) for i in range(n)]\n    env.sort(key=lambda e: (e[0], -e[1]))\n    tails = []\n    for _, h in env:\n        k = bisect_left(tails, h)\n        if k == len(tails):\n            tails.append(h)\n        else:\n            tails[k] = h\n    print(len(tails))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nenv = sorted((int(data[1 + 2 * i]), int(data[2 + 2 * i])) for i in range(n))\ndp = [1] * n\nfor i in range(n):\n    for j in range(i):\n        if env[j][0] < env[i][0] and env[j][1] < env[i][1]:\n            dp[i] = max(dp[i], dp[j] + 1)\nprint(max(dp))\n",
+ "generator": "def gen(rng):\n    def fmt(es):\n        return str(len(es)) + '\\n' + '\\n'.join(f'{w} {h}' for w, h in es)\n\n    tests = [\n        fmt([(1, 1)]),\n        fmt([(5, 4), (6, 4), (6, 7), (2, 3)]),\n        fmt([(4, 4), (4, 4), (4, 4)]),\n        fmt([(1, 1), (1, 2), (1, 3)]),\n        fmt([(1, 5), (2, 4), (3, 3)]),\n        fmt([(1, 1), (2, 2), (3, 3), (4, 4)]),\n        fmt([(3, 1), (3, 2), (3, 3), (4, 4)]),\n        fmt([(2, 100), (3, 200), (4, 300), (5, 150)]),\n        fmt([(10**9, 10**9), (1, 1), (10**9, 1), (1, 10**9)]),\n    ]\n    for n, mx in ((3, 4), (5, 5), (8, 6), (10, 10), (12, 8), (15, 15), (20, 20)):\n        for _ in range(2):\n            tests.append(fmt([(rng.randint(1, mx), rng.randint(1, mx)) for _ in range(n)]))\n    n = 100000\n    tests.append(fmt([(rng.randint(1, 10**9), rng.randint(1, 10**9)) for _ in range(n)]))\n    tests.append(fmt([(i + 1, i + 1) for i in range(n)]))\n    tests.append(fmt([(i + 1, n - i) for i in range(n)]))\n    tests.append(fmt([(rng.randint(1, 300), rng.randint(1, 10**9)) for _ in range(n)]))\n    es = [(i + 1, 10**9 - i) for i in range(n // 2)] + [(i + 1, i + 1) for i in range(n // 2)]\n    rng.shuffle(es)\n    tests.append(fmt(es))\n    base = [(i * 7 + 3, i * 5 + 2) for i in range(n // 2)]\n    es = base + [(w, h) for w, h in base]\n    rng.shuffle(es)\n    tests.append(fmt(es))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_envelopes(envelopes: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    envelopes = [[int(data[1 + 2 * i]), int(data[2 + 2 * i])] for i in range(n)]\n    print(max_envelopes(envelopes))\n\n\nmain()\n",
+  "javascript": "function maxEnvelopes(envelopes) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst envelopes = []\nfor (let i = 0; i < n; i++) envelopes.push([t[1 + 2 * i], t[2 + 2 * i]])\nconsole.log(maxEnvelopes(envelopes))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint maxEnvelopes(vector<pair<long long, long long>>& envelopes) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<pair<long long, long long>> envelopes(n);\n    for (int i = 0; i < n; i++) cin >> envelopes[i].first >> envelopes[i].second;\n    cout << maxEnvelopes(envelopes) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int maxEnvelopes(long[][] envelopes) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[][] envelopes = new long[n][2];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); envelopes[i][0] = (long) in.nval;\n            in.nextToken(); envelopes[i][1] = (long) in.nval;\n        }\n        System.out.println(maxEnvelopes(envelopes));\n    }\n}\n"
+ }
+}

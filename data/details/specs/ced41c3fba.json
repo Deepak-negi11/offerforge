@@ -1,0 +1,17 @@
+{
+ "qid": "ced41c3fba",
+ "question": "Goldman Sachs Analyst - Software Engineer (about 1 year 2 months of experience), Superday Round 3, 40-minute LLD: **design a Snake and Ladder game with pseudo code and class design**. The interviewer's focus was on **edge cases and game logic**.",
+ "lookingFor": [
+  "Clean object model with sensible responsibilities.",
+  "Correct game-loop logic and rules decisions.",
+  "Thinking through edge cases without being prompted.",
+  "Extensibility (different dice, board sizes, rules)."
+ ],
+ "answer": "**Clarify the rules:** board size (default 100), number of dice, players, whether you need an exact roll to land on 100, extra turn on a 6, what happens at the end of a long roll.\n\n**Classes:**\n- `Game`: players queue, board, dice, status; `play()`.\n- `Board`: `size`, and a map `jumps: start -> end` containing both snakes (end < start) and ladders (end > start). One `Jump` abstraction is enough; no need to separate cell objects.\n- `Player`: name, `position`.\n- `Dice`: `roll()`. Make it an interface so tests can use a deterministic dice.\n- `GameStatus` enum.\n\n**Pseudo-code:**\n\n    play():\n      while status == IN_PROGRESS:\n        p = players.poll()\n        roll = dice.roll()\n        next = p.position + roll\n        if next <= board.size:             // overshoot: stay in place\n          next = board.jumps.getOrDefault(next, next)\n          p.position = next\n        if p.position == board.size: winner = p; status = FINISHED\n        else players.add(p)\n\n**Validation when building the board (this is where edge cases live):**\n- No snake or ladder starts at 1 or at 100 (a snake at 100 makes the game unwinnable).\n- Two jumps cannot start on the same cell.\n- A jump end should not be the start of another jump (or define the rule), and make sure no cycle exists, otherwise the position loop never ends.\n- Snake must go down, ladder must go up, and all positions lie within the board.\n- At least one player, and unique names.\n\n**Gameplay edge cases:** overshooting 100 (stay put, or bounce back, per the agreed rule), a roll of 6 granting another turn (with a cap on consecutive sixes), multiple dice, and a player who lands on a snake's tail.\n\n**Extensions:** configurable difficulty (random board generator), different winning rules, game history, and a `Strategy` for dice (single, double, crooked dice for tests). Complexity is trivial, so the evaluation is mostly design quality and correctness.",
+ "followUps": [
+  "How would you generate a random board that is always winnable?",
+  "How do you handle a ladder whose top lands on a snake head?",
+  "How would you add undo or game replay?",
+  "How would you test this deterministically?"
+ ]
+}

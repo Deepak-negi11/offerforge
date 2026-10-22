@@ -1,0 +1,50 @@
+{
+ "pid": "cred-no-adjacent-equal-characters",
+ "title": "No Pairs Allowed",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "You are given a list of `n` words made of lowercase English letters. Treat every word independently.\n\nIn one **substitution** you pick a single character of the word and replace it with any lowercase letter. A word is **good** if no two adjacent characters are equal.\n\nFor each word, compute the **minimum number of substitutions** needed to turn it into a good word. Replacement letters can be chosen freely, so you only need to count how many characters have to change.\n\nFor example, `aaab` needs 1 substitution (change the second `a` to `c`, giving `acab`), while `abc` needs none.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains one word.",
+ "output_format": "Print `n` lines. Line `i` contains the minimum number of substitutions for the `i`-th word.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ length of each word ≤ 10^6",
+  "the total length of all words ≤ 10^6",
+  "every word consists of lowercase English letters"
+ ],
+ "examples": [
+  {
+   "input": "3\naab\nabc\naaaaa",
+   "output": "1\n0\n2",
+   "explanation": "`aab` has one adjacent equal pair (`aa`), so one change is enough. `abc` is already good. In `aaaaa` the run of five equal letters needs the 2nd and 4th letters changed, e.g. `abaca`."
+  },
+  {
+   "input": "2\nabba\nxxxxxxxx",
+   "output": "1\n4",
+   "explanation": "`abba` has the single pair `bb`, fixed by changing one `b`. The run of eight `x` needs every second letter replaced, 4 changes in total."
+  },
+  {
+   "input": "4\nz\nzz\nzzz\nzzzz",
+   "output": "0\n1\n1\n2",
+   "explanation": "A run of length L needs floor(L / 2) substitutions: 0, 1, 1 and 2 for lengths 1 to 4."
+  }
+ ],
+ "complexity": {
+  "time": "O(total length)",
+  "space": "O(1) extra"
+ },
+ "hints": [
+  "Only runs of equal consecutive characters matter. Characters in different runs never conflict.",
+  "Inside one run of length L, how many characters must you change so that no two equal ones stay adjacent? Try L = 2, 3, 4, 5.",
+  "Changing every second character of a run works, since you can always choose a letter different from both neighbours (there are 26 letters). The answer per run is floor(L / 2); sum over runs."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    out = []\n    for w in data[1:1 + n]:\n        L = len(w)\n        c = 0\n        i = 0\n        while i < L:\n            j = i\n            ch = w[i]\n            while j < L and w[j] == ch:\n                j += 1\n            c += (j - i) // 2\n            i = j\n        out.append(c)\n    print('\\n'.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndef feasible(w, changed):\n    # reachable set of last characters\n    letters = 'abcdefghijklmnopqrstuvwxyz'\n    prev = None\n    for i, ch in enumerate(w):\n        if i in changed:\n            if prev is None:\n                cur = set(letters)\n            elif len(prev) >= 2:\n                cur = set(letters)\n            else:\n                cur = set(letters) - prev\n        else:\n            if prev is None or any(p != ch for p in prev):\n                cur = {ch}\n            else:\n                cur = set()\n        if not cur:\n            return False\n        prev = cur\n    return True\n\ndef solve(w):\n    L = len(w)\n    best = L\n    for mask in range(1 << L):\n        k = bin(mask).count('1')\n        if k >= best:\n            continue\n        changed = {i for i in range(L) if mask >> i & 1}\n        if feasible(w, changed):\n            best = k\n    return best\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nprint('\\n'.join(str(solve(w)) for w in data[1:1 + n]))\n",
+ "generator": "def gen(rng):\n    def fmt(ws):\n        return str(len(ws)) + '\\n' + '\\n'.join(ws)\n    tests = [\n        fmt(['a']), fmt(['aa']), fmt(['abc']), fmt(['aaaaaaaaaa']),\n        fmt(['ababab', 'aabbcc', 'zzzz']), fmt(['abba', 'xxxxxxxx']),\n        fmt(['aab', 'abc', 'aaaaa']), fmt(['z', 'zz', 'zzz', 'zzzz']),\n    ]\n    for _ in range(30):\n        k = rng.randint(1, 6)\n        alpha = rng.choice(['ab', 'abc', 'abcd', 'az', 'xyz'])\n        ws = [''.join(rng.choice(alpha) for _ in range(rng.randint(1, 9))) for _ in range(k)]\n        tests.append(fmt(ws))\n    tests.append(fmt(['a' * 10**6]))\n    tests.append(fmt([''.join(rng.choice('ab') for _ in range(10)) for _ in range(10**5)]))\n    tests.append(fmt([''.join(rng.choice('abc') for _ in range(10**6))]))\n    parts = []\n    total = 0\n    while total < 10**6:\n        ch = rng.choice('abcdefghijklmnopqrstuvwxyz')\n        r = min(rng.randint(1, 40), 10**6 - total)\n        parts.append(ch * r)\n        total += r\n    tests.append(fmt([''.join(parts)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_changes(words: List[str]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    words = data[1:1 + n]\n    print('\\n'.join(map(str, min_changes(words))))\n\n\nmain()\n",
+  "javascript": "function minChanges(words) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = Number(t[0])\nconst words = t.slice(1, 1 + n)\nconsole.log(minChanges(words).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> minChanges(vector<string>& words) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<string> words(n);\n    for (auto& w : words) cin >> w;\n    vector<long long> res = minChanges(words);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] minChanges(String[] words) {\n        // Write your solution here\n        return new long[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        String[] t = new String(System.in.readAllBytes()).trim().split(\"\\\\s+\");\n        int n = Integer.parseInt(t[0]);\n        String[] words = new String[n];\n        for (int i = 0; i < n; i++) words[i] = t[1 + i];\n        long[] res = minChanges(words);\n        StringBuilder sb = new StringBuilder();\n        for (long r : res) sb.append(r).append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

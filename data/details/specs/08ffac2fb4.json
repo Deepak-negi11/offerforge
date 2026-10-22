@@ -1,0 +1,18 @@
+{
+ "qid": "08ffac2fb4",
+ "question": "JPMorgan Chase, SDE-I on-campus, Technical Interview 2. Voting papers have voters' **seals placed in front of their preferred candidate**. Design an approach to **count the votes for each candidate** from scanned images. The candidate started with Haar cascades, the interviewers doubted it would work, and a long discussion followed, including writing the code on paper.",
+ "lookingFor": [
+  "Breaking a vague CV problem into stages: capture, preprocessing, localisation, decision.",
+  "Exploiting known structure (fixed ballot layout) instead of jumping to a heavy model.",
+  "Knowing why Haar cascades are a poor fit for variable seals or stamps.",
+  "Handling invalid ballots, ambiguity and human review.",
+  "Defining accuracy, validation data and failure analysis."
+ ],
+ "answer": "**Clarify first.** Is the ballot layout fixed (a printed table: candidate name, then a blank box)? Are scans consistent (flatbed vs phone photos)? What counts as invalid (two seals, no seal, seal across two rows)? Accuracy expectation, and is a human audit allowed?\n\n**Pipeline.**\n1. **Preprocess:** convert to grayscale, correct skew and perspective (find the table borders or printed corner markers, then a homography), normalise lighting, resize to a canonical size.\n2. **Segment by layout:** because every ballot shares the template, crop one **cell per candidate** from fixed or detected row boundaries (table-line detection with Hough transform or morphology). No object detector is needed to find *where* to look.\n3. **Detect a seal in each cell:** the seal is ink on a mostly blank cell. Subtract or compare against a blank template cell, threshold (colour-based in HSV if seals are a known ink colour, else Otsu), clean with morphology, then measure the **ink fraction** or largest connected component. A cell with enough ink is \"marked\".\n4. **Decide:** exactly one marked cell, add one vote to that candidate. Zero marks or several, flag the ballot as invalid or for manual review. A seal straddling a boundary is the main source of ambiguity, so flag low-margin cases.\n5. **Aggregate** counts per candidate and log every ballot image with its decision for audit.\n\n**Why not Haar cascades.** They are trained for rigid objects with stable local contrast patterns (faces). Seals vary in shape, size, ink and rotation, and the printed text creates false positives, so a cascade needs lots of data and still struggles. Template alignment plus cell-level analysis is simpler and more explainable. If seals are very varied, train a small CNN **classifier on cell crops** (marked or empty), which needs labelled data but is far easier than detection.\n\n**Evaluation.** Hand-count a sample, report per-ballot accuracy and a confusion matrix, test across scanners and ink levels, route uncertain ballots to humans, and measure the error rate on those that the system is confident about.",
+ "followUps": [
+  "How would you handle ballots photographed with a phone instead of scanned?",
+  "When would you switch from classical thresholding to a CNN?",
+  "How do you measure accuracy and set the confidence threshold for manual review?",
+  "How would you make the process auditable and tamper-evident?"
+ ]
+}

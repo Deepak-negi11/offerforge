@@ -1,0 +1,19 @@
+{
+ "qid": "de8278d716",
+ "question": "Reported from a Salesforce AMTS technical round where two senior interviewers (15+ years of experience) leaned towards DevOps rather than DSA. Topics: **containers**, **Kubernetes** and how you **deploy containers to it**, and **DNS**: what a DNS server is, and how you would check which server a request was sent to and which IP it reached, in detail.\n\nThey also asked how you would **find errors in and maintain a CI/CD pipeline**. A related report from the same hiring cycle adds containers vs virtual machines, Docker, and operating-system basics (user space, kernel space, system calls).",
+ "lookingFor": [
+  "Whether you understand what a container really is, not just how to type docker commands",
+  "A mental model of Kubernetes objects and the deploy path from image to running pods",
+  "Ability to trace a request end to end: DNS lookup, IP, connection",
+  "A debugging method for failing pipelines rather than guesswork",
+  "Honesty about the depth of your hands-on experience"
+ ],
+ "answer": "**Containers.** A container is a normal Linux process isolated with namespaces (pid, net, mount) and limited with cgroups. It shares the host kernel, so it starts in milliseconds and is far lighter than a VM, which carries its own guest OS on a hypervisor. The trade-off is weaker isolation. An image is a layered, immutable template built from a Dockerfile; a container is a running instance of it.\n\n**Kubernetes deploy path.**\n1. Build the image and push it to a registry.\n2. Write a `Deployment` (image, replicas, resource requests/limits, readiness and liveness probes), plus a `Service` for a stable virtual IP and optionally an `Ingress` for external HTTP.\n3. `kubectl apply -f deploy.yaml`, then `kubectl rollout status deployment/app`.\n4. Config goes in `ConfigMap`, credentials in `Secret`.\n\nThe control plane (API server, scheduler, etcd, controllers) places pods on nodes; the kubelet runs them. Debug with `kubectl get pods`, `describe`, `logs`.\n\n**DNS.** The app asks the OS stub resolver, which asks a recursive resolver. On a cache miss it walks root, then TLD (`.com`), then the authoritative server, which returns the A/AAAA record. Answers are cached for the record TTL. To see which server answered and the IP: `dig example.com` (shows the resolver used and the answer), `dig +trace example.com` (walks the hierarchy), `nslookup`, and `curl -v https://example.com` (prints the IP it connected to). `curl -w '%{remote_ip}'` prints just the IP.\n\n**CI/CD.** A pipeline is code: build, test, scan, package, deploy. To debug, read the first failing stage's log, reproduce locally with the same image, and separate flaky tests from real failures. Common causes are missing secrets, unpinned dependencies, cache problems and environment drift. To maintain it, keep it fast, pin versions, use caching, gate deploys, and have a rollback plan (for example `kubectl rollout undo`).",
+ "followUps": [
+  "Container vs virtual machine: when would you still choose a VM?",
+  "A pod is stuck in CrashLoopBackOff or ImagePullBackOff. How do you diagnose it?",
+  "What is the difference between a Service of type ClusterIP, NodePort and LoadBalancer?",
+  "How does a rolling update work, and how would you do a canary release?",
+  "A domain resolves to different IPs for different users. Why might that happen?"
+ ]
+}

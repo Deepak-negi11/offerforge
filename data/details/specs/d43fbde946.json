@@ -1,0 +1,17 @@
+{
+ "qid": "d43fbde946",
+ "question": "Reported in an NVIDIA Systems Software Intern interview: write an aligned `malloc`, that is, a function that returns a pointer to a block of `size` bytes whose address is a multiple of a requested alignment (a power of two), together with the matching free function.",
+ "lookingFor": [
+  "Pointer arithmetic with bit masks",
+  "Over-allocation and storing the original pointer for `free`",
+  "Input validation (power-of-two alignment) and overflow awareness",
+  "Knowing the standard alternatives (`posix_memalign`, `aligned_alloc`)"
+ ],
+ "answer": "**Idea.** `malloc` only guarantees alignment for the largest fundamental type (usually 16 bytes). To get alignment `A` (power of two), over-allocate, round the address up to a multiple of `A`, and stash the original pointer just before the returned address so the matching free can find it.\n\n```c\n#include <stdint.h>\n#include <stdlib.h>\n\nvoid *aligned_malloc(size_t size, size_t align) {\n    if (align == 0 || (align & (align - 1)) != 0) return NULL; // not power of 2\n    if (align < sizeof(void *)) align = sizeof(void *);\n    void *raw = malloc(size + align - 1 + sizeof(void *));\n    if (!raw) return NULL;\n    uintptr_t addr = ((uintptr_t)raw + sizeof(void *) + align - 1)\n                     & ~(uintptr_t)(align - 1);\n    ((void **)addr)[-1] = raw;     // remember the real block\n    return (void *)addr;\n}\n\nvoid aligned_free(void *p) {\n    if (p) free(((void **)p)[-1]);\n}\n```\n\n**Why it works.**\n\n- `raw + sizeof(void*)` leaves room for the saved pointer; rounding up adds at most `align - 1` bytes, so `addr + size` never exceeds the allocated block.\n- `x & ~(align - 1)` clears the low bits, which rounds down; adding `align - 1` first makes it round up. This only works for power-of-two alignment, which is why we validate it.\n- `addr` is at least 8-byte aligned, so the slot at `addr - sizeof(void*)` is also aligned for a pointer store.\n- The returned pointer must be released with `aligned_free`, never plain `free`.\n\n**Cost and caveats.** Wasted space is up to `align + sizeof(void*) - 1` bytes per block; for huge alignments (page size) prefer `posix_memalign` or C11 `aligned_alloc` (size must be a multiple of alignment), or `mmap` for page alignment. Check `size + align + ...` for `size_t` overflow in production code. Alignment matters for SIMD loads, DMA buffers, cache-line isolation (avoiding false sharing) and some hardware that faults on unaligned access.",
+ "followUps": [
+  "Why must the alignment be a power of two for the mask trick?",
+  "How could you avoid storing the original pointer (offset byte approach)?",
+  "What does false sharing have to do with 64-byte aligned allocation?",
+  "How would you write a simple bump or pool allocator that returns aligned blocks?"
+ ]
+}

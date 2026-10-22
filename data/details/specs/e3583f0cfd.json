@@ -1,0 +1,19 @@
+{
+ "qid": "e3583f0cfd",
+ "question": "In the LLD round of an SDE-2 interview at Swiggy (candidate with about 4 years of experience), the candidate was asked to **design a cab booking system**.\n\nThe discussion covered the entities **Rider, Driver, Trip and Cab**, and the core functionality of **booking, allocation and ride status**. The candidate was expected to produce a **class diagram, the flow and the API design**, and the follow-up was on **scalability considerations and edge cases**.",
+ "lookingFor": [
+  "Can you model the domain (rider, driver, cab, trip) with a clear trip state machine?",
+  "Do you design a pluggable driver-matching strategy?",
+  "Can you define sensible REST APIs and status transitions?",
+  "Do you handle concurrency, such as two riders matched to one driver?",
+  "Do you reason about scaling and failure cases such as driver rejection or cancellation?"
+ ],
+ "answer": "**Requirements.** Rider requests a ride from A to B; the system finds a nearby available driver; driver accepts; trip progresses; trip completes with a fare. Out of scope unless asked: payments, ratings, pooling.\n\n**Entities.**\n- `Rider`, `Driver(id, status: AVAILABLE | ON_TRIP | OFFLINE, location, cab)`, `Cab(id, type, plate)`.\n- `Trip(id, riderId, driverId, pickup, drop, status, fare, timestamps)`.\n- Trip status machine: `REQUESTED -> DRIVER_ASSIGNED -> DRIVER_ARRIVED -> STARTED -> COMPLETED`, with `CANCELLED` reachable from early states. Enforce legal transitions in one place (State pattern or a transition table).\n\n**Services.**\n- `TripService` (create, cancel, update status).\n- `DriverMatchingStrategy` interface (`NearestDriver`, `HighestRated`, ...) so the allocation policy is swappable.\n- `PricingStrategy` (distance, time, surge).\n- `LocationService` for driver positions.\n\n**Flow.** Rider books -> create `Trip(REQUESTED)` -> matching returns candidate drivers sorted by distance -> offer to the first, wait for accept with a timeout, then next -> on accept mark driver `ON_TRIP` and trip `DRIVER_ASSIGNED` -> status updates until completion.\n\n**APIs (examples).**\n- `POST /trips` (pickup, drop, cab type) -> tripId\n- `GET /trips/{id}`\n- `POST /trips/{id}/cancel`\n- `POST /drivers/{id}/location`, `POST /drivers/{id}/accept?tripId=`\n- `PATCH /trips/{id}/status`\n\n**Concurrency.** Accepting a trip must be atomic: a driver must not be assigned two trips, and a trip must not be assigned two drivers. Use a conditional update (`UPDATE driver SET status='ON_TRIP' WHERE id=? AND status='AVAILABLE'`) or a per-driver lock.\n\n**Scale.** Drivers send location frequently, so keep live locations in an in-memory geospatial store (for example Redis GEO or a geohash grid), not the main database. Shard by city. Use events (queue) for status changes and notifications.\n\n**Edge cases.** No drivers nearby, driver rejects or times out, rider cancels after assignment (cancellation fee), driver goes offline mid-offer, duplicate booking requests (idempotency key), GPS jitter.",
+ "followUps": [
+  "How would you find nearby drivers efficiently?",
+  "How do you stop one driver being offered to two riders at the same moment?",
+  "How would you add ride pooling to this design?",
+  "How would you handle surge pricing?",
+  "What is your approach if the matching service is down?"
+ ]
+}

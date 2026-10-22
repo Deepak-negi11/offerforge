@@ -1,0 +1,17 @@
+{
+ "qid": "33a57e4f44",
+ "question": "In a Goldman Sachs Engineering Analyst campus interview (round with an SDE-2 level interviewer), after a deep dive into the candidate's resume project (work at AWS), the candidate was asked to **sketch the low-level design and scalability architecture** of the project. The discussion covered **configuring reverse proxies, adding load balancers, implementing \"LLM rerouters\", and orchestrating agents in production.** DSA questions followed.",
+ "lookingFor": [
+  "Ability to reason about scalable architecture for an LLM-backed service",
+  "Understanding reverse proxies and load balancers and how they differ",
+  "Awareness of routing, fallback and cost trade-offs across multiple LLM providers or models",
+  "Practical knowledge of production concerns for agents: reliability, observability, safety"
+ ],
+ "answer": "**Reverse proxy vs load balancer**\n- A **reverse proxy** (for example Nginx or Envoy) sits in front of backend servers and handles TLS termination, routing, caching, compression, authentication and rate limiting. Clients talk only to the proxy.\n- A **load balancer** distributes requests across multiple instances using round robin, least connections or consistent hashing, with health checks to remove bad nodes. L4 balances by connection; L7 by request content (path, headers). Often one component does both.\n\n**LLM rerouter (model router or gateway)**\nA layer in front of one or more LLM providers or models that decides where each request goes:\n- **Routing by task:** a small, cheap model for simple queries, a stronger model for hard ones (a classifier or a rule can decide), balancing cost, latency and quality.\n- **Fallback and failover:** if a provider times out, errors or is rate limited, retry with backoff and switch to another model.\n- **Capacity and rate limits:** spread load across keys and regions, apply per-user quotas.\n- **Cross-cutting concerns:** caching of repeated prompts, request and response logging, redaction of sensitive data, cost tracking, and guardrails.\nTrade-offs: extra latency from routing, risk of inconsistent answers across models, and the cost of evaluating routing quality.\n\n**Orchestrating agents in production**\n- An orchestrator runs the loop of plan, call tools, observe, and repeat, with **step and time limits** to prevent runaway loops.\n- Use queues and workers for long tasks, make tool calls **idempotent**, and persist state so runs can resume after failures.\n- **Observability:** trace each step, log prompts and tool results, and measure latency, token cost and success rate.\n- **Safety:** least-privilege tool access, input and output validation, protection against prompt injection, and human approval for risky actions.\n- **Evaluation:** regression test suites for agent behaviour before each release.\n\n**Scaling outline:** stateless API servers behind a load balancer, autoscaling workers, a cache (Redis), a message queue for async work, a vector or relational store for data, and monitoring with alerts.",
+ "followUps": [
+  "How would you decide which model should handle a request?",
+  "What happens when an LLM provider is down or rate limits you?",
+  "How would you stop an agent from looping or taking a harmful action?",
+  "How do you measure and control cost for an LLM-backed service?"
+ ]
+}

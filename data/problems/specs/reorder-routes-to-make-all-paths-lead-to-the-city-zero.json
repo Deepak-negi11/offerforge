@@ -1,0 +1,49 @@
+{
+ "pid": "reorder-routes-to-make-all-paths-lead-to-the-city-zero",
+ "title": "Reorder Routes to City Zero",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A country has `n` cities numbered `0` to `n - 1`, connected by `n - 1` one-way roads. If you ignore the directions, the roads form a tree: there is exactly one path between any two cities.\n\nEach road is given as a pair `a b`, meaning the road is directed **from city `a` to city `b`**.\n\nThe capital is city `0`. You want every city to be able to travel to city `0` by following the road directions. To achieve this you may **reverse** the direction of some roads (a road `a → b` becomes `b → a`).\n\nPrint the **minimum number of roads that must be reversed** so that every city can reach city `0`. It can be shown that this is always possible.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n - 1` lines contains two integers `a` and `b`: a road directed from `a` to `b`.",
+ "output_format": "Print one integer: the minimum number of roads to reverse.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ a, b < n, a ≠ b",
+  "The roads, with directions ignored, form a tree"
+ ],
+ "examples": [
+  {
+   "input": "5\n1 0\n1 2\n3 1\n4 3",
+   "output": "1",
+   "explanation": "City 1 reaches 0 directly, 3 reaches 0 through 1, and 4 reaches 0 through 3 and 1. Only the road 1 → 2 points away from city 0, so city 2 cannot get out. Reversing that one road fixes it."
+  },
+  {
+   "input": "4\n0 1\n0 2\n0 3",
+   "output": "3",
+   "explanation": "Every road leaves city 0, and each is the only link of its city, so all three must be reversed."
+  },
+  {
+   "input": "1",
+   "output": "0",
+   "explanation": "A single city needs no roads."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Because the roads form a tree, each city other than 0 has exactly one road on its path towards city 0, and every road lies on such a path for the cities below it.",
+  "Traverse the tree from city 0 outwards. A road traversed from parent to child is correctly oriented if it points from the child to the parent.",
+  "Store each road in both directions in an adjacency list, marking the original direction with a cost of 1 and the reverse with a cost of 0. Then count the cost-1 edges used while traversing from 0 with BFS or iterative DFS."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    adj = [[] for _ in range(n)]\n    for i in range(n - 1):\n        a = int(data[1 + 2 * i])\n        b = int(data[2 + 2 * i])\n        adj[a].append((b, 1))\n        adj[b].append((a, 0))\n    seen = [False] * n\n    seen[0] = True\n    dq = deque([0])\n    ans = 0\n    while dq:\n        u = dq.popleft()\n        for v, w in adj[u]:\n            if not seen[v]:\n                seen[v] = True\n                ans += w\n                dq.append(v)\n    print(ans)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nedges = [(int(data[1 + 2 * i]), int(data[2 + 2 * i])) for i in range(n - 1)]\nm = n - 1\nbest = m\nfor mask in range(1 << m):\n    cnt = bin(mask).count('1')\n    if cnt >= best:\n        continue\n    rev = [[] for _ in range(n)]\n    for i, (a, b) in enumerate(edges):\n        if mask >> i & 1:\n            a, b = b, a\n        rev[b].append(a)\n    seen = {0}\n    stack = [0]\n    while stack:\n        u = stack.pop()\n        for v in rev[u]:\n            if v not in seen:\n                seen.add(v)\n                stack.append(v)\n    if len(seen) == n:\n        best = cnt\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(n, edges):\n        return str(n) + ''.join(f'\\n{a} {b}' for a, b in edges)\n    def make(n, mode):\n        perm = list(range(n))\n        rng.shuffle(perm)\n        edges = []\n        for i in range(1, n):\n            if mode == 'path':\n                p = i - 1\n            elif mode == 'star':\n                p = 0\n            elif mode == 'deep':\n                p = rng.randint(max(0, i - 3), i - 1)\n            else:\n                p = rng.randint(0, i - 1)\n            a, b = perm[p], perm[i]\n            if rng.random() < 0.5:\n                a, b = b, a\n            edges.append((a, b))\n        rng.shuffle(edges)\n        return fmt(n, edges)\n    tests = ['1', '2\\n0 1', '2\\n1 0', '3\\n0 1\\n1 2', '3\\n2 1\\n1 0', '3\\n1 0\\n1 2',\n             '5\\n1 0\\n1 2\\n3 1\\n4 3', '4\\n0 1\\n0 2\\n0 3']\n    for _ in range(40):\n        n = rng.randint(2, 9)\n        tests.append(make(n, rng.choice(['rand', 'rand', 'path', 'star', 'deep'])))\n    N = 100000\n    tests.append(make(N, 'rand'))\n    tests.append(make(N, 'path'))\n    tests.append(make(N, 'star'))\n    tests.append(make(N, 'deep'))\n    # path from city 0 outwards, all roads pointing away: answer n - 1\n    perm = list(range(1, N))\n    rng.shuffle(perm)\n    chain = [0] + perm\n    tests.append(fmt(N, [(chain[i], chain[i + 1]) for i in range(N - 1)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_reorder(n: int, connections: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    connections = [[int(data[1 + 2 * i]), int(data[2 + 2 * i])] for i in range(n - 1)]\n    print(min_reorder(n, connections))\n\n\nmain()\n",
+  "javascript": "function minReorder(n, connections) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst connections = []\nfor (let i = 0; i < n - 1; i++) connections.push([t[1 + 2 * i], t[2 + 2 * i]])\nconsole.log(minReorder(n, connections))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minReorder(int n, vector<vector<int>>& connections) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<vector<int>> connections;\n    for (int i = 0; i + 1 < n; i++) {\n        int a, b;\n        cin >> a >> b;\n        connections.push_back({a, b});\n    }\n    cout << minReorder(n, connections) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minReorder(int n, int[][] connections) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[][] connections = new int[Math.max(0, n - 1)][2];\n        for (int i = 0; i + 1 < n; i++) {\n            in.nextToken();\n            connections[i][0] = (int) in.nval;\n            in.nextToken();\n            connections[i][1] = (int) in.nval;\n        }\n        System.out.println(minReorder(n, connections));\n    }\n}\n"
+ }
+}

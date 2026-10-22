@@ -1,0 +1,48 @@
+{
+ "pid": "uber-maximum-riders-in-one-car",
+ "title": "Maximum Riders in One Car",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "There are `n` riders and one car with unlimited space. Rider `i` is only willing to ride if the number of **other** riders in the car is between `L[i]` and `H[i]` inclusive.\n\nYou choose a group of `k` riders to put in the car. The group is valid if **every** selected rider is happy, that is, for each selected rider `i`:\n\n`L[i] ≤ k - 1 ≤ H[i]`\n\n(`k - 1` is the number of other riders travelling with that rider). Riders are interchangeable apart from these limits, and a rider who is not selected stays out of the car.\n\nPrint the largest possible `k`, or `0` if no non-empty group is valid.\n\nThe same condition also appears phrased as a group trip: each person agrees to go only if the group has between `L` and `H` other people besides them, and the task is to maximise how many people can go.\n\n**Follow-up:** the expected solution runs in O(n) time (aside from reading the input). Note that validity of `k` is not monotone, so binary search on `k` does not work.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains two integers `L[i]` and `H[i]`.",
+ "output_format": "Print one integer: the maximum number of riders that can travel together.",
+ "constraints": [
+  "1 ≤ n ≤ 40000",
+  "0 ≤ L[i] ≤ H[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "5\n0 1\n1 2\n1 2\n2 4\n2 4",
+   "output": "3",
+   "explanation": "For k = 3 each rider must tolerate exactly 2 others. Riders 1, 2, 3 and 4 accept that (4 riders, at least 3), so a group of 3 works. For k = 4 only riders 3 and 4 accept 3 others, which is fewer than 4. For k = 5 (4 others) again only riders 3 and 4 accept. So the best is 3."
+  },
+  {
+   "input": "3\n1 1\n1 1\n1 1",
+   "output": "2",
+   "explanation": "With k = 2 each rider needs exactly one other rider, and all three accept, so two of them can go together. With k = 3 each would see 2 others, which nobody accepts."
+  },
+  {
+   "input": "2\n1 3\n2 5",
+   "output": "0",
+   "explanation": "Nobody accepts 0 other riders, so a single rider cannot ride; for k = 2 only the first rider accepts 1 other rider (need 2 accepting riders), and for k ≥ 3 not enough riders remain."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "For a fixed k, a rider is willing exactly when L[i] + 1 ≤ k ≤ H[i] + 1. Count the willing riders and check whether the count is at least k.",
+  "Each rider is willing for an interval of k values. A difference array over k = 1..n lets you add all intervals in O(n) and recover every count with one prefix sum.",
+  "Clamp the interval to [1, n]; values above n are irrelevant. Take the largest k whose count is at least k."
+ ],
+ "reference": "import sys\n\ndef main():\n    d = sys.stdin.read().split()\n    n = int(d[0])\n    diff = [0] * (n + 2)\n    for i in range(n):\n        L = int(d[1 + 2 * i])\n        H = int(d[2 + 2 * i])\n        lo = max(L + 1, 1)\n        hi = min(H + 1, n)\n        if lo <= hi:\n            diff[lo] += 1\n            diff[hi + 1] -= 1\n    best = 0\n    cur = 0\n    for k in range(1, n + 1):\n        cur += diff[k]\n        if cur >= k:\n            best = k\n    print(best)\n\nmain()\n",
+ "brute": "import sys\n\nd = sys.stdin.read().split()\nn = int(d[0])\nL = [int(d[1 + 2 * i]) for i in range(n)]\nH = [int(d[2 + 2 * i]) for i in range(n)]\nbest = 0\nfor k in range(1, n + 1):\n    cnt = sum(1 for i in range(n) if L[i] <= k - 1 <= H[i])\n    if cnt >= k:\n        best = k\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(ps):\n        return str(len(ps)) + '\\n' + '\\n'.join(f'{l} {h}' for l, h in ps)\n    tests = [fmt([(0, 0)]), fmt([(1, 5)]), fmt([(0, 1), (1, 2), (1, 2), (2, 4), (2, 4)]), fmt([(1, 1)] * 3),\n             fmt([(1, 3), (2, 5)]), fmt([(0, 10**9)] * 4), fmt([(0, 0)] * 5), fmt([(3, 3)] * 4), fmt([(1, 1), (1, 1)])]\n    for n in (2, 3, 4, 5, 6, 8, 10, 15, 25):\n        for _ in range(3):\n            ps = []\n            for _ in range(n):\n                l = rng.randint(0, n)\n                h = rng.randint(l, n + 1)\n                ps.append((l, h))\n            tests.append(fmt(ps))\n    N = 40000\n    ps = []\n    k0 = 20000\n    for _ in range(N):\n        ps.append((rng.randint(0, k0 - 1), rng.choice([rng.randint(k0 - 1, N), 10**9])))\n    tests.append(fmt(ps))\n    tests.append(fmt([(rng.randint(0, N), 0) if False else (0, 10**9) for _ in range(N)]))\n    ps = []\n    for _ in range(N):\n        l = rng.randint(0, N)\n        ps.append((l, rng.randint(l, 10**9)))\n    tests.append(fmt(ps))\n    ps = []\n    for i in range(N):\n        v = rng.randint(0, 3000)\n        ps.append((v, v))\n    tests.append(fmt(ps))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_riders(L: List[int], H: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    L = [int(data[1 + 2 * i]) for i in range(n)]\n    H = [int(data[2 + 2 * i]) for i in range(n)]\n    print(max_riders(L, H))\n\n\nmain()\n",
+  "javascript": "function maxRiders(L, H) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst L = [], H = []\nfor (let i = 0; i < n; i++) {\n  L.push(t[1 + 2 * i])\n  H.push(t[2 + 2 * i])\n}\nconsole.log(maxRiders(L, H))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint maxRiders(vector<long long>& L, vector<long long>& H) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> L(n), H(n);\n    for (int i = 0; i < n; i++) cin >> L[i] >> H[i];\n    cout << maxRiders(L, H) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int maxRiders(long[] L, long[] H) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] L = new long[n], H = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); L[i] = (long) in.nval;\n            in.nextToken(); H[i] = (long) in.nval;\n        }\n        System.out.println(maxRiders(L, H));\n    }\n}\n"
+ }
+}

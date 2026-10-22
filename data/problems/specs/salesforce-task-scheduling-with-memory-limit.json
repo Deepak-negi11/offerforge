@@ -1,0 +1,49 @@
+{
+ "pid": "salesforce-task-scheduling-with-memory-limit",
+ "title": "Task Scheduling With Memory Limit",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "A server has `limit` units of memory and must run `n` tasks. Task `i` has a type `types[i]` and needs `memory[i]` units of memory while it runs. Every task takes exactly **1 unit of time**, and tasks may run in parallel, subject to two rules at every moment:\n\n- At most **2 tasks of the same type** may run in parallel.\n- The **total memory** of all tasks running at the same moment must not exceed `limit`.\n\nFind the **minimum total time** needed to run all the tasks. Since every task takes one unit, this is the smallest number of rounds into which the tasks can be split so that every round obeys both rules.\n\nEvery task needs at most `limit` memory, so every task can run on its own.",
+ "input_format": "The first line contains `n`.\nThe second line contains `n` space-separated task types (single uppercase letters).\nThe third line contains `n` space-separated integers `memory[i]`.\nThe fourth line contains `limit`.",
+ "output_format": "Print one integer: the minimum time to run all tasks.",
+ "constraints": [
+  "1 ≤ n ≤ 13",
+  "Each type is a single letter `A`-`Z`",
+  "1 ≤ memory[i] ≤ limit ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "6\nA A A B B C\n2 2 3 4 1 2\n5",
+   "output": "3",
+   "explanation": "The total memory is 14 and each round holds at most 5, so at least 3 rounds are needed. Three rounds suffice: {A(3), C(2)}, {B(4), B(1)} and {A(2), A(2)}, using 5, 5 and 4 units with never more than two tasks of one type."
+  },
+  {
+   "input": "3\nA A A\n1 1 1\n10",
+   "output": "2",
+   "explanation": "Memory is plentiful, but only two tasks of type A may run together, so two rounds are needed."
+  },
+  {
+   "input": "4\nA B C D\n3 3 3 3\n6",
+   "output": "2",
+   "explanation": "Any two of the four tasks fit together (3 + 3 = 6), but not three, so the best is two rounds of two tasks."
+  }
+ ],
+ "complexity": {
+  "time": "O(3^n)",
+  "space": "O(2^n)"
+ },
+ "hints": [
+  "Memory is arbitrary, so this is a bin-packing-style problem and a greedy rule is not safe. With n at most 13, think about subsets of tasks.",
+  "Precompute for every subset of tasks whether it can run together in one round: its memory sum is at most the limit and no type appears more than twice.",
+  "Let dp[mask] be the minimum number of rounds to run the tasks in mask. To avoid counting the same partition in many orders, always force the lowest-numbered task not yet in mask into the next round, and enumerate the submasks of the remaining tasks to go with it."
+ ],
+ "reference": "import sys\n\ndef main():\n    d = sys.stdin.read().split()\n    n = int(d[0])\n    T = d[1:1 + n]\n    W = list(map(int, d[1 + n:1 + 2 * n]))\n    M = int(d[1 + 2 * n])\n    kinds = sorted(set(T))\n    tmask = [0] * len(kinds)\n    for i in range(n):\n        tmask[kinds.index(T[i])] |= 1 << i\n    full = (1 << n) - 1\n    msum = [0] * (1 << n)\n    feas = [False] * (1 << n)\n    feas[0] = True\n    for mask in range(1, 1 << n):\n        low = mask & -mask\n        msum[mask] = msum[mask ^ low] + W[low.bit_length() - 1]\n        if msum[mask] > M:\n            continue\n        ok = True\n        for tm in tmask:\n            if bin(mask & tm).count('1') > 2:\n                ok = False\n                break\n        feas[mask] = ok\n    INF = n + 1\n    dp = [INF] * (1 << n)\n    dp[0] = 0\n    for mask in range(full):\n        cur = dp[mask]\n        if cur >= INF:\n            continue\n        rest = full ^ mask\n        low = rest & -rest\n        sub = rest ^ low\n        s = sub\n        while True:\n            b = s | low\n            if feas[b]:\n                nm = mask | b\n                if dp[nm] > cur + 1:\n                    dp[nm] = cur + 1\n            if s == 0:\n                break\n            s = (s - 1) & sub\n    print(dp[full])\n\nmain()\n",
+ "brute": "import sys\nsys.setrecursionlimit(10000)\n\nd = sys.stdin.read().split()\nn = int(d[0])\nT = d[1:1 + n]\nW = list(map(int, d[1 + n:1 + 2 * n]))\nM = int(d[1 + 2 * n])\nbest = [n]\nrounds = []\n\ndef rec(i):\n    if len(rounds) >= best[0]:\n        return\n    if i == n:\n        best[0] = len(rounds)\n        return\n    for r in rounds:\n        if r[0] + W[i] <= M and r[1].get(T[i], 0) < 2:\n            r[0] += W[i]\n            r[1][T[i]] = r[1].get(T[i], 0) + 1\n            rec(i + 1)\n            r[0] -= W[i]\n            r[1][T[i]] -= 1\n    rounds.append([W[i], {T[i]: 1}])\n    rec(i + 1)\n    rounds.pop()\n\nrec(0)\nprint(best[0])\n",
+ "generator": "def gen(rng):\n    def fmt(types, mem, M):\n        return f\"{len(types)}\\n{' '.join(types)}\\n{' '.join(map(str, mem))}\\n{M}\"\n\n    tests = [fmt(['A'], [3], 3), fmt(list('AAA'), [1, 1, 1], 10), fmt(list('ABCD'), [3, 3, 3, 3], 6),\n             fmt(list('AAAAAA'), [2] * 6, 100), fmt(list('ABCDEF'), [5] * 6, 5),\n             fmt(list('AAABBC'), [2, 2, 3, 4, 1, 2], 5), fmt(list('ABCDEFGH'), [1] * 8, 10 ** 9),\n             fmt(list('AABB'), [10 ** 9] * 4, 10 ** 9)]\n    for _ in range(40):\n        n = rng.randint(1, 8)\n        k = rng.randint(1, 4)\n        types = [chr(65 + rng.randrange(k)) for _ in range(n)]\n        M = rng.randint(4, 12)\n        mem = [rng.randint(1, M) for _ in range(n)]\n        tests.append(fmt(types, mem, M))\n    for k, M in ((3, 20), (5, 20), (13, 20), (2, 30), (4, 100), (1, 50)):\n        n = 13\n        types = [chr(65 + rng.randrange(k)) for _ in range(n)]\n        mem = [rng.randint(M // 4, M - 1) for _ in range(n)]\n        tests.append(fmt(types, mem, M))\n    types = [chr(65 + i % 5) for i in range(13)]\n    tests.append(fmt(types, [7, 3, 5, 9, 4, 6, 8, 2, 7, 5, 6, 3, 9], 15))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_time(types: List[str], memory: List[int], limit: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    types = data[1:1 + n]\n    memory = [int(x) for x in data[1 + n:1 + 2 * n]]\n    limit = int(data[1 + 2 * n])\n    print(min_time(types, memory, limit))\n\n\nmain()\n",
+  "javascript": "function minTime(types, memory, limit) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = Number(t[0])\nconst types = t.slice(1, 1 + n)\nconst memory = t.slice(1 + n, 1 + 2 * n).map(Number)\nconst limit = Number(t[1 + 2 * n])\nconsole.log(minTime(types, memory, limit))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minTime(vector<string>& types, vector<long long>& memory, long long limit) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<string> types(n);\n    for (int i = 0; i < n; i++) cin >> types[i];\n    vector<long long> memory(n);\n    for (int i = 0; i < n; i++) cin >> memory[i];\n    long long limit;\n    cin >> limit;\n    cout << minTime(types, memory, limit) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minTime(String[] types, long[] memory, long limit) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        String[] types = new String[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); types[i] = in.sval; }\n        long[] memory = new long[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); memory[i] = (long) in.nval; }\n        in.nextToken();\n        long limit = (long) in.nval;\n        System.out.println(minTime(types, memory, limit));\n    }\n}\n"
+ }
+}

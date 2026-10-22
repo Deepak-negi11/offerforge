@@ -1,0 +1,49 @@
+{
+ "pid": "path-with-maximum-gold",
+ "title": "Path with Maximum Gold",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A miner explores a rectangular grid with `r` rows and `c` columns. Each cell holds a non-negative amount of gold, and a cell with `0` is empty and cannot be entered.\n\nThe miner may start in **any cell that contains gold**. From the current cell they can step to one of the four neighbouring cells (up, down, left, right), as long as that cell contains gold. The miner collects all the gold in every cell they stand on, and **no cell may be visited more than once** in a single trip. The miner may stop at any time.\n\nPrint the maximum total amount of gold that can be collected. If the grid has no gold at all, print `0`.",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains `c` integers: the gold amounts in that row.",
+ "output_format": "Print one integer: the maximum gold that can be collected in a single trip.",
+ "constraints": [
+  "1 ≤ r, c ≤ 15",
+  "0 ≤ grid[i][j] ≤ 100",
+  "At most 22 cells contain gold"
+ ],
+ "examples": [
+  {
+   "input": "3 4\n1 0 7 0\n2 3 0 4\n0 5 6 0",
+   "output": "17",
+   "explanation": "The cells holding 1, 2, 3, 5 and 6 form a connected path: start at the 1, then go down to 2, right to 3, down to 5, right to 6, collecting 1 + 2 + 3 + 5 + 6 = 17. The 7 and the 4 are isolated, so each trip there yields at most 7."
+  },
+  {
+   "input": "1 5\n3 0 9 4 0",
+   "output": "13",
+   "explanation": "The miner cannot cross the empty cells. The best trip starts at 9 and steps to 4 for a total of 13, which beats the lone 3."
+  },
+  {
+   "input": "2 2\n4 8\n6 2",
+   "output": "20",
+   "explanation": "The four cells form a loop. Starting at any of them and walking around the loop visits each cell once, collecting 4 + 8 + 2 + 6 = 20."
+  }
+ ],
+ "complexity": {
+  "time": "O(G · 3^G) in the worst case, where G ≤ 22 is the number of gold cells",
+  "space": "O(G)"
+ },
+ "hints": [
+  "Every trip is a simple path through gold cells. Since at most 22 cells have gold, trying every path is feasible.",
+  "Run a depth-first search from each gold cell. Before exploring neighbours, mark the current cell as used, for example by setting it to 0.",
+  "After exploring all four directions, undo the mark (backtrack) so other paths can use that cell. Track the best total over all starts."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    g = [[int(data[2 + i * c + j]) for j in range(c)] for i in range(r)]\n    best = 0\n\n    def dfs(i, j, acc):\n        nonlocal best\n        v = g[i][j]\n        g[i][j] = 0\n        acc += v\n        if acc > best:\n            best = acc\n        if i > 0 and g[i - 1][j]:\n            dfs(i - 1, j, acc)\n        if i + 1 < r and g[i + 1][j]:\n            dfs(i + 1, j, acc)\n        if j > 0 and g[i][j - 1]:\n            dfs(i, j - 1, acc)\n        if j + 1 < c and g[i][j + 1]:\n            dfs(i, j + 1, acc)\n        g[i][j] = v\n\n    for i in range(r):\n        for j in range(c):\n            if g[i][j]:\n                dfs(i, j, 0)\n    print(best)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\ng = [[int(data[2 + i * c + j]) for j in range(c)] for i in range(r)]\ncells = [(i, j) for i in range(r) for j in range(c) if g[i][j] > 0]\nidx = {p: k for k, p in enumerate(cells)}\nbest = 0\n# breadth-first over (visited mask, current cell) states\nfrontier = {(1 << k, k) for k in range(len(cells))}\ntotal = {}\nfor mask, k in frontier:\n    total[(mask, k)] = g[cells[k][0]][cells[k][1]]\nwhile frontier:\n    nxt = set()\n    for mask, k in frontier:\n        s = total[(mask, k)]\n        best = max(best, s)\n        i, j = cells[k]\n        for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n            q = (i + di, j + dj)\n            if q in idx and not (mask >> idx[q]) & 1:\n                st = (mask | (1 << idx[q]), idx[q])\n                total[st] = s + g[q[0]][q[1]]\n                nxt.add(st)\n    frontier = nxt\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(g):\n        return f\"{len(g)} {len(g[0])}\\n\" + '\\n'.join(' '.join(map(str, row)) for row in g)\n\n    def blob(r, c, k, hi=100):\n        # k gold cells grown as a connected blob, rest empty\n        g = [[0] * c for _ in range(r)]\n        cells = [(rng.randrange(r), rng.randrange(c))]\n        seen = set(cells)\n        while len(cells) < k:\n            i, j = rng.choice(cells)\n            di, dj = rng.choice(((1, 0), (-1, 0), (0, 1), (0, -1)))\n            q = (i + di, j + dj)\n            if 0 <= q[0] < r and 0 <= q[1] < c and q not in seen:\n                seen.add(q)\n                cells.append(q)\n        for i, j in cells:\n            g[i][j] = rng.randint(1, hi)\n        return g\n\n    def scatter(r, c, k, hi=100):\n        g = [[0] * c for _ in range(r)]\n        pos = rng.sample([(i, j) for i in range(r) for j in range(c)], k)\n        for i, j in pos:\n            g[i][j] = rng.randint(1, hi)\n        return g\n\n    tests = [fmt([[0]]), fmt([[7]]), fmt([[0, 0], [0, 0]]), fmt([[5, 0], [0, 5]]), fmt([[1, 2, 3]]),\n             fmt([[1], [2], [3]]), fmt([[4, 8], [6, 2]]), fmt([[100, 100], [100, 100]]),\n             fmt([[1, 0, 7, 0], [2, 3, 0, 4], [0, 5, 6, 0]]), fmt([[3, 0, 9, 4, 0]])]\n    for _ in range(14):\n        r = rng.randint(1, 4)\n        c = rng.randint(1, 4)\n        k = rng.randint(1, min(r * c, 9))\n        tests.append(fmt(blob(r, c, k, rng.choice([9, 100]))))\n    for _ in range(6):\n        r = rng.randint(2, 6)\n        c = rng.randint(2, 6)\n        k = rng.randint(1, min(r * c, 9))\n        tests.append(fmt(scatter(r, c, k, 50)))\n    # max-size tests: dense blobs and big sparse boards\n    full = [[rng.randint(1, 100) for _ in range(5)] for _ in range(5)]\n    for i, j in ((0, 0), (4, 4), (0, 4)):\n        full[i][j] = 0\n    tests.append(fmt(full))\n    full = [[rng.randint(1, 100) for _ in range(6)] for _ in range(4)]\n    full[0][5] = 0\n    full[3][0] = 0\n    tests.append(fmt(full))\n    tests.append(fmt(blob(15, 15, 22)))\n    tests.append(fmt(blob(15, 15, 22)))\n    tests.append(fmt(scatter(15, 15, 22)))\n    g = [[0] * 15 for _ in range(15)]\n    for j in range(15):\n        g[7][j] = rng.randint(1, 100)\n    for i in range(7):\n        g[i][14] = rng.randint(1, 100)\n    tests.append(fmt(g))\n    tests.append(fmt([[rng.randint(1, 100) for _ in range(15)]]))\n    tests.append(fmt([[rng.randint(1, 100)] for _ in range(15)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_gold(grid: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    grid = [[int(data[2 + i * c + j]) for j in range(c)] for i in range(r)]\n    print(max_gold(grid))\n\n\nmain()\n",
+  "javascript": "function maxGold(grid) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst r = t[0], c = t[1]\nconst grid = []\nfor (let i = 0; i < r; i++) grid.push(t.slice(2 + i * c, 2 + (i + 1) * c))\nconsole.log(String(maxGold(grid)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint maxGold(vector<vector<int>>& grid) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<vector<int>> grid(r, vector<int>(c));\n    for (int i = 0; i < r; i++)\n        for (int j = 0; j < c; j++) cin >> grid[i][j];\n    cout << maxGold(grid) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int maxGold(int[][] grid) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int r = (int) in.nval;\n        in.nextToken();\n        int c = (int) in.nval;\n        int[][] grid = new int[r][c];\n        for (int i = 0; i < r; i++) {\n            for (int j = 0; j < c; j++) {\n                in.nextToken();\n                grid[i][j] = (int) in.nval;\n            }\n        }\n        System.out.println(maxGold(grid));\n    }\n}\n"
+ }
+}

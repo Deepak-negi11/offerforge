@@ -1,0 +1,17 @@
+{
+  "qid": "2dcde061ef",
+  "question": "Zomato SDE-2 round 1. The candidate was asked a design question on search: given products with a **name, tags and description**, design a search that returns the results with the **highest matching frequency** for a query. The interviewer pointed towards an inverted index / Elasticsearch-style design.",
+  "lookingFor": [
+    "Knowing the inverted index and how queries use it",
+    "Ranking basics: term frequency, field weighting, TF-IDF/BM25",
+    "Keeping the index in sync with the source of truth",
+    "Scaling the search tier (sharding, replication) and relevance trade-offs"
+  ],
+  "answer": "**Requirements.** Free-text query over name, tags and description; results ranked by how well they match (term frequency, with name matches mattering more); low latency (tens of ms); catalog in the millions of items, read-heavy.\n\n**Core data structure: inverted index.** Process each product at write time: lowercase, tokenize, remove stop words, stem. Build `term -> postings list` of `(product_id, term_frequency, field, positions)`. A query is analysed the same way; you fetch the postings list for each query term and intersect or union them.\n\n**Ranking.** The simplest definition of \"matching frequency\" is the number of query-term occurrences in the document. Improve it:\n- Weight fields: a hit in `name` counts more than `tags`, which counts more than `description` (for example 3 : 2 : 1).\n- Use TF-IDF or BM25, which normalise for document length and down-weight common words.\n- Add a business signal (popularity, availability) with a small weight.\nKeep the top `N` with a min-heap while scoring instead of sorting everything.\n\n**Without Elasticsearch (to show understanding):** `HashMap<String, Map<productId, count>>`. For a query, add the weighted counts per product into a score map, then take the top `N` with a heap.\n\n**With Elasticsearch/OpenSearch (as an example).** One index; analyzed text fields `name`, `tags`, `description` with boosts; a `multi_match` query; the engine does BM25 per shard and merges. Shard by product id, and replicate shards for read throughput and availability.\n\n**Sync.** The primary database remains the source of truth. Publish change events (outbox or CDC) to a queue and have an indexer update the search index, accepting a few seconds of staleness. Support full re-indexing into a new index and alias swapping.\n\n**Extras.** Typo tolerance via fuzzy matching or n-grams, autocomplete via prefix/edge n-grams, caching hot queries, and pagination (use `search_after`, not deep offsets).",
+  "followUps": [
+    "How does BM25 differ from raw term frequency?",
+    "How would you support typo tolerance and autocomplete?",
+    "How do you keep the index consistent with the database when updates fail?",
+    "What goes wrong with deep pagination and how do you avoid it?"
+  ]
+}

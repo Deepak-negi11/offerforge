@@ -1,0 +1,50 @@
+{
+ "pid": "ola-unbounded-knapsack-variant",
+ "title": "Unbounded Knapsack Variant",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given `n` item types. Item type `i` has weight `w[i]` and value `v[i]`, and the shop has an unlimited supply of every type. A knapsack can carry total weight at most `W`.\n\nUnlike the classic 0/1 knapsack, each item type may be picked **any number of times** (including zero). Choose items so that the total weight is at most `W` and the total value is as large as possible, and print that maximum value. If no item fits, the answer is `0`.",
+ "input_format": "The first line contains two integers `n` and `W`.\nEach of the next `n` lines contains two integers `w[i]` and `v[i]`.",
+ "output_format": "Print a single integer: the maximum total value that fits in the knapsack.",
+ "constraints": [
+  "1 ≤ n ≤ 100",
+  "1 ≤ W ≤ 10^4",
+  "1 ≤ w[i] ≤ 10^4",
+  "1 ≤ v[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3 8\n2 15\n3 20\n5 40",
+   "output": "60",
+   "explanation": "Four items of weight 2 give 60, and so does one item of weight 3 plus one of weight 5. Nothing reaches more than 60 within weight 8."
+  },
+  {
+   "input": "2 10\n3 5\n4 9",
+   "output": "19",
+   "explanation": "Taking one item of weight 4 and two of weight 3 has weight 10 and value 9 + 5 + 5 = 19. Two items of weight 4 plus nothing else would only give 18."
+  },
+  {
+   "input": "2 5\n6 100\n7 50",
+   "output": "0",
+   "explanation": "Every item is heavier than the capacity, so nothing can be taken."
+  }
+ ],
+ "complexity": {
+  "time": "O(n · W)",
+  "space": "O(W)"
+ },
+ "hints": [
+  "Let `dp[c]` be the best value achievable with capacity at most `c`. What are the possible last items you could add?",
+  "Since an item can be reused, `dp[c] = max(dp[c], dp[c - w[i]] + v[i])` for each item `i` with `w[i] ≤ c`.",
+  "Iterate `c` upward from 0 to `W`. A 1-D array suffices, and expanding every item into many copies is too slow."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, W = int(data[0]), int(data[1])\n    items = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(n)]\n    dp = [0] * (W + 1)\n    for w, v in items:\n        for c in range(w, W + 1):\n            t = dp[c - w] + v\n            if t > dp[c]:\n                dp[c] = t\n    print(dp[W])\n\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, W = int(data[0]), int(data[1])\nw = [int(data[2 + 2 * i]) for i in range(n)]\nv = [int(data[3 + 2 * i]) for i in range(n)]\n\n\ndef f(i, cap):\n    if i == n:\n        return 0\n    best = 0\n    k = 0\n    while k * w[i] <= cap:\n        best = max(best, k * v[i] + f(i + 1, cap - k * w[i]))\n        k += 1\n    return best\n\n\nprint(f(0, W))\n",
+ "generator": "def gen(rng):\n    def fmt(items, W):\n        return f'{len(items)} {W}\\n' + '\\n'.join(f'{w} {v}' for w, v in items)\n    tests = [fmt([(2, 15), (3, 20), (5, 40)], 8), fmt([(3, 5), (4, 9)], 10), fmt([(6, 100), (7, 50)], 5), fmt([(1, 1)], 1),\n             fmt([(1, 10**9)], 10000), fmt([(10000, 10**9)], 10000), fmt([(10000, 10**9)], 9999),\n             fmt([(5, 10), (5, 10), (5, 10)], 12), fmt([(2, 3), (3, 5)], 1)]\n    for _ in range(50):\n        n = rng.randint(1, 5)\n        W = rng.randint(1, 14)\n        items = [(rng.randint(1, 9), rng.randint(1, 25)) for _ in range(n)]\n        tests.append(fmt(items, W))\n    for _ in range(4):\n        n = rng.randint(5, 8)\n        items = [(rng.randint(1, 12), rng.randint(1, 10**9)) for _ in range(n)]\n        tests.append(fmt(items, 12))\n    tests.append(fmt([(rng.randint(1, 30), rng.randint(1, 1000)) for _ in range(40)], 500))\n    tests.append(fmt([(rng.randint(1, 10**4), rng.randint(1, 10**9)) for _ in range(100)], 10000))\n    # max-size tests: many small weights so that copy expansion is slow\n    tests.append(fmt([(rng.randint(1, 50), rng.randint(1, 10**9)) for _ in range(100)], 10000))\n    tests.append(fmt([(rng.randint(1, 5), rng.randint(1, 10**9)) for _ in range(100)], 10000))\n    tests.append(fmt([(w, w * 1000 + rng.randint(0, 5)) for w in rng.sample(range(1, 400), 100)], 10000))\n    tests.append(fmt([(rng.randint(100, 3000), rng.randint(10**8, 10**9)) for _ in range(100)], 10000))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_value(weights: List[int], values: List[int], cap: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, cap = int(data[0]), int(data[1])\n    weights = [int(data[2 + 2 * i]) for i in range(n)]\n    values = [int(data[3 + 2 * i]) for i in range(n)]\n    print(max_value(weights, values, cap))\n\n\nmain()\n",
+  "javascript": "function maxValue(weights, values, cap) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], cap = t[1]\nconst weights = [], values = []\nfor (let i = 0; i < n; i++) {\n  weights.push(t[2 + 2 * i])\n  values.push(t[3 + 2 * i])\n}\nconsole.log(String(maxValue(weights, values, cap)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxValue(vector<long long>& weights, vector<long long>& values, int cap) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, cap;\n    cin >> n >> cap;\n    vector<long long> weights(n), values(n);\n    for (int i = 0; i < n; i++) cin >> weights[i] >> values[i];\n    cout << maxValue(weights, values, cap) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxValue(long[] weights, long[] values, int cap) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int cap = (int) in.nval;\n        long[] weights = new long[n], values = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); weights[i] = (long) in.nval;\n            in.nextToken(); values[i] = (long) in.nval;\n        }\n        System.out.println(maxValue(weights, values, cap));\n    }\n}\n"
+ }
+}

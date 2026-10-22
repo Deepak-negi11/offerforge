@@ -1,0 +1,45 @@
+{
+ "pid": "exclusive-time-of-functions",
+ "title": "Exclusive Time of Functions",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A program's execution is recorded as a log of `n` events. Each event is a triple `(name, timestamp, type)`: the function `name`, the `timestamp` at which the event happened, and a `type` that is `b` (the function **begins** a call) or `e` (the function **ends** a call). Functions can call other functions, including themselves, so calls nest.\n\nThe log is well formed:\n\n- Timestamps never decrease from one line to the next (several events may share a timestamp).\n- Every `e` event closes the most recently begun call that is still open, and that call has the same function name.\n- Every call that begins eventually ends.\n\nThe **exclusive time** of a function is the total time during which that function was the innermost running call, that is, the time it was actively running and not waiting for a nested call to finish. If a call begins at time `s` and ends at time `t`, the interval `[s, t)` belongs to that call, minus the sub-intervals occupied by calls nested inside it. A function that is called several times (or recursively) has the sum over all of its calls.\n\nReport the exclusive time of every function that appears in the log, in the order in which each function first begins.",
+ "input_format": "The first line contains an integer `n`, the number of log lines.\nEach of the next `n` lines contains `name timestamp type`, separated by spaces.",
+ "output_format": "For every distinct function, in order of its first `b` event, print one line `name time` with the function name and its exclusive time.",
+ "constraints": [
+  "2 ≤ n ≤ 10^5 and n is even",
+  "0 ≤ timestamp ≤ 10^9",
+  "1 ≤ length of name ≤ 10, names consist of lowercase letters and digits",
+  "type is either b or e"
+ ],
+ "examples": [
+  {
+   "input": "4\nfoo 10 b\nbar 20 b\nbar 50 e\nfoo 100 e",
+   "output": "foo 60\nbar 30",
+   "explanation": "foo runs for 90 units overall (10 to 100), but bar runs inside it from 20 to 50, which is 30 units. So bar gets 30 and foo gets 90 - 30 = 60."
+  },
+  {
+   "input": "6\nf 1 b\nf 3 b\nf 6 e\ng 6 b\ng 9 e\nf 10 e",
+   "output": "f 6\ng 3",
+   "explanation": "The outer call of f runs 1 to 3 and 9 to 10, which is 3 units. Its nested call to f runs 3 to 6, another 3 units, so f totals 6. g runs from 6 to 9, which is 3 units."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Between two consecutive log lines, exactly one call is the innermost running call. Whose time is it?",
+  "Keep a stack of the calls that are currently open, and remember the timestamp of the previous log line.",
+  "On every event, give the elapsed time since the previous event to the function on top of the stack (if any), then push on `b` or pop on `e`."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    order, tot, stack = [], {}, []\n    prev = 0\n    for i in range(n):\n        name, t, typ = data[1 + 3 * i], int(data[2 + 3 * i]), data[3 + 3 * i]\n        if typ == 'b':\n            if name not in tot:\n                tot[name] = 0\n                order.append(name)\n            if stack:\n                tot[stack[-1]] += t - prev\n            stack.append(name)\n        else:\n            tot[stack.pop()] += t - prev\n        prev = t\n    print('\\n'.join(k + ' ' + str(tot[k]) for k in order))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nev = [(data[1 + 3 * i], int(data[2 + 3 * i]), data[3 + 3 * i]) for i in range(n)]\npairs, st, order = [], [], []\nfor i, (nm, t, ty) in enumerate(ev):\n    if ty == 'b':\n        st.append(i)\n        if nm not in order:\n            order.append(nm)\n    else:\n        j = st.pop()\n        pairs.append((j, ev[j][1], t, nm))\ntot = {k: 0 for k in order}\nlo = min(e[1] for e in ev)\nhi = max(e[1] for e in ev)\nfor u in range(lo, hi):\n    best = None\n    for (j, s, e, nm) in pairs:\n        if s <= u < e and (best is None or j > best[0]):\n            best = (j, nm)\n    if best:\n        tot[best[1]] += 1\nprint('\\n'.join(k + ' ' + str(tot[k]) for k in order))\n",
+ "generator": "def gen(rng):\n    def build(m, names, maxgap, pbegin=0.5):\n        logs, st = [], []\n        t = rng.randint(0, 5)\n        opened = 0\n        while opened < m or st:\n            if opened < m and (not st or rng.random() < pbegin):\n                nm = rng.choice(names)\n                t += rng.randint(0, maxgap)\n                logs.append((nm, t, 'b'))\n                st.append(nm)\n                opened += 1\n            else:\n                nm = st.pop()\n                t += rng.randint(0, maxgap)\n                logs.append((nm, t, 'e'))\n        return logs\n    def fmt(logs):\n        return str(len(logs)) + '\\n' + '\\n'.join('%s %d %s' % l for l in logs)\n    tests = [\n        fmt([('a', 0, 'b'), ('a', 0, 'e')]),\n        fmt([('a', 3, 'b'), ('a', 9, 'e')]),\n        fmt([('foo', 10, 'b'), ('bar', 20, 'b'), ('bar', 50, 'e'), ('foo', 100, 'e')]),\n        fmt([('x', 1, 'b'), ('x', 1, 'b'), ('x', 4, 'e'), ('x', 4, 'e')]),\n        fmt([('a', 1, 'b'), ('a', 2, 'e'), ('b', 2, 'b'), ('b', 5, 'e'), ('a', 7, 'b'), ('a', 8, 'e')]),\n        fmt([('f', 1, 'b'), ('f', 3, 'b'), ('f', 6, 'e'), ('g', 6, 'b'), ('g', 9, 'e'), ('f', 10, 'e')]),\n    ]\n    for m in (2, 3, 4, 5, 6, 8):\n        for _ in range(3):\n            names = ['a', 'b', 'c', 'fn1'][:rng.randint(1, 4)]\n            tests.append(fmt(build(m, names, rng.choice([0, 1, 3, 6]), rng.choice([0.3, 0.5, 0.8]))))\n    names = ['f%d' % i for i in range(1000)]\n    tests.append(fmt(build(50000, names, 10000, 0.5)))\n    tests.append(fmt(build(50000, names[:3], 10000, 0.5)))\n    tests.append(fmt(build(50000, names, 10000, 0.99)))\n    tests.append(fmt(build(50000, ['solve'], 10000, 0.5)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef exclusive_times(logs: List[Tuple[str, int, str]]) -> List[Tuple[str, int]]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    logs = [(data[1 + 3 * i], int(data[2 + 3 * i]), data[3 + 3 * i]) for i in range(n)]\n    for name, t in exclusive_times(logs):\n        print(name, t)\n\n\nmain()\n",
+  "javascript": "function exclusiveTimes(logs) {\n  // logs[i] = [name, timestamp, type]; return an array of [name, exclusiveTime]\n  // Write your solution here\n  return []\n}\n\nconst tk = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(tk[0])\nconst logs = []\nfor (let i = 0; i < n; i++) {\n  logs.push([tk[1 + 3 * i], Number(tk[2 + 3 * i]), tk[3 + 3 * i]])\n}\nconsole.log(exclusiveTimes(logs).map(r => r[0] + ' ' + r[1]).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<pair<string, long long>> exclusiveTimes(vector<string>& names, vector<long long>& times, vector<string>& types) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<string> names(n), types(n);\n    vector<long long> times(n);\n    for (int i = 0; i < n; i++) cin >> names[i] >> times[i] >> types[i];\n    auto res = exclusiveTimes(names, times, types);\n    for (auto& r : res) cout << r.first << ' ' << r.second << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static LinkedHashMap<String, Long> exclusiveTimes(String[] names, long[] times, String[] types) {\n        // Write your solution here\n        return new LinkedHashMap<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int n = Integer.parseInt(st.nextToken());\n        String[] names = new String[n], types = new String[n];\n        long[] times = new long[n];\n        for (int i = 0; i < n; i++) {\n            names[i] = st.nextToken();\n            times[i] = Long.parseLong(st.nextToken());\n            types[i] = st.nextToken();\n        }\n        StringBuilder sb = new StringBuilder();\n        for (Map.Entry<String, Long> e : exclusiveTimes(names, times, types).entrySet())\n            sb.append(e.getKey()).append(' ').append(e.getValue()).append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

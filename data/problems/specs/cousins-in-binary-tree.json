@@ -1,0 +1,49 @@
+{
+ "pid": "cousins-in-binary-tree",
+ "title": "Cousins in an N-ary Tree",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given a rooted tree with `n` nodes labeled `0` to `n - 1`. Node `0` is the root. Unlike a binary tree, a node may have any number of children.\n\nThe **depth** of a node is the number of edges between it and the root (the root has depth `0`). Two nodes are **cousins** if they are at the same depth but have different parents.\n\nGiven a node `x`, find all of its cousins. Print them in ascending order. The root has no parent, so it has no cousins. Siblings (nodes with the same parent) are not cousins.\n\nIf `x` has no cousins, print `-1`.\n\nThe tree is given as `n - 1` lines `p c`, each meaning that `p` is the parent of `c`. The edges are listed in arbitrary order.",
+ "input_format": "The first line contains two integers `n` and `x`.\nEach of the next `n - 1` lines contains two integers `p` and `c`: node `p` is the parent of node `c`.",
+ "output_format": "Print the cousins of `x` in ascending order, separated by single spaces, or `-1` if there are none.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ x < n",
+  "The edges form a tree rooted at node 0, and the depth of the tree is at most 5000"
+ ],
+ "examples": [
+  {
+   "input": "8 4\n0 1\n0 2\n0 3\n1 4\n1 5\n2 6\n3 7",
+   "output": "6 7",
+   "explanation": "Node 4 has depth 2 and parent 1. The other nodes at depth 2 are 5 (parent 1, a sibling), 6 (parent 2) and 7 (parent 3). So the cousins are 6 and 7."
+  },
+  {
+   "input": "5 1\n0 1\n0 2\n2 3\n2 4",
+   "output": "-1",
+   "explanation": "Node 1 is at depth 1, where every node has the root as its parent. Node 2 is a sibling, not a cousin, so there are no cousins."
+  },
+  {
+   "input": "7 6\n0 1\n1 2\n1 3\n3 4\n2 5\n2 6",
+   "output": "4",
+   "explanation": "Node 6 has depth 3 and parent 2. Node 4 is also at depth 3, with parent 3. Node 5 shares parent 2, so it is a sibling."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Cousins are decided by two facts about each node: its depth and its parent. Compute both for every node.",
+  "A breadth-first search from the root visits one depth level at a time and tells you each node's parent.",
+  "Once you know the depth and parent of x, collect the nodes at the same depth whose parent is different. A recursive traversal is fine too, since the depth is at most 5000."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, x = int(data[0]), int(data[1])\n    children = [[] for _ in range(n)]\n    parent = [-1] * n\n    for i in range(n - 1):\n        p, c = int(data[2 + 2 * i]), int(data[3 + 2 * i])\n        children[p].append(c)\n        parent[c] = p\n    depth = [0] * n\n    order = [0]\n    for u in order:\n        for v in children[u]:\n            depth[v] = depth[u] + 1\n            order.append(v)\n    res = [v for v in range(n) if v != 0 and depth[v] == depth[x] and parent[v] != parent[x]] if x != 0 else []\n    print(' '.join(map(str, res)) if res else -1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, x = int(data[0]), int(data[1])\npar = [-1] * n\nfor i in range(n - 1):\n    p, c = int(data[2 + 2 * i]), int(data[3 + 2 * i])\n    par[c] = p\n\ndef depth(v):\n    d = 0\n    while par[v] != -1:\n        v = par[v]\n        d += 1\n    return d\n\nres = []\nif x != 0:\n    for v in range(1, n):\n        if depth(v) == depth(x) and par[v] != par[x]:\n            res.append(v)\nprint(' '.join(map(str, res)) if res else -1)\n",
+ "generator": "def gen(rng):\n    def build(n, kind):\n        # returns list of (p, c) with node labels permuted, root fixed as 0\n        perm = list(range(1, n))\n        rng.shuffle(perm)\n        labels = [0] + perm\n        edges = []\n        for i in range(1, n):\n            if kind == 'path':\n                p = i - 1\n            elif kind == 'star':\n                p = 0\n            elif kind == 'wide':\n                p = rng.randint(0, min(i - 1, 5))\n            elif kind == 'deep':\n                p = rng.randint(max(0, i - 3), i - 1)\n            elif kind == 'broom':\n                p = i - 1 if i < 4000 else rng.randint(3000, 3999)\n            else:\n                p = rng.randint(0, i - 1)\n            edges.append((labels[p], labels[i]))\n        rng.shuffle(edges)\n        return edges\n    def fmt(n, x, edges):\n        return f'{n} {x}\\n' + '\\n'.join(f'{p} {c}' for p, c in edges) if edges else f'{n} {x}'\n    tests = ['8 4\\n0 1\\n0 2\\n0 3\\n1 4\\n1 5\\n2 6\\n3 7', '5 1\\n0 1\\n0 2\\n2 3\\n2 4', '7 6\\n0 1\\n1 2\\n1 3\\n3 4\\n2 5\\n2 6', '1 0', '2 1\\n0 1', '3 0\\n0 1\\n0 2']\n    for n in (3, 4, 5, 6, 8, 10, 14, 20, 25):\n        for kind in ('random', 'wide', 'deep', 'random'):\n            edges = build(n, kind)\n            tests.append(fmt(n, rng.randrange(n), edges))\n    n = 100000\n    for kind in ('random', 'wide', 'star', 'broom'):\n        edges = build(n, kind)\n        tests.append(fmt(n, rng.randrange(n), edges))\n    for kind in ('path', 'deep'):\n        edges = build(5000, kind)\n        tests.append(fmt(5000, rng.randrange(5000), edges))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef find_cousins(n: int, x: int, edges: List[List[int]]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, x = int(data[0]), int(data[1])\n    edges = [[int(data[2 + 2 * i]), int(data[3 + 2 * i])] for i in range(n - 1)]\n    res = find_cousins(n, x, edges)\n    print(' '.join(map(str, res)) if res else -1)\n\n\nmain()\n",
+  "javascript": "function findCousins(n, x, edges) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], x = t[1]\nconst edges = []\nfor (let i = 0; i < n - 1; i++) edges.push([t[2 + 2 * i], t[3 + 2 * i]])\nconst res = findCousins(n, x, edges)\nconsole.log(res.length ? res.join(' ') : '-1')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> findCousins(int n, int x, vector<pair<int, int>>& edges) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, x;\n    cin >> n >> x;\n    vector<pair<int, int>> edges(n - 1);\n    for (int i = 0; i < n - 1; i++) cin >> edges[i].first >> edges[i].second;\n    vector<int> res = findCousins(n, x, edges);\n    if (res.empty()) {\n        cout << -1 << endl;\n    } else {\n        for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<Integer> findCousins(int n, int x, int[][] edges) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int x = (int) in.nval;\n        int[][] edges = new int[n - 1][2];\n        for (int i = 0; i < n - 1; i++) {\n            in.nextToken(); edges[i][0] = (int) in.nval;\n            in.nextToken(); edges[i][1] = (int) in.nval;\n        }\n        List<Integer> res = findCousins(n, x, edges);\n        if (res.isEmpty()) {\n            System.out.println(-1);\n        } else {\n            StringBuilder sb = new StringBuilder();\n            for (int i = 0; i < res.size(); i++) sb.append(res.get(i)).append(i + 1 < res.size() ? \" \" : \"\\n\");\n            System.out.print(sb);\n        }\n    }\n}\n"
+ }
+}

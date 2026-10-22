@@ -1,0 +1,18 @@
+{
+ "qid": "789563ca79",
+ "question": "In the system design round (60 minutes) for an SDE-1 role at Razorpay (on campus), the candidate was asked to **design an LRU (Least Recently Used) cache from scratch**. The round focused mainly on **object-oriented concepts**, as freshers are not expected to know large-scale system design.",
+ "lookingFor": [
+  "Do you know the data structure combination that gives O(1) get and put?",
+  "Is your design object-oriented (interfaces, encapsulation, extensibility)?",
+  "Do you handle capacity, eviction, updates and edge cases?",
+  "Can you discuss thread safety and generalise the eviction policy?"
+ ],
+ "answer": "**Requirements:** `get(key)` and `put(key, value)` both in O(1); fixed capacity; when full, evict the **least recently used** entry; reading or writing a key makes it most recent.\n\n**Data structure:** a **hash map** (key to node) for O(1) lookup, plus a **doubly linked list** ordered by recency (head = most recent, tail = least recent) for O(1) move and removal. A singly linked list fails because removing a node needs its predecessor. Use **sentinel** head and tail nodes to avoid null checks.\n\n**OOP design:**\n- `Cache<K,V>` interface: `get`, `put`.\n- `Node<K,V>` (key, value, prev, next); the key is stored so eviction can delete the map entry.\n- `LRUCache<K,V> implements Cache<K,V>` holding `capacity`, `Map<K,Node>` and the list.\n- `EvictionPolicy` interface (LRU, LFU, FIFO) so the policy can be swapped (**Strategy pattern**).\n\n```python\ndef get(self, k):\n    n = self.map.get(k)\n    if not n: return -1\n    self._unlink(n); self._push_front(n)\n    return n.val\n\ndef put(self, k, v):\n    if k in self.map:\n        n = self.map[k]; n.val = v\n        self._unlink(n); self._push_front(n)\n        return\n    if len(self.map) == self.cap:\n        lru = self.tail.prev\n        self._unlink(lru); del self.map[lru.key]\n    n = Node(k, v); self.map[k] = n; self._push_front(n)\n```\n\n**Edge cases:** capacity 0 or 1, updating an existing key (no eviction), missing key behaviour (return null or sentinel).\n\n**Thread safety:** guard operations with a lock (even `get` mutates the list); for contention use lock striping or sharding by key hash, or approximations such as CLOCK.\n\n**Scaling:** distributed caches (shards, consistent hashing), TTL expiry, write-through versus write-back.",
+ "followUps": [
+  "Why is a doubly linked list needed, and not an array or a singly linked list?",
+  "How would you add TTL expiry per entry?",
+  "How would you make the cache thread-safe without a single global lock?",
+  "How would you implement LFU, and what changes?",
+  "What is the cache's space complexity?"
+ ]
+}

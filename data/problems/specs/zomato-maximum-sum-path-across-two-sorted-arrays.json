@@ -1,0 +1,49 @@
+{
+ "pid": "zomato-maximum-sum-path-across-two-sorted-arrays",
+ "title": "Maximum Sum Path Across Two Sorted Arrays",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given two sorted arrays `a` (length `n`) and `b` (length `m`). Each array contains **distinct** values in strictly increasing order, but the two arrays may share some values.\n\nA **path** starts at the first element of either array and walks to the right, ending after the last element of either array. While walking along one array you may switch to the other array, but only at a value that appears in **both** arrays: at such a common value you may continue in the array you are in, or continue from the position of the same value in the other array. A common value is counted only once in the sum, no matter which array you stand in when you cross it.\n\nThe sum of a path is the sum of all the (distinct) elements it visits. Find the maximum possible sum of a path.\n\nFor example, with `a = [2, 3, 7, 10, 12, 15, 30, 34]` and `b = [1, 5, 7, 8, 10, 15, 16, 17]` the arrays share 7, 10 and 15, and the best path has sum 122.\n\n**Follow-up:** the interviewer expected a solution that runs in O(n + m) time and O(1) extra space.",
+ "input_format": "The first line contains two integers `n` and `m`.\nThe second line contains `n` integers: the array `a` in increasing order.\nThe third line contains `m` integers: the array `b` in increasing order.",
+ "output_format": "Print one integer: the maximum path sum.",
+ "constraints": [
+  "1 ≤ n, m ≤ 10^5",
+  "1 ≤ a[i], b[j] ≤ 10^9",
+  "Each array is strictly increasing"
+ ],
+ "examples": [
+  {
+   "input": "8 8\n2 3 7 10 12 15 30 34\n1 5 7 8 10 15 16 17",
+   "output": "122",
+   "explanation": "The common values are 7, 10 and 15. Before 7 take array b (1 + 5 = 6 beats 2 + 3 = 5). Between 7 and 10 only b has an element (8). Between 10 and 15 only a has one (12). After 15, array a gives 30 + 34 = 64, which beats 16 + 17 = 33. Total: 6 + 7 + 8 + 10 + 12 + 15 + 64 = 122."
+  },
+  {
+   "input": "3 3\n1 2 3\n4 5 6",
+   "output": "15",
+   "explanation": "There is no common value, so you cannot switch. The best you can do is walk all of b: 4 + 5 + 6 = 15."
+  },
+  {
+   "input": "4 3\n1 4 6 9\n2 4 9",
+   "output": "21",
+   "explanation": "The common values are 4 and 9. Before 4, array a offers 1 and array b offers 2, so take b. Between 4 and 9, only a has an element (6). After 9 there is nothing left. The path is 2 + 4 + 6 + 9 = 21."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "The common values split both arrays into segments. Between two consecutive common values you must stay in one array, so you simply take the better of the two segment sums.",
+  "Walk both arrays with two pointers, like the merge step of merge sort, keeping a running segment sum for each array.",
+  "When both pointers sit on the same value, add max(sumA, sumB) plus that value to the answer and reset both running sums. Do not forget the last segments after the final common value."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    a = list(map(int, data[2:2 + n]))\n    b = list(map(int, data[2 + n:2 + n + m]))\n    i = j = 0\n    sa = sb = 0\n    total = 0\n    while i < n and j < m:\n        if a[i] < b[j]:\n            sa += a[i]\n            i += 1\n        elif a[i] > b[j]:\n            sb += b[j]\n            j += 1\n        else:\n            total += max(sa, sb) + a[i]\n            sa = sb = 0\n            i += 1\n            j += 1\n    while i < n:\n        sa += a[i]\n        i += 1\n    while j < m:\n        sb += b[j]\n        j += 1\n    total += max(sa, sb)\n    print(total)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\na = list(map(int, data[2:2 + n]))\nb = list(map(int, data[2 + n:2 + n + m]))\npa = {v: i for i, v in enumerate(a)}\npb = {v: j for j, v in enumerate(b)}\nf1 = [0] * (n + 1)\nf2 = [0] * (m + 1)\n# process by decreasing value so that cross references are ready\norder = sorted([(a[i], 0, i) for i in range(n)] + [(b[j], 1, j) for j in range(m)], reverse=True)\nfor v, which, idx in order:\n    if which == 0:\n        best = f1[idx + 1]\n        if v in pb:\n            best = max(best, f2[pb[v] + 1])\n        f1[idx] = v + best\n    else:\n        best = f2[idx + 1]\n        if v in pa:\n            best = max(best, f1[pa[v] + 1])\n        f2[idx] = v + best\nprint(max(f1[0], f2[0]))\n",
+ "generator": "def gen(rng):\n    def fmt(a, b):\n        return f'{len(a)} {len(b)}\\n' + ' '.join(map(str, a)) + '\\n' + ' '.join(map(str, b))\n    tests = [\n        fmt([2, 3, 7, 10, 12, 15, 30, 34], [1, 5, 7, 8, 10, 15, 16, 17]),\n        fmt([1], [1]),\n        fmt([5], [3]),\n        fmt([1, 2, 3], [4, 5, 6]),\n        fmt([1, 2, 3], [1, 2, 3]),\n        fmt([1, 4, 6, 9], [2, 4, 9]),\n        fmt([10**9], [10**9]),\n        fmt([1, 10**9], [2, 10**9]),\n    ]\n    for size in (2, 3, 5, 8, 12, 20):\n        for _ in range(3):\n            U = rng.randint(size, 2 * size + 3)\n            a = sorted(rng.sample(range(1, U + 1), rng.randint(1, min(size, U))))\n            b = sorted(rng.sample(range(1, U + 1), rng.randint(1, min(size, U))))\n            tests.append(fmt(a, b))\n    N = 10**5\n    uni = sorted(rng.sample(range(1, 10**9 + 1), 150000))\n    tests.append(fmt(sorted(rng.sample(uni, N)), sorted(rng.sample(uni, N))))\n    shared = sorted(rng.sample(range(1, 10**9 + 1), 300))\n    pool = rng.sample(range(1, 10**9 + 1), 2 * N)\n    sh = set(shared)\n    pool = [x for x in pool if x not in sh]\n    a = sorted(shared + pool[:N - 300])\n    b = sorted(shared + pool[N - 300:2 * N - 600])\n    tests.append(fmt(a, b))\n    tests.append(fmt(list(range(1, N + 1)), list(range(1, N + 1))))\n    tests.append(fmt(list(range(1, 2 * N, 2)), list(range(2, 2 * N + 1, 2))))\n    tests.append(fmt(list(range(10**9 - N + 1, 10**9 + 1)), list(range(10**9 - N + 1, 10**9 + 1))))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_path_sum(a: List[int], b: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    a = list(map(int, data[2:2 + n]))\n    b = list(map(int, data[2 + n:2 + n + m]))\n    print(max_path_sum(a, b))\n\n\nmain()\n",
+  "javascript": "function maxPathSum(a, b) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst a = t.slice(2, 2 + n)\nconst b = t.slice(2 + n, 2 + n + m)\nconsole.log(String(maxPathSum(a, b)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxPathSum(vector<long long>& a, vector<long long>& b) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<long long> a(n), b(m);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    for (int j = 0; j < m; j++) cin >> b[j];\n    cout << maxPathSum(a, b) << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxPathSum(long[] a, long[] b) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        long[] a = new long[n], b = new long[m];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            a[i] = (long) in.nval;\n        }\n        for (int j = 0; j < m; j++) {\n            in.nextToken();\n            b[j] = (long) in.nval;\n        }\n        System.out.println(maxPathSum(a, b));\n    }\n}\n"
+ }
+}

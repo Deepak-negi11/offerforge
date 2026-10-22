@@ -1,0 +1,18 @@
+{
+ "qid": "0517cc9138",
+ "question": "In the first round (problem solving and coding) for a Senior Software Engineer role at Myntra, the candidate was asked to design a **Graph class** with these requirements: it should encapsulate a **Node class that can hold any type of data**; relationships between nodes are captured as an **adjacency list of Nodes within the Node class**; the graph has a **start node**; it must support a **deep clone**; and initialisation logic is not required.",
+ "lookingFor": [
+  "Use of generics and encapsulation (inner class)",
+  "Correct deep copy of a graph containing cycles and shared nodes",
+  "Choosing traversal and a visited map to avoid infinite loops",
+  "Clean API and separation of concerns",
+  "Edge cases and complexity analysis"
+ ],
+ "answer": "**Design.** A generic `Graph<T>` with a nested `Node` class holding `T data` and a `List<Node> neighbors` (an adjacency list). The graph keeps a reference to `start`. Make the node a static nested class so it does not capture the outer instance.\n\n**The hard part: deep clone.** A naive recursive copy loops forever on cycles and duplicates nodes reachable by two paths. The standard fix is a map from each original node to its clone. Use the map both as the visited set and as the lookup so every original node is copied exactly once and edges point at the clones.\n\n    public class Graph<T> {\n        public static class Node<T> {\n            T data;\n            List<Node<T>> neighbors = new ArrayList<>();\n            Node(T data) { this.data = data; }\n        }\n        private Node<T> start;\n\n        public Graph<T> deepClone() {\n            Graph<T> copy = new Graph<>();\n            if (start == null) return copy;\n            Map<Node<T>, Node<T>> map = new IdentityHashMap<>();\n            Deque<Node<T>> queue = new ArrayDeque<>();\n            map.put(start, new Node<>(start.data));\n            queue.add(start);\n            while (!queue.isEmpty()) {\n                Node<T> cur = queue.poll();\n                for (Node<T> nb : cur.neighbors) {\n                    if (!map.containsKey(nb)) {\n                        map.put(nb, new Node<>(nb.data));\n                        queue.add(nb);\n                    }\n                    map.get(cur).neighbors.add(map.get(nb));\n                }\n            }\n            copy.start = map.get(start);\n            return copy;\n        }\n    }\n\nBFS with an explicit queue avoids stack overflow on deep graphs, whereas DFS recursion is simpler but can overflow. Time and space are O(V + E).\n\n**Design decisions to mention.**\n- Should `data` be copied? Cloning the graph structure copies nodes. For mutable payloads either require a `Cloneable`/copy function, or document that the data reference is shared. Offer a `UnaryOperator<T>` parameter to deep-copy the data.\n- `IdentityHashMap` is correct if `equals` is overridden on the node, since identity is what matters.\n- A node unreachable from `start` is not cloned; mention that, and that a `Set<Node>` of all nodes could be held if needed.\n- Directed vs undirected: for undirected, each edge appears in both lists, which the map handles naturally.\n- Thread safety and immutability are out of scope unless asked.",
+ "followUps": [
+  "How would your clone work if you used DFS recursion instead, and what is the risk?",
+  "How would you deep-copy the data inside each node when T is mutable?",
+  "How would the design change to support weighted edges?",
+  "How would you test the clone (what proves it is a true deep copy)?"
+ ]
+}

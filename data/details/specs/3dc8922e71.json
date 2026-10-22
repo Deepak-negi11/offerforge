@@ -1,0 +1,19 @@
+{
+ "qid": "3dc8922e71",
+ "question": "LinkedIn Software Engineer (IC2) system design round, 60 minutes covering both HLD and LLD: **design a metric collection and querying system**.\n\nThe system collects metrics from a large fleet of machines (hundreds of machines, each exposing thousands of statistics) and retrieves them over a requested time period for an external visualization system. A metric is a tuple `[timestamp, node, metric, value]`. The main consumers are a **graphing system** (for a metric name, plot a set of sources between t1 and t2, for example memory usage of three hosts over a week) and an **alerting system** that sends an alert, such as an email, when a metric goes above or below a threshold (for example memory above 70%). Collect and aggregate the data in a scalable way.",
+ "lookingFor": [
+  "Requirements and scale estimation (writes per second, retention, query patterns).",
+  "Choice of ingestion model (push versus pull) and buffering to absorb bursts.",
+  "Time-series storage design, downsampling and retention.",
+  "Separate read path (range queries) and alerting path.",
+  "Reasoning on failures, cardinality, and hot partitions."
+ ],
+ "answer": "**Requirements and scale.** Functional: ingest metric points, query by metric, set of nodes and time range, evaluate threshold alerts. Non-functional: high write throughput, low-latency dashboard queries, tolerance for node and network failures, and eventual consistency is fine. Estimate: 500 machines x 5,000 stats every 10 s is about 250k points per second. At roughly 16 bytes per point that is about 4 MB/s, or about 350 GB per day raw, which drives downsampling and retention choices.\n\n**API.** `POST /metrics` (batch of tuples, or agent pushes), `GET /query?metric=&nodes=&from=&to=&step=`, and `POST /alerts` for rules such as `metric, aggregation, window, threshold, channel`.\n\n**Components**\n1. **Agent per machine** gathers stats, batches and compresses them, and sends them. Pull (a scraper polls each node) gives central control and easy health checks; push is simpler across firewalls and short-lived jobs. State your choice and why.\n2. **Ingestion gateway** (stateless) validates and writes into a **log such as Kafka**, partitioned by `(node, metric)` hash. The queue absorbs bursts and decouples consumers.\n3. **Consumers:** one writes to the time-series store; a stream processor computes rollups (1 minute, 1 hour averages, min, max, count) and feeds alerting.\n4. **Storage:** a time-series database or a wide-column store keyed by `(metric, node)` with time-ordered columns, so a range read of one series is sequential. Keep raw data short (days) and rollups long (months). Use time-based partitions and delta-of-delta compression.\n5. **Query service** picks the resolution from the time range (a week query uses rollups, not raw points), caches popular dashboard queries and fans out across shards.\n6. **Alerting:** evaluate rules on the stream (windowed aggregation) rather than querying the database for every rule. Deduplicate, add a for-duration to avoid flapping, and send via a notification service.\n\n**Trade-offs and bottlenecks:** high cardinality (too many label combinations) can overwhelm storage, so cap and monitor it. Late and duplicate data need idempotent writes by `(series, timestamp)`. Hot series can be sub-partitioned. A lost alert evaluator is handled by replicating it or resuming from queue offsets.\n\n**Scaling:** add Kafka partitions and consumers, shard storage by series hash, and use regional collectors that forward aggregates.",
+ "followUps": [
+  "Push versus pull collection: which would you choose and why?",
+  "How do you handle a node that goes silent: is that an alert too?",
+  "How would you downsample and decide retention without losing spikes?",
+  "How do you avoid duplicate or flapping alerts?",
+  "What happens when cardinality explodes?"
+ ]
+}

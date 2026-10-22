@@ -1,0 +1,19 @@
+{
+ "qid": "6632f56759",
+ "question": "Design a small chat-activity component with two APIs: (1) register that two users had a conversation at a given timestamp, and (2) return the **most active user(s)**. A user's activity is the number of **unique users** they have conversed with, and each pair counts only once however many times they talk. Follow-ups reported: return the **top K** most active users, a basic OOP question on private/public access (when getters and setters are needed), and **thread safety** when the solution uses a hash map (the candidate used C++ `unordered_map`).",
+ "lookingFor": [
+  "Clarifying the requirements: what \"active\" means, duplicate pairs, self-chats, ties.",
+  "Choosing data structures that make both APIs efficient.",
+  "Handling the top-K extension cleanly (heap versus sort) and stating complexity.",
+  "Basic OOP: encapsulation, access modifiers, and when accessors are unnecessary.",
+  "Concurrency awareness: standard containers are not safe for concurrent writes; options for locking."
+ ],
+ "answer": "**Clarify first.** Is a conversation between userA and userB undirected? Ignore self-chats? Is the timestamp used for anything (for example only recent activity) or just recorded? Ties: return all users with the maximum count.\n\n**Data model.** `Map<User, Set<User>> partners`. On `record(a, b, ts)`: if `a == b` return; add `b` to `partners[a]` and `a` to `partners[b]`. A set makes a repeated pair a no-op, so each pair counts once. Activity of a user = `partners[user].size()`.\n\n**Most active user (API 2).** Counts only ever increase, so keep `maxCount` and a set of users at that count, updated only when a set size actually grows. `record` is O(1) average and `mostActive` is O(size of the answer). The simple alternative is scanning all users, which is O(U).\n\n**Top K.** Use a min-heap of size K over `(count, user)`, giving O(U log K), or a full sort at O(U log U). If top K is queried often, keep a structure ordered by count (for example a bucket per count or a balanced tree), so updates are O(log U).\n\n**OOP follow-up.** Make fields `private`, expose behaviour through public methods (`record`, `topK`), and avoid returning the internal set (return a copy or a view that cannot be modified). Inside the same class you can read private fields directly, since a getter is only needed for outside access.\n\n**Thread safety.** `std::unordered_map` and `HashMap` are not safe for concurrent writes (a rehash can corrupt state, and a concurrent reader may see a broken structure). Options: one coarse mutex (a `shared_mutex` allowing many readers), `ConcurrentHashMap` with concurrent sets in Java, or per-user locks acquired in a fixed order (for example by user id) to avoid deadlock. Note that updating both users' sets and `maxCount` must be atomic together, so a coarse lock is the sensible first answer. Mention sharding by user id for scale.\n\n**Edge cases:** an unknown user, K greater than the number of users, and many repeated pairs.",
+ "followUps": [
+  "How would you only count conversations in the last 24 hours?",
+  "How would you scale this if there are billions of events per day?",
+  "Why is a hash map not thread-safe and what exactly can go wrong?",
+  "What is the difference between a mutex and a read-write lock here?",
+  "How would you test the thread-safety of your solution?"
+ ]
+}

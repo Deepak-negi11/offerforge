@@ -1,0 +1,17 @@
+{
+ "qid": "32e0c373e5",
+ "question": "In an Apple Software Engineer (IS&T Backend) technical round, the candidate was asked for a **TinyURL (URL shortener) design discussion** and explained two approaches, **Base62 encoding and MD5 hashing**, with their pros and cons.",
+ "lookingFor": [
+  "Clear requirements and a back-of-envelope estimate.",
+  "Understanding of short-code generation and collision handling.",
+  "Read-heavy scaling: caching, database choice, partitioning.",
+  "Articulating trade-offs between the two approaches."
+ ],
+ "answer": "**Requirements.** Create a short URL for a long URL, redirect quickly, optional custom alias and expiry, basic analytics. Non-functional: high availability, low redirect latency, codes unguessable enough. Assumptions to state: e.g. 100M new URLs per month and a read:write ratio of about 100:1, so reads dominate (roughly 40 writes and 4k reads per second on average).\n\n**Code length.** With Base62 (`a-z`, `A-Z`, `0-9`), 7 characters give 62^7, about 3.5 trillion codes, which is plenty.\n\n**API.** `POST /urls {longUrl, alias?, ttl?}` -> `{shortUrl}`; `GET /{code}` -> HTTP 301 or 302 redirect (302 if you need to count every click or support expiry, since 301 can be cached by browsers).\n\n**Approach 1: counter + Base62.** Generate a unique integer id (a database sequence, or a distributed ID service such as ranges leased to app servers, or Snowflake-style ids) and Base62-encode it. Pros: **no collisions**, short and simple. Cons: sequential codes are guessable (can be mitigated by shuffling bits or a salted encoding), and you need a coordinated id generator (a single point of failure unless ranged and replicated).\n\n**Approach 2: hash (e.g. MD5) of the URL.** Hash the long URL, Base62/hex-encode it, and take the first 7 characters. Pros: stateless, the same URL gives the same code (natural deduplication). Cons: truncation causes **collisions**, so you must check the database and re-hash with a salt or counter on conflict; MD5 is cryptographically broken (not a concern for this use, but still slower than needed); the same long URL used by different users cannot have separate stats unless a user id is added.\n\n**Data model.** `urls(code PK, long_url, user_id, created_at, expires_at)`. A key-value store (DynamoDB/Cassandra style) or a sharded relational database partitioned by `code` fits the pure lookup pattern.\n\n**Scaling.** Put a **cache** (e.g. Redis) in front for hot codes with LRU; use CDN or edge for redirects; run stateless app servers behind a load balancer; add read replicas; handle analytics asynchronously via a queue. Clean up expired links with TTL or a background job, and add rate limiting and malicious-URL checks.",
+ "followUps": [
+  "How do you prevent two servers from generating the same code?",
+  "301 or 302 redirect, and why?",
+  "How would you support custom aliases?",
+  "How would you handle one very popular link receiving most of the traffic?"
+ ]
+}

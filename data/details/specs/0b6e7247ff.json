@@ -1,0 +1,18 @@
+{
+ "qid": "0b6e7247ff",
+ "question": "Amazon SDE-2 system design: **design a real-time error log monitoring system** that handles **1M+ log writes per second** with **sub-second alerting**. The reported architecture used Kafka for ingestion, Flink for windowed aggregation and Elasticsearch for querying, and the interviewer spent about 15 minutes on **backpressure**: what happens when consumers cannot keep up with log spikes?",
+ "lookingFor": [
+  "Capacity reasoning at 1M events per second.",
+  "A sensible pipeline: collect, buffer, process, store, alert.",
+  "Windowed aggregation and low-latency alerting.",
+  "Backpressure and overload handling.",
+  "Durability, delivery semantics and retention."
+ ],
+ "answer": "**Requirements.** Ingest logs from many services, detect error-rate spikes or specific patterns, alert within about a second, and let engineers search recent logs. Scale: 1M events/s at roughly 500 B each is about 500 MB/s ingest, so partitioning and batching are essential.\n\n**Pipeline.**\n1. *Agents/SDKs* on hosts batch, compress and send logs (with local disk buffering).\n2. *Ingestion gateway* (stateless, behind a load balancer) validates and writes to a durable log.\n3. *Message broker* (Kafka-like) partitioned by service or a key, replicated, with retention of hours or days. It decouples producers and consumers and absorbs spikes.\n4. *Stream processor* (Flink-like) with tumbling or sliding windows computes error counts and rates per service and error type; compares to thresholds or baselines; emits alert events.\n5. *Alerting service* dedupes, groups and notifies (pager, chat), with cool-downs.\n6. *Storage/search:* an indexer consumes the same topic into a search index (Elasticsearch-like) for query, with hot/warm tiers, and archives to cheap object storage.\n\n**Sub-second alerting.** Alerts come off the stream processor directly, not from the search index. Use small windows, and event-time with watermarks to tolerate late data.\n\n**Backpressure.**\n- The broker is the shock absorber: producers write at their rate, consumers read at theirs, and lag is the metric to monitor.\n- Scale consumers horizontally (up to the partition count), so choose enough partitions up front.\n- Stream processors apply backpressure upstream through bounded buffers, instead of dropping data silently.\n- Prioritise: keep a separate fast path for alert computation, and let the indexing path lag. Sample or drop DEBUG/INFO logs first under overload; never drop ERRORs.\n- At the edge, agents buffer locally and apply rate limits or sampling.\n\n**Trade-offs.** At-least-once delivery with idempotent aggregation is simpler than exactly-once; cost vs retention; cardinality control for dimensions.",
+ "followUps": [
+  "How do you choose the number of Kafka partitions?",
+  "How do you handle late or out-of-order events in windows?",
+  "How do you avoid alert storms?",
+  "How would you monitor the monitoring system itself?"
+ ]
+}

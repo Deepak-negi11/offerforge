@@ -1,0 +1,18 @@
+{
+ "qid": "44252ff520",
+ "question": "JPMorgan Chase, SWE 2 (about 3 years of experience), Technical Interview 3. Java multithreading internals: **what the `volatile` keyword is and how it works internally**, **optimistic versus pessimistic locking**, **how `synchronized` works**, and then **WebFlux internals** which led to questions about **virtual threads**.",
+ "lookingFor": [
+  "Memory-model understanding: visibility, ordering and atomicity are different things.",
+  "Correct statement of what volatile does and does not guarantee.",
+  "Knowing how monitors and lock types work, and when to use CAS or version checks.",
+  "Understanding the blocking vs non-blocking vs virtual-thread models.",
+  "Precision about versions and caveats rather than buzzwords."
+ ],
+ "answer": "**volatile.** It gives **visibility and ordering**, not atomicity. A write to a `volatile` field happens-before every later read of it (Java Memory Model), so other threads see the new value and the writes made before it. Without it, a thread may cache a value in a register or reorder instructions. In practice the JVM emits memory barriers around volatile accesses. It suits flags (`volatile boolean running`) and safe publication. It does **not** make `count++` atomic, since that is read, modify, write; use `AtomicInteger` or a lock.\n\n**synchronized.** Each object has an intrinsic **monitor**. Entering a `synchronized` block acquires it (mutual exclusion) and exiting releases it, and release happens-before the next acquire, so it also gives visibility. HotSpot optimises with lightweight locking and escalates to a heavier OS-assisted monitor under contention. Compared with `ReentrantLock`, `synchronized` is simpler and auto-released; `ReentrantLock` adds `tryLock`, timeouts, interruptibility and fairness.\n\n**Pessimistic vs optimistic locking.**\n- **Pessimistic:** assume conflicts, lock first (`synchronized`, `SELECT ... FOR UPDATE`). Safe under high contention but blocks others and risks deadlock.\n- **Optimistic:** do the work, then verify nothing changed before committing, with **compare-and-swap** (atomics) in memory or a **version column** in a database (`UPDATE ... WHERE version = ?`, retry on failure). Excellent with low contention; wasteful with frequent conflicts.\n\n**WebFlux and virtual threads.** WebFlux uses a reactive, non-blocking model: a small number of event-loop threads handle many connections, and you compose asynchronous pipelines (`Mono`, `Flux`); blocking calls inside stall the loop. Its cost is a harder programming and debugging style. **Virtual threads** (final in Java 21) are lightweight threads managed by the JVM and mounted on a small pool of carrier threads. A blocking I/O call unmounts the virtual thread, so you can write simple blocking code and still scale to very many concurrent tasks. Caveats: they help I/O-bound work, not CPU-bound; avoid pooling them; and on Java 21 blocking inside `synchronized` can pin the carrier thread, so prefer `ReentrantLock` there (later releases reduce this pinning).",
+ "followUps": [
+  "Why is `volatile` not enough for a counter, and what would you use?",
+  "What is the difference between `synchronized` and `ReentrantLock`?",
+  "How do you implement optimistic locking with JPA?",
+  "When would you still choose WebFlux over virtual threads?"
+ ]
+}

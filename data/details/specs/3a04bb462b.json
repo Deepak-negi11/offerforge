@@ -1,0 +1,18 @@
+{
+ "qid": "3a04bb462b",
+ "question": "Microsoft SDE-2, LLD round (round 3 of the loop). **Given an existing document service, add a comment service that reviewers can use to add comments to an existing document.** The discussion started with the functionality the comment service should have, then an **HLD of the entire service**, what **APIs to expose** to the end user, and then a little bit of LLD.",
+ "lookingFor": [
+  "Scoping requirements before designing.",
+  "Clean API and resource modelling that integrates with the existing service.",
+  "A data model that anchors comments to document positions and survives edits.",
+  "Reasoning on permissions, scale and consistency.",
+  "Moving from HLD to class-level design."
+ ],
+ "answer": "**Requirements.** Reviewers add comments on a document (whole document, a range of text, or a line), reply in threads, edit/delete their own comments, resolve threads, @mention users, and get notified. Non-functional: only users with access to the document can see or add comments; low latency reads; moderate write volume.\n\n**APIs (REST).**\n- `POST /documents/{docId}/comments` {anchor, text, parentId?}\n- `GET /documents/{docId}/comments?cursor=&resolved=` (paginated)\n- `PATCH /comments/{id}` (edit text, resolve), `DELETE /comments/{id}`\n- Optionally WebSocket or SSE for live updates.\n\n**Data model.** `Comment(id, docId, authorId, anchor, text, parentId, status, createdAt, updatedAt, version)`. Index on `(docId, createdAt)`; replies via `parentId`. The **anchor** is the hard part: store the document version plus an offset range and some surrounding text, and re-anchor when the document changes (or use stable element IDs if the document is block-based). Comments whose anchor disappears become \"outdated\" rather than lost.\n\n**HLD.** API gateway/auth, a Comment Service with its own datastore (SQL or document DB), calling the Document Service for access checks (or consuming a permissions cache), a notification queue for mentions and replies, and a cache for hot documents. Keep the services loosely coupled: the comment service references documents by ID only.\n\n**LLD.** `CommentService` (use cases), `CommentRepository`, `PermissionChecker`, `AnchorResolver`, `NotificationPublisher`, domain objects `Comment`, `Thread`, `Anchor`. Validation, optimistic concurrency on edit via the `version` field.\n\n**Trade-offs.** Separate service vs a module (independent scaling vs consistency); soft vs hard delete (keeps thread context); push vs poll for updates.\n\n**Edge cases.** Deleted documents, permission changes, very long threads, concurrent edits to the same comment.",
+ "followUps": [
+  "How do you keep a comment anchored to the right text when the document is edited?",
+  "How would you deliver new comments to other viewers in real time?",
+  "How do you enforce permissions without calling the document service on every request?",
+  "Hard delete or soft delete for comments, and why?"
+ ]
+}

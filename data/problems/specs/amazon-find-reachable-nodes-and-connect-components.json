@@ -1,0 +1,49 @@
+{
+ "pid": "amazon-find-reachable-nodes-and-connect-components",
+ "title": "Find Reachable Nodes and Connect Components",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an undirected graph with `n` nodes numbered `0` to `n - 1` and `m` edges (the same edge may be listed more than once; there are no self-loops), together with a start node `s`.\n\nAnswer two questions:\n\n- **Reachable nodes:** which nodes can be reached from `s` by following edges (including `s` itself)?\n- **Connecting the graph:** the graph may consist of several connected components. What is the minimum number of new edges that must be added so that the whole graph becomes connected, and which edges are they?\n\nThe minimum number of edges is `c - 1`, where `c` is the number of connected components. Several sets of edges achieve it, so the answer is fixed as follows. Let `r_1 < r_2 < ... < r_c` be the **smallest node of each component**. The edges to add are `(r_1, r_2), (r_2, r_3), ..., (r_{c-1}, r_c)`, printed in that order.\n\n**Follow-up:** in the interview version the graph had exactly two components and you were asked which edge joins them. Here the graph may have any number of components.",
+ "input_format": "The first line contains `n`, `m` and `s`. Each of the next `m` lines contains two integers `u` and `v`, an undirected edge between `u` and `v`.",
+ "output_format": "Line 1: the nodes reachable from `s`, in increasing order, separated by spaces.\nLine 2: the integer `k`, the number of edges to add.\nThen `k` lines, each with two integers `u v` (`u < v`): the edges `(r_i, r_{i+1})` in order of increasing `i`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ m ≤ 10^5",
+  "0 ≤ s, u, v < n, u ≠ v"
+ ],
+ "examples": [
+  {
+   "input": "6 4 0\n0 1\n1 2\n3 4\n4 5",
+   "output": "0 1 2\n1\n0 3",
+   "explanation": "Starting from node 0 we reach 0, 1 and 2. The graph has two components, {0, 1, 2} and {3, 4, 5}, whose smallest nodes are 0 and 3, so one edge (0, 3) joins them."
+  },
+  {
+   "input": "5 2 3\n3 1\n1 3",
+   "output": "1 3\n3\n0 1\n1 2\n2 4",
+   "explanation": "From node 3 we reach 3 and 1 (the repeated edge changes nothing). The components are {0}, {1, 3}, {2} and {4}, with smallest nodes 0, 1, 2, 4, so we add (0, 1), (1, 2) and (2, 4)."
+  },
+  {
+   "input": "3 2 1\n0 1\n1 2",
+   "output": "0 1 2\n0",
+   "explanation": "The graph is already connected, so every node is reachable and no edge is needed."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Run a BFS or DFS from `s` to get the reachable set. Sorting it (or marking nodes in a boolean array and scanning) gives the required order.",
+  "Every connected component is found by one traversal. If you start traversals in increasing node order, the node that starts a new traversal is the smallest node of its component.",
+  "With `c` components you need exactly `c - 1` edges. Chain the components together by their smallest nodes."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    data = sys.stdin.buffer.read().split()\n    n, m, s = int(data[0]), int(data[1]), int(data[2])\n    adj = [[] for _ in range(n)]\n    for i in range(m):\n        u = int(data[3 + 2 * i])\n        v = int(data[4 + 2 * i])\n        adj[u].append(v)\n        adj[v].append(u)\n    comp = [-1] * n\n    roots = []\n    for r in range(n):\n        if comp[r] != -1:\n            continue\n        cid = len(roots)\n        roots.append(r)\n        comp[r] = cid\n        stack = [r]\n        while stack:\n            u = stack.pop()\n            for w in adj[u]:\n                if comp[w] == -1:\n                    comp[w] = cid\n                    stack.append(w)\n    reach = [i for i in range(n) if comp[i] == comp[s]]\n    out = [' '.join(map(str, reach)), str(len(roots) - 1)]\n    for i in range(len(roots) - 1):\n        out.append('%d %d' % (roots[i], roots[i + 1]))\n    print('\\n'.join(out))\n\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m, s = int(data[0]), int(data[1]), int(data[2])\nedges = [(int(data[3 + 2 * i]), int(data[4 + 2 * i])) for i in range(m)]\nlabel = list(range(n))\nchanged = True\nwhile changed:\n    changed = False\n    for u, v in edges:\n        lo = min(label[u], label[v])\n        if label[u] != lo:\n            label[u] = lo\n            changed = True\n        if label[v] != lo:\n            label[v] = lo\n            changed = True\nreach = [i for i in range(n) if label[i] == label[s]]\nroots = sorted(set(label))\nout = [' '.join(map(str, reach)), str(len(roots) - 1)]\nfor i in range(len(roots) - 1):\n    out.append('%d %d' % (roots[i], roots[i + 1]))\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    def fmt(n, edges, s):\n        return '%d %d %d\\n' % (n, len(edges), s) + '\\n'.join('%d %d' % (u, v) for u, v in edges)\n\n    def rand_edges(n, m):\n        es = []\n        for _ in range(m):\n            u = rng.randrange(n)\n            v = rng.randrange(n)\n            while v == u:\n                v = rng.randrange(n)\n            es.append((u, v))\n        return es\n\n    tests = [\n        fmt(1, [], 0),\n        fmt(2, [], 1),\n        fmt(2, [(0, 1)], 1),\n        fmt(5, [(3, 1), (1, 3)], 3),\n        fmt(6, [(0, 1), (1, 2), (3, 4), (4, 5)], 0),\n        fmt(7, [(6, 5), (5, 4), (4, 3)], 6),\n        fmt(4, [(0, 1), (2, 3)], 3),\n    ]\n    for n in (2, 3, 4, 5, 6, 8, 10, 12, 15, 20):\n        for _ in range(2):\n            m = rng.randint(0, n)\n            tests.append(fmt(n, rand_edges(n, m), rng.randrange(n)))\n    N = 100000\n    tests.append(fmt(N, rand_edges(N, 100000), rng.randrange(N)))\n    tests.append(fmt(N, rand_edges(N, 30000), rng.randrange(N)))\n    tests.append(fmt(N, [], rng.randrange(N)))\n    tests.append(fmt(N, [(i, i + 1) for i in range(N - 1)], N // 2))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef solve(n: int, edges: List[Tuple[int, int]], s: int) -> Tuple[List[int], List[Tuple[int, int]]]:\n    # Write your solution here\n    return [], []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m, s = int(data[0]), int(data[1]), int(data[2])\n    edges = [(int(data[3 + 2 * i]), int(data[4 + 2 * i])) for i in range(m)]\n    reachable, added = solve(n, edges, s)\n    print(' '.join(map(str, reachable)))\n    print(len(added))\n    for u, v in added:\n        print(u, v)\n\n\nmain()\n",
+  "javascript": "function solve(n, edges, s) {\n  // Write your solution here\n  return { reachable: [], added: [] }\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1], s = t[2]\nconst edges = []\nfor (let i = 0; i < m; i++) edges.push([t[3 + 2 * i], t[4 + 2 * i]])\nconst res = solve(n, edges, s)\nconst lines = [res.reachable.join(' '), String(res.added.length)]\nfor (const [u, v] of res.added) lines.push(u + ' ' + v)\nconsole.log(lines.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\npair<vector<int>, vector<pair<int, int>>> solve(int n, vector<pair<int, int>>& edges, int s) {\n    // Write your solution here\n    return {{}, {}};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m, s;\n    cin >> n >> m >> s;\n    vector<pair<int, int>> edges(m);\n    for (auto& e : edges) cin >> e.first >> e.second;\n    auto res = solve(n, edges, s);\n    for (size_t i = 0; i < res.first.size(); i++) cout << res.first[i] << (i + 1 < res.first.size() ? \" \" : \"\");\n    cout << \"\\n\" << res.second.size() << \"\\n\";\n    for (auto& e : res.second) cout << e.first << \" \" << e.second << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static class Result {\n        List<Integer> reachable = new ArrayList<>();\n        List<int[]> added = new ArrayList<>();\n    }\n\n    static Result solve(int n, int[][] edges, int s) {\n        // Write your solution here\n        return new Result();\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        in.nextToken();\n        int s = (int) in.nval;\n        int[][] edges = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); edges[i][0] = (int) in.nval;\n            in.nextToken(); edges[i][1] = (int) in.nval;\n        }\n        Result res = solve(n, edges, s);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.reachable.size(); i++) sb.append(res.reachable.get(i)).append(i + 1 < res.reachable.size() ? \" \" : \"\");\n        sb.append(\"\\n\").append(res.added.size()).append(\"\\n\");\n        for (int[] e : res.added) sb.append(e[0]).append(\" \").append(e[1]).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

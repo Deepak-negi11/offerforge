@@ -1,0 +1,19 @@
+{
+ "qid": "9dc7b21527",
+ "question": "In the role-specialization round for a Software Engineer 2 role at PayPal (Chennai), the candidate was asked to **explain the difference between synchronized and non-synchronized code** and give examples of thread safety. They were then given a **code snippet that used database connections and asked to correct it so it is thread-safe**.\n\nThe same round also touched on applying OOP in real scenarios, design principles from recent projects, and Spring basics such as **dependency injection** and entities. The snippet itself was not reported.",
+ "lookingFor": [
+  "Do you understand race conditions, visibility and atomicity, and how synchronized addresses them?",
+  "Can you spot why sharing one mutable resource (a connection, a SimpleDateFormat, a lazy singleton) between threads is unsafe?",
+  "Do you prefer the practical fix (connection pool, per-request connection, try-with-resources) over blanket locking?",
+  "Do you know the Spring IoC container and injection styles?",
+  "Can you discuss the cost of locking: contention, deadlock, throughput?"
+ ],
+ "answer": "**Synchronized vs non-synchronized.** Unsynchronized code lets threads interleave freely, so shared mutable state can suffer **race conditions** (lost updates, e.g. `count++` is read-modify-write) and **visibility** problems (one thread does not see another's write). `synchronized` gives **mutual exclusion** (one thread holds the monitor at a time) and a **happens-before** guarantee (writes before release are visible after acquire). It costs throughput through contention, and nested locks risk deadlock. Alternatives: `volatile` for visibility of a single flag, `AtomicInteger`, `ReentrantLock`, concurrent collections, and the best option: **avoid sharing mutable state**.\n\n**Fixing the connection snippet.** A typical bad snippet keeps one `static Connection` (or lazily creates it with `if (conn == null) conn = DriverManager.getConnection(...)`) and all threads use it. Problems: the lazy init is a race (two connections created), and a JDBC `Connection`, `Statement` and `ResultSet` should not be used concurrently, so transactions from different threads would interleave on the same connection.\n\nFixes, in order of preference:\n1. Use a **connection pool** (HikariCP, or the container `DataSource`). Each thread or request borrows a connection and returns it.\n2. Acquire the connection **per unit of work** and always close it with try-with-resources:\n```java\ntry (Connection c = dataSource.getConnection();\n     PreparedStatement ps = c.prepareStatement(sql)) { ... }\n```\n3. If you must keep a single shared instance, initialize it safely: holder-class idiom, or double-checked locking with a `volatile` field, and synchronize or serialize its use. This limits throughput, so mention it only as a last resort.\n\n**Spring dependency injection.** The IoC container creates and wires beans instead of you calling `new`. Prefer **constructor injection** (immutable, easy to test), with `@Component`/`@Service` and `@Autowired`. Beans are **singletons by default**, so they must be stateless or thread-safe, which ties back to the thread-safety discussion. Name benefits: loose coupling, testability with mocks, and configuration in one place.",
+ "followUps": [
+  "What is the difference between `synchronized` method, block and a static synchronized method?",
+  "What does `volatile` guarantee and what does it not?",
+  "How does a connection pool decide its size, and what happens when it is exhausted?",
+  "Constructor vs field vs setter injection: which do you prefer and why?",
+  "What are Spring bean scopes?"
+ ]
+}

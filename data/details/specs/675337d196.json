@@ -1,0 +1,19 @@
+{
+ "qid": "675337d196",
+ "question": "Design a **parking lot** (low-level design, Salesforce SMTS). The candidate presented the class structure with design patterns (factory, strategy, singleton where applicable) and discussed the **database schema** of the stored entities.\n\nThe interviewer then asked about **concurrency control**: (1) when multiple threads handle requests, and (2) when the application is **distributed and uses a central database**. At each step the candidate explained the available options and why one was chosen. The hiring manager later reused the problem to discuss trade-offs and failure handling. It was also re-reported in a 2026 AMTS round.",
+ "lookingFor": [
+  "Sound class design with sensible patterns, not pattern-stuffing",
+  "A relational schema that matches the model",
+  "Ability to reason about race conditions: two cars, one spot",
+  "Knowledge of in-process vs distributed concurrency control",
+  "Trade-off thinking and failure handling"
+ ],
+ "answer": "**Requirements.** Multiple levels, spots of different sizes (motorbike, car, large), entry and exit gates, a ticket on entry, fee on exit, and a real-time count of free spots.\n\n**Classes.** `ParkingLot` (singleton or one per site), `Level`, `ParkingSpot` (type, status), `Vehicle` (factory creates by type), `Ticket` (spot, vehicle, entry time), `Payment`. Strategies: `SpotAssignmentStrategy` (nearest to entrance, lowest level first) and `PricingStrategy` (hourly, flat, per vehicle type). Both are Strategy pattern so they can change without touching the lot.\n\n**Schema.** `spots(id, level, type, status, version)`, `tickets(id, spot_id, plate, entry_ts, exit_ts, fee)`, `payments(...)`. Add a partial unique index so a spot has at most one open ticket.\n\n**Single process, many threads.** Do not lock the whole lot. Keep a concurrent free-spot structure per spot type (for example a `ConcurrentLinkedQueue`, or a lock per type). Taking a spot must be atomic: `poll()` removes it from the pool or a `compareAndSet(FREE, OCCUPIED)` on the spot. Release puts it back. Holding a lock for the short allocation only keeps throughput high.\n\n**Distributed, central DB.** In-memory locks no longer work across instances. Make the database the arbiter:\n- Optimistic: `UPDATE spots SET status='OCCUPIED', version=version+1 WHERE id=? AND status='FREE'`. If 0 rows are updated, someone else won, so pick another spot and retry.\n- Pessimistic: `SELECT ... FOR UPDATE SKIP LOCKED` to claim a free spot without waiting.\n- Use a single transaction for spot update plus ticket insert, and an idempotency key so a retried entry request does not issue two tickets.\n- A Redis lock is possible, but it needs a TTL and fencing, and adds a failure mode.\n\n**Failures.** A crash after claiming a spot but before issuing the ticket is handled by the transaction. Stale 'reserved' spots expire via a timeout job. Trade-offs: optimistic is best at low contention; pessimistic is simpler when contention is high.",
+ "followUps": [
+  "Why optimistic over pessimistic locking here, and when would you flip?",
+  "What happens if a gate instance crashes mid-allocation?",
+  "How would you show accurate free-spot counts to thousands of displays?",
+  "How would you add EV charging spots or reservations?",
+  "How would you shard this for a chain of many parking lots?"
+ ]
+}

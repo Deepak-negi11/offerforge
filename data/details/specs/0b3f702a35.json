@@ -1,0 +1,19 @@
+{
+ "qid": "0b3f702a35",
+ "question": "In a second technical round for a Product Engineer role at Sprinklr, the interviewer asked about the **internal structure of a hash map**. The follow-up was about collisions: **how can you reduce worst-case collision cost without changing the hash function**, while being allowed to change the internal structure of the map? The candidate was told time complexity could be worse than the best case but should be better than O(n) in the worst case. A few more hash map questions followed.",
+ "lookingFor": [
+  "Do you know the internals: array of buckets, hash to index, collision handling, resizing?",
+  "Can you reason about average versus worst-case complexity and why they differ?",
+  "Can you propose a structural fix, such as balanced trees in buckets, and justify the bound?",
+  "Do you know real implementations (e.g. Java 8 HashMap treeification)?",
+  "Do you see trade-offs: memory, ordering requirements on keys, resize cost?"
+ ],
+ "answer": "**How a hash map works.** It keeps an array of buckets. To insert `key`, compute `h = hash(key)`, map it to an index (`h mod capacity`, or a bit mask for power-of-two sizes), and store the entry in that bucket. Lookup repeats the same steps and compares keys with `equals`. Two keys landing in the same bucket is a **collision**.\n\n**Collision handling.**\n\n- *Separate chaining:* each bucket is a linked list (or other container) of entries.\n- *Open addressing:* probe other slots (linear, quadratic, double hashing) until a free one is found.\n\n**Resizing.** Track the load factor (entries / buckets). When it passes a threshold (0.75 in Java), double the array and re-insert entries (rehash). This keeps chains short, giving **O(1) average** operations, amortised over inserts.\n\n**The worst case.** If many keys land in one bucket (bad hash, adversarial keys), a list chain makes lookups **O(n)**.\n\n**Fix without changing the hash function: replace the bucket's list with a balanced search tree.** Keys inside a bucket are then ordered by a comparison, so lookup, insert and delete in a heavy bucket cost **O(log n)** instead of O(n). This is what Java 8's `HashMap` does: when a chain reaches 8 entries and the table has at least 64 buckets, the bucket is converted to a red-black tree, and it converts back to a list when it shrinks (around 6). Below that, the table is resized instead.\n\nOther structural options:\n\n- Keep a secondary hash table inside each bucket with a different hash seed (the idea behind perfect hashing / two-level tables).\n- Cuckoo hashing, which bounds lookups to a constant number of probes at the cost of more expensive inserts.\n- Randomise the hash seed per map to defeat adversarial inputs (a hash function change, so mention only as a side note).\n\n**Trade-offs.** Tree buckets need keys that are comparable (or a tie-breaker like identity hash), use more memory per node, and add code complexity. For typical data the trees almost never form, so the average case is unchanged.",
+ "followUps": [
+  "What is the load factor, and why is the default 0.75 a reasonable trade-off?",
+  "How does resizing work, and why is insertion still amortised O(1)?",
+  "What are the pros and cons of chaining versus open addressing?",
+  "What contract must `equals` and `hashCode` satisfy for keys?",
+  "How could an attacker exploit a predictable hash function, and how do languages defend against it?"
+ ]
+}

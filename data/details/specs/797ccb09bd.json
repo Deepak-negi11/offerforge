@@ -1,0 +1,18 @@
+{
+ "qid": "797ccb09bd",
+ "question": "Design **Twitter** (system design with LLD touchpoints, Senior Software Engineer, Myntra): users, tweets and a news feed. The interviewer posed a key challenge: how would you return the **top K tweets globally**, based on **likes or timestamp**?\n\nTopics discussed included scaling feed generation (**push vs pull**), **sharding** tweet data by userId or tweetId, caching with **Redis**, and using **Kafka** to fan out tweets to followers. The candidate was also asked to sketch the **Tweet class and Feed class** and their interactions through APIs, with attention to OOP principles, interfaces and data flow.",
+ "lookingFor": [
+  "Can you break an open-ended system into features, APIs and data flow?",
+  "Do you understand fan-out on write vs fan-out on read and when each wins?",
+  "Can you pick the right data structure (heap, sorted set) for the top-K requirement?",
+  "Do you reason about sharding keys, caching and hot spots?",
+  "Is your class design clean, with interfaces and clear responsibilities?"
+ ],
+ "answer": "**Requirements.** Post tweets, follow users, view a home feed, like tweets, and fetch the top K tweets globally. Read-heavy, hundreds of millions of users, and a few celebrity accounts with huge follower counts.\n\n**APIs.** `POST /tweets`, `POST /users/{id}/follow`, `GET /feed?cursor=`, `POST /tweets/{id}/like`, `GET /tweets/top?k=&by=likes|time`.\n\n**Feed generation.**\n- *Push (fan-out on write):* when a user tweets, a Kafka consumer writes the tweet id into each follower's feed list in Redis. Reads are fast, writes are expensive.\n- *Pull (fan-out on read):* build the feed at read time by merging recent tweets of followed users. Cheap writes, slower reads.\n- *Hybrid:* push for normal users, pull for celebrities and merge at read time. This avoids writing millions of entries per celebrity tweet.\n\n**Data and sharding.** Tweets sharded by `tweetId` (use a time-sortable id such as Snowflake) spread load evenly; sharding by `userId` makes a user's timeline one-shard but creates hot shards for celebrities. Follow graph is stored separately. Likes are counters, kept in Redis and flushed asynchronously.\n\n**Top K tweets.**\n- *By time:* newest K is the reverse-chronological head of the stream. Keep per-shard recent lists and merge.\n- *By likes:* a **min-heap of size K** keyed by like count gives O(n log K) over a batch. For live data, each shard keeps its local top K, and a coordinator merges the shard results (merge of K-sized lists). Likes change constantly, so a Redis sorted set (`ZINCRBY`, `ZREVRANGE`) is simpler than a heap, which cannot cheaply update arbitrary elements. Often \"top\" is computed per time window and refreshed every few seconds and cached, because exact real-time ranking is rarely required.\n\n**Classes.** `User`, `Tweet(id, authorId, text, createdAt, likeCount)`, `Feed` with a `FeedStrategy` interface (`PushFeedStrategy`, `PullFeedStrategy`), `TweetService`, `FeedService`.",
+ "followUps": [
+  "Why can a min-heap not handle likes being decremented or updated efficiently?",
+  "How would you handle a celebrity with 50 million followers?",
+  "How do you keep like counts accurate under heavy concurrent writes?",
+  "How would you rank the feed by relevance instead of time?"
+ ]
+}

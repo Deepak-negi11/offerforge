@@ -1,0 +1,18 @@
+{
+ "qid": "e08252cec4",
+ "question": "MakeMyTrip SSE-2 (4.8 years of experience), final round with a director. Reported questions: how GenAI has increased your productivity, with a percentage, and whether you know how **LLMs work internally** (and at what depth); a Java question; and the main design task: **design a pass-through service where third-party endpoints can be configured and accessed dynamically** (a third-party integration interface). The follow-up was to **implement it** (the candidate was expected to write a server, call a third-party endpoint with a Java HTTP API, and test it).",
+ "lookingFor": [
+  "Designing a configurable gateway/proxy cleanly.",
+  "Security of forwarding to third-party endpoints.",
+  "Resilience: timeouts, retries, circuit breakers, rate limits.",
+  "Ability to implement a small working version and test it.",
+  "Balanced, honest views on GenAI and LLM fundamentals."
+ ],
+ "answer": "**Design.** A pass-through (gateway) service: clients call `POST/GET /proxy/{integrationId}/{path...}`; the service looks up the integration's configuration, forwards the request to the third party, and returns the response.\n\n**Configuration model.** `integrations(id, name, baseUrl, allowedMethods, allowedPaths, authType, credentialRef, timeoutMs, retryPolicy, rateLimit, headerMappings, enabled)`. Admin APIs create/update integrations; the service caches config in memory and refreshes on change, so new endpoints go live without a deployment. This resembles how an ingress or API gateway routes by rule.\n\n**Request flow.**\n1. Authenticate the caller and check they may use this integration.\n2. Load config; reject unknown or disabled ids.\n3. Validate method and path against the allowlist; build the target URL.\n4. Strip hop-by-hop headers and inject credentials from a secrets store (never exposing them to clients).\n5. Forward with connect and read timeouts; apply retries only for idempotent requests.\n6. Return status, filtered headers and body; log request id, latency and status.\n\n**Security (important).** Forwarding to configurable URLs invites **SSRF**: restrict targets to the configured base URL, block private/internal IP ranges and redirects to them, and never let the client choose the host. Limit body size and protect secrets.\n\n**Resilience.** Per-integration rate limits and circuit breakers, bulkheads (separate thread pools), metrics and alerting.\n\n**Implementation sketch in Java.** A Spring Boot controller with a catch-all mapping, a `ConfigRepository` (in-memory map for the exercise), and `HttpClient` (Java 11+) for forwarding: build `HttpRequest` with the method, URI and body, then `client.send(...)`. If you forget an API, say you would check the docs; interviewers usually care that you reason correctly.\n\n**Testing.** Start a mock third-party server (WireMock or a tiny local HTTP server), register it as an integration, then assert forwarded path, headers, status, timeouts and error mapping with unit and integration tests.\n\n**GenAI and LLM questions.** Give an honest, concrete answer: name the tasks where it helps (boilerplate, tests, explanations), the checks you still do (review, run tests), and avoid invented percentages; for LLMs, explain at your true depth: tokens, transformer attention, next-token prediction trained on large text, then fine-tuning.\n\n**Avoid:** letting clients supply arbitrary target URLs, and swallowing upstream errors.",
+ "followUps": [
+  "How would you prevent SSRF through the configurable endpoints?",
+  "How would you handle large file uploads and streaming responses?",
+  "How would you add per-integration rate limiting?",
+  "How would you test the proxy against a failing third party?"
+ ]
+}

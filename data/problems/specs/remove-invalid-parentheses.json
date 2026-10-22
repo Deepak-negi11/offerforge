@@ -1,0 +1,49 @@
+{
+ "pid": "remove-invalid-parentheses",
+ "title": "Remove Invalid Parentheses",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given a string `s` made of lowercase letters and the characters `(` and `)`.\n\nA string is **valid** if, after ignoring the letters, the parentheses are balanced: every `)` can be matched with an earlier unmatched `(`, and every `(` ends up matched with a later `)`. A string with no parentheses at all is valid.\n\nDelete the **minimum possible number** of characters from `s` so that the remaining string is valid. (Deleting a letter never helps, so only parentheses are ever removed.) Find every **distinct** valid string that can be obtained using that minimum number of deletions. Two results count as the same if they are equal as strings, even when they come from deleting different positions.\n\nPrint the number of distinct results, followed by the results in ascending lexicographic (ASCII) order, one per line. The result may be the empty string, which is printed as an empty line.\n\n**Follow-up:** In the interview this was written out on paper, with no IDE; practise explaining a recursive solution and dry-running it on a small input by hand.",
+ "input_format": "A single line containing the string `s`.",
+ "output_format": "The first line contains the number `k` of distinct results. Each of the next `k` lines contains one result, in ascending lexicographic order.",
+ "constraints": [
+  "1 ≤ |s| ≤ 25",
+  "s consists of lowercase English letters, '(' and ')'",
+  "s contains at most 20 parentheses"
+ ],
+ "examples": [
+  {
+   "input": "(a)b)",
+   "output": "2\n(a)b\n(ab)",
+   "explanation": "The second `)` has no `(` left to match, so one deletion is needed. Deleting the last `)` gives `(a)b`; deleting the first `)` gives `(ab)`. Both are valid and no result needs fewer deletions. In ASCII order `)` comes before `b`, so `(a)b` is listed first."
+  },
+  {
+   "input": "x(y(z)",
+   "output": "2\nx(yz)\nxy(z)",
+   "explanation": "There is only one `)` for two `(`, so exactly one `(` must go, and either one can. Removing the first gives `xy(z)`, removing the second gives `x(yz)`. Since `(` sorts before `y`, `x(yz)` comes first."
+  },
+  {
+   "input": ")(",
+   "output": "1\n",
+   "explanation": "The `)` comes before any `(`, and the `(` is never closed, so both must be deleted. The only result is the empty string, printed as an empty line."
+  }
+ ],
+ "complexity": {
+  "time": "O(2^p · n) in the worst case, where p is the number of parentheses",
+  "space": "O(n + number of results)"
+ },
+ "hints": [
+  "A single left-to-right scan tells you exactly how many `(` and how many `)` must be removed at minimum.",
+  "Use backtracking: at each parenthesis choose to delete it (if you still have deletions of that kind left) or keep it (only keep a `)` if there is an open `(` to match). Prune as soon as a prefix cannot become valid.",
+  "To avoid generating the same string many times, collect results in a set, or when you delete from a run of identical parentheses decide how many of that run to delete instead of which ones."
+ ],
+ "reference": "import sys\n\ndef main():\n    s = sys.stdin.readline().strip()\n    l = r = 0\n    for c in s:\n        if c == '(':\n            l += 1\n        elif c == ')':\n            if l:\n                l -= 1\n            else:\n                r += 1\n    runs = []\n    for c in s:\n        if runs and runs[-1][0] == c:\n            runs[-1][1] += 1\n        else:\n            runs.append([c, 1])\n    res = set()\n\n    def dfs(idx, l, r, open_, cur):\n        if idx == len(runs):\n            if l == 0 and r == 0 and open_ == 0:\n                res.add(cur)\n            return\n        c, t = runs[idx]\n        if c == '(':\n            for j in range(min(t, l) + 1):\n                keep = t - j\n                dfs(idx + 1, l - j, r, open_ + keep, cur + '(' * keep)\n        elif c == ')':\n            for j in range(min(t, r) + 1):\n                keep = t - j\n                if keep > open_:\n                    continue\n                dfs(idx + 1, l, r - j, open_ - keep, cur + ')' * keep)\n        else:\n            dfs(idx + 1, l, r, open_, cur + c * t)\n\n    dfs(0, l, r, 0, '')\n    out = sorted(res)\n    print(len(out))\n    for x in out:\n        print(x)\n\nmain()\n",
+ "brute": "import sys\n\ns = sys.stdin.readline().strip()\n\ndef valid(t):\n    bal = 0\n    for c in t:\n        if c == '(':\n            bal += 1\n        elif c == ')':\n            bal -= 1\n            if bal < 0:\n                return False\n    return bal == 0\n\nlevel = {s}\nwhile True:\n    good = sorted(t for t in level if valid(t))\n    if good:\n        break\n    level = {t[:i] + t[i + 1:] for t in level for i in range(len(t)) if t[i] in '()'}\nprint(len(good))\nfor t in good:\n    print(t)\n",
+ "generator": "def gen(rng):\n    tests = [\n        \"()\", \")(\", \"a\", \"(((\", \")))\", \"()())()\", \"(a)())()\", \"n)(\", \"((()\", \"())\", \"(()\", \"a(b)c\", \")a(\",\n        \"()()()\", \"(((a)))\", \")))(((\", \"(()))(()\", \"(a(b)c)d)e(\",\n        \"(\" * 10 + \")\" * 10 + \"abcde\",\n        \")\" * 10 + \"(\" * 10 + \"abcde\",\n        \"(()\" * 6 + \"ab\",\n        \"())\" * 6 + \"abc\",\n    ]\n    for _ in range(40):\n        n = rng.randint(1, 13)\n        alphabet = rng.choice([\"()\", \"()a\", \"(()a\", \"())a\", \"()ab\"])\n        tests.append(\"\".join(rng.choice(alphabet) for _ in range(n)))\n    # maximum size: 20 parentheses and 5 letters\n    for _ in range(10):\n        chars = [rng.choice(\"()\") for _ in range(20)] + [rng.choice(\"abcxyz\") for _ in range(5)]\n        rng.shuffle(chars)\n        tests.append(\"\".join(chars))\n    # many ties\n    for pat in (\"()\" * 10, \"(\" * 12 + \")\" * 8, \"(\" * 8 + \")\" * 12, \")(\" * 10, \"(()\" * 6 + \"()\"):\n        tests.append(pat + \"abcde\"[: max(0, 25 - len(pat))])\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef remove_invalid(s: str) -> List[str]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    s = sys.stdin.readline().strip()\n    res = sorted(set(remove_invalid(s)))\n    print(len(res))\n    for x in res:\n        print(x)\n\n\nmain()\n",
+  "javascript": "function removeInvalid(s) {\n  // Write your solution here\n  return []\n}\n\nconst s = input.split('\\n')[0].trim()\nconst res = [...new Set(removeInvalid(s))].sort()\nconsole.log([String(res.length), ...res].join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<string> removeInvalid(const string& s) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    string s;\n    getline(cin, s);\n    while (!s.empty() && (s.back() == '\\r' || s.back() == ' ')) s.pop_back();\n    vector<string> res = removeInvalid(s);\n    sort(res.begin(), res.end());\n    res.erase(unique(res.begin(), res.end()), res.end());\n    cout << res.size() << \"\\n\";\n    for (const string& x : res) cout << x << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<String> removeInvalid(String s) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String s = br.readLine().trim();\n        TreeSet<String> res = new TreeSet<>(removeInvalid(s));\n        StringBuilder sb = new StringBuilder();\n        sb.append(res.size()).append(\"\\n\");\n        for (String x : res) sb.append(x).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

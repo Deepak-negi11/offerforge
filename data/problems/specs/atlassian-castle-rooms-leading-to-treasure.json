@@ -1,0 +1,45 @@
+{
+ "pid": "atlassian-castle-rooms-leading-to-treasure",
+ "title": "Castle Rooms Leading to Treasure",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A castle has `n` rooms numbered `0` to `n - 1`. Some of the rooms contain treasure, and you are given the list of treasure rooms. You are also given `m` directed pairs `(a, b)`, each meaning that room `a` has a one-way passage leading to room `b`.\n\nFind every room `r` that satisfies **both** conditions:\n\n- At least **two different other rooms** have a passage leading directly to `r`.\n- Room `r` has a passage leading to some room `s`, and room `s` has a passage leading directly to a **treasure room**.\n\nNote that the room `r` itself does not need to hold treasure; the treasure room is the target of the room that `r` points to. A room may satisfy the conditions even if it or `s` is itself a treasure room. Each ordered pair appears at most once and `a != b`.\n\nPrint all such rooms in increasing order, or `-1` if there are none.",
+ "input_format": "The first line contains three integers `n`, `m` and `t`: the number of rooms, the number of passages and the number of treasure rooms.\nEach of the next `m` lines contains two integers `a` and `b`, meaning a passage from room `a` to room `b`.\nThe last line contains `t` distinct integers: the treasure rooms.",
+ "output_format": "Print the qualifying room numbers in increasing order, separated by spaces, on a single line. If no room qualifies, print `-1`.",
+ "constraints": [
+  "1 ≤ n ≤ 5 · 10^4",
+  "0 ≤ m ≤ 10^5",
+  "1 ≤ t ≤ n",
+  "0 ≤ a, b < n, a ≠ b, and no ordered pair appears twice"
+ ],
+ "examples": [
+  {
+   "input": "7 7 2\n0 2\n1 2\n2 3\n3 5\n0 4\n1 4\n4 3\n5 6",
+   "output": "2 4",
+   "explanation": "Rooms 2 and 4 are each pointed to by rooms 0 and 1. Room 2 leads to room 3, and room 3 leads to treasure room 5, so room 2 qualifies. Room 4 also leads to room 3, so it qualifies as well. Room 3 is pointed to by rooms 2 and 4, but the only room it leads to is room 5, which has no passage onward to a treasure room, so it does not qualify."
+  },
+  {
+   "input": "5 5 1\n0 1\n2 1\n1 3\n3 0\n4 3\n4",
+   "output": "-1",
+   "explanation": "Rooms 1 and 3 each have two incoming passages. Room 1 leads to room 3, which leads only to room 0, not to the treasure room 4. Room 3 leads to room 0, which leads only to room 1. Neither qualifies, so the answer is -1."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Count how many distinct rooms point into each room. Since pairs are unique, this is just the in-degree.",
+  "First mark every room that has a passage straight into a treasure room. Those are the rooms `s` you are looking for.",
+  "A room `r` qualifies if its in-degree is at least 2 and at least one of its outgoing neighbours is marked. One pass over the edges is enough."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m, t = int(data[0]), int(data[1]), int(data[2])\n    indeg = [0] * n\n    out = [[] for _ in range(n)]\n    for i in range(m):\n        a = int(data[3 + 2 * i]); b = int(data[4 + 2 * i])\n        indeg[b] += 1\n        out[a].append(b)\n    treasure = [False] * n\n    for x in data[3 + 2 * m: 3 + 2 * m + t]:\n        treasure[int(x)] = True\n    good = [False] * n\n    for s in range(n):\n        for v in out[s]:\n            if treasure[v]:\n                good[s] = True\n                break\n    res = []\n    for r in range(n):\n        if indeg[r] >= 2 and any(good[s] for s in out[r]):\n            res.append(r)\n    print(' '.join(map(str, res)) if res else -1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m, t = int(data[0]), int(data[1]), int(data[2])\npairs = set()\nfor i in range(m):\n    pairs.add((int(data[3 + 2 * i]), int(data[4 + 2 * i])))\nT = set(int(x) for x in data[3 + 2 * m: 3 + 2 * m + t])\nres = []\nfor r in range(n):\n    ins = [a for a in range(n) if a != r and (a, r) in pairs]\n    if len(ins) < 2:\n        continue\n    ok = False\n    for s in range(n):\n        if (r, s) in pairs:\n            for x in T:\n                if (s, x) in pairs:\n                    ok = True\n    if ok:\n        res.append(r)\nprint(' '.join(map(str, res)) if res else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(n, edges, tr):\n        return f\"{n} {len(edges)} {len(tr)}\\n\" + ''.join(f\"{a} {b}\\n\" for a, b in edges) + ' '.join(map(str, tr))\n    tests = [\n        fmt(1, [], [0]),\n        fmt(2, [(0, 1)], [1]),\n        fmt(4, [(0, 2), (1, 2), (2, 3)], [3]),\n        fmt(5, [(0, 2), (1, 2), (2, 3), (3, 4)], [4]),\n        fmt(4, [(0, 1), (2, 1), (1, 3), (3, 0), (3, 2)], [0, 2]),\n    ]\n    for n in (3, 4, 5, 6, 7, 8, 9, 10):\n        for _ in range(3):\n            allp = [(a, b) for a in range(n) for b in range(n) if a != b]\n            m = rng.randint(0, min(len(allp), 2 * n))\n            edges = rng.sample(allp, m)\n            t = rng.randint(1, max(1, n // 2))\n            tests.append(fmt(n, edges, rng.sample(range(n), t)))\n    def big(n, m, t, dense_targets=False):\n        s = set()\n        edges = []\n        while len(edges) < m:\n            a = rng.randrange(n)\n            b = rng.randrange(n) if not dense_targets else rng.randrange(max(2, n // 50))\n            if a != b and (a, b) not in s:\n                s.add((a, b))\n                edges.append((a, b))\n        return fmt(n, edges, rng.sample(range(n), t))\n    tests.append(big(50000, 100000, 500))\n    tests.append(big(50000, 100000, 50000))\n    tests.append(big(50000, 100000, 5, True))\n    # layered chain: many rooms qualify\n    n = 50000\n    edges = [(i, i + 1) for i in range(n - 1)] + [(i, i + 2) for i in range(n - 2)]\n    tests.append(fmt(n, edges, [n - 1]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef find_rooms(n: int, edges: List[List[int]], treasure: List[int]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m, t = int(data[0]), int(data[1]), int(data[2])\n    edges = [[int(data[3 + 2 * i]), int(data[4 + 2 * i])] for i in range(m)]\n    treasure = [int(x) for x in data[3 + 2 * m: 3 + 2 * m + t]]\n    res = find_rooms(n, edges, treasure)\n    print(' '.join(map(str, res)) if res else -1)\n\n\nmain()\n",
+  "javascript": "function findRooms(n, edges, treasure) {\n  // Write your solution here\n  return []\n}\n\nconst tk = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = tk[0], m = tk[1], t = tk[2]\nconst edges = []\nfor (let i = 0; i < m; i++) edges.push([tk[3 + 2 * i], tk[4 + 2 * i]])\nconst treasure = tk.slice(3 + 2 * m, 3 + 2 * m + t)\nconst res = findRooms(n, edges, treasure)\nconsole.log(res.length ? res.join(' ') : '-1')\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<int> findRooms(int n, vector<pair<int, int>>& edges, vector<int>& treasure) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m, t;\n    cin >> n >> m >> t;\n    vector<pair<int, int>> edges(m);\n    for (int i = 0; i < m; i++) cin >> edges[i].first >> edges[i].second;\n    vector<int> treasure(t);\n    for (int i = 0; i < t; i++) cin >> treasure[i];\n    vector<int> res = findRooms(n, edges, treasure);\n    if (res.empty()) {\n        cout << -1 << \"\\n\";\n    } else {\n        for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] findRooms(int n, int[][] edges, int[] treasure) {\n        // Write your solution here\n        return new int[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        in.nextToken();\n        int t = (int) in.nval;\n        int[][] edges = new int[m][2];\n        for (int i = 0; i < m; i++) {\n            in.nextToken(); edges[i][0] = (int) in.nval;\n            in.nextToken(); edges[i][1] = (int) in.nval;\n        }\n        int[] treasure = new int[t];\n        for (int i = 0; i < t; i++) {\n            in.nextToken(); treasure[i] = (int) in.nval;\n        }\n        int[] res = findRooms(n, edges, treasure);\n        if (res.length == 0) {\n            System.out.println(-1);\n            return;\n        }\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

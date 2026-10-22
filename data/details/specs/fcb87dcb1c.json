@@ -1,0 +1,17 @@
+{
+ "qid": "fcb87dcb1c",
+ "question": "Capgemini technical interview (Analyst / Senior Analyst), C fundamentals. The candidate was asked: **what is a garbage value in C?** and **what are the storage class specifiers in C?** These came after \"Introduce yourself\" and \"What is the C language?\", and storage class specifiers were also listed in another reported Capgemini interview.",
+ "lookingFor": [
+  "Understanding of how C handles memory and initialisation.",
+  "Knowing that reading uninitialised variables is a bug, not a feature.",
+  "Ability to name all storage classes and explain scope, lifetime and default value.",
+  "Clear, example-backed explanations rather than memorised definitions."
+ ],
+ "answer": "**Garbage value.** A garbage value is whatever bit pattern happens to sit in a memory location that your variable now occupies but that you never initialised. C does not zero-initialise automatic (local) variables for speed, so `int x; printf(\"%d\", x);` prints an unpredictable number. Reading it is undefined behaviour for most types, so never rely on it. The same applies to memory from `malloc` (use `calloc` or `memset` for zeros), and to reading beyond array bounds or through a dangling pointer. Fix: always initialise (`int x = 0;`), and compile with `-Wall -Wextra` or run sanitizers (Valgrind, MemorySanitizer) to catch it.\n\n**Storage class specifiers.** They control a variable's scope (where it is visible), lifetime (how long it exists), storage location and default value. C has four classic ones, plus `typedef` and `_Thread_local` syntactically:\n\n- `auto`: the default for local variables. Lives on the stack for the block, no default value (garbage).\n- `register`: hint to keep the variable in a CPU register for speed. You cannot take its address (`&`). Modern compilers mostly ignore the hint.\n- `static`: for a local, the value persists across calls and the variable is initialised once (default 0). For a global or function, it gives internal linkage, meaning visible only in that file.\n- `extern`: declares a variable or function defined in another file or later in the same file. It does not allocate storage; the definition elsewhere does.\n\nQuick example of `static` lifetime:\n\n```c\nvoid counter() { static int n = 0; n++; printf(\"%d\\n\", n); }\n```\n\nCalling it three times prints 1, 2, 3. With `auto int n = 0` it would print 1 every time.\n\n**Summary table in words:** auto and register are block scope with garbage default; static (local) is block scope but program lifetime with default 0; static (global) and extern are file or program scope with program lifetime and default 0. Globals and statics live in the data/BSS segment, locals in the stack, `malloc` memory in the heap.",
+ "followUps": [
+  "What is a dangling pointer and how is it different from a garbage value?",
+  "Where are static, global, local and heap variables stored in memory?",
+  "What does `static` mean on a global function?",
+  "Why can't you take the address of a register variable?"
+ ]
+}

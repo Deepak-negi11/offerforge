@@ -1,0 +1,19 @@
+{
+ "qid": "eedde85fea",
+ "question": "In a 90-minute low-level-design / machine coding round for a Swiggy SDE-2 role, the task was to **design and write the pseudo-code for an Inventory Management System** for a high-scale service like Swiggy Instamart (quick commerce).\n\nThe interviewer focused on how the system handles critical edge cases: **multi-user stock depletion**, **race conditions during peak flash sales**, and **inventory locks**. Clean code, modular class separation and robust handling of real-world constraints mattered.",
+ "lookingFor": [
+  "Can you model inventory with correct invariants (stock never negative, no oversell)?",
+  "Do you understand concurrency control: atomic updates, locks, reservations?",
+  "Can you design inventory reservation with expiry for carts and orders?",
+  "Is the code modular and extensible?",
+  "Can you discuss how this scales beyond one process?"
+ ],
+ "answer": "**Requirements:** products and per-store (dark store) stock, check availability, **reserve** on checkout, **confirm** on payment, **release** on failure or timeout, replenish, and no overselling even under a flash sale.\n\n**Entities**\n- `Product`, `Store`, `InventoryItem` (storeId, sku, `onHand`, `reserved`), `Reservation` (id, orderId, sku, qty, status: HELD, CONFIRMED, RELEASED, EXPIRED, expiresAt).\n- `InventoryService` (public API), `InventoryRepository` (interface), `ReservationExpiry` job.\n\n**Key invariant:** `available = onHand - reserved >= 0`. A reservation moves stock from available to reserved; confirm decrements `onHand` and `reserved`; release gives it back.\n\n**Reserve operation (must be atomic)**\n```\nreserve(store, sku, qty, orderId):\n  lock(store, sku)                 // per-key lock, not global\n  item = repo.get(store, sku)\n  if item.onHand - item.reserved < qty: return OUT_OF_STOCK\n  item.reserved += qty\n  repo.save(item); repo.saveReservation(HELD, expiresAt = now + ttl)\n  unlock\n```\n\n**Concurrency options**\n- **In-process:** a lock per `(store, sku)` (striped locks or `ConcurrentHashMap` with `compute`), or atomic counters with compare-and-set.\n- **Database:** a conditional update `UPDATE inventory SET reserved = reserved + :q WHERE sku = :s AND on_hand - reserved >= :q` and check the affected row count; or optimistic locking with a version column and retry. This is the safest option since it holds across many service instances.\n- **Flash sale hot keys:** a single row becomes a hot spot. Use Redis atomic operations (`DECRBY` with a Lua script), split stock into buckets/shards, or queue requests per SKU to serialise them.\n\n**Multi-item orders:** reserve all lines or none (rollback on partial failure), acquiring in a fixed SKU order to avoid deadlocks.\n\n**Edge cases:** reservation expiry returning stock, idempotent reserve/confirm using the order id (retries must not double-deduct), partial fulfilment, returns, and audit logging of every stock movement.\n\n**Scale:** shard by store, cache reads (not the source of truth for decrement), and reconcile periodically.",
+ "followUps": [
+  "How do you prevent deadlocks when reserving multiple SKUs?",
+  "How would you handle a flash sale where one SKU gets huge traffic?",
+  "How do you make reserve and confirm idempotent?",
+  "What happens if the service crashes after reserving but before the order is confirmed?",
+  "Pessimistic versus optimistic locking: when would you choose each?"
+ ]
+}

@@ -1,0 +1,17 @@
+{
+ "qid": "885fb31e87",
+ "question": "In an Adobe MTS-2 low-level design round, the interviewer asked the candidate to **design an auto-complete search system that returns the top-K suggestions based on search frequency**. The candidate described the solution as a variation of a Trie problem.",
+ "lookingFor": [
+  "Do you pick the right structure for prefix lookup and justify it?",
+  "Can you make top-K retrieval fast (not a full subtree scan per keystroke)?",
+  "Do you design the update path (counts changing) as well as the read path?",
+  "Can you scale beyond a single machine and discuss freshness vs latency?"
+ ],
+ "answer": "**API**: `input(prefix)` returns up to K suggestions ranked by frequency; completed searches update counts (as in the LeetCode 'Design Search Autocomplete System' variant, where a sentence ends with `#`).\n\n**Data structure**: a **Trie** keyed by characters. Each node has `children` (a map or array of 26) and an `isEnd` flag with `count`.\n\n**Naive query**: walk to the prefix node, DFS the subtree to collect all words, sort by (frequency desc, then lexicographic), return K. Cost is proportional to the subtree size, which is too slow for short prefixes.\n\n**Faster**: store at every node a small list of its **top-K words** (or a min-heap of size K). Query is `O(L)` to walk the prefix and `O(K)` to return. Update when a word's count changes: walk the word's path and refresh each node's top-K list, costing `O(L * K)`. Memory grows by K entries per node, which can be reduced by storing references or ids.\n\n**Class sketch**: `TrieNode`, `AutocompleteSystem { root, currentPrefix }`, with `search(char)` that appends to the current prefix, returns suggestions, and on `#` inserts the sentence and resets.\n\n**Tie-breaking and edge cases**: define ordering for equal counts, handle an empty prefix, a prefix with no matches, case/normalisation, and unicode.\n\n**Scaling**: shard the trie by prefix range; serve from memory; build the trie **offline** from aggregated query logs (batch or streaming) and swap it in, instead of updating on every search, accepting slightly stale rankings; cache hot prefixes; apply time decay so recent trends rank higher; filter offensive or private queries.\n\n**Alternatives**: a sorted array plus binary search for static data, or a ternary search tree for lower memory. Say why the trie with cached top-K wins for read-heavy, latency-critical autocomplete.",
+ "followUps": [
+  "What is the time and space complexity of each approach?",
+  "How would you rank by recency as well as frequency?",
+  "How would you handle typos or fuzzy matching?",
+  "How would you shard this for millions of queries per second?"
+ ]
+}

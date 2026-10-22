@@ -1,0 +1,19 @@
+{
+ "qid": "334edfcde2",
+ "question": "Salesforce MTS / SDE-2 hiring-manager round: **design an authentication / login system.** Candidates explained the **auth flow, credential storage and security protections**. Reports say the interviewer sometimes gave **no clear requirements and did not entertain clarifying questions**, so you must state your own assumptions. The round also covered projects and AI-tool usage.",
+ "lookingFor": [
+  "Stating assumptions explicitly when requirements are missing.",
+  "Secure credential handling: hashing, salting, never storing plain text.",
+  "Sound session/token design, with trade-offs and revocation.",
+  "Threat awareness: brute force, credential stuffing, session hijacking, CSRF, phishing.",
+  "Scalability and availability of the auth service."
+ ],
+ "answer": "**State assumptions.** Web and mobile clients, email+password login with optional MFA and social/SSO login later, millions of users, login is latency-sensitive and must be highly available. Out of scope unless asked: full authorisation (roles) design.\n\n**APIs.** `POST /signup`, `POST /login`, `POST /logout`, `POST /token/refresh`, `POST /password/forgot` and `/password/reset`, `POST /mfa/verify`.\n\n**Credential storage.** Never store passwords. Store a hash made with a slow, salted, memory-hard algorithm (**Argon2id**, or bcrypt/scrypt) with a unique per-user salt and tuned cost. Verify using constant-time comparison. Keep the user table (`user_id`, `email` unique and normalised, `password_hash`, `mfa_secret`, `status`, timestamps) in a replicated relational store. Encrypt sensitive fields.\n\n**Login flow.**\n1. The client sends credentials over **TLS**.\n2. Look up the user, verify the hash, check lockout and risk (new device or location), require MFA if configured.\n3. Issue tokens. Two common models:\n   - **Server-side session:** a random session id in a `HttpOnly; Secure; SameSite` cookie, stored in Redis with a TTL. Easy to revoke, but needs a shared store.\n   - **Token-based (JWT access token, short-lived, 5-15 min, plus a rotating refresh token):** stateless verification at services; revoke via short expiry, a denylist or refresh token rotation and reuse detection.\n4. Return generic errors (\"invalid credentials\") so you do not reveal whether an email exists.\n\n**Protections.** Rate limit per IP and per account, progressive delays or CAPTCHA, lockout with care (to avoid denial of service on users), breached-password checks, MFA (TOTP, WebAuthn), CSRF tokens for cookie auth, secure password reset (single-use, short-lived, hashed token sent by email), audit logs and alerts for suspicious logins, and secrets in a key management service.\n\n**Scaling.** Stateless auth servers behind a load balancer; session/refresh store in a replicated cache; hashing is CPU-heavy, so scale horizontally and rate limit to avoid CPU exhaustion; keep signing keys rotated (JWKS).\n\n**Trade-offs to state.** Sessions vs JWT (revocation vs statelessness), cookie vs header storage (XSS vs CSRF), and security vs usability (lockout, MFA friction).",
+ "followUps": [
+  "How would you revoke a JWT before it expires?",
+  "Why use Argon2 or bcrypt rather than SHA-256?",
+  "How does OAuth 2.0 / OpenID Connect differ from what you designed?",
+  "How would you defend against credential stuffing?",
+  "How would you design the password reset flow securely?"
+ ]
+}

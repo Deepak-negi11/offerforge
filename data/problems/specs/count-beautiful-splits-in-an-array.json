@@ -1,0 +1,48 @@
+{
+ "pid": "count-beautiful-splits-in-an-array",
+ "title": "Count Beautiful Splits in an Array",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given an integer array `nums` of length `n`. A **split** cuts the array into three non-empty contiguous parts `A`, `B`, `C` (so `A + B + C = nums`, where `+` means concatenation, and every element belongs to exactly one part).\n\nA split is **beautiful** if at least one of the following holds:\n\n- `A` is a prefix of `B`: `B` starts with exactly the elements of `A` (so `B` is at least as long as `A`).\n- `B` is a prefix of `C`: `C` starts with exactly the elements of `B` (so `C` is at least as long as `B`).\n\nTwo splits are different if they cut the array at different positions. Count the beautiful splits. A split that satisfies both conditions is counted once.",
+ "input_format": "The first line contains `n`. The second line contains the `n` integers of `nums`.",
+ "output_format": "Print a single integer: the number of beautiful splits.",
+ "constraints": [
+  "3 ≤ n ≤ 3000",
+  "0 ≤ nums[i] ≤ 50"
+ ],
+ "examples": [
+  {
+   "input": "6\n1 1 2 1 1 2",
+   "output": "5",
+   "explanation": "The beautiful splits (A | B | C) are: [1] | [1] | [2,1,1,2], [1] | [1,2] | [1,1,2], [1] | [1,2,1] | [1,2], [1] | [1,2,1,1] | [2] (in all four, A = [1] is a prefix of B), and [1,1,2] | [1] | [1,2] (B = [1] is a prefix of C). Every other split fails both conditions."
+  },
+  {
+   "input": "4\n5 5 5 5",
+   "output": "3",
+   "explanation": "There are three splits: [5] | [5] | [5,5] and [5] | [5,5] | [5] (A is a prefix of B), and [5,5] | [5] | [5] (B is a prefix of C). All three are beautiful."
+  },
+  {
+   "input": "3\n1 2 3",
+   "output": "0",
+   "explanation": "The only split is [1] | [2] | [3]. A is not a prefix of B and B is not a prefix of C."
+  }
+ ],
+ "complexity": {
+  "time": "O(n^2)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "A split is determined by two cut positions `i < j`. Checking a split by comparing elements directly costs O(n), giving O(n^3) overall. You need an O(1) check per split.",
+  "`A` is a prefix of `B` exactly when `B` is long enough (`j - i >= i`) and the suffix starting at `i` has a common prefix of length at least `i` with the whole array. One Z-function of `nums` answers this for every `i`.",
+  "`B` is a prefix of `C` when the suffixes starting at `i` and at `j` share a common prefix of length at least `j - i`. For each `i`, the Z-function of the suffix starting at `i` gives these values for all `j` in O(n); alternatively, build a longest-common-prefix table with a DP."
+ ],
+ "reference": "import sys\n\n\ndef zfunc(a):\n    n = len(a)\n    z = [0] * n\n    z[0] = n\n    l = r = 0\n    for i in range(1, n):\n        k = 0\n        if i < r:\n            k = z[i - l]\n            if k > r - i:\n                k = r - i\n        while i + k < n and a[k] == a[i + k]:\n            k += 1\n        z[i] = k\n        if i + k > r:\n            l = i\n            r = i + k\n    return z\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) for x in data[1:1 + n]]\n    z0 = zfunc(a)\n    total = 0\n    for i in range(1, n - 1):\n        zs = zfunc(a[i:])\n        a_ok = z0[i] >= i\n        # j = i + k with 1 <= k <= n - 1 - i\n        for k in range(1, n - i):\n            if (a_ok and k >= i) or zs[k] >= k:\n                total += 1\n    print(total)\n\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) for x in data[1:1 + n]]\ncnt = 0\nfor i in range(1, n - 1):\n    for j in range(i + 1, n):\n        A, B, C = a[:i], a[i:j], a[j:]\n        c1 = len(B) >= len(A) and B[:len(A)] == A\n        c2 = len(C) >= len(B) and C[:len(B)] == B\n        if c1 or c2:\n            cnt += 1\nprint(cnt)\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return '%d\\n%s' % (len(a), ' '.join(map(str, a)))\n\n    tests = [\n        fmt([1, 1, 2, 1, 1, 2]),\n        fmt([5, 5, 5, 5]),\n        fmt([1, 2, 3]),\n        fmt([0, 0, 0]),\n        fmt([7, 7, 8]),\n        fmt([2, 1, 2, 1, 2]),\n        fmt([3, 3, 3, 3, 3, 3, 3, 3]),\n        fmt([0, 1, 0, 1, 0, 1, 0, 1, 0]),\n    ]\n    for n in (3, 4, 5, 6, 8, 10, 12, 15, 20, 30, 40):\n        for _ in range(2):\n            tests.append(fmt([rng.randint(0, rng.choice([1, 2, 4])) for _ in range(n)]))\n    N = 3000\n    tests.append(fmt([0] * N))\n    tests.append(fmt([rng.randint(0, 1) for _ in range(N)]))\n    pat = [rng.randint(0, 50) for _ in range(7)]\n    tests.append(fmt([pat[i % 7] for i in range(N)]))\n    tests.append(fmt([rng.randint(0, 50) for _ in range(N)]))\n    tests.append(fmt([0] * (N - 1) + [1]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_beautiful_splits(nums: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    nums = [int(x) for x in data[1:1 + n]]\n    print(count_beautiful_splits(nums))\n\n\nmain()\n",
+  "javascript": "function countBeautifulSplits(nums) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconsole.log(countBeautifulSplits(t.slice(1, 1 + n)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countBeautifulSplits(vector<int>& nums) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<int> nums(n);\n    for (auto& x : nums) cin >> x;\n    cout << countBeautifulSplits(nums) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countBeautifulSplits(int[] nums) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[] nums = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            nums[i] = (int) in.nval;\n        }\n        System.out.println(countBeautifulSplits(nums));\n    }\n}\n"
+ }
+}

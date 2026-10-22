@@ -1,0 +1,18 @@
+{
+ "qid": "a900bedc80",
+ "question": "Zoho application development round (Member Technical Staff, about 3 hours): build a **console taxpayer application**. There is a main menu with **admin** and **taxpayer** roles, and the ability to **register a new user or admin** and log in.\n\nAdmins **create and update tax slabs** (how much tax applies for each income bracket). A taxpayer can **check the tax calculation** for their own income. All details, including **credentials and tax slabs, must be stored in non-volatile storage** so they are retained across runs. Evaluators feed **all sorts of invalid inputs** (for example a string where the income amount is expected), so everything must be validated. Completing one paper lets you receive the next paper, which **extends the same application**.",
+ "lookingFor": [
+  "Role-based flows (admin versus taxpayer) with clean separation.",
+  "Correct slab-based (progressive) tax calculation.",
+  "Reliable persistence to file or database that survives restarts.",
+  "Defensive input validation and sensible error messages.",
+  "A structure that tolerates new requirements in the next paper."
+ ],
+ "answer": "**Entities.**\n- `User` (abstract) with `Admin` and `Taxpayer` subclasses: username, password hash, role. A taxpayer also has income (or income is entered at calculation time).\n- `TaxSlab`: lower bound, upper bound (or open-ended), rate.\n- `TaxService` (calculation), `SlabRepository`, `UserRepository`, and a `Menu` console layer.\n\n**Progressive calculation.** Tax is charged on the part of income that falls in each slab. For slabs 0-250000 at 0%, 250001-500000 at 5% and above at 10% (illustrative numbers; use the slabs given in the paper), income 600000 gives `0 + 250000*0.05 + 100000*0.10`. Implement as: for each slab sorted by lower bound, `taxable = max(0, min(income, upper) - lower)`, then `tax += taxable * rate`. Clarify whether the paper wants progressive or flat-by-bracket calculation before coding.\n\n**Slab management.** Validate that slabs are sorted, do not overlap, have no gaps and have rates between 0 and 100. On update, re-validate the whole set before saving.\n\n**Persistence.** Write users and slabs to JSON, CSV or a small database (SQLite/H2) on every change and load on start. Write to a temp file and rename to avoid corrupting data if the program stops mid-write. Store only password hashes.\n\n**Validation.** Wrap input parsing: reject non-numeric or negative income, empty usernames, duplicate usernames and wrong menu choices, and then re-prompt instead of crashing.\n\n**Extensibility.** Because the next paper adds features (deductions, multiple financial years, tax history), keep rules in `TaxService`, persistence behind repository interfaces and the console in its own layer.\n\n**Pitfalls.** Applying the top slab rate to the whole income, hard-coded slabs, and losing data when the program exits.",
+ "followUps": [
+  "How would you add deductions or exemptions such as standard deduction?",
+  "How would you support different slabs for different financial years?",
+  "How would you protect data if two instances write the file at once?",
+  "What would you test first for the tax calculation?"
+ ]
+}

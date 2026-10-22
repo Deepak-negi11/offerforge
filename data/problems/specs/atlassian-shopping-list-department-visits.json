@@ -1,0 +1,44 @@
+{
+ "pid": "atlassian-shopping-list-department-visits",
+ "title": "Shopping List Department Visits",
+ "difficulty": "Easy",
+ "source_note": "reconstructed",
+ "statement": "You are going on a camping trip and need to buy groceries. The store has a catalogue of products, and every product belongs to exactly one **department**. You have a shopping list of items to buy.\n\nThere are two ways to shop:\n\n- **In list order:** buy the items one after another exactly as listed. Every time the next item is in a different department from the previous one, you walk to that department, and that counts as a **department visit** (the first item always counts as one visit).\n- **Grouped:** first buy everything you need from one department, then move on to the next department, so each needed department is visited exactly once.\n\nPrint the **time saved**, measured in department visits: the number of visits in list order minus the number of visits when grouped.\n\nFor example, with the list `Blueberries (Produce), Milk (Dairy), Coffee (Pantry), Flour (Pantry), Cheese (Dairy), Carrots (Produce)`, the list order is Produce, Dairy, Pantry, Dairy, Produce, which is 5 visits (Coffee and Flour are bought together because they are neighbours in the same department). Grouped shopping needs only 3 visits, so the answer is `2`.\n\nProduct and department names contain no spaces (an underscore stands in for a space, for example `Canned_Tuna`). Names are case-sensitive. Every item on the shopping list appears in the catalogue, product names in the catalogue are distinct, and the same item can appear on the list more than once.",
+ "input_format": "The first line contains `n`, the number of products.\nEach of the next `n` lines contains a product name and its department name separated by a space.\nThen a line with `m`, the length of the shopping list, followed by `m` lines each containing one item.",
+ "output_format": "Print a single integer: visits in list order minus visits when grouped.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ m ≤ 10^5",
+  "1 ≤ length of any name ≤ 20, names contain no spaces"
+ ],
+ "examples": [
+  {
+   "input": "13\nCheese Dairy\nCarrots Produce\nPotatoes Produce\nCanned_Tuna Pantry\nRomaine_Lettuce Produce\nChocolate_Milk Dairy\nFlour Pantry\nIceberg_Lettuce Produce\nCoffee Pantry\nPasta Pantry\nMilk Dairy\nBlueberries Produce\nPasta_Sauce Pantry\n6\nBlueberries\nMilk\nCoffee\nFlour\nCheese\nCarrots",
+   "output": "2",
+   "explanation": "In list order the departments are Produce, Dairy, Pantry, Pantry, Dairy, Produce. Merging neighbours that share a department gives 5 visits. Grouped shopping visits Produce, Pantry and Dairy once each, which is 3 visits. 5 - 3 = 2."
+  },
+  {
+   "input": "5\nApple Fresh\nBanana Fresh\nMilk Dairy\nBread Bakery\nEggs Dairy\n5\nBread\nMilk\nApple\nEggs\nBanana",
+   "output": "2",
+   "explanation": "List order is Bakery, Dairy, Fresh, Dairy, Fresh: 5 visits with no equal neighbours. Grouped needs 3 departments (Bakery, Dairy, Fresh), so 5 - 3 = 2."
+  }
+ ],
+ "complexity": {
+  "time": "O(n + m)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "First turn the catalogue into a lookup from product name to department so each list item resolves in O(1).",
+  "The grouped cost is just the number of distinct departments among the list items.",
+  "The list-order cost is the number of positions where the department differs from the previous item's department, plus one for the first item."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    dept = {}\n    for i in range(n):\n        dept[data[1 + 2 * i]] = data[2 + 2 * i]\n    m = int(data[1 + 2 * n])\n    items = data[2 + 2 * n:2 + 2 * n + m]\n    ds = [dept[x] for x in items]\n    visits = 0\n    prev = None\n    for d in ds:\n        if d != prev:\n            visits += 1\n        prev = d\n    print(visits - len(set(ds)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nprod = []\nfor i in range(n):\n    prod.append((data[1 + 2 * i], data[2 + 2 * i]))\nm = int(data[1 + 2 * n])\nitems = data[2 + 2 * n:2 + 2 * n + m]\nds = []\nfor it in items:\n    for p, d in prod:\n        if p == it:\n            ds.append(d)\n            break\nold = 1\nfor i in range(1, len(ds)):\n    if ds[i] != ds[i - 1]:\n        old += 1\nnew = []\nfor d in ds:\n    if d not in new:\n        new.append(d)\nprint(old - len(new))\n",
+ "generator": "def gen(rng):\n    def fmt(prods, items):\n        return (str(len(prods)) + '\\n' + '\\n'.join(f'{p} {d}' for p, d in prods) + '\\n'\n                + str(len(items)) + '\\n' + '\\n'.join(items))\n    def make(n, k):\n        return [(f'p{i}', f'd{rng.randrange(k)}') for i in range(n)]\n    tests = [fmt([('a', 'X')], ['a']), fmt([('a', 'X'), ('b', 'X')], ['a', 'b', 'a']),\n             fmt([('a', 'X'), ('b', 'Y')], ['a', 'b', 'a', 'b']),\n             fmt([('a', 'X'), ('b', 'Y'), ('c', 'Z')], ['a', 'b', 'c']),\n             fmt([('a', 'X'), ('b', 'Y')], ['a', 'a', 'a', 'b', 'b'])]\n    for n, k, m in ((3, 2, 4), (5, 2, 8), (6, 3, 10), (8, 3, 12), (10, 4, 15), (12, 5, 20), (20, 4, 25), (20, 8, 30)):\n        for _ in range(2):\n            pr = make(n, k)\n            tests.append(fmt(pr, [rng.choice(pr)[0] for _ in range(m)]))\n    N = 10**5\n    pr = make(N, 50)\n    tests.append(fmt(pr, [rng.choice(pr)[0] for _ in range(N)]))\n    pr = make(N, 2)\n    tests.append(fmt(pr, [rng.choice(pr)[0] for _ in range(N)]))\n    pr = make(N, 3000)\n    tests.append(fmt(pr, [rng.choice(pr)[0] for _ in range(N)]))\n    pr = [(f'p{i}', 'd0') for i in range(N)]\n    tests.append(fmt(pr, [rng.choice(pr)[0] for _ in range(N)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef time_saved(products: List[Tuple[str, str]], items: List[str]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    products = [(data[1 + 2 * i], data[2 + 2 * i]) for i in range(n)]\n    m = int(data[1 + 2 * n])\n    items = data[2 + 2 * n:2 + 2 * n + m]\n    print(time_saved(products, items))\n\n\nmain()\n",
+  "javascript": "function timeSaved(products, items) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = Number(t[0])\nconst products = []\nfor (let i = 0; i < n; i++) products.push([t[1 + 2 * i], t[2 + 2 * i]])\nconst m = Number(t[1 + 2 * n])\nconst items = t.slice(2 + 2 * n, 2 + 2 * n + m)\nconsole.log(timeSaved(products, items))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint timeSaved(vector<pair<string, string>>& products, vector<string>& items) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<pair<string, string>> products(n);\n    for (int i = 0; i < n; i++) cin >> products[i].first >> products[i].second;\n    int m;\n    cin >> m;\n    vector<string> items(m);\n    for (int i = 0; i < m; i++) cin >> items[i];\n    cout << timeSaved(products, items) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int timeSaved(String[][] products, String[] items) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        int n = Integer.parseInt(st.nextToken());\n        String[][] products = new String[n][2];\n        for (int i = 0; i < n; i++) {\n            products[i][0] = st.nextToken();\n            products[i][1] = st.nextToken();\n        }\n        int m = Integer.parseInt(st.nextToken());\n        String[] items = new String[m];\n        for (int i = 0; i < m; i++) items[i] = st.nextToken();\n        System.out.println(timeSaved(products, items));\n    }\n}\n"
+ }
+}

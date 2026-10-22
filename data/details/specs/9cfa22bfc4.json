@@ -1,0 +1,18 @@
+{
+ "qid": "9cfa22bfc4",
+ "question": "Goldman Sachs Superday (Analyst - Software Engineer). Among the Java and design questions, the candidate was asked to **explain the CI/CD process and how the build process happens**, and then to **write unit tests for a class that makes a database connection** (and say which testing library they would use).",
+ "lookingFor": [
+  "Real understanding of a delivery pipeline, not buzzwords.",
+  "Knowing unit versus integration tests and what to mock.",
+  "Writing testable code via dependency injection.",
+  "Familiarity with a test framework (JUnit and Mockito for Java).",
+  "Attention to failure paths: connection errors, closing resources."
+ ],
+ "answer": "**CI/CD and build.** *Continuous Integration*: each push or pull request triggers an automated pipeline that checks out code, resolves dependencies, compiles (for example Maven or Gradle), runs unit tests and static analysis, and produces an artifact (a JAR or Docker image) stored in a registry. *Continuous Delivery/Deployment*: the artifact is deployed to test or staging environments, integration and smoke tests run, and a release is promoted to production, manually approved (delivery) or automatically (deployment), with rollback or blue-green and canary options. Tools to name only if used: Jenkins, GitHub Actions, GitLab CI. Describe your own project's pipeline with the stages in order, and what fails the build (tests, coverage threshold, lint).\n\n**Unit testing a DB connection class.** A unit test should not need a real database. Make the class testable by injecting the dependency (`DataSource` or `ConnectionFactory`) instead of calling `DriverManager.getConnection` inside it, then mock the JDBC objects.\n\n```java\nclass UserRepository {\n  private final DataSource ds;\n  UserRepository(DataSource ds) { this.ds = ds; }\n  String findName(int id) throws SQLException {\n    try (Connection c = ds.getConnection();\n         PreparedStatement ps = c.prepareStatement(\"SELECT name FROM users WHERE id=?\")) {\n      ps.setInt(1, id);\n      try (ResultSet rs = ps.executeQuery()) { return rs.next() ? rs.getString(1) : null; }\n    }\n  }\n}\n```\nWith JUnit 5 and Mockito: mock `DataSource`, `Connection`, `PreparedStatement`, `ResultSet`; stub `rs.next()` to return true and `getString(1)` to return `\"Asha\"`; assert the result and `verify(ps).setInt(1, 7)`. Add tests for: no row (returns null), `getConnection` throwing `SQLException` (propagates), and resources closed (verify `close()`).\n\nReal SQL behaviour (mappings, constraints) belongs in integration tests against an embedded or containerised database (H2 or Testcontainers). Keep unit tests fast, isolated and deterministic.",
+ "followUps": [
+  "What is the difference between a mock and a stub?",
+  "Why inject the DataSource rather than create the connection inside the class?",
+  "What would you test with an integration test instead?",
+  "What does your pipeline do when a test fails?"
+ ]
+}

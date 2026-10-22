@@ -1,0 +1,19 @@
+{
+ "qid": "453d36b2af",
+ "question": "Meesho Machine Coding round (Software Engineer Backend). Design a ride-sharing application. A driver can publish a ride. A rider can search for rides using selectable strategies such as shortest or fastest, and can select a ride. Bonus features: show all rides taken and published by a user, and calculate fuel saved.",
+ "lookingFor": [
+  "Use of design patterns where they fit (Strategy for search, Factory for vehicles).",
+  "Clean entity relationships and encapsulation.",
+  "Extensibility: adding a new search strategy without modifying existing code.",
+  "Finishing the core flow before the bonus.",
+  "Reasoning about assumptions such as how fuel saved is defined."
+ ],
+ "answer": "**Clarify first.** What does a ride contain (source, destination, seats, vehicle, departure time)? Is \"shortest\" about the route distance and \"fastest\" about estimated duration? How is the route given: coordinates, or a pre-computed distance and time? Is fuel saved per ride or per user? State assumptions aloud.\n\n**Entities.**\n- `User(id, name, Vehicle vehicle, ridesOffered, ridesTaken)`.\n- `Vehicle(type, mileage)`.\n- `Ride(id, driver, source, destination, availableSeats, distance, duration, status)`.\n- `RideService` (publish, search, select), `UserService` / registry.\n\n**Search with Strategy.**\n```java\ninterface RideSelectionStrategy { List<Ride> rank(List<Ride> candidates); }\nclass ShortestStrategy implements RideSelectionStrategy { /* sort by distance */ }\nclass FastestStrategy implements RideSelectionStrategy { /* sort by duration */ }\n```\n`searchRides(source, destination, strategy)` filters rides that match the route and have seats, then delegates ranking to the strategy. A new strategy (cheapest, earliest) is a new class, nothing else changes (open/closed).\n\n**Select.** `selectRide(rider, ride)` checks seats, decrements them, adds the ride to the rider's `ridesTaken`, and returns a booking or an error. Guard against the driver booking their own ride and against a rider booking twice.\n\n**Bonus.**\n- History: expose `ridesOffered` and `ridesTaken` as read-only views.\n- Fuel saved: define it explicitly, for example for every rider joined to a ride, fuel a solo trip would have used is `distance / mileage` (the vehicle's mileage). Sum this over the riders of a driver's rides. Present it as an assumption because the problem statement does not fix the formula.\n\n**Trade-offs and tests.** Keep everything in memory with maps keyed by id. Handle no matching rides and a full ride. Make `selectRide` atomic (synchronise per ride) if threads are involved. Write a small driver class that demonstrates publish, search by both strategies, select, and the history output, since interviewers run it against their own test input.",
+ "followUps": [
+  "How would you add a cheapest strategy and a combined weighted strategy?",
+  "How would you model partial routes where the rider's trip is part of the driver's route?",
+  "How do you handle two riders selecting the last seat?",
+  "How would you scale the search for a city with a million rides?",
+  "How would you define and verify fuel saved?"
+ ]
+}

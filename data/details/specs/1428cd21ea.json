@@ -1,0 +1,19 @@
+{
+ "qid": "1428cd21ea",
+ "question": "Media.net SDE-2 (Android), Round 2 (Android fundamentals, 60 minutes). The interviewer asked about the **Activity, Fragment and ViewModel lifecycles**, the **internal working of ViewModel**, **dependency injection**, **activity launch modes** and general Android best practices. In the hiring-manager round the candidate was also asked to pick a favourite Android app and design its HLD and LLD.",
+ "lookingFor": [
+  "Can you place lifecycle callbacks in the right order and explain what to do in each?",
+  "Do you understand how a ViewModel survives configuration changes, and what it does not survive?",
+  "Can you explain DI as a design principle and name tooling like Hilt?",
+  "Do you know launch modes and when each applies?",
+  "Can you structure an app design under time pressure, focusing on core features and trade-offs?"
+ ],
+ "answer": "**Activity lifecycle.** `onCreate` (set up UI and state) then `onStart` (visible), `onResume` (interactive), `onPause` (partially obscured; keep it light), `onStop` (not visible; release heavy resources), `onDestroy`. Returning from stop goes through `onRestart` then `onStart`. A configuration change (rotation) destroys and recreates the Activity.\n\n**Fragment lifecycle.** `onAttach`, `onCreate`, `onCreateView`, `onViewCreated`, `onStart`, `onResume`, and in reverse `onPause`, `onStop`, `onDestroyView`, `onDestroy`, `onDetach`. A fragment has a separate **view lifecycle** (`viewLifecycleOwner`); observe `LiveData` or `Flow` with it, and null out view bindings in `onDestroyView` to avoid leaks.\n\n**ViewModel.** Holds UI state and survives configuration changes, but not process death. `ViewModelProvider` gets or creates the instance from a `ViewModelStore`, which belongs to a `ViewModelStoreOwner` (Activity, Fragment, nav graph entry). The Activity's store is retained across recreation via the non-configuration-instance mechanism. When the owner is finished for good, the store is cleared and `onCleared()` runs, which is where you cancel work (`viewModelScope` is cancelled automatically). Never hold a reference to a Context, View or Activity inside it. Use `SavedStateHandle` for small state that must survive process death.\n\n**Dependency injection.** An object receives its dependencies instead of constructing them, which improves testability and decoupling. Constructor injection is preferred. Tools: Hilt/Dagger (compile-time), Koin (runtime service locator). In tests you swap in fakes.\n\n**Launch modes.**\n- `standard`: new instance on each launch.\n- `singleTop`: reuse the top instance (calls `onNewIntent`) if it is already at the top of the task.\n- `singleTask`: one instance in the task; activities above it are cleared.\n- `singleInstance`: the sole activity in its own task.\nAlso `singleInstancePerTask` on newer Android versions.\n\n**Design round tip.** Cover core flows and the main trade-offs first (offline cache, pagination, state management) before secondary features.",
+ "followUps": [
+  "What happens to a ViewModel when the process is killed?",
+  "How do you share data between two fragments?",
+  "What is the difference between LiveData and StateFlow?",
+  "Why can a Fragment's view lifecycle differ from the Fragment's lifecycle?",
+  "How would you design the offline behaviour of a search app?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "f39e54eb9a",
+ "question": "JPMorgan Chase, SDE-I on-campus, Technical Interview 2. Design a **notepad-like application** with a few features: a **find** command that returns the **word number** of a word, **editing** a word and **deleting** a word, \"and few others\". The candidate explained the approach, was then asked to **write the class on paper**, and the discussion moved to a **doubly linked list and a hash map**.",
+ "lookingFor": [
+  "Choosing a data structure that matches the operation mix, with justification.",
+  "Combining a doubly linked list and a hash map for O(1) edit and delete.",
+  "Noticing that 'word number' (a rank) is the hard part and discussing trade-offs.",
+  "Clean class design: encapsulation, clear method contracts, edge cases.",
+  "Writing correct pointer-manipulation code on paper."
+ ],
+ "answer": "**Clarify requirements.** Words are separated by spaces; operations: `insert(word)` or append, `find(word)` returning its word number(s), `edit(n, newWord)`, `delete(n or word)`. Ask: can a word repeat? Is the word number 1-based position in the document? How large is the document and which operation is most frequent?\n\n**Core design.** Store words as nodes of a **doubly linked list** (`prev`, `next`, `word`) so insert and delete at a known node is O(1) with no shifting. Add a **hash map** from word to the nodes holding it (a `Set` or list of nodes, since words repeat). Then:\n- **edit/delete by word:** map lookup to the node, then relink `prev.next` and `next.prev` in O(1). On edit, remove the node from the old word's entry and add it under the new word.\n- **find(word):** the map gives the node(s) in O(1), but the **word number is a rank**, and a linked list cannot compute rank without walking from the head, which is O(n).\n\n**Trade-offs for the rank.**\n- Simple: walk from the head, O(n) for find; fine for small notes.\n- Faster: keep the words in a balanced structure with subtree sizes (an order-statistic tree) or a Fenwick tree over stable positions to get the rank in O(log n), at the cost of more complex edits. A gap buffer or a rope is what real editors use for text.\n- Say plainly which you choose and why, given the stated workload.\n\n**Class sketch.**\n\n```java\nclass Notepad {\n    private static class Node { String w; Node prev, next; }\n    private Node head, tail;\n    private final Map<String, Set<Node>> index = new HashMap<>();\n    void append(String w) { /* link at tail, index.computeIfAbsent(w, ...).add(n) */ }\n    int find(String w) { /* first node via index, count from head */ }\n    void delete(Node n) { /* unlink, remove from index */ }\n}\n```\n\n**Edge cases:** empty document, deleting the head or tail, duplicate words, editing to an existing word, word not found (return -1 or throw).",
+ "followUps": [
+  "How would you support undo and redo?",
+  "How would you make find return the rank in O(log n)?",
+  "What changes if the notepad must hold a million words or be edited concurrently?",
+  "How would you support find with partial matches or case-insensitivity?"
+ ]
+}

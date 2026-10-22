@@ -1,0 +1,19 @@
+{
+ "qid": "8328d7df3c",
+ "question": "Paytm Senior Software Engineer (SDE-2) system design discussion with a senior interviewer: **design a rate limiter** for the requirements given in the round, along with sharding, SQL vs NoSQL, ACID vs CAP and scenario questions on cache and DB. Another reported round (hiring manager / system design) asked scenario questions on **rate limiting, circuit breakers and load balancing**. The exact requirements were not recorded, so a typical set is assumed below.",
+ "lookingFor": [
+  "Clarifying requirements before designing (who, what limit, per what key).",
+  "Knowledge of rate-limiting algorithms and their trade-offs.",
+  "Distributed correctness: atomicity, shared state and failure modes.",
+  "Operational thinking: configuration, observability, fail-open vs fail-closed.",
+  "Related resilience patterns: circuit breakers, load balancing."
+ ],
+ "answer": "**Requirements (assumed, confirm them).** Limit each client (user ID, API key or IP) to N requests per time window across a fleet of API servers. Low added latency (a few ms), highly available, return HTTP 429 with `Retry-After`, rules configurable per endpoint and tier. Assume tens of thousands of requests per second.\n\n**Algorithms.**\n- **Fixed window counter:** simple, but allows a burst of 2x at window boundaries.\n- **Sliding window log:** exact, but stores a timestamp per request (memory-heavy).\n- **Sliding window counter:** weights the previous and current window; cheap and close enough.\n- **Token bucket:** tokens refill at a steady rate, allowing bursts up to bucket size. Widely used; store `tokens` and `lastRefill` per key.\n- **Leaky bucket:** smooths output to a constant rate.\n\n**Architecture.** A rate-limit check at the API gateway or as middleware calls a shared store, typically Redis, keyed by `client:endpoint`. Make the read-modify-write atomic using a Lua script or atomic commands (`INCR` + `EXPIRE`), otherwise concurrent servers race and over-admit. Rules live in a config service, cached locally.\n\n**Scaling.** Shard keys across Redis nodes by consistent hashing. To cut network calls, keep local counters and sync periodically (accepting slight inaccuracy), or use sticky routing. Replicate for availability.\n\n**Failure handling.** If the limiter store is down, decide fail-open (keep serving; safer for availability) or fail-closed (for abuse-sensitive endpoints). Add metrics for blocked requests and alerting.\n\n**Related patterns.** A circuit breaker stops calling a failing dependency and fails fast; a load balancer spreads traffic (round robin, least connections) and removes unhealthy nodes. Rate limiting protects your service from callers; circuit breakers protect callers from a failing service.",
+ "followUps": [
+  "How would you handle clock differences between servers?",
+  "How does token bucket differ from leaky bucket?",
+  "How would you rate-limit per user across multiple data centres?",
+  "What is the CAP theorem, and which side does your limiter choose?",
+  "How would you shard a database and what problems does it bring?"
+ ]
+}

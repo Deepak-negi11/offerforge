@@ -1,0 +1,19 @@
+{
+ "qid": "19f9949a3d",
+ "question": "Meesho Hiring Manager / technical round (SDE-1, on-campus), a real-scenario question: during a sale only X units of a product are available but Y users, with Y much larger than X, want to buy it. How do you ensure exactly X purchases happen and that no two people are matched to the same unit? A 2025 version of the question: with 50 units and 1,000 concurrent purchase attempts, explain the concurrency controls (locks, isolation levels, reservation queues, distributed locks) you would use to prevent overselling.",
+ "lookingFor": [
+  "Understanding of race conditions in check-then-act inventory updates.",
+  "Knowledge of database locking, isolation levels and atomic updates.",
+  "Ability to design for burst traffic (queueing, reservations, rate limiting).",
+  "Awareness of distributed concerns: multiple app servers, failures, retries, idempotency.",
+  "Pragmatism: choosing the simplest correct mechanism first."
+ ],
+ "answer": "**The problem.** The naive code reads `stock`, checks `stock > 0`, then decrements. Two requests can read the same value and both succeed, so you oversell. The invariant is `sold <= X`, and every successful order must hold a distinct unit (or a decrement of a shared counter).\n\n**Layered solution.**\n1. *Atomic conditional update in the database (the baseline).*\n   `UPDATE inventory SET stock = stock - 1 WHERE product_id = ? AND stock > 0;`\n   If the affected row count is 1 the buyer got a unit; if 0 the item is sold out. The row lock held by the update serialises concurrent writers, so no explicit read is needed. Add a `CHECK (stock >= 0)` as a safety net.\n2. *Explicit locking.* `SELECT ... FOR UPDATE` inside a transaction (pessimistic) works but holds locks longer. Optimistic concurrency uses a version column and retries on conflict; it performs poorly when 1,000 users collide on one row because most retries fail.\n3. *Isolation levels.* `READ COMMITTED` plus an atomic update is enough. `SERIALIZABLE` also prevents the anomaly but aborts many transactions under contention. Lower levels with read-then-write allow lost updates.\n4. *Unique units.* If each unit is distinct (a serial or a seat), model rows in a `units` table and claim one with `UPDATE ... WHERE status='FREE' LIMIT 1` or `SELECT ... FOR UPDATE SKIP LOCKED`, so no two buyers get the same unit.\n5. *Absorb the burst.* Hot rows are the bottleneck. Put the counter in Redis and decrement atomically (`DECR` or a Lua script), reject when it goes below zero, then create the order asynchronously via a queue. Or enqueue all purchase requests into a single partition and process them in order. Reserve a unit for a few minutes with a TTL while payment happens and release it on timeout.\n6. *Distributed locks* (Redis `SET NX PX`, ZooKeeper) are a last resort: they add latency and have failure modes (expiry, clock issues, fencing tokens). Prefer atomic operations on the single source of truth.\n\n**Other points.** Make order creation idempotent with a request id so retries do not double-buy; rate-limit and use a virtual waiting room; the first X successful decrements win, the other Y minus X receive a fast \"sold out\"; reconcile Redis and the database afterwards.",
+ "followUps": [
+  "Why can optimistic locking be a poor fit for a flash sale?",
+  "What happens if the payment fails after the unit was reserved?",
+  "How do you keep Redis and the database consistent?",
+  "How would you protect the system from 1 million requests for 50 units?",
+  "What does SKIP LOCKED do and when would you use it?"
+ ]
+}

@@ -19,17 +19,19 @@ export const LANGS: { id: Lang; label: string; monaco: string; where: string }[]
 export const STARTER: Record<Lang, string> = {
   python: `import sys
 
+
 def solve(data: str) -> str:
-    # Parse the input and return the answer as text.
-    nums = list(map(int, data.split()))
-    return str(sum(nums))
+    # Read the input described in the question from data and return the answer.
+    # Write your solution here
+    return ""
+
 
 print(solve(sys.stdin.read()))
 `,
-  javascript: `// readline() returns the next input line; input holds all of stdin.
+  javascript: `// All of stdin is available in the string \`input\`.
 function solve(data) {
-  const nums = data.split(/\\s+/).filter(Boolean).map(Number)
-  return String(nums.reduce((a, b) => a + b, 0))
+  // Write your solution here
+  return ''
 }
 
 console.log(solve(input))
@@ -40,9 +42,8 @@ using namespace std;
 int main() {
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
-    long long x, sum = 0;
-    while (cin >> x) sum += x;
-    cout << sum << "\\n";
+    // Read the input described in the question and print the answer.
+    // Write your solution here
     return 0;
 }
 `,
@@ -52,11 +53,8 @@ import java.io.*;
 public class Main {
     public static void main(String[] args) throws IOException {
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-        long sum = 0;
-        String line;
-        while ((line = br.readLine()) != null)
-            for (String t : line.trim().split("\\\\s+")) if (!t.isEmpty()) sum += Long.parseLong(t);
-        System.out.println(sum);
+        // Read the input described in the question and print the answer.
+        // Write your solution here
     }
 }
 `,
@@ -130,8 +128,14 @@ async function runPython(code: string, stdin: string): Promise<RunResult> {
   })
 }
 
+const STACK_HINT =
+  '\n\nThe browser limits JavaScript recursion to roughly 7,500 nested calls. Rewrite the deepest recursion with an explicit stack (a loop), or switch to Python, which allows much deeper recursion here.'
+
 export async function runCode(lang: Lang, code: string, stdin: string): Promise<RunResult> {
-  if (lang === 'javascript') return runInWorker(makeJs, { code, stdin }, TIMEOUT_MS)
+  if (lang === 'javascript') {
+    const r = await runInWorker(makeJs, { code, stdin }, TIMEOUT_MS)
+    return r.stderr.includes('Maximum call stack size exceeded') ? { ...r, stderr: r.stderr + STACK_HINT } : r
+  }
   if (lang === 'python') return runPython(code, stdin)
   const t0 = performance.now()
   try {
@@ -155,6 +159,36 @@ export async function runCode(lang: Lang, code: string, stdin: string): Promise<
 
 /** Output comparison used by test cases: ignores trailing whitespace on each line and at the end. */
 export function sameOutput(actual: string, expected: string) {
-  const norm = (s: string) => s.replace(/\r\n/g, '\n').split('\n').map((l) => l.trimEnd()).join('\n').trim()
-  return norm(actual) === norm(expected)
+  return normOutput(actual) === normOutput(expected)
+}
+
+/** Rebuilds generated test inputs in the Python worker. Used for large hidden tests that are shipped as hashes. */
+export async function generateInputs(code: string, seed: number, indices: number[]): Promise<string[]> {
+  await warmPython()
+  const w = pyWorker!
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      w.terminate()
+      pyWorker = null
+      pyReady = null
+      reject(new Error('Preparing the large tests took too long.'))
+    }, 60_000)
+    const onMsg = (e: MessageEvent) => {
+      if (e.data?.type !== 'gen-result') return
+      clearTimeout(timer)
+      w.removeEventListener('message', onMsg)
+      if (e.data.error) reject(new Error(e.data.error))
+      else resolve(e.data.inputs as string[])
+    }
+    w.addEventListener('message', onMsg)
+    w.postMessage({ type: 'gen', code, seed, indices })
+  })
+}
+
+/** Same normalisation as sameOutput, used before hashing an output. */
+export const normOutput = (s: string) => s.replace(/\r\n/g, '\n').split('\n').map((l) => l.trimEnd()).join('\n').trim()
+
+export async function sha256(text: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }

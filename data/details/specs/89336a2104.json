@@ -1,0 +1,19 @@
+{
+ "qid": "89336a2104",
+ "question": "Reported from a Technical Interview 2 for a Senior Software Engineer (SDE-2) role at Paytm: **design a URL shortener**, with attention to **scalability and efficiency**. The interviewer also expected some **low-level design** (classes, short-code generation, data model) in addition to the high-level architecture.",
+ "lookingFor": [
+  "Do you clarify requirements and estimate scale before drawing boxes?",
+  "Can you generate unique short codes at scale without collisions or a single hot spot?",
+  "Do you design for a read-heavy workload with caching and sensible data storage?",
+  "Can you go from HLD down to a clean LLD (entities, interfaces, an ID generator abstraction)?",
+  "Do you address edge cases: expiry, custom aliases, abuse, analytics?"
+ ],
+ "answer": "**Requirements.** Functional: create a short URL for a long URL, redirect from short to long, optional custom alias and expiry, optional click analytics. Non-functional: very low redirect latency, high availability, short codes never collide, links are not guessable if privacy matters.\n\n**Scale assumptions (state them).** For example 100M new URLs per month (about 40 writes/s) and a 100:1 read ratio (about 4,000 redirects/s average, much higher at peak). Storage: ~500 bytes per record x 100M x 5 years is roughly 3TB, which is small. It is read-heavy.\n\n**API.** `POST /urls {longUrl, alias?, expiresAt?}` returns the short URL. `GET /{code}` returns a 301 or 302 redirect. Use 302 if you need to count every click (301 may be cached by browsers).\n\n**Short code generation.** A 7-character base62 code gives 62^7, about 3.5 trillion values. Options:\n- **Counter + base62 encoding:** a unique ID from a distributed generator (a Snowflake-style ID, or ranges handed to each app server from a central counter). No collisions, but codes are sequential and guessable unless you scramble them.\n- **Hash of the URL (MD5/SHA, take 7 chars):** simple, but collisions need a check-and-retry.\n- **Pre-generated key service:** a separate service creates unused keys in advance; app servers fetch batches.\nI would use range-allocated counters with base62 (optionally with a bit permutation).\n\n**Components.** Clients -> load balancer -> stateless app servers -> cache (Redis) -> database. Use a key-value or wide-column store (or sharded SQL) keyed by short code, since access is only by key. Shard by short code hash. Cache hot codes with LRU; most traffic is on few links. Run a cleanup job for expired entries.\n\n**LLD sketch.** `UrlService` (create, resolve), `CodeGenerator` interface with `CounterBase62Generator` and `HashGenerator` implementations (strategy pattern), `UrlRepository` interface, `UrlMapping` entity (code, longUrl, createdAt, expiresAt, ownerId). Validation and rate limiting live in front of the service.\n\n**Trade-offs.** 301 versus 302, guessability versus simplicity, strong consistency on write (code uniqueness) versus eventual consistency on analytics (use async events/Kafka for click counts so redirects stay fast).",
+ "followUps": [
+  "How do you avoid a single point of failure in the ID generator?",
+  "How would you support custom aliases without collisions?",
+  "How would you implement click analytics without slowing down redirects?",
+  "How would you handle malicious or phishing URLs?",
+  "What changes if the system must serve 100x the traffic?"
+ ]
+}

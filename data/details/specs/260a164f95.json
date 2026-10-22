@@ -1,0 +1,18 @@
+{
+ "qid": "260a164f95",
+ "question": "Machine coding round at PhonePe (Software Engineer, backend, 2 years of experience): design and implement an application that lets users choose and book fitness classes.\n\n- **User management:** register and log in; users belong to tiers aligned with packages: **Platinum** (10 classes), **Gold** (5) and **Silver** (3), which sets the booking limit.\n- **Classes:** types such as yoga, gym and dance, each with a maximum capacity and a scheduled time; several classes can run in one day. An admin can create, schedule and cancel classes.\n- **Booking:** book if the class is not full; if full, join a **waitlist**, and when a booked user cancels, the first user on the waitlist gets the slot.\n- **Cancellation:** users can cancel up to **30 minutes before** the class starts.\n\nIn the code review, the interviewer asked to add a rule that **blocks booking two classes in the same time slot**.",
+ "lookingFor": [
+  "Can you model users, tiers, classes, bookings and waitlists with clear responsibilities?",
+  "Do you handle capacity, quota and waitlist promotion correctly, including edge cases?",
+  "Is booking thread-safe so capacity is never exceeded?",
+  "Can you add a new rule (no overlapping bookings) without restructuring the code?",
+  "Is the code executable, tested with a demo, and does it have clean error handling?"
+ ],
+ "answer": "**Entities:** `User(id, tier, bookings)`, `Tier` enum with `maxClasses` (PLATINUM 10, GOLD 5, SILVER 3), `FitnessClass(id, type, startTime, endTime, capacity, booked, waitlist, cancelled)`, `Booking(id, userId, classId, status)` with status CONFIRMED, WAITLISTED, CANCELLED.\n\n**Services:** `UserService`, `ClassService` (admin: create, schedule, cancel), `BookingService` (book, cancel). Keep storage in in-memory maps.\n\n**book(user, class):**\n1. Validate that the class exists, is not cancelled and has not started.\n2. Check the user's active bookings are below the tier limit (decide: does the waitlisted count? say your assumption).\n3. If `booked < capacity`: confirm. Else append to the class's FIFO waitlist as WAITLISTED.\n\n**cancel(user, booking):** allowed only if `now <= startTime - 30 min`. Mark cancelled, restore the user's quota, then **promote the head of the waitlist**: confirm that booking and charge their quota (skip users who no longer have quota or would clash with another class). If an admin cancels the class, cancel all bookings and restore every user's quota.\n\n**Concurrency:** lock **per class** (`synchronized` on the class or a `ReentrantLock`) around capacity check plus update, and keep the user quota update in the same critical section, or lock users in id order to avoid deadlock. A single global lock is simplest but serialises everything.\n\n**Review add-on, no double booking:** introduce a `BookingRule` interface (`validate(user, class)`) with `TierLimitRule` and `NoOverlapRule`; `book` runs the list of rules. `NoOverlapRule` checks the user's confirmed bookings for any with `start < other.end && other.start < end`. Because it is a new rule, no existing code changes (Open/Closed). Decide whether waitlisted entries count; promotion must re-run the rule.\n\n**Mistakes to avoid:** forgetting to restore quota on cancel, promoting a waitlisted user who now overlaps, and race conditions on the last seat.",
+ "followUps": [
+  "How do you handle promotion from the waitlist if the promoted user would now clash with another class?",
+  "How would you make booking thread-safe without a global lock?",
+  "What if a user can book multiple tiers' packages or the quota resets monthly?",
+  "How would you notify users when they get promoted from the waitlist?"
+ ]
+}

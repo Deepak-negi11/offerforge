@@ -1,0 +1,18 @@
+{
+ "qid": "d0cda7e4fe",
+ "question": "Final round for a SWE Intern at ServiceNow was mostly **culture-fit and team scenarios**, plus one technical scenario about **handling a multi-user environment**, for example several concurrent users acting on the same data at the same time. The reported details are brief, so prepare both a behavioral structure and a clear concurrency answer.",
+ "lookingFor": [
+  "Are your values and working style a fit for a collaborative team?",
+  "Can you describe real teamwork, conflict and feedback situations with a clear structure?",
+  "Do you understand what goes wrong when users modify the same data concurrently (lost updates, dirty reads, double booking)?",
+  "Do you know the main remedies: transactions, locks, optimistic concurrency, queues?",
+  "Can you explain trade-offs simply?"
+ ],
+ "answer": "**Culture-fit and team scenarios.** Use STAR (Situation, Task, Action, Result). Prepare three stories from projects, college or clubs: working with a difficult teammate, handling a disagreement or feedback, and a time you learned something fast or helped someone. For each, say what *you* did, what changed, and what you learned. Research ServiceNow's stated values and relate honestly to those that match you. Never invent a story; pick real, modest examples.\n\n**Multi-user scenario (technical).** The risk is a *race condition*: two users read the same data, both change it, and one change silently overwrites the other (a lost update), or both succeed at taking the last item (double booking).\n\nWays to handle it:\n- **Database transactions** with an appropriate isolation level so concurrent operations behave as if ordered.\n- **Pessimistic locking**: lock the row (`SELECT ... FOR UPDATE`) while editing. It is safe under high contention but reduces throughput and can cause deadlocks.\n- **Optimistic locking**: keep a `version` column; update with `WHERE id=? AND version=?`. If zero rows are updated, someone else changed the record, so retry or ask the user to refresh. It suits low-contention data like editing a ticket.\n- **Atomic operations**: `UPDATE stock SET qty = qty - 1 WHERE qty > 0` instead of read-modify-write in application code.\n- **Serializing through a queue** for operations that must be strictly ordered.\n- In the UI: show who else is editing, refresh state, and give a clear conflict message.\n\nFor a ticket system, optimistic locking is a good default: a ticket rarely has simultaneous editors, and conflicts are cheap to retry.\n\n**Mistakes to avoid:** answering only with application-level locks (they fail across multiple servers) and ignoring the user experience on conflicts.",
+ "followUps": [
+  "Optimistic versus pessimistic locking: when would you choose each?",
+  "How would you stop two agents from picking up the same ticket?",
+  "What is a deadlock and how can you avoid it?",
+  "Tell me about a time you disagreed with a teammate."
+ ]
+}

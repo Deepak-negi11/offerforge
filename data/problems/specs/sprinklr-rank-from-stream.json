@@ -1,0 +1,44 @@
+{
+ "pid": "sprinklr-rank-from-stream",
+ "title": "Rank From Stream",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "Numbers arrive one at a time in a stream, and between arrivals you are asked for the **rank** of a number.\n\nYou must process a sequence of operations of two kinds:\n\n- `T x`: **track** the number `x`, meaning the stream produced the value `x`. The same value may be produced many times, and each production counts separately.\n- `R x`: report the **rank** of `x` among the values tracked so far.\n\nThe rank of `x` is the number of tracked values that are less than or equal to `x`, **not counting `x` itself**. Concretely, if `x` has been tracked at least once, the rank is (the number of tracked values `<= x`) minus `1`, so one occurrence of `x` is left out of the count. If `x` has never been tracked, its rank is `-1`.\n\nOperations must be answered in order, using only the values tracked before each `R` operation. For every `R` operation print its answer.\n\n**Follow-up:** Implement this as a class with `track(int x)` and `getRankOfNumber(int x)` methods, using an augmented binary search tree (each node stores the size of its left subtree) or a Fenwick tree.",
+ "input_format": "The first line contains an integer `q`, the number of operations.\nEach of the next `q` lines contains a letter (`T` or `R`) and an integer `x`, separated by a space.",
+ "output_format": "For each `R` operation, in order, print one line with its answer. At least one operation is an `R`.",
+ "constraints": [
+  "1 ≤ q ≤ 10^5",
+  "0 ≤ x ≤ 10^9",
+  "At least one operation is `R`"
+ ],
+ "examples": [
+  {
+   "input": "8\nT 5\nT 1\nT 5\nT 8\nR 5\nR 1\nR 3\nR 8",
+   "output": "2\n0\n-1\n3",
+   "explanation": "The tracked values are 5, 1, 5, 8. For `R 5`: values `<= 5` are 1, 5, 5, so 3 minus the one occurrence of 5 gives 2. For `R 1`: only the value 1 itself, so 0. The value 3 was never tracked, so the answer is -1. For `R 8`: all four values are `<= 8`, minus one gives 3."
+  },
+  {
+   "input": "7\nT 7\nR 7\nT 3\nR 7\nT 7\nR 7\nR 3",
+   "output": "0\n1\n2\n0",
+   "explanation": "After tracking 7 the rank of 7 is 0. After also tracking 3 the values `<= 7` are 7 and 3, giving 1. After tracking another 7 there are three such values, giving 2. Finally, the only value `<= 3` is 3 itself, so its rank is 0."
+  }
+ ],
+ "complexity": {
+  "time": "O(q log q)",
+  "space": "O(q)"
+ },
+ "hints": [
+  "Counting the values `<= x` after every insertion by scanning is too slow. You need a structure that supports 'add one' and 'count everything up to x' in logarithmic time.",
+  "All queries are known up front, so you can compress the values to indices `1..m` and use a Fenwick tree (binary indexed tree) over them. An augmented BST also works.",
+  "Keep a separate record of which values have been tracked so far, so you can answer -1 for unseen values, and subtract 1 from the prefix count otherwise."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    ops = [(data[1 + 2 * i], int(data[2 + 2 * i])) for i in range(q)]\n    vals = sorted({x for _, x in ops})\n    idx = {v: i + 1 for i, v in enumerate(vals)}\n    m = len(vals)\n    tree = [0] * (m + 1)\n    seen = set()\n    out = []\n    for t, x in ops:\n        k = idx[x]\n        if t == 'T':\n            seen.add(x)\n            while k <= m:\n                tree[k] += 1\n                k += k & -k\n        else:\n            if x not in seen:\n                out.append(-1)\n            else:\n                s = 0\n                while k > 0:\n                    s += tree[k]\n                    k -= k & -k\n                out.append(s - 1)\n    print('\\n'.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nq = int(data[0])\ntracked = []\nout = []\nfor i in range(q):\n    t = data[1 + 2 * i]\n    x = int(data[2 + 2 * i])\n    if t == 'T':\n        tracked.append(x)\n    else:\n        if x not in tracked:\n            out.append(-1)\n        else:\n            out.append(sum(1 for v in tracked if v <= x) - 1)\nprint('\\n'.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    def fmt(ops):\n        return str(len(ops)) + '\\n' + '\\n'.join(f'{t} {x}' for t, x in ops)\n    tests = [\n        fmt([('R', 0)]),\n        fmt([('T', 0), ('R', 0)]),\n        fmt([('T', 10**9), ('T', 10**9), ('R', 10**9), ('R', 0)]),\n        fmt([('T', 4), ('T', 4), ('T', 4), ('R', 4), ('R', 3), ('R', 5)]),\n    ]\n    for q in (3, 5, 8, 12, 20, 30):\n        for _ in range(3):\n            hi = rng.choice([3, 6, 15, 10**9])\n            ops = [(rng.choice('TTR'), rng.randint(0, hi)) for _ in range(q)]\n            ops.append(('R', rng.randint(0, hi)))\n            tests.append(fmt(ops))\n    # queries mostly on tracked values\n    for q in (10, 25):\n        vals = [rng.randint(0, 8) for _ in range(5)]\n        ops = []\n        for _ in range(q):\n            if rng.random() < 0.5:\n                ops.append(('T', rng.choice(vals)))\n            else:\n                ops.append(('R', rng.choice(vals + [rng.randint(0, 8)])))\n        ops.append(('R', vals[0]))\n        tests.append(fmt(ops))\n    n = 10**5\n    # max: random large values, queries on tracked values\n    pool = [rng.randint(0, 10**9) for _ in range(30000)]\n    ops = []\n    for i in range(n):\n        if i % 2 == 0 or i < 100:\n            ops.append(('T', rng.choice(pool)))\n        else:\n            ops.append(('R', rng.choice(pool) if rng.random() < 0.8 else rng.randint(0, 10**9)))\n    ops[-1] = ('R', pool[0])\n    tests.append(fmt(ops))\n    # max: all tracks first, many duplicates, then queries\n    ops = [('T', rng.randint(0, 1000)) for _ in range(60000)] + [('R', rng.randint(0, 1000)) for _ in range(n - 60000)]\n    tests.append(fmt(ops))\n    # max: increasing sequence interleaved with queries (degenerate for unbalanced BST)\n    ops = []\n    for i in range(n // 2):\n        ops.append(('T', i * 2000))\n        ops.append(('R', i * 2000))\n    tests.append(fmt(ops))\n    # max: all same value\n    ops = [('T', 7)] * 50000 + [('R', 7)] * 50000\n    tests.append(fmt(ops))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef process(ops: List[Tuple[str, int]]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    q = int(data[0])\n    ops = [(data[1 + 2 * i], int(data[2 + 2 * i])) for i in range(q)]\n    print('\\n'.join(map(str, process(ops))))\n\n\nmain()\n",
+  "javascript": "function processOps(ops) {\n  // ops is an array of [type, x] pairs, where type is 'T' or 'R'\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst q = parseInt(t[0])\nconst ops = []\nfor (let i = 0; i < q; i++) {\n  ops.push([t[1 + 2 * i], parseInt(t[2 + 2 * i])])\n}\nconsole.log(processOps(ops).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> processOps(vector<pair<char, long long>>& ops) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int q;\n    cin >> q;\n    vector<pair<char, long long>> ops(q);\n    for (int i = 0; i < q; i++) cin >> ops[i].first >> ops[i].second;\n    vector<long long> res = processOps(ops);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] processOps(char[] types, long[] values) {\n        // Write your solution here\n        return new long[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        int q = Integer.parseInt(br.readLine().trim());\n        char[] types = new char[q];\n        long[] values = new long[q];\n        for (int i = 0; i < q; i++) {\n            StringTokenizer st = new StringTokenizer(br.readLine());\n            types[i] = st.nextToken().charAt(0);\n            values[i] = Long.parseLong(st.nextToken());\n        }\n        long[] res = processOps(types, values);\n        StringBuilder sb = new StringBuilder();\n        for (long v : res) sb.append(v).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

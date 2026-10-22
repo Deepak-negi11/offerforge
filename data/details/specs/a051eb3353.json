@@ -1,0 +1,18 @@
+{
+ "qid": "a051eb3353",
+ "question": "Meesho SDE-3 high-level design round (about 90 minutes): design a live cricket score platform such as Cricbuzz. In the following hiring manager round the questions covered projects, ownership and mentoring, and some HLD questions on queues and message brokers.",
+ "lookingFor": [
+  "Handling a read-heavy, spiky workload with live updates.",
+  "Data flow from score entry to millions of viewers.",
+  "Use of caching, CDN and push versus polling.",
+  "Message queue basics: ordering, delivery guarantees, consumer groups.",
+  "Back-of-envelope sizing and resilience."
+ ],
+ "answer": "**Requirements.** Functional: show live scores, ball-by-ball commentary, scorecards, match schedule, and notifications for key events. Non-functional: very read-heavy and extremely spiky (a big India match brings millions of concurrent users), low latency (a few seconds behind live), high availability; writes are tiny. Scale assumption: tens of millions of concurrent viewers at peak, but only a handful of updates per match per second.\n\n**Write path.** Official scorers or a data provider push events (ball bowled, wicket, boundary) to an **Ingestion API**. Validate, assign a sequence number per match, and append to a durable log (Kafka partitioned by match id so events of one match stay ordered). A **Score Processor** consumes the log and updates the match state (score, overs, batsmen) in a primary store and a cache; it also publishes updates to downstream consumers.\n\n**Read path.** Most traffic should never reach the database.\n- Cache current match state in Redis and in a **CDN** with a very short TTL (1-2 seconds) for the JSON endpoints; many users share one cached copy.\n- Clients either poll every few seconds (simple, CDN-friendly) or receive pushes by WebSocket or Server-Sent Events from a fleet of **push gateways** that subscribe to the match's updates. Polling with CDN is usually the cheapest at this scale; use push for the \"live\" view.\n- Historical data (past matches, player stats) sits in a database with read replicas and heavy caching.\n\n**Data model.** `Match(id, teams, status, venue)`, `Innings`, `BallEvent(matchId, seq, over, ball, runs, wicket, commentary)`, `Player`. Store events append-only; derive the scorecard from events or as a materialised view.\n\n**Notifications.** A notification service consumes key events (wickets, milestones, match end) and fans out via push channels, with rate limiting and user preferences.\n\n**Message broker questions (HM round).** Be ready on: why a queue decouples producers from consumers and absorbs spikes; ordering within a partition only; at-least-once delivery therefore idempotent consumers (dedupe by match id and sequence number); consumer groups for parallelism; dead-letter queues for poison messages; and when to pick Kafka (replayable log, high throughput) versus a simple queue.\n\n**Failure handling.** Redundant ingestion, multiple data sources reconciled by sequence number, graceful degradation to cached data, and autoscaling or pre-warming before known big matches.",
+ "followUps": [
+  "How do you make sure clients see score updates in order and without duplicates?",
+  "Polling, long polling, WebSockets or SSE: which would you use and why?",
+  "How would you prepare the system for a final match with a huge traffic spike?",
+  "What delivery guarantees does Kafka give, and how do you handle duplicates?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "2997683295",
+ "question": "ServiceNow Associate Software Engineer, Technical Interview 1 (reported on campus): **\"Do you know anything about cache? How would you implement an LRU cache?\"** No code was required: explain the data structures you would use and why. Because the candidate used a **hash table**, follow-ups were: **Can hash tables have collisions? How can you minimize collisions? If a collision happens, how would you resolve it?** The interview continued with deque, BFS vs DFS and DSA problems.",
+ "lookingFor": [
+  "Understanding of why caches exist and what eviction means.",
+  "Choosing data structures to get O(1) for get and put.",
+  "Hash table fundamentals: hashing, collisions, load factor, resolution.",
+  "Clear explanation without code, with a justification for each choice."
+ ],
+ "answer": "**What a cache is.** A small, fast store that keeps recently or frequently used data close to the consumer, so repeated reads avoid slow work (database call, disk, network). Because it is small, it needs an **eviction policy** when it is full. **LRU (Least Recently Used)** evicts the item that has not been used for the longest time, assuming recent use predicts future use (temporal locality).\n\n**LRU data structures.** We need two O(1) operations: find by key, and update recency order or remove the oldest.\n- A **hash map** from key to a node gives O(1) lookup.\n- A **doubly linked list** keeps items in recency order: most recent at the head, least recent at the tail. A doubly linked list lets us remove a node from the middle in O(1) when we already have its pointer (from the map).\n- `get(k)`: look up the node, move it to the head, return the value. `put(k, v)`: if the key exists, update it and move it to the head; otherwise, if full, remove the tail node and its map entry, then insert the new node at the head.\n\nEach structure alone fails: an array or list alone makes lookup O(n); a hash map alone has no order. Together everything is O(1), with O(capacity) space.\n\n**Hash collisions.** Yes: a hash function maps a large key space to a small number of buckets, so by the pigeonhole principle two keys can land in the same bucket.\n\n*Minimising them:*\n- a good hash function that spreads keys uniformly;\n- a suitable table size (a prime or a power of two with good bit mixing);\n- keeping the **load factor** (entries / buckets) low and **resizing and rehashing** when it crosses a threshold (Java's HashMap resizes at 0.75 by default).\n\n*Resolving them:*\n- **Separate chaining:** each bucket holds a list of entries. Lookup walks the bucket. Java's HashMap converts a long bucket to a balanced tree when it gets large, to avoid worst-case O(n).\n- **Open addressing:** on collision, probe for another slot (linear, quadratic or double hashing). It is cache-friendly but needs deletion markers and a lower load factor.\n\nWith a good hash and low load factor, average operations stay O(1); the worst case is O(n) for chaining with many collisions.",
+ "followUps": [
+  "Why can you not use a singly linked list for LRU?",
+  "What is the difference between chaining and open addressing, and when would you use each?",
+  "What is the load factor, and what happens when it is exceeded?",
+  "How would you make the LRU cache thread-safe?",
+  "What other eviction policies exist (LFU, FIFO) and when are they better?"
+ ]
+}

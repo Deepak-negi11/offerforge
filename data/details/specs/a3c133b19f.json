@@ -1,0 +1,18 @@
+{
+ "qid": "a3c133b19f",
+ "question": "Frontend assignment round (about two hours in total, two tasks).\n\nTask 1 (React): fetch data from an API, show it in a table, and implement pagination, search, and sorting on each column.\n\nTask 2 (CSS): build a dashboard UI from an image supplied by the interviewer, matching layout, alignment and spacing as closely as possible.",
+ "lookingFor": [
+  "Correct state modelling: source data separate from derived (filtered, sorted, paged) data",
+  "Handling loading, error and empty states for the API call",
+  "Correctness details: stable sort, numeric vs string comparison, reset page on search",
+  "Clean component structure and avoiding unnecessary re-computation",
+  "Layout skills in CSS and attention to spacing and alignment in the dashboard"
+ ],
+ "answer": "**State model.** Keep the raw `rows` from the API in state plus small UI state: `query`, `sort: {key, dir}`, `page`, `pageSize`. Everything shown is *derived* in order: filter by query, then sort, then slice the page. Do not store the derived arrays in state; compute them with `useMemo` so they cannot go out of sync.\n\n**Pipeline sketch.**\n\n    const filtered = rows.filter(r => columns.some(c => String(r[c]).toLowerCase().includes(q)));\n    const sorted = [...filtered].sort((a, b) => compare(a[key], b[key]) * dir);\n    const pageRows = sorted.slice((page - 1) * size, page * size);\n\n`compare` must handle numbers (numeric, not lexicographic), strings (`localeCompare`) and missing values. Copy before sorting because `sort` mutates. Total pages come from `filtered.length`.\n\n**Details that separate good from average.**\n- Reset to page 1 whenever the query or sort changes, and clamp the page if results shrink.\n- Debounce the search input (about 300 ms) if it triggers a request; client-side filtering on a small dataset needs no debounce.\n- Clicking a header cycles ascending, descending, none, with an indicator and `aria-sort`.\n- Fetch in `useEffect` with an `AbortController`, and render loading, error (with retry) and \"no results\" states.\n- Use stable keys (the row id), semantic `<table>`, `<th scope=\"col\">`, and buttons for sortable headers so it is keyboard accessible.\n- State the trade-off: client-side processing is fine for hundreds of rows; for large data move search, sort and pagination to the server (query params) and keep the same UI.\n\n**CSS dashboard task.** Measure the image: define a spacing scale and colour variables, build the macro layout with grid (sidebar, header, content cards), then refine cards. Use rem units, consistent gaps and `box-sizing: border-box`; compare against the image overlaid at 50 percent opacity. If time is short, prioritise layout correctness over decorative details and say so.",
+ "followUps": [
+  "How would you change this to server-side pagination and sorting?",
+  "How do you make the sort stable and handle mixed types or nulls?",
+  "How would you test the filtering and sorting logic?",
+  "How would you make the dashboard responsive on mobile?"
+ ]
+}

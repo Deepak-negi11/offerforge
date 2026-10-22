@@ -1,0 +1,18 @@
+{
+ "qid": "373d69245a",
+ "question": "Goldman Sachs Analyst - Software Engineer (Bangalore), Round 3, Low-Level Design: **design a traffic light system that dynamically adjusts wait times based on real-time traffic data.** The post does not give further detail (number of roads, sensors, pedestrians), so state your assumptions, for example a four-way intersection with a vehicle-count sensor per approach.",
+ "lookingFor": [
+  "Modelling a state machine cleanly (light states and transitions).",
+  "Separating the timing policy from the controller (Strategy) and data input (Observer).",
+  "Safety first: never allow conflicting green signals, bounded timings, failure fallbacks.",
+  "Testable, extensible class design and handling of concurrency."
+ ],
+ "answer": "**Clarify and assume:** a 4-way intersection, two conflicting phases (North-South, East-West), a sensor per approach reporting queue length or vehicle count every few seconds, optional pedestrian and emergency vehicle input. Goal: reduce waiting time while staying safe and fair.\n\n**Entities:**\n- `TrafficLight`: current `LightState` (GREEN, YELLOW, RED). Use the **State pattern** so each state knows its next state and its minimum duration.\n- `Road` / `Approach`: holds a light and its sensor reading.\n- `Sensor` (interface) publishing `TrafficData(roadId, vehicleCount, timestamp)`; **Observer** pattern so the controller subscribes and reacts to updates.\n- `TimingStrategy` (interface): `int greenDuration(TrafficData current)`, with implementations `FixedTimingStrategy` (fallback) and `AdaptiveTimingStrategy`. **Strategy pattern** lets you swap algorithms.\n- `IntersectionController`: owns the phases, runs the cycle loop (scheduled executor or a tick-based clock), asks the strategy for the next green time, and enforces safety rules.\n\n**Adaptive logic (example):** `green = clamp(minGreen + k * queueLength, minGreen, maxGreen)`. A simple proportional rule is easy to explain; mention a cap so a busy road cannot starve the other (maxGreen) and an aging rule so a waiting road eventually gets priority.\n\n**Safety invariants (must be enforced in the controller, not the strategy):**\n- Only one phase can be green at a time (conflicting lights).\n- Always YELLOW (a few seconds) then an all-red clearance before switching.\n- Min and max green times regardless of data.\n- If the sensor data is missing, stale or invalid, fall back to the fixed cycle.\n\n**Extensions:** pedestrian crossing requests, emergency preemption (a high-priority event that interrupts the cycle safely), coordination of adjacent intersections (a \"green wave\"), and logging for analysis.\n\n**Design for testing:** inject a `Clock` so you can simulate time. **Concurrency:** sensor updates arrive on other threads, so store the latest reading in a thread-safe holder (volatile or atomic reference) and have a single thread run the controller.",
+ "followUps": [
+  "How would you stop a busy road from starving the other road?",
+  "How would you add emergency vehicle priority?",
+  "What happens if a sensor fails or reports nonsense values?",
+  "How would you coordinate two adjacent intersections?",
+  "How would you unit test the timing logic?"
+ ]
+}

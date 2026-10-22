@@ -1,0 +1,17 @@
+{
+ "qid": "5025299bf3",
+ "question": "In the second technical round for a Developer Associate (Java full stack, procurement team) role at SAP Labs, after two coding problems, the interviewer asked resume-based questions: **How did you optimise database queries? What is the difference between POST and PUT? How do logging and distributed tracing work? How do microservices communicate asynchronously?**",
+ "lookingFor": [
+  "Do you optimise queries with evidence (plans, indexes) rather than guesses?",
+  "Do you understand HTTP semantics, in particular idempotency?",
+  "Do you know how to debug a request that crosses several services?",
+  "Can you choose between synchronous and asynchronous communication and name the trade-offs?"
+ ],
+ "answer": "**1. Query optimisation.** Describe your own example in this shape: *symptom* (slow endpoint), *measurement* (slow-query log, `EXPLAIN` showing a full scan), *fix* (an index matching the filter and sort order, rewriting a query to avoid N+1, selecting only needed columns, pagination, caching a hot read), and *result* (a measured before/after). Avoid claiming numbers you cannot defend.\n\n**2. POST vs PUT.**\n- `POST` creates a resource or triggers processing; the server usually chooses the identifier. It is **not idempotent**: repeating it can create duplicates.\n- `PUT` replaces the resource at a known URL, sending the full representation. It **is idempotent**: sending it twice leaves the same final state. It can also create the resource if the client chooses the ID.\n- `PATCH` applies a partial update. For safe retries of POST (payments, orders), use an **idempotency key** header.\n\n**3. Logging and distributed tracing.**\n- Logs are per-service events; they should be structured (JSON) and carry a **correlation/trace ID**.\n- A trace follows one request across services. Each unit of work is a **span** with a start time, duration and parent; the trace ID is propagated in headers (for example the W3C `traceparent` header). Tools such as OpenTelemetry collect them and Jaeger or Zipkin display them. This answers \"where was the time spent\" and \"which service failed\".\n- Logs, metrics and traces together form observability.\n\n**4. Asynchronous communication.** Instead of waiting for a REST response, a service publishes an event or message to a broker (Kafka, RabbitMQ, a cloud queue) and consumers process it later.\n- Benefits: loose coupling, absorbs traffic spikes, the producer keeps working if a consumer is down, easy fan-out.\n- Costs: eventual consistency, harder debugging (hence tracing), duplicates and ordering issues. Consumers must be **idempotent**, use retries with a dead-letter queue, and the producer may need the outbox pattern so the database write and the event publish do not diverge.",
+ "followUps": [
+  "Why is PUT idempotent but POST not? How would you make a payment POST safe to retry?",
+  "How do you propagate a trace ID through a message queue?",
+  "What does the outbox pattern solve?",
+  "When would you still prefer a synchronous call between services?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "f50945879d",
+ "question": "MakeMyTrip SSE / SDE-II frontend round: **create a Stopwatch component in React** with **start, pause and reset** functionality. It appeared in the same round as event-loop output questions, a React optimisation question and a question on prefetch, preload and preconnect.",
+ "lookingFor": [
+  "Correct use of state, refs and effects for timers.",
+  "Avoiding interval leaks and stale closures.",
+  "Accurate time tracking independent of timer drift.",
+  "Clean, simple component design and UI states.",
+  "Handling edge cases such as double-start."
+ ],
+ "answer": "**Key design decisions.**\n- Store **elapsed milliseconds** in state and an `isRunning` flag.\n- Keep the interval id in a **`useRef`** (changing it must not re-render).\n- Do not just add 10 each tick: `setInterval` drifts and is throttled in background tabs. Record the start timestamp and compute `Date.now() - start + elapsedBefore` each tick, so the display is always correct.\n- Always clear the interval on pause, reset and unmount.\n\n```jsx\nimport { useState, useRef, useEffect } from 'react';\n\nexport default function Stopwatch() {\n  const [elapsed, setElapsed] = useState(0);\n  const [running, setRunning] = useState(false);\n  const startRef = useRef(0);   // timestamp when current run began, adjusted for earlier time\n  const timerRef = useRef(null);\n\n  useEffect(() => {\n    if (!running) return;\n    startRef.current = Date.now() - elapsed;\n    timerRef.current = setInterval(() => {\n      setElapsed(Date.now() - startRef.current);\n    }, 10);\n    return () => clearInterval(timerRef.current);\n    // eslint-disable-next-line react-hooks/exhaustive-deps\n  }, [running]);\n\n  const reset = () => { setRunning(false); setElapsed(0); };\n  const fmt = ms => {\n    const m = String(Math.floor(ms / 60000)).padStart(2, '0');\n    const s = String(Math.floor(ms / 1000) % 60).padStart(2, '0');\n    const c = String(Math.floor(ms / 10) % 100).padStart(2, '0');\n    return `${m}:${s}.${c}`;\n  };\n\n  // render: a heading showing fmt(elapsed), plus three buttons:\n  // Start (onClick sets running true, disabled while running),\n  // Pause (sets running false, disabled while stopped), Reset (calls reset)\n  return renderStopwatchUI(fmt(elapsed), running, setRunning, reset);\n}\n```\n\n**How it behaves.** Start sets `running`; the effect resumes from the saved `elapsed`. Pause flips `running` so cleanup stops the interval while `elapsed` stays. Reset stops and zeroes. Because the effect depends only on `running`, there is exactly one interval at a time and the cleanup prevents leaks and double timers.\n\n**Improvements:** use `requestAnimationFrame` for smoother display, add a lap feature, and write tests with fake timers.",
+ "followUps": [
+  "Why not simply increment a counter every 10 ms?",
+  "What bug appears if you forget to clear the interval on unmount?",
+  "How would you add a lap button and list of laps?",
+  "How would you test this component?"
+ ]
+}

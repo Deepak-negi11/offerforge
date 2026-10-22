@@ -1,0 +1,19 @@
+{
+ "qid": "5f7cbc7c41",
+ "question": "Razorpay Frontend Engineer, round 1: a 1.5-hour React.js machine coding round. Build a reusable dropdown component with search functionality. The focus was on making it modular and reusable, with several follow-ups on performance optimization, especially for handling large datasets.\n\nIn a later UI/web-fundamentals round the candidate was also asked to write a custom hook that returns true if a component is mounted and false otherwise, and to explain all the React hooks they knew.",
+ "lookingFor": [
+  "Reusable component API design (props, controlled state, composition)",
+  "Clean state handling for open, query, filtered list and selection",
+  "Performance thinking: debouncing, memoization and virtualization",
+  "Accessibility and keyboard interaction",
+  "Solid grasp of React hooks and lifecycle behaviour"
+ ],
+ "answer": "**Component API.** `<SearchableDropdown options value onChange placeholder getLabel getValue disabled multiple />`. Options can be `{label, value}` objects, with accessor functions so callers keep their own data shapes. Support controlled use (`value` plus `onChange`) and optionally render props (`renderOption`) for custom items. Keep the search logic and the UI separated, for example in a `useSearchableList` hook.\n\n**State.** `isOpen`, `query`, `highlightedIndex`, and the selected value. Derive the filtered list from `options` and `query` with `useMemo` instead of storing it in state. Case-insensitive `includes` match; show an empty-state row when nothing matches.\n\n**Behaviour.** Open on click or focus, close on outside click (a `mousedown` listener on `document`, cleaned up in `useEffect`), on Escape and after selection. Keyboard: ArrowUp and ArrowDown move the highlight, Enter selects, Escape closes, and keep the highlighted item scrolled into view.\n\n**Accessibility.** Use the combobox pattern: input with `role=\"combobox\"`, `aria-expanded`, `aria-controls`, `aria-activedescendant`; list with `role=\"listbox\"` and options with `role=\"option\"` and `aria-selected`.\n\n**Performance for large datasets (the follow-up).**\n- Debounce the query (200 to 300 ms) so filtering does not run on every keystroke.\n- Virtualize the list (react-window style): render only visible rows, using fixed row heights and an absolutely positioned offset.\n- Memoize rows with `React.memo` and stable callbacks (`useCallback`) so a keystroke does not re-render thousands of rows.\n- Cap the visible results or paginate, and for huge or remote data do server-side search with request cancellation (`AbortController`) to avoid stale responses.\n- Precompute lowercase labels once per options change.\n\n**Custom hook for mounted state.**\n```js\nfunction useIsMounted() {\n  const ref = useRef(false);\n  useEffect(() => { ref.current = true; return () => { ref.current = false; }; }, []);\n  return useCallback(() => ref.current, []);\n}\n```\nIt returns a function (reading a ref avoids stale values and re-renders). Mention why it is mostly useful for avoiding state updates after unmount.",
+ "followUps": [
+  "Why use useMemo for the filtered list rather than keeping it in state with useEffect?",
+  "How does list virtualization work, and what breaks when row heights vary?",
+  "Explain useEffect cleanup, dependency arrays and stale closures.",
+  "How would you support multi-select with chips and async loaded options?",
+  "What is the difference between useMemo, useCallback and React.memo?"
+ ]
+}

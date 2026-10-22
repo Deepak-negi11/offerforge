@@ -7,6 +7,8 @@
   refresh    discover + extract + build
   verify     spot-check that cited source URLs load and mention the company
   verify-evidence  check each refreshed question's excerpt against its source page
+  problems   full statements and tested cases: problems select|check|build (see atlas/problems.py)
+  details    write-ups for non-coding questions: details batches|check|build (see atlas/details.py)
 """
 
 from __future__ import annotations
@@ -18,6 +20,16 @@ from . import config
 
 
 def main() -> int:
+    if len(sys.argv) > 1 and sys.argv[1] == "details":
+        from . import details
+
+        details.main(sys.argv[2:])
+        return 0
+    if len(sys.argv) > 1 and sys.argv[1] == "problems":
+        from . import problems
+
+        problems.main(sys.argv[2:])
+        return 0
     ap = argparse.ArgumentParser(prog="atlas")
     ap.add_argument("command", choices=["discover", "extract", "build", "fetch", "refresh", "verify", "verify-evidence"])
     ap.add_argument("--company", action="append", help="company slug (repeatable); default: all")

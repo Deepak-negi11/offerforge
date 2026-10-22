@@ -1,0 +1,49 @@
+{
+ "pid": "longest-continuous-subarray-with-absolute-diff-less-than-or-equal-to-limit",
+ "title": "Longest Continuous Subarray With Absolute Diff Less Than or Equal to Limit",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A ride-sharing company records the demand level of a city zone once per hour, giving an array `nums` of `n` integers. The operations team wants to find the longest stretch of consecutive hours that is *stable*.\n\nA non-empty contiguous subarray is **stable** if the absolute difference between **any two** of its elements is at most `limit`. Equivalently, the largest element of the subarray minus the smallest element of the subarray is at most `limit`.\n\nPrint the length of the longest stable subarray. A subarray of length 1 is always stable.",
+ "input_format": "The first line contains two integers `n` and `limit`.\nThe second line contains `n` integers `nums[0] ... nums[n-1]`.",
+ "output_format": "Print a single integer: the length of the longest stable subarray.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ nums[i] ≤ 10^9",
+  "0 ≤ limit ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "7 3\n9 4 6 5 7 3 8",
+   "output": "4",
+   "explanation": "The subarray `4 6 5 7` has maximum 7 and minimum 4, a difference of 3, which is allowed. Extending it to the right adds 3 (difference 4) and extending it to the left adds 9 (difference 5), both too large. No subarray of length 5 is stable."
+  },
+  {
+   "input": "6 0\n2 2 3 3 3 2",
+   "output": "3",
+   "explanation": "With `limit = 0` all elements of the subarray must be equal. The longest run of equal values is `3 3 3`, of length 3."
+  },
+  {
+   "input": "4 100\n10 50 20 90",
+   "output": "4",
+   "explanation": "The whole array has maximum 90 and minimum 10, a difference of 80 which is at most 100."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Use two pointers: grow the window on the right and shrink it from the left whenever the window stops being stable.",
+  "To test stability you need the window's maximum and minimum quickly. Re-scanning the window each time is too slow.",
+  "Keep two monotonic deques of indices, one decreasing (front is the maximum) and one increasing (front is the minimum). Pop from the front when an index leaves the window."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    n, limit = int(data[0]), int(data[1])\n    a = [int(x) for x in data[2:2 + n]]\n    mx, mn = deque(), deque()\n    left = 0\n    best = 0\n    for right in range(n):\n        v = a[right]\n        while mx and a[mx[-1]] <= v:\n            mx.pop()\n        mx.append(right)\n        while mn and a[mn[-1]] >= v:\n            mn.pop()\n        mn.append(right)\n        while a[mx[0]] - a[mn[0]] > limit:\n            left += 1\n            if mx[0] < left:\n                mx.popleft()\n            if mn[0] < left:\n                mn.popleft()\n        if right - left + 1 > best:\n            best = right - left + 1\n    print(best)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, limit = int(data[0]), int(data[1])\na = [int(x) for x in data[2:2 + n]]\nbest = 0\nfor i in range(n):\n    hi = lo = a[i]\n    for j in range(i, n):\n        hi = max(hi, a[j])\n        lo = min(lo, a[j])\n        if hi - lo <= limit:\n            best = max(best, j - i + 1)\nprint(best)\n",
+ "generator": "def gen(rng):\n    def fmt(a, lim):\n        return '%d %d\\n%s' % (len(a), lim, ' '.join(map(str, a)))\n    tests = [fmt([5], 0), fmt([5], 10**9), fmt([1, 10**9], 0), fmt([1, 10**9], 10**9 - 1), fmt([1, 10**9], 10**9),\n             fmt([3, 3, 3, 3], 0), fmt([1, 2, 3, 4, 5], 1), fmt([5, 4, 3, 2, 1], 2), fmt([9, 4, 6, 5, 7, 3, 8], 3),\n             fmt([2, 2, 3, 3, 3, 2], 0), fmt([10, 50, 20, 90], 100)]\n    for n in (2, 3, 5, 8, 12, 20, 30, 40):\n        for _ in range(3):\n            tests.append(fmt([rng.randint(1, 30) for _ in range(n)], rng.randint(0, 12)))\n    N = 100000\n    tests.append(fmt([rng.randint(1, 10**9) for _ in range(N)], rng.randint(10**8, 5 * 10**8)))\n    # slow random walk, so stable windows are long\n    a, x = [], 5 * 10**8\n    for _ in range(N):\n        x = min(10**9, max(1, x + rng.randint(-1000, 1000)))\n        a.append(x)\n    tests.append(fmt(a, 20000))\n    tests.append(fmt(list(range(1, N + 1)), 50000))\n    tests.append(fmt(list(range(N, 0, -1)), 70000))\n    tests.append(fmt([7] * N, 0))\n    tests.append(fmt([rng.choice((1, 10**9)) for _ in range(N)], 10**9 - 1))\n    # zig-zag so max and min keep changing\n    tests.append(fmt([(i % 2) * 10**5 + rng.randint(1, 100) + i // 2 for i in range(N)], 10**5 + 150))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef longest_subarray(nums: List[int], limit: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, limit = int(data[0]), int(data[1])\n    nums = [int(x) for x in data[2:2 + n]]\n    print(longest_subarray(nums, limit))\n\n\nmain()\n",
+  "javascript": "function longestSubarray(nums, limit) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], limit = t[1]\nconst nums = t.slice(2, 2 + n)\nconsole.log(String(longestSubarray(nums, limit)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint longestSubarray(vector<long long>& nums, long long limit) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long limit;\n    cin >> n >> limit;\n    vector<long long> nums(n);\n    for (int i = 0; i < n; i++) cin >> nums[i];\n    cout << longestSubarray(nums, limit) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int longestSubarray(long[] nums, long limit) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        long limit = (long) in.nval;\n        long[] nums = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            nums[i] = (long) in.nval;\n        }\n        System.out.println(longestSubarray(nums, limit));\n    }\n}\n"
+ }
+}

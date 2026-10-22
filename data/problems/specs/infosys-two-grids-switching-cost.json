@@ -1,0 +1,49 @@
+{
+ "pid": "infosys-two-grids-switching-cost",
+ "title": "Two Grids, Switching Cost",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given two grids, **Grid 1** and **Grid 2**, each with `n` rows and `m` columns of non-negative integers, and a switching cost `S`.\n\nYou travel from the top-left cell `(0, 0)` to the bottom-right cell `(n - 1, m - 1)`. At every step you move either one cell **right** or one cell **down**. At any moment you are standing in exactly one of the two grids, in a cell with the same row and column in both of them.\n\n- You begin at `(0, 0)` in Grid 1.\n- On each step you may stay in the grid you are in, or switch to the other grid as you move. A switch costs `S`. You may switch as many times as you like, but you cannot switch without also moving.\n- The cost of a path is the sum of the values of all the cells you visit (including the first and last), each taken from the grid you are standing in when you are on it, plus `S` for every switch.\n- You may finish in either grid.\n\nPrint the minimum possible cost of a path.",
+ "input_format": "The first line contains three integers `n`, `m` and `S`.\nThe next `n` lines each contain `m` integers: the rows of Grid 1.\nThe next `n` lines each contain `m` integers: the rows of Grid 2.",
+ "output_format": "Print a single integer: the minimum path cost.",
+ "constraints": [
+  "1 ≤ n, m ≤ 500",
+  "0 ≤ values in both grids ≤ 100",
+  "0 ≤ S ≤ 1000"
+ ],
+ "examples": [
+  {
+   "input": "2 3 2\n1 9 1\n1 9 1\n9 1 9\n9 1 9",
+   "output": "8",
+   "explanation": "Go down first: (0,0) in Grid 1 costs 1 and (1,0) in Grid 1 costs 1. Move right to (1,1) and switch to Grid 2: 1 + 2 for the switch. Move right to (1,2) and switch back to Grid 1: 1 + 2. Total 1 + 1 + 3 + 3 = 8."
+  },
+  {
+   "input": "2 2 5\n1 2\n3 4\n9 9\n9 9",
+   "output": "7",
+   "explanation": "Grid 2 is much worse and a switch costs 5, so stay in Grid 1. The path (0,0), (0,1), (1,1) costs 1 + 2 + 4 = 7; the other path costs 1 + 3 + 4 = 8."
+  },
+  {
+   "input": "3 3 2\n1 9 9\n1 9 9\n9 9 9\n9 9 9\n9 1 1\n9 9 1",
+   "output": "7",
+   "explanation": "Walk down the first column in Grid 1 to (1,0), costing 1 + 1. Step right to (1,1) switching to Grid 2: 1 + 2. Then (1,2) costs 1 and (2,2) costs 1, both in Grid 2. Total 1 + 1 + 3 + 1 + 1 = 7."
+  }
+ ],
+ "complexity": {
+  "time": "O(n * m)",
+  "space": "O(m)"
+ },
+ "hints": [
+  "This is the classic minimum path sum, but you must also remember which grid you are in. What extra state do you need at each cell?",
+  "Let `a[i][j]` be the cheapest cost to stand on cell (i, j) in Grid 1, and `b[i][j]` the same for Grid 2. Each cell can be entered from above or from the left.",
+  "To enter (i, j) in Grid 1, take the cheapest of: arriving from a neighbour that was in Grid 1, or from a neighbour in Grid 2 plus S. Mirror this for Grid 2. The answer is the better of `a` and `b` at the last cell."
+ ],
+ "reference": "import sys\n\ndef main():\n    d = sys.stdin.read().split()\n    n, m, S = int(d[0]), int(d[1]), int(d[2])\n    k = 3\n    g = []\n    for _ in range(2):\n        rows = []\n        for i in range(n):\n            rows.append([int(x) for x in d[k:k + m]])\n            k += m\n        g.append(rows)\n    INF = float('inf')\n    # d0[j], d1[j]: cheapest cost to stand on cell (i, j) of grid 1 / grid 2\n    d0 = [INF] * m\n    d1 = [INF] * m\n    for i in range(n):\n        a, b = g[0][i], g[1][i]\n        for j in range(m):\n            if i == 0 and j == 0:\n                d0[0] = a[0]\n                d1[0] = INF\n                continue\n            p0 = INF\n            p1 = INF\n            if i > 0:\n                p0 = d0[j]\n                p1 = d1[j]\n            if j > 0:\n                if d0[j - 1] < p0:\n                    p0 = d0[j - 1]\n                if d1[j - 1] < p1:\n                    p1 = d1[j - 1]\n            n0 = min(p0, p1 + S) + a[j]\n            n1 = min(p1, p0 + S) + b[j]\n            d0[j] = n0\n            d1[j] = n1\n    print(min(d0[m - 1], d1[m - 1]))\n\nmain()\n",
+ "brute": "import sys\nsys.setrecursionlimit(10000)\nd = sys.stdin.read().split()\nn, m, S = int(d[0]), int(d[1]), int(d[2])\nk = 3\ng = []\nfor _ in range(2):\n    rows = []\n    for i in range(n):\n        rows.append([int(x) for x in d[k:k + m]])\n        k += m\n    g.append(rows)\n\ndef f(i, j, cur):\n    cost = g[cur][i][j]\n    if i == n - 1 and j == m - 1:\n        return cost\n    best = None\n    for ni, nj in ((i + 1, j), (i, j + 1)):\n        if ni < n and nj < m:\n            for ng in (0, 1):\n                v = f(ni, nj, ng) + (S if ng != cur else 0)\n                if best is None or v < best:\n                    best = v\n    return cost + best\n\nprint(f(0, 0, 0))\n",
+ "generator": "def gen(rng):\n    def fmt(S, a, b):\n        n, m = len(a), len(a[0])\n        rows = [' '.join(map(str, r)) for r in a] + [' '.join(map(str, r)) for r in b]\n        return f\"{n} {m} {S}\\n\" + '\\n'.join(rows)\n    def rnd(n, m, hi):\n        return [[rng.randint(0, hi) for _ in range(m)] for _ in range(n)]\n    tests = [\n        fmt(5, [[7]], [[1]]),\n        fmt(0, [[1, 2], [3, 4]], [[5, 6], [0, 0]]),\n        fmt(1000, [[1, 1], [1, 1]], [[0, 0], [0, 0]]),\n        fmt(3, [[0, 0, 0]], [[0, 0, 0]]),\n        fmt(2, [[1], [100], [1]], [[100], [1], [100]]),\n        fmt(1, [[1, 100, 100], [1, 100, 100], [1, 1, 1]], [[100, 100, 100], [100, 1, 100], [100, 100, 1]]),\n    ]\n    for _ in range(60):\n        n = rng.randint(1, 5)\n        m = rng.randint(1, 5)\n        hi = rng.choice([3, 9, 30])\n        S = rng.randint(0, hi)\n        tests.append(fmt(S, rnd(n, m, hi), rnd(n, m, hi)))\n    for n, m, hi, S in ((50, 60, 100, 20), (200, 200, 100, 0), (500, 500, 100, 50), (500, 500, 100, 1000), (1, 500, 100, 10), (500, 1, 100, 10), (400, 500, 100, 7)):\n        tests.append(fmt(S, rnd(n, m, hi), rnd(n, m, hi)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_path_sum(grid1: List[List[int]], grid2: List[List[int]], s: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m, s = int(data[0]), int(data[1]), int(data[2])\n    k = 3\n    grids = []\n    for _ in range(2):\n        rows = []\n        for i in range(n):\n            rows.append([int(x) for x in data[k:k + m]])\n            k += m\n        grids.append(rows)\n    print(min_path_sum(grids[0], grids[1], s))\n\n\nmain()\n",
+  "javascript": "function minPathSum(grid1, grid2, s) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1], s = t[2]\nlet k = 3\nconst grids = []\nfor (let g = 0; g < 2; g++) {\n  const rows = []\n  for (let i = 0; i < n; i++) {\n    rows.push(t.slice(k, k + m))\n    k += m\n  }\n  grids.push(rows)\n}\nconsole.log(String(minPathSum(grids[0], grids[1], s)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minPathSum(vector<vector<long long>>& grid1, vector<vector<long long>>& grid2, long long s) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    long long s;\n    cin >> n >> m >> s;\n    vector<vector<long long>> grid1(n, vector<long long>(m)), grid2(n, vector<long long>(m));\n    for (int i = 0; i < n; i++) for (int j = 0; j < m; j++) cin >> grid1[i][j];\n    for (int i = 0; i < n; i++) for (int j = 0; j < m; j++) cin >> grid2[i][j];\n    cout << minPathSum(grid1, grid2, s) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minPathSum(long[][] grid1, long[][] grid2, long s) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        in.nextToken();\n        long s = (long) in.nval;\n        long[][] grid1 = new long[n][m], grid2 = new long[n][m];\n        for (int i = 0; i < n; i++) for (int j = 0; j < m; j++) { in.nextToken(); grid1[i][j] = (long) in.nval; }\n        for (int i = 0; i < n; i++) for (int j = 0; j < m; j++) { in.nextToken(); grid2[i][j] = (long) in.nval; }\n        System.out.println(minPathSum(grid1, grid2, s));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,44 @@
+{
+ "pid": "divide-two-integers",
+ "title": "Divide Two Integers",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given `T` pairs of 32-bit signed integers `dividend` and `divisor`. For each pair, compute the integer quotient `dividend / divisor`, **truncated toward zero** (so `7 / -2 = -3` and `-7 / 2 = -3`), without using multiplication, division or modulo to obtain it: only addition, subtraction, comparison and bit shifts are meant to be used.\n\nThe result must fit in a 32-bit signed integer. The only quotient that does not fit is `-2147483648 / -1 = 2147483648`; for that pair print `2147483647` instead. The divisor is never `0`.\n\n**Follow-up:** do it with only `+` and `-` as arithmetic operators (shifts are not allowed), and then explain how to make it run in `O(log |dividend|)` per pair instead of one subtraction per unit of the quotient.",
+ "input_format": "The first line contains an integer `T`.\nEach of the next `T` lines contains two integers `dividend` and `divisor`.",
+ "output_format": "Print `T` lines. Line `i` contains the clamped, truncated quotient of the `i`-th pair.",
+ "constraints": [
+  "1 ≤ T ≤ 2 * 10^4",
+  "-2^31 ≤ dividend, divisor ≤ 2^31 - 1",
+  "divisor ≠ 0"
+ ],
+ "examples": [
+  {
+   "input": "4\n10 3\n7 -2\n-15 4\n-2147483648 -1",
+   "output": "3\n-3\n-3\n2147483647",
+   "explanation": "10 / 3 = 3.33 truncates to 3. 7 / -2 = -3.5 truncates toward zero to -3. -15 / 4 = -3.75 truncates to -3. The last quotient 2147483648 overflows, so 2147483647 is printed."
+  },
+  {
+   "input": "3\n0 5\n5 7\n-2147483648 1",
+   "output": "0\n0\n-2147483648",
+   "explanation": "0 divided by anything is 0. 5 / 7 = 0.71 truncates to 0. The quotient -2147483648 fits in 32 bits, so it is printed as is."
+  }
+ ],
+ "complexity": {
+  "time": "O(T log M)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Subtracting the divisor one copy at a time is correct, but the quotient can be about 2 billion: how many subtractions is that?",
+  "Work with the absolute values and remember the sign separately. Instead of subtracting `divisor` once, try subtracting `divisor * 2^i` (a left shift) for the largest `i` that still fits.",
+  "Go through the bit positions from high to low: if the remaining dividend is at least `divisor << i`, subtract it and set bit `i` of the quotient. Handle the single overflow case last."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    t = int(data[0])\n    out = []\n    for i in range(t):\n        a = int(data[1 + 2 * i])\n        b = int(data[2 + 2 * i])\n        neg = (a < 0) != (b < 0)\n        x, y = abs(a), abs(b)\n        q = 0\n        for s in range(31, -1, -1):\n            if x >= (y << s):\n                x -= y << s\n                q |= 1 << s\n        if neg:\n            q = -q\n        if q > 2**31 - 1:\n            q = 2**31 - 1\n        out.append(q)\n    print('\\n'.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nt = int(data[0])\nout = []\nfor i in range(t):\n    a = int(data[1 + 2 * i])\n    b = int(data[2 + 2 * i])\n    q = abs(a) // abs(b)\n    if (a < 0) != (b < 0):\n        q = -q\n    out.append(min(q, 2**31 - 1))\nprint('\\n'.join(map(str, out)))\n",
+ "generator": "def gen(rng):\n    LO, HI = -2**31, 2**31 - 1\n    def fmt(ps):\n        return str(len(ps)) + '\\n' + '\\n'.join(f'{a} {b}' for a, b in ps)\n    def nz(lo, hi):\n        while True:\n            v = rng.randint(lo, hi)\n            if v != 0:\n                return v\n    tests = [\n        fmt([(10, 3)]), fmt([(LO, -1)]), fmt([(LO, 1)]), fmt([(HI, 1)]), fmt([(HI, -1)]),\n        fmt([(LO, LO), (HI, LO), (LO, HI), (HI, HI), (0, LO), (0, 1)]),\n        fmt([(7, -2), (-7, 2), (-7, -2), (7, 2), (1, 2), (-1, 2), (1, -2), (5, 5), (-5, 5), (5, -5), (3, 7)]),\n        fmt([(LO + 1, -1), (LO + 1, 1), (LO, 2), (LO, -2), (LO, 3), (HI, 2), (HI, -3), (LO, HI)]),\n    ]\n    for _ in range(16):\n        n = rng.randint(1, 15)\n        r = rng.choice([10, 100, 10**6, 2**31 - 1])\n        tests.append(fmt([(rng.randint(-r, r), nz(-r, r)) for _ in range(n)]))\n    big = []\n    for _ in range(20000):\n        big.append((rng.randint(2**30, HI) * rng.choice([1, -1]), rng.choice([1, -1, 2, -2, 3, 7, -5])))\n    tests.append(fmt(big))\n    big = [(rng.randint(LO, HI), nz(-3, 3)) for _ in range(20000)]\n    tests.append(fmt(big))\n    big = [(rng.randint(LO, HI), rng.randint(LO, HI) or 1) for _ in range(20000)]\n    tests.append(fmt(big))\n    big = [(HI if rng.random() < 0.5 else LO, 1 if rng.random() < 0.5 else -1) for _ in range(20000)]\n    tests.append(fmt(big))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef divide(dividend: int, divisor: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    t = int(data[0])\n    out = []\n    for i in range(t):\n        out.append(divide(int(data[1 + 2 * i]), int(data[2 + 2 * i])))\n    print('\\n'.join(map(str, out)))\n\n\nmain()\n",
+  "javascript": "function divide(dividend, divisor) {\n  // Write your solution here\n  return 0\n}\n\nconst tk = input.split(/\\s+/).filter(Boolean).map(Number)\nconst t = tk[0]\nconst out = []\nfor (let i = 0; i < t; i++) out.push(divide(tk[1 + 2 * i], tk[2 + 2 * i]))\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long divide(long long dividend, long long divisor) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int t;\n    cin >> t;\n    while (t--) {\n        long long a, b;\n        cin >> a >> b;\n        cout << divide(a, b) << \"\\n\";\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long divide(long dividend, long divisor) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int t = (int) in.nval;\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < t; i++) {\n            in.nextToken(); long a = (long) in.nval;\n            in.nextToken(); long b = (long) in.nval;\n            sb.append(divide(a, b)).append('\\n');\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

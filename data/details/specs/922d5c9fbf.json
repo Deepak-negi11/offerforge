@@ -1,0 +1,18 @@
+{
+ "qid": "922d5c9fbf",
+ "question": "PhonePe machine coding round (SDE-1; reported by multiple candidates): **design a prepaid mini wallet.** Users must **register**, **top up** the wallet from sources like credit card, debit card and UPI, **fetch balance**, and **send money** to other users. The amount must be greater than 0 and the sender must have sufficient balance. `getTransactions(filter, sorter)` returns history with **pluggable filters** (for example by user) and **sorters** (by date, amount). Transactions can earn **exciting offers**, for example a **10% cashback on the first transaction over 100**; offers must be **extensible**.",
+ "lookingFor": [
+  "Clean object model: User, Wallet, Transaction, Offer.",
+  "Use of Strategy-style patterns for filters, sorters and offers.",
+  "Correctness: validation, atomic debit/credit, concurrency.",
+  "Extensibility without modifying core code (open/closed principle).",
+  "Working, testable code within the time limit."
+ ],
+ "answer": "**Entities.** `User(id, name)`, `Wallet(userId, balance)`, `Transaction(id, from, to, amount, type, timestamp)` where type is TOPUP, TRANSFER or CASHBACK, and `PaymentSource` (CC, DC, UPI).\n\n**Services.**\n- `WalletService`: `registerUser`, `topUpWallet(userId, amount, source)`, `fetchBalance`, `sendMoney(from, to, amount)`, `getTransactions(userId, filter, sorter)`.\n- Validation: both users registered, amount > 0, sufficient balance, sender != receiver.\n- Use `BigDecimal` or integer paise for money, never floating point.\n\n**Pluggable pieces (Strategy pattern).**\n- `TransactionFilter` interface (`boolean test(Transaction t)`) with implementations like `ByCounterparty`, `ByAmountRange`, `ByType`. Combine with AND/OR (Composite).\n- `TransactionSorter` as a `Comparator<Transaction>` (by date, by amount); support ascending/descending.\n- `PaymentSource` implementations (CardSource, UpiSource) behind one `debit` interface, so a new source needs no change to `WalletService`.\n\n**Offers.** An `Offer` interface with `isEligible(Transaction, UserContext)` and `calculateReward(Transaction)`. Example: `FirstTransactionCashback` (first transfer > 100 earns 10% cashback). `sendMoney` runs through a list of offers, credits the reward as a separate CASHBACK transaction, and any new offer is just a new class registered in a list. Decide whether multiple offers can stack or only the best applies, and state it.\n\n**Concurrency.** Make debit/credit atomic: lock wallets in a consistent order (for example by user ID) to avoid deadlock, or use `synchronized`/`ReentrantLock` per wallet. In production, rely on DB transactions.\n\n**Trade-offs.** In-memory maps (`ConcurrentHashMap`) for the exercise; mention persistence, idempotency keys for retries, and an audit-friendly ledger. Write a small demo/test main covering failure cases.",
+ "followUps": [
+  "How would you make sendMoney thread-safe and deadlock-free?",
+  "How would you add a new offer type without changing existing code?",
+  "How would you prevent a retry from debiting the user twice?",
+  "How would you handle a failed top-up from the payment source?"
+ ]
+}

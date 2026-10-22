@@ -1,0 +1,17 @@
+{
+ "qid": "56b38810e1",
+ "question": "MakeMyTrip SSE-2 / SDE-2 backend technical round 2. **Write code where a producer adds tasks to a bounded queue (waiting when the queue is full) and a consumer processes them in parallel.** (No further detail was reported, so assume Java-style concurrency and a coding-interview setting.)",
+ "lookingFor": [
+  "Understanding of the producer-consumer pattern and blocking.",
+  "Correct synchronisation: no lost wakeups, no busy-wait.",
+  "Knowing the standard library tool (BlockingQueue) and being able to build it by hand.",
+  "Handling shutdown, errors and multiple consumers."
+ ],
+ "answer": "**Simplest correct answer: `BlockingQueue` + an executor.** `ArrayBlockingQueue` is bounded: `put()` blocks when full and `take()` blocks when empty, so no manual locking is needed.\n\n```java\nBlockingQueue<Runnable> q = new ArrayBlockingQueue<>(10);\nExecutorService workers = Executors.newFixedThreadPool(4);\n// Producer\nThread producer = new Thread(() -> {\n  for (int i = 0; i < 100; i++) {\n    int id = i;\n    try { q.put(() -> process(id)); }   // waits if full\n    catch (InterruptedException e) { Thread.currentThread().interrupt(); }\n  }\n});\n// Consumers\nfor (int i = 0; i < 4; i++) {\n  workers.submit(() -> {\n    try { while (true) q.take().run(); }  // processes in parallel\n    catch (InterruptedException e) { Thread.currentThread().interrupt(); }\n  });\n}\n```\n\n**Hand-built version (what interviewers often want).** Use one lock with two conditions (`notFull`, `notEmpty`):\n\n```java\nclass BoundedQueue<T> {\n  private final Queue<T> q = new ArrayDeque<>();\n  private final int cap;\n  private final ReentrantLock lock = new ReentrantLock();\n  private final Condition notFull = lock.newCondition(), notEmpty = lock.newCondition();\n  BoundedQueue(int cap) { this.cap = cap; }\n  void put(T t) throws InterruptedException {\n    lock.lock();\n    try { while (q.size() == cap) notFull.await();\n          q.add(t); notEmpty.signal(); } finally { lock.unlock(); }\n  }\n  T take() throws InterruptedException {\n    lock.lock();\n    try { while (q.isEmpty()) notEmpty.await();\n          T t = q.remove(); notFull.signal(); return t; } finally { lock.unlock(); }\n  }\n}\n```\n\n**Key points.** Use `while` (not `if`) around `await()`/`wait()` to handle spurious wakeups; the lock guards the shared state; signalling after each change wakes the opposite side. With several consumers, tasks run in parallel as each `take()` removes a different task.\n\n**Shutdown.** Use a poison pill (a special sentinel task, one per consumer), or interrupt the workers and call `shutdown()`/`awaitTermination()`. Handle exceptions inside tasks so a failure does not kill a worker. Choose the bound to apply backpressure and protect memory.",
+ "followUps": [
+  "How would you shut the system down gracefully without losing queued tasks?",
+  "What changes with multiple producers?",
+  "What is the difference between ArrayBlockingQueue and LinkedBlockingQueue?",
+  "How would you add retry and a dead-letter queue for failing tasks?"
+ ]
+}

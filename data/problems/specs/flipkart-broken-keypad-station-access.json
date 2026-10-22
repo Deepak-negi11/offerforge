@@ -1,0 +1,49 @@
+{
+ "pid": "flipkart-broken-keypad-station-access",
+ "title": "Broken Keypad and Fastest Station Access",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A pod travels through a tunnel with `N` stations numbered `1` to `N`. The pod is currently at station `s` and the passenger wants to reach station `t`.\n\nThe control panel has a number pad with digits `0` to `9`, an **Enter** button, and two extra buttons:\n\n- **F** moves the pod one station **forward** (from station `x` to `x + 1`). No Enter is needed.\n- **B** moves the pod one station **backward** (from station `x` to `x - 1`). No Enter is needed.\n\nTo jump to a station directly, you type its number using the digit buttons and then press **Enter**; the pod goes straight to that station. Each digit press and the Enter press count as one button press each. Station numbers are typed without leading zeros (for example station `7` is typed as `7`, never `07`).\n\nThis morning some digit buttons stopped working. Only the digits in a given list still work; **Enter**, **F** and **B** work fine. The pod can never move before station `1` or beyond station `N`, and typing a number that is not a station number (outside `1..N`) is not allowed.\n\nFind the fewest button presses needed to get the pod from station `s` to station `t`. If `s = t`, the answer is `0`.",
+ "input_format": "The first line contains three integers `N`, `s` and `t`.\nThe second line contains an integer `w`, the number of working digits, followed by `w` distinct digits separated by spaces. If `w = 0`, the line contains only `0`.",
+ "output_format": "Print a single integer: the minimum number of button presses.",
+ "constraints": [
+  "1 ≤ N ≤ 9999",
+  "1 ≤ s, t ≤ N",
+  "0 ≤ w ≤ 10"
+ ],
+ "examples": [
+  {
+   "input": "100 5 87\n2 8 7",
+   "output": "3",
+   "explanation": "Station 87 can be typed with the working digits 8 and 7: press 8, 7 and Enter, which is 3 presses. Walking with F would take 82 presses."
+  },
+  {
+   "input": "500 7 330\n3 1 2 5",
+   "output": "79",
+   "explanation": "Station 330 cannot be typed. Typing 255 and Enter costs 4 presses and lands on 255, then 75 presses of F reach 330: 79 in total. Walking from station 7 would need 323 presses."
+  },
+  {
+   "input": "50 40 38\n0",
+   "output": "2",
+   "explanation": "No digit works, so only F and B can be used: two B presses."
+  }
+ ],
+ "complexity": {
+  "time": "O(N log N)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Typing a number costs the same no matter where the pod currently is. So any useful plan types at most once.",
+  "After you type a station `x`, the only thing left to do is walk to `t` with F or B. Walking before you type never helps.",
+  "Try every station `x` from `1` to `N` whose digits are all working, and compare `len(x) + 1 + |x - t|` against walking directly with `|s - t|`."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, s, t = int(data[0]), int(data[1]), int(data[2])\n    w = int(data[3])\n    ok = set(data[4:4 + w])\n    best = abs(s - t)\n    for x in range(1, n + 1):\n        d = str(x)\n        good = True\n        for ch in d:\n            if ch not in ok:\n                good = False\n                break\n        if good:\n            c = len(d) + 1 + abs(x - t)\n            if c < best:\n                best = c\n    print(best)\n\nmain()\n",
+ "brute": "import sys, heapq\n\ndata = sys.stdin.read().split()\nn, s, t = int(data[0]), int(data[1]), int(data[2])\nw = int(data[3])\nok = set(data[4:4 + w])\ntypeable = []\nfor x in range(1, n + 1):\n    if all(ch in ok for ch in str(x)):\n        typeable.append((x, len(str(x)) + 1))\nINF = float('inf')\ndist = [INF] * (n + 2)\ndist[s] = 0\npq = [(0, s)]\nwhile pq:\n    d, u = heapq.heappop(pq)\n    if d > dist[u]:\n        continue\n    nxt = []\n    if u + 1 <= n:\n        nxt.append((u + 1, 1))\n    if u - 1 >= 1:\n        nxt.append((u - 1, 1))\n    nxt.extend(typeable)\n    for v, c in nxt:\n        if d + c < dist[v]:\n            dist[v] = d + c\n            heapq.heappush(pq, (d + c, v))\nprint(dist[t])\n",
+ "generator": "def gen(rng):\n    def fmt(n, s, t, digs):\n        return f\"{n} {s} {t}\\n{len(digs)}\" + \"\".join(f\" {d}\" for d in digs)\n    tests = [\n        fmt(100, 5, 87, [8, 7]),\n        fmt(500, 7, 330, [1, 2, 5]),\n        fmt(50, 40, 38, []),\n        fmt(1, 1, 1, [1]),\n        fmt(9999, 1, 9999, list(range(10))),\n        fmt(9999, 9999, 1, []),\n        fmt(9999, 1, 9999, [9]),\n        fmt(9999, 5000, 4321, [0]),\n        fmt(9999, 1, 9998, [9, 8]),\n        fmt(2000, 1500, 1, [1, 2, 3]),\n    ]\n    for _ in range(40):\n        n = rng.randint(1, 40)\n        s = rng.randint(1, n)\n        t = rng.randint(1, n)\n        digs = rng.sample(range(10), rng.randint(0, 6))\n        tests.append(fmt(n, s, t, digs))\n    for _ in range(6):\n        n = 9999\n        s = rng.randint(1, n)\n        t = rng.randint(1, n)\n        digs = rng.sample(range(10), rng.randint(2, 8))\n        tests.append(fmt(n, s, t, digs))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef fewest_presses(n: int, s: int, t: int, digits: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, s, t = int(data[0]), int(data[1]), int(data[2])\n    w = int(data[3])\n    digits = [int(x) for x in data[4:4 + w]]\n    print(fewest_presses(n, s, t, digits))\n\n\nmain()\n",
+  "javascript": "function fewestPresses(n, s, t, digits) {\n  // Write your solution here\n  return 0\n}\n\nconst tk = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = tk[0], s = tk[1], t = tk[2], w = tk[3]\nconst digits = tk.slice(4, 4 + w)\nconsole.log(fewestPresses(n, s, t, digits))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint fewestPresses(int n, int s, int t, vector<int>& digits) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, s, t, w;\n    cin >> n >> s >> t >> w;\n    vector<int> digits(w);\n    for (int i = 0; i < w; i++) cin >> digits[i];\n    cout << fewestPresses(n, s, t, digits) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int fewestPresses(int n, int s, int t, int[] digits) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int s = (int) in.nval;\n        in.nextToken();\n        int t = (int) in.nval;\n        in.nextToken();\n        int w = (int) in.nval;\n        int[] digits = new int[w];\n        for (int i = 0; i < w; i++) { in.nextToken(); digits[i] = (int) in.nval; }\n        System.out.println(fewestPresses(n, s, t, digits));\n    }\n}\n"
+ }
+}

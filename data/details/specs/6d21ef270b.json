@@ -1,0 +1,18 @@
+{
+ "qid": "6d21ef270b",
+ "question": "Design a **text editor** class behind this interface, choosing a suitable data structure:\n\n```\ninterface TextEditor {\n    void insert(int offset, String text);\n    void delete(int offset, int length);\n    String getContents();\n}\n```\n\nThis was a 45-minute design problem in an on-campus SDE intern interview (CoderPad over Zoom). The interview was strictly time-bound; you had to implement each function with reasoning, and the code was judged on quality, complexity and object-oriented design. The interviewer was interactive and gave hints.",
+ "lookingFor": [
+  "Choosing and justifying a data structure for edits (not just a String)",
+  "Stating time complexity of each operation honestly",
+  "Clean OO design and handling edge cases",
+  "Working in stages: simple correct version first, then optimise",
+  "Responding to hints and communicating under time pressure"
+ ],
+ "answer": "**Clarify first.** Offsets are 0-based character positions; what happens on an invalid offset (throw `IndexOutOfBoundsException`); is the workload many edits near the cursor or random edits; do we need undo; how large can the document get.\n\n**Baseline.** Keep a `StringBuilder`: `insert` is `sb.insert(offset, text)`, `delete` is `sb.delete(offset, offset + length)`, `getContents` is `sb.toString()`. Edits cost O(n) because characters shift. State this, since it is correct and shows you know the limit, then improve.\n\n**Better options.**\n- **Gap buffer.** An array with a movable gap. Edits at the gap are O(length of text); moving the gap to a new offset costs O(distance). It is excellent when edits cluster around the cursor (typical typing), and very simple to implement. `getContents` is O(n).\n- **Rope.** A balanced binary tree whose leaves hold small strings and whose internal nodes store the length of the left subtree. `insert` is split + concat and `delete` is two splits + concat, all O(log n). Handles random edits on large text. More code and balancing needed.\n- **Piece table.** Keep the original text and an append-only add buffer, plus a list of pieces (buffer, start, length). Insert and delete only edit the piece list, never copying text, and undo becomes cheap. Lookup by offset is O(number of pieces), improvable with a balanced tree.\n\n**Suggested plan under time pressure.** Start with the `StringBuilder` version behind the interface, then implement the gap buffer (about 40 lines) or a piece table if undo matters.\n\n**OO design.** `TextEditor` interface, `GapBufferEditor implements TextEditor`, validation in one private method, no leaking of the internal array. Optional `UndoManager` using a command pattern (`InsertCommand`, `DeleteCommand` each with `apply` and `revert`).\n\n**Edge cases.** Insert at 0 and at length, empty text, delete length beyond the end (clamp or throw, per clarified rule), repeated edits, Unicode surrogate pairs.\n\n**Testing.** Compare against the simple `StringBuilder` with random edits.",
+ "followUps": [
+  "How would you add undo and redo?",
+  "How does the complexity change if edits are random rather than near the cursor?",
+  "How would you support multiple cursors or collaborative editing?",
+  "How do you handle Unicode characters outside the basic plane?"
+ ]
+}

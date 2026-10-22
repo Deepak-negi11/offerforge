@@ -1,0 +1,44 @@
+{
+ "pid": "sprinklr-maximise-shopkeeper-profit",
+ "title": "Maximise Shopkeeper Profit",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A shopkeeper can trade `n` items from a factory. Item `i` can be bought for `cost[i]` dollars and then sold for `sell[i]` dollars. The shopkeeper starts with `k` dollars of money and zero profit.\n\nThe rules are:\n\n- Each item can be bought and sold **at most once**.\n- An item can only be bought if its cost is at most the money the shopkeeper currently holds.\n- A new item can be bought only after the previous one has been sold, so the shopkeeper holds at most one item at a time and sells it for its full selling price right away.\n- Money earned from earlier sales can be used to buy later items.\n- Items can be traded in any order, and the shopkeeper may skip any item (for example an item that would lose money).\n\nThe profit is the final amount of money minus the initial `k`. Compute the maximum profit the shopkeeper can make.",
+ "input_format": "The first line contains two integers `n` and `k`.\nThe second line contains `n` integers `cost[0] ... cost[n-1]`.\nThe third line contains `n` integers `sell[0] ... sell[n-1]`.",
+ "output_format": "Print a single integer: the maximum profit.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ k ≤ 10^9",
+  "1 ≤ cost[i], sell[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3 40\n20 37 50\n20 47 110",
+   "output": "70",
+   "explanation": "Start with 40. Item 1 costs 37 <= 40 and sells for 47, giving 50 dollars (profit 10). Now item 2 costs 50 <= 50 and sells for 110, giving 110 dollars. The profit is 110 - 40 = 70. Item 0 earns nothing."
+  },
+  {
+   "input": "4 10\n5 20 8 12\n9 40 15 30",
+   "output": "49",
+   "explanation": "With 10 dollars only items 0 (gain 4) and 2 (gain 7) are affordable; taking the larger gain gives 17. Then item 3 (cost 12, gain 18) gives 35, item 1 (cost 20, gain 20) gives 55, and item 0 (gain 4) gives 59. The profit is 59 - 10 = 49."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "An item whose selling price is not above its cost can never help. Money only grows when you trade, so something affordable now stays affordable later.",
+  "Among the items you can afford right now, is there a reason not to take the most profitable one first? Think about what taking it does to your future options.",
+  "Sort the profitable items by cost. Keep a max-heap of the profits of all items whose cost is at most your current money; repeatedly pop the best, add it to your money, and move newly affordable items into the heap."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0]); k = int(data[1])\n    cost = [int(v) for v in data[2:2 + n]]\n    sell = [int(v) for v in data[2 + n:2 + 2 * n]]\n    items = sorted((cost[i], sell[i] - cost[i]) for i in range(n) if sell[i] > cost[i])\n    money = k\n    heap = []\n    j = 0\n    m = len(items)\n    while True:\n        while j < m and items[j][0] <= money:\n            heapq.heappush(heap, -items[j][1])\n            j += 1\n        if not heap:\n            break\n        money += -heapq.heappop(heap)\n    print(money - k)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0]); k = int(data[1])\ncost = [int(v) for v in data[2:2 + n]]\nsell = [int(v) for v in data[2 + n:2 + 2 * n]]\nNEG = -1\nbest = [NEG] * (1 << n)\nbest[0] = k\nans = 0\nfor mask in range(1 << n):\n    m = best[mask]\n    if m == NEG:\n        continue\n    ans = max(ans, m - k)\n    for i in range(n):\n        if not (mask >> i) & 1 and cost[i] <= m:\n            nm = m - cost[i] + sell[i]\n            if nm > best[mask | (1 << i)]:\n                best[mask | (1 << i)] = nm\nprint(ans)\n",
+ "generator": "def gen(rng):\n    def fmt(k, cost, sell):\n        return f'{len(cost)} {k}\\n' + ' '.join(map(str, cost)) + '\\n' + ' '.join(map(str, sell))\n    V = 10**9\n    tests = [\n        fmt(5, [10], [20]),\n        fmt(10, [10], [9]),\n        fmt(10, [10], [10]),\n        fmt(1, [2, 3, 4], [5, 9, 20]),\n        fmt(40, [20, 37, 50], [20, 47, 110]),\n        fmt(V, [V, V], [V, V]),\n        fmt(1, [1, 1, 1], [V, V, V]),\n        fmt(3, [4, 5, 7, 1], [9, 6, 7, 3]),\n    ]\n    for _ in range(18):\n        n = rng.randint(1, 9)\n        hi = rng.choice([10, 30, 100])\n        k = rng.randint(1, hi // 2)\n        cost = [rng.randint(1, hi) for _ in range(n)]\n        sell = [max(1, c + rng.randint(-hi // 4, hi // 2)) for c in cost]\n        tests.append(fmt(k, cost, sell))\n    n = 10**5\n    # random large\n    cost = [rng.randint(1, V) for _ in range(n)]\n    sell = [rng.randint(1, V) for _ in range(n)]\n    tests.append(fmt(rng.randint(1, V // 2), cost, sell))\n    # chain: every item unlocks the next one\n    cost = [i + 1 for i in range(n)]\n    sell = [c + 1 for c in cost]\n    rng.shuffle(cost)\n    sell = [c + 1 for c in cost]\n    tests.append(fmt(1, cost, sell))\n    # chain with larger gains and decoys that lose money\n    cost = [rng.randint(1, 1000) * (i + 1) for i in range(n)]\n    sell = [c + rng.randint(0, 3 * (i + 1)) for i, c in enumerate(cost)]\n    sell = [s if rng.random() < 0.8 else max(1, s - 2 * (s - c) - 5) for s, c in zip(sell, cost)]\n    tests.append(fmt(1000, cost, sell))\n    # everything is affordable from the start\n    cost = [rng.randint(1, 10**6) for _ in range(n)]\n    sell = [c + rng.randint(-10, 10**4) for c in cost]\n    sell = [max(1, s) for s in sell]\n    tests.append(fmt(10**6, cost, sell))\n    # huge profits\n    cost = [rng.randint(1, 2 * 10**5) for _ in range(n)]\n    sell = [rng.randint(V - 10**5, V) for _ in range(n)]\n    tests.append(fmt(2 * 10**5, cost, sell))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_profit(k: int, cost: List[int], sell: List[int]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    k = int(data[1])\n    cost = [int(v) for v in data[2:2 + n]]\n    sell = [int(v) for v in data[2 + n:2 + 2 * n]]\n    print(max_profit(k, cost, sell))\n\n\nmain()\n",
+  "javascript": "function maxProfit(k, cost, sell) {\n  // Write your solution here\n  return 0\n}\n\nconst tk = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = tk[0]\nconst k = tk[1]\nconst cost = tk.slice(2, 2 + n)\nconst sell = tk.slice(2 + n, 2 + 2 * n)\nconsole.log(String(maxProfit(k, cost, sell)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxProfit(long long k, vector<long long>& cost, vector<long long>& sell) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long k;\n    cin >> n >> k;\n    vector<long long> cost(n), sell(n);\n    for (int i = 0; i < n; i++) cin >> cost[i];\n    for (int i = 0; i < n; i++) cin >> sell[i];\n    cout << maxProfit(k, cost, sell) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxProfit(long k, long[] cost, long[] sell) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        long k = (long) in.nval;\n        long[] cost = new long[n], sell = new long[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); cost[i] = (long) in.nval; }\n        for (int i = 0; i < n; i++) { in.nextToken(); sell[i] = (long) in.nval; }\n        System.out.println(maxProfit(k, cost, sell));\n    }\n}\n"
+ }
+}

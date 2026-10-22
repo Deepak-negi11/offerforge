@@ -1,0 +1,18 @@
+{
+ "qid": "3c22125ef4",
+ "question": "Microsoft SDE II hiring manager round, database-focused (about the first 30 minutes of a 60 minute round):\n\n1. What are the characteristics of a **SQL** database and a **NoSQL** database?\n2. For a use case of **receiving payments from users**, which database would you choose and why?\n3. In what cases would you choose a NoSQL database?\n4. If an existing SQL table holds **gigabytes of data**, is it possible to **add a new column**?\n5. Given an employees table, write a query for the **top 5 earning employees who live in Bangalore and have worked for more than 3 years**.\n\nThere were follow-ups on these as well.",
+ "lookingFor": [
+  "Solid understanding of ACID versus BASE and the trade-offs.",
+  "Choosing a database by consistency and workload, not by fashion.",
+  "Awareness of online schema change risks on large tables.",
+  "Writing a correct, readable SQL query with ties and edge cases in mind.",
+  "Following up with reasoning, not memorised answers."
+ ],
+ "answer": "**SQL vs NoSQL.** SQL (relational) databases use a fixed schema with tables and relations, a powerful query language with joins, and **ACID** transactions; they scale vertically and, with effort, horizontally. NoSQL is a family (key-value, document, wide-column, graph) with flexible schemas, easier horizontal scaling and often **BASE**/eventual consistency, with weaker join and transaction support.\n\n**Payments.** Choose a relational database (e.g. PostgreSQL/MySQL) because payments need **atomicity and strong consistency**: debit and credit must succeed or fail together, constraints (foreign keys, unique) protect integrity, and auditing and reconciliation rely on rigorous transactions. You can still use NoSQL or caches around it for non-critical data such as sessions, or event logs.\n\n**When NoSQL fits.** Huge write volume or data size needing horizontal scale (activity feeds, IoT, logs), flexible or evolving schemas (product catalogs), simple access by key (sessions, caches), graph relationships, or low-latency global distribution where eventual consistency is acceptable.\n\n**Adding a column to a huge table.** Yes: `ALTER TABLE employees ADD COLUMN grade VARCHAR(10);`. The impact depends on the engine and version: in modern PostgreSQL adding a nullable column (or one with a constant default in recent versions) is a quick metadata change, while older MySQL versions rebuilt the table and locked writes. For large tables use online schema change tools (e.g. gh-ost, pt-online-schema-change) or backfill in batches, deploy during low traffic, and avoid `NOT NULL` with a computed default in one step.\n\n**Query.** Assuming `employees(id, name, city, salary, join_date)`:\n```sql\nSELECT id, name, salary\nFROM employees\nWHERE city = 'Bangalore'\n  AND join_date < CURRENT_DATE - INTERVAL '3 years'\nORDER BY salary DESC\nLIMIT 5;\n```\nThe `WHERE` clause filters by city and tenure (strictly more than 3 years), `ORDER BY salary DESC` sorts the highest first, and `LIMIT 5` takes the top five. Date syntax varies by dialect (SQL Server uses `TOP 5` and `DATEADD`). Mention ties: use `DENSE_RANK()` if all employees tied at the fifth salary must be included. An index on `(city, salary)` helps.",
+ "followUps": [
+  "How does the answer change if the interviewer says ties at the 5th salary must all be shown?",
+  "What is the CAP theorem and where do SQL and NoSQL sit?",
+  "How would you scale a relational database for writes?",
+  "What does adding an index to this table cost and gain?"
+ ]
+}

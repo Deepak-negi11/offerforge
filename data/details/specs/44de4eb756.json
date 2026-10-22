@@ -1,0 +1,18 @@
+{
+ "qid": "44de4eb756",
+ "question": "In a TCS Ninja (NQT) technical round, the candidate was asked by the second interviewer to open an editor and write SQL: **create a table and find the second highest salary from an employee table.** The candidate also wrote prime-number code in the same round.",
+ "lookingFor": [
+  "Can you write correct CREATE TABLE syntax with sensible types and a primary key?",
+  "Do you know more than one way to find the second highest value?",
+  "Do you handle duplicates and the case where there is no second salary?",
+  "Do you know the difference between ROW_NUMBER, RANK and DENSE_RANK?",
+  "Can you explain the query rather than just recite it?"
+ ],
+ "answer": "**Create and populate the table:**\n\n```\nCREATE TABLE employee (\n  id     INT PRIMARY KEY,\n  name   VARCHAR(50) NOT NULL,\n  salary DECIMAL(10,2) NOT NULL\n);\nINSERT INTO employee VALUES (1,'Asha',50000),(2,'Ravi',70000),(3,'Meera',70000),(4,'Kiran',60000);\n```\n\n**Method 1: subquery (works in every database).**\n\n```\nSELECT MAX(salary) AS second_highest\nFROM employee\nWHERE salary < (SELECT MAX(salary) FROM employee);\n```\n\nThe inner query finds the top salary; the outer query finds the largest salary below it. Duplicates of the top salary are handled correctly (here the answer is 60000, not 70000). If there is no second distinct salary, `MAX` returns `NULL`, which is a sensible result.\n\n**Method 2: LIMIT/OFFSET** (MySQL, PostgreSQL):\n\n```\nSELECT DISTINCT salary FROM employee ORDER BY salary DESC LIMIT 1 OFFSET 1;\n```\n\n`DISTINCT` is essential; without it the second row could be a duplicate of the highest salary. This returns no row if there is no second salary.\n\n**Method 3: window function** (generalises to the Nth highest):\n\n```\nSELECT salary FROM (\n  SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk FROM employee\n) t WHERE rnk = 2;\n```\n\n`DENSE_RANK` gives tied salaries the same rank and no gaps, which is what \"second highest salary\" normally means. `RANK` would skip a rank after ties and `ROW_NUMBER` would not treat ties equally.\n\n**What to say:** pick Method 1 first because it is portable, mention the others, and state your assumption about duplicates.",
+ "followUps": [
+  "How would you return the employee names who earn the second highest salary?",
+  "How would you generalise this to the Nth highest salary?",
+  "What is the difference between RANK, DENSE_RANK and ROW_NUMBER?",
+  "How would you find the second highest salary in each department?"
+ ]
+}

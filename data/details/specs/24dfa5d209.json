@@ -1,0 +1,18 @@
+{
+ "qid": "24dfa5d209",
+ "question": "Technical round for a TCS Prime (NQT) role, with C++ as the candidate's primary language. In the OOP discussion the interviewers asked about **constructors and destructors and told the candidate to write code for them on an A4 sheet**, then asked for **shallow copy versus deep copy**, followed by questions on pointers: the **`this` pointer** (reported as the 'this' keyword), call by value versus call by reference, and why pointers are used.",
+ "lookingFor": [
+  "Understanding of object lifetime: construction, destruction, and resource management.",
+  "Knowing why a copy constructor is needed when a class owns dynamic memory.",
+  "Ability to write correct C++ by hand.",
+  "Clear grasp of pointers, references and the `this` pointer."
+ ],
+ "answer": "**Constructors and destructors.** A constructor runs when an object is created and initialises it; it has the class name, no return type, and can be overloaded. A destructor (`~ClassName`) runs when the object is destroyed and releases resources; there is only one and it takes no arguments.\n\n```cpp\nclass Buffer {\n    int* data; int size;\npublic:\n    Buffer(int n = 0) : size(n), data(new int[n]()) {}        // constructor\n    Buffer(const Buffer& o) : size(o.size), data(new int[o.size]) { // copy ctor: deep copy\n        std::copy(o.data, o.data + size, data);\n    }\n    Buffer& operator=(const Buffer& o) {                      // copy assignment\n        if (this != &o) {\n            int* tmp = new int[o.size];\n            std::copy(o.data, o.data + o.size, tmp);\n            delete[] data;\n            data = tmp; size = o.size;\n        }\n        return *this;                                         // `this` allows chaining\n    }\n    ~Buffer() { delete[] data; }                              // destructor\n};\n```\n\n**Shallow copy vs deep copy.**\n- **Shallow copy** copies member values bit by bit, which is the compiler's default copy. If a member is a pointer, both objects point to the **same** memory. When one is destroyed, the other holds a dangling pointer, and deleting twice causes a **double free**; changing one changes the other.\n- **Deep copy** allocates new memory and copies the pointed-to data, so each object owns its own resource. You write it in the copy constructor and copy assignment operator.\n- **Rule of three** (rule of five in C++11): if you need a custom destructor, you almost certainly need a custom copy constructor and copy assignment (and move versions). Better: use `std::vector` or smart pointers so that the compiler-generated versions are correct.\n\n**The `this` pointer.** Inside a non-static member function, `this` is a hidden pointer to the object on which the function was called. It is used to disambiguate names (`this->size = size`), to return the current object (`return *this`), and to compare against self-assignment. Static functions have no `this`.\n\n**Call by value vs call by reference.** By value copies the argument, so changes do not affect the caller. By reference (or pointer) passes the original, so changes are visible and no copy is made, which is useful for large objects (`const T&`).\n\n**Why pointers.** Dynamic memory, data structures such as linked lists and trees, passing large data without copying, and polymorphism.",
+ "followUps": [
+  "What is the rule of three or five?",
+  "When is the copy constructor called?",
+  "What is the difference between a pointer and a reference?",
+  "What happens if a destructor is not virtual in a base class?",
+  "How do smart pointers avoid the need for manual deep copies?"
+ ]
+}

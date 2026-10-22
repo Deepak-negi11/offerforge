@@ -1,0 +1,17 @@
+{
+ "qid": "d3c65cd256",
+ "question": "Reported from the third round of a Paytm Golang Developer interview (SDE-2 level, 3+ years of experience). The round had **three medium-to-hard DSA problems in an online editor**, plus discussion of **threads, how Kafka works, and memory leaks**. DSA and design had to be done in Go only.",
+ "lookingFor": [
+  "Do you understand concurrency primitives (threads, goroutines, locks, channels) and their failure modes?",
+  "Can you explain Kafka's architecture clearly: topics, partitions, offsets, consumer groups, replication?",
+  "Can you describe how memory leaks happen in a garbage-collected language and how you would find them?",
+  "Can you connect these to real problems you have debugged in your own projects?"
+ ],
+ "answer": "**Threads (and goroutines).** A thread is the OS's unit of scheduling; threads in one process share memory, so shared mutable state needs synchronisation (mutexes, atomics) to avoid data races. Problems: races, deadlocks, thread-pool starvation, excessive context switching. In Go, goroutines are lightweight, scheduled by the Go runtime onto OS threads; communicate with channels, protect shared data with `sync.Mutex`, wait with `sync.WaitGroup`, cancel with `context.Context`, and run `go test -race` to detect data races.\n\n**How Kafka works.**\n- A **topic** is split into **partitions**; each partition is an append-only, ordered log, replicated across brokers (one **leader**, the others **followers**). Ordering is guaranteed only within a partition, so choose the message key to put related events in one partition.\n- Producers append to the leader; `acks=all` with a min in-sync replicas setting gives durability.\n- Consumers in a **consumer group** divide the partitions among themselves (each partition is read by at most one consumer in a group), so parallelism is limited by the partition count. When members join or leave, the group **rebalances**.\n- Each consumer tracks an **offset** per partition and commits it. Committing after processing gives **at-least-once** delivery (duplicates possible, so processing should be idempotent); committing before gives at-most-once. Exactly-once needs idempotent producers plus transactions (within Kafka) or an idempotent sink.\n- Messages are retained by time or size, not removed on read, so consumers can replay.\n\n**Memory leaks.** In a garbage-collected language a leak means objects that are no longer needed but still reachable. Common causes in Go: goroutines blocked forever on a channel (goroutine leak), unbounded maps or caches, slices holding a reference to a large backing array, unclosed `time.Ticker`, response bodies not closed. Diagnose by watching memory and goroutine count over time, then use `pprof` heap and goroutine profiles and compare two snapshots to see what grows. Fix by cancelling contexts, bounding caches (with eviction), closing resources with `defer`, and adding leak tests.\n\nFor the DSA part, say your approach before coding, state complexity, and test with a small example and edge cases, in Go idioms (slices, maps, `container/heap`).",
+ "followUps": [
+  "How do you detect a goroutine leak in production?",
+  "What happens to message ordering when you add partitions to a topic?",
+  "How would you make a Kafka consumer idempotent?",
+  "When would you use a mutex versus a channel in Go?"
+ ]
+}

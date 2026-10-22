@@ -1,0 +1,49 @@
+{
+ "pid": "shortest-path-to-get-all-keys",
+ "title": "Shortest Path to Get All Keys",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given a grid describing a vault. Each cell holds one of these characters:\n\n- `@` is your starting cell (it appears exactly once).\n- `.` is an empty cell and `#` is a wall.\n- A lowercase letter is a **key** and the matching uppercase letter is a **lock**.\n\nIn one move you step to a neighbouring cell (up, down, left or right). You cannot leave the grid or enter a wall. Stepping onto a key cell picks the key up and you keep it for the rest of the walk. You may step onto a lock cell only if you already hold the matching key; otherwise the cell is blocked. You can walk through the same cell as many times as you like.\n\nIf there are `k` keys, they are named by the first `k` lowercase letters (`a`, `b`, ...), and each of them appears exactly once. Each uppercase letter among the first `k` appears at most once, and no other letters occur.\n\nPrint the minimum number of moves needed to hold all `k` keys, or `-1` if it cannot be done.",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains a string of `c` characters (no spaces) describing one row of the grid.",
+ "output_format": "Print one integer: the minimum number of moves, or `-1` if it is impossible.",
+ "constraints": [
+  "1 ≤ r, c ≤ 30",
+  "1 ≤ k ≤ 6",
+  "Every character is one of `@`, `.`, `#`, a lowercase letter among the first k letters, or an uppercase letter among the first k letters"
+ ],
+ "examples": [
+  {
+   "input": "1 6\n@.aA.b",
+   "output": "5",
+   "explanation": "Walk right: two moves reach key a, a third move steps onto lock A (now open), and two more reach key b. That is 5 moves."
+  },
+  {
+   "input": "1 5\n@.A.a",
+   "output": "-1",
+   "explanation": "Key a lies behind lock A, and the only way to reach it is through A, so the key can never be obtained."
+  },
+  {
+   "input": "3 5\na#.B.\n.#.#.\n@.A.b",
+   "output": "8",
+   "explanation": "Go up to key a (2 moves). The lock A on the bottom row is now passable, so return along the bottom row to key b: 6 more moves."
+  }
+ ],
+ "complexity": {
+  "time": "O(r · c · 2^k)",
+  "space": "O(r · c · 2^k)"
+ },
+ "hints": [
+  "Plain BFS on cells is not enough: whether a lock is passable depends on which keys you hold.",
+  "Make the BFS state (row, column, set of keys held). With k ≤ 6 the set fits in a 6-bit mask.",
+  "Moving onto a key cell sets its bit; moving onto a lock requires its bit. The first time you reach a state with all k bits set, the BFS distance is the answer."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    g = data[2:2 + r]\n    k = 0\n    for i in range(r):\n        for j in range(c):\n            ch = g[i][j]\n            if ch == '@':\n                si, sj = i, j\n            elif 'a' <= ch <= 'f':\n                k += 1\n    full = (1 << k) - 1\n    seen = [[[False] * (1 << k) for _ in range(c)] for _ in range(r)]\n    seen[si][sj][0] = True\n    q = deque([(si, sj, 0, 0)])\n    while q:\n        i, j, m, d = q.popleft()\n        if m == full:\n            print(d)\n            return\n        for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n            a, b = i + di, j + dj\n            if 0 <= a < r and 0 <= b < c:\n                ch = g[a][b]\n                if ch == '#':\n                    continue\n                nm = m\n                if 'a' <= ch <= 'f':\n                    nm |= 1 << (ord(ch) - 97)\n                elif 'A' <= ch <= 'F' and not (m >> (ord(ch) - 65)) & 1:\n                    continue\n                if not seen[a][b][nm]:\n                    seen[a][b][nm] = True\n                    q.append((a, b, nm, d + 1))\n    print(-1)\n\nmain()\n",
+ "brute": "import sys\nfrom collections import deque\n\ndata = sys.stdin.read().split()\nr, c = int(data[0]), int(data[1])\ng = data[2:2 + r]\npos = {}\nfor i in range(r):\n    for j in range(c):\n        ch = g[i][j]\n        if ch == '@' or ('a' <= ch <= 'f'):\n            pos[ch] = (i, j)\nkeys = sorted(ch for ch in pos if ch != '@')\ncache = {}\n\ndef dist(src, dst, held):\n    key = (src, dst, held)\n    if key in cache:\n        return cache[key]\n    d = {src: 0}\n    q = deque([src])\n    res = -1\n    while q:\n        x = q.popleft()\n        if x == dst:\n            res = d[x]\n            break\n        for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n            a, b = x[0] + di, x[1] + dj\n            if 0 <= a < r and 0 <= b < c and (a, b) not in d:\n                ch = g[a][b]\n                if ch == '#':\n                    continue\n                if 'A' <= ch <= 'F' and ch.lower() not in held:\n                    continue\n                d[(a, b)] = d[x] + 1\n                q.append((a, b))\n    cache[key] = res\n    return res\n\nbest = [-1]\n\ndef rec(cur, held, total):\n    if len(held) == len(keys):\n        if best[0] == -1 or total < best[0]:\n            best[0] = total\n        return\n    for kk in keys:\n        if kk in held:\n            continue\n        w = dist(pos[cur], pos[kk], ''.join(sorted(held)))\n        if w >= 0:\n            rec(kk, held + [kk], total + w)\n\nrec('@', [], 0)\nprint(best[0])\n",
+ "generator": "def gen(rng):\n    def build(r, c, wp, k, lp):\n        if 1 + 2 * k > r * c:\n            return None\n        cells = [(i, j) for i in range(r) for j in range(c)]\n        rng.shuffle(cells)\n        g = [['#' if rng.random() < wp else '.' for _ in range(c)] for _ in range(r)]\n        i, j = cells[0]\n        g[i][j] = '@'\n        for t in range(k):\n            i, j = cells[1 + t]\n            g[i][j] = chr(97 + t)\n            if rng.random() < lp:\n                i, j = cells[1 + k + t]\n                g[i][j] = chr(65 + t)\n        return f\"{r} {c}\\n\" + '\\n'.join(''.join(row) for row in g)\n\n    tests = [\"1 3\\n@.a\", \"1 3\\na.@\", \"2 3\\n@#a\\n.A.\", \"1 5\\n@.A.a\", \"1 6\\n@.aA.b\", \"2 2\\n@a\\nbB\"]\n    for _ in range(12):\n        r, c = rng.randint(1, 5), rng.randint(2, 6)\n        k = rng.randint(1, 3)\n        t = build(r, c, rng.choice([0.0, 0.1, 0.25]), k, rng.choice([0.5, 1.0]))\n        if t:\n            tests.append(t)\n    for _ in range(4):\n        r, c = rng.randint(3, 5), rng.randint(4, 6)\n        t = build(r, c, rng.choice([0.0, 0.1]), rng.randint(4, 6), 1.0)\n        if t:\n            tests.append(t)\n    for _ in range(3):\n        t = build(rng.randint(8, 12), rng.randint(8, 12), rng.choice([0.1, 0.2]), rng.randint(3, 4), 1.0)\n        if t:\n            tests.append(t)\n    # snake corridor: single long path, keys d,e,f at the far end, locks A,B,C on the way\n    def snake(r, c):\n        g = [['.'] * c for _ in range(r)]\n        path = []\n        for i in range(r):\n            cols = range(c) if i % 2 == 0 else range(c - 1, -1, -1)\n            for j in cols:\n                path.append((i, j))\n            if i % 2 == 1 and i + 1 < r:\n                pass\n        for i in range(1, r, 2):\n            for j in range(c):\n                g[i][j] = '#'\n            g[i][c - 1 if i % 4 == 1 else 0] = '.'\n        return g, [p for p in path if g[p[0]][p[1]] == '.']\n    g, path = snake(29, 30)\n    L = len(path)\n    g[path[0][0]][path[0][1]] = '@'\n    for t, frac in enumerate((0.1, 0.25, 0.4)):\n        i, j = path[int(L * frac)]\n        g[i][j] = chr(97 + t)\n        i, j = path[int(L * (frac + 0.12))]\n        g[i][j] = chr(65 + t)\n    for t in range(3):\n        i, j = path[L - 1 - 3 * t]\n        g[i][j] = chr(100 + t)\n    tests.append(f\"29 30\\n\" + '\\n'.join(''.join(row) for row in g))\n    for _ in range(3):\n        tests.append(build(30, 30, rng.choice([0.05, 0.12, 0.2]), 6, 1.0))\n    tests.append(build(30, 30, 0.0, 6, 1.0))\n    return [t for t in tests if t]\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef shortest_path_all_keys(grid: List[str]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    grid = data[2:2 + r]\n    print(shortest_path_all_keys(grid))\n\n\nmain()\n",
+  "javascript": "function shortestPathAllKeys(grid) {\n  // Write your solution here\n  return 0\n}\n\nconst tok = input.split(/\\s+/).filter(Boolean)\nconst r = parseInt(tok[0]), c = parseInt(tok[1])\nconsole.log(shortestPathAllKeys(tok.slice(2, 2 + r)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint shortestPathAllKeys(vector<string>& grid) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<string> grid(r);\n    for (int i = 0; i < r; i++) cin >> grid[i];\n    cout << shortestPathAllKeys(grid) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int shortestPathAllKeys(String[] grid) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int r = Integer.parseInt(st.nextToken());\n        int c = Integer.parseInt(st.nextToken());\n        String[] grid = new String[r];\n        for (int i = 0; i < r; i++) grid[i] = br.readLine().trim();\n        System.out.println(shortestPathAllKeys(grid));\n    }\n}\n"
+ }
+}

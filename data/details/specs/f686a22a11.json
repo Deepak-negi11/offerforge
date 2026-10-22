@@ -1,0 +1,18 @@
+{
+ "qid": "f686a22a11",
+ "question": "Meesho SDE-1 (Backend) machine coding round, 90 minutes. Implement an e-commerce order management service with: **`addProduct(productId, quantity)`, `createOrder(orderId, list of products and quantities)`, `confirmOrder(orderId)` and `getStock(productId)`.** The twist: **`createOrder` must block (reserve) the inventory, and `confirmOrder` must deduct it.** One candidate first reduced stock on create and restored it on cancel, which the interviewer did not accept; the accepted idea was to track available count and blocked-but-unconfirmed count separately. An SDE-3 version added: in-memory only, thread-safe, blocks that **expire after 5 minutes**, and race conditions handled explicitly.",
+ "lookingFor": [
+  "Modelling reserved vs available stock correctly.",
+  "Understanding of race conditions and an explicit locking strategy.",
+  "Handling expiry of reservations cleanly.",
+  "Idempotency and state-machine thinking for orders.",
+  "Code that is clean enough to extend in a short time."
+ ],
+ "answer": "**State per product.** Keep two numbers: `available` (can still be blocked) and `blocked` (held by unconfirmed orders). Total physical stock is `available + blocked`.\n\n**Order state machine.** `CREATED` (inventory blocked) -> `CONFIRMED` (inventory permanently deducted), or -> `EXPIRED` / `CANCELLED` (block released). Store `expiresAt = createdAt + 5 min`.\n\n**Operations**\n- `addProduct(id, qty)`: `available += qty`.\n- `createOrder(orderId, items)`: for each item, check `available >= qty`; if any item fails, change nothing and reject (all-or-nothing). Otherwise `available -= qty; blocked += qty`, record the order with its items and expiry.\n- `confirmOrder(orderId)`: if the order is missing, expired or not `CREATED`, reject; otherwise `blocked -= qty` per item (stock is now gone) and mark `CONFIRMED`.\n- `getStock(id)`: return `available` (state clearly whether blocked units are counted).\n- Expiry: a background task or a lazy check. Lazy: on every operation (and on `confirmOrder`), treat an order past `expiresAt` as expired and release it (`blocked -= qty; available += qty`). Add a scheduled sweeper (a delay queue or priority queue ordered by expiry) so memory and stock are reclaimed even if no one touches the order.\n\n**Concurrency**\n- Race condition: two requests both see `available = 1` and both succeed. Make check-and-update atomic.\n- Simple and correct: one lock per product. For orders with several products, acquire the locks in a fixed order (e.g. sorted by productId) to avoid deadlock, then check all items, then update all.\n- Use a lock or compare-and-swap on the order state so `confirm` and the expiry sweeper cannot both act on the same order (whichever wins first changes the state; the other sees it and stops).\n- A single global lock is simplest but serialises everything; justify the per-product choice with the scale hint.\n- Make `confirmOrder` idempotent: confirming twice returns the same result, with no second deduction.\n\n**Edge cases.** Duplicate orderId, unknown product, quantity zero, confirm after expiry, duplicate items in the list (merge them).\n\n**Test.** Write a multithreaded test: 100 threads try to block the last 10 units and check that exactly 10 succeed.",
+ "followUps": [
+  "How would you make the expiry accurate without scanning every order?",
+  "What changes if this must work across several servers instead of in memory?",
+  "How do you avoid deadlock when an order has multiple products?",
+  "How would you add a cancelOrder and a restock operation safely?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "a4b3a3aeaf",
+ "question": "Qualcomm software engineer, first technical interview. **Explain little-endian and big-endian systems and write code that detects which one the machine is.** In the report the candidate first tried using shift operators and was told that would not work; the interviewer was looking for a way to inspect the actual byte layout in memory.",
+ "lookingFor": [
+  "Clear definition of endianness and why it matters (networking, file formats, hardware registers).",
+  "Understanding that shifts operate on values, not on memory layout.",
+  "Correct low-level technique: inspect the first byte via a char pointer, union or memcpy.",
+  "Awareness of aliasing and undefined-behaviour pitfalls.",
+  "Knowing practical consequences such as network byte order."
+ ],
+ "answer": "**Definition.** Endianness is the order in which the bytes of a multi-byte value are stored in memory. For the 32-bit value `0x01020304` at address `a`:\n- **Little-endian** (x86, most ARM setups): `a: 04, a+1: 03, a+2: 02, a+3: 01` (least significant byte at the lowest address).\n- **Big-endian** (network byte order, some older CPUs): `a: 01, a+1: 02, a+2: 03, a+3: 04`.\n\n**Why shifts fail.** `x >> 8` and `x & 0xFF` are defined on the *numeric value*, so they give the same result on both systems. Only looking at the stored bytes reveals the difference.\n\n**Code 1: char pointer (allowed to alias any object).**\n\n```c\n#include <stdint.h>\nint is_little_endian(void) {\n    uint32_t x = 1;\n    return *(unsigned char *)&x == 1;   // first byte is 1 only if LSB is stored first\n}\n```\n\n**Code 2: union (well-defined in C; in C++ prefer memcpy).**\n\n```c\nint is_little_endian(void) {\n    union { uint32_t i; unsigned char c[4]; } u = { 1 };\n    return u.c[0] == 1;\n}\n```\n\n**Code 3: memcpy (safe in C and C++).**\n\n```c\nuint32_t x = 1; unsigned char b;\nmemcpy(&b, &x, 1);\nreturn b == 1;\n```\n\nIn C++20 you can simply write `std::endian::native == std::endian::little`.\n\n**How it works.** The value `1` has its only set bit in the least significant byte. If that byte sits at the lowest address (the address of `x`), the machine is little-endian.\n\n**Practical notes.** Network protocols use big-endian, so use `htonl/htons/ntohl/ntohs` when sending integers between machines. Endianness also matters for file formats, binary protocols and reading hardware registers. Bit-fields and struct layout are implementation-defined, so do not rely on them. Avoid casting `int*` to `short*` for this purpose, which can break strict aliasing rules.",
+ "followUps": [
+  "How would you convert a 32-bit value between endiannesses without library functions?",
+  "Why do network protocols use big-endian, and which functions convert?",
+  "What is strict aliasing and why is the char-pointer cast allowed?",
+  "How does endianness affect struct layout, bit-fields or reading binary files?"
+ ]
+}

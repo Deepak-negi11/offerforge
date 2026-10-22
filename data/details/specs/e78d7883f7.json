@@ -1,0 +1,17 @@
+{
+ "qid": "e78d7883f7",
+ "question": "CRED SDE-1 Backend (lateral) machine-coding round. The task: **implement a dummy microprocessor** with registers **A, B, C and D** that executes text commands **SET, INC, DEC, MOVE and ADDR** (add one register into another). Requirements: parse commands from text input, add **unit tests**, and make the design **extensible**, ideally using object-oriented principles and patterns such as **Command** and **Factory**. A 2024 variant gave **pre-written unit tests and model classes** on HackerRank and asked the candidate to complete a design that followed SOLID principles.",
+ "lookingFor": [
+  "Clean separation of parsing, command execution and state.",
+  "Use of SOLID and patterns where they actually help.",
+  "Testability and correct handling of invalid input.",
+  "Extensibility: adding a new instruction or register without editing existing code."
+ ],
+ "answer": "**Clarify first.** Exact command syntax (for example `SET A 5`, `INC A`, `DEC B`, `MOVE A B` copies A into B, `ADDR A B` adds register B into A), integer width, and what happens on an invalid register or unknown command (throw or ignore). Ask whether output is printed per command or on demand.\n\n**Core model.**\n- `Register`: a name and an int value, with `get`, `set`.\n- `Microprocessor` (or `CPU`): holds a `Map<String, Register>` for A-D (created from a list so adding E needs no code change) and executes commands.\n- `Command` interface: `execute(Microprocessor cpu)`. Concrete commands: `SetCommand(reg, value)`, `IncCommand(reg)`, `DecCommand(reg)`, `MoveCommand(src, dst)`, `AddRCommand(dst, src)`. Each is a small class doing one thing (single responsibility).\n- `CommandParser` (or `CommandFactory`): splits the input line, looks up the opcode in a registry `Map<String, Function<String[], Command>>`, and builds the command. A new instruction means registering a new factory entry without modifying the existing ones (open/closed principle).\n- `Executor`/`Processor.run(List<String> lines)`: parse each line, execute in order.\n\n**Design points to state.**\n- Do not use a different class per register; a single `Register` type with a name is simpler. Registers are data, behaviour belongs in commands.\n- Keep the processor a dependency of commands (passed in), not a global.\n- Validate in one place: unknown register throws `InvalidRegisterException`, bad arity throws `InvalidCommandException`.\n- Command pattern also gives you a free history list for undo or tracing.\n\n**Tests.** Unit-test each command (SET then read, INC from zero, MOVE keeps the source, ADDR changes only the destination), the parser (valid, unknown opcode, wrong operands, extra whitespace, case), and an end-to-end program such as `SET A 5; SET B 3; ADDR A B` leading to A=8.\n\n**Trade-offs.** A switch on opcodes is quick but violates open/closed; a registry of factories is slightly heavier but scales. Overflow behaviour (wrap or error) and thread-safety are decisions you should name, even if you leave them out.",
+ "followUps": [
+  "How would you add a JUMP or conditional instruction?",
+  "How would you add undo or a trace of executed commands?",
+  "How would you add a new register type of 16-bit versus 32-bit?",
+  "What would you change to make it thread-safe?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "83fa5a7e4e",
+ "question": "Zoho advanced coding round (about 2 to 3 hours, on a laptop): **build an online \"Super Store\" console application** where buyers and sellers can trade inventory. It is split into four modules: **profile, inventory, order and payment services**.\n\nRequirements as reported: buyers and sellers can **register and log in** with **password validation and encryption**; sellers manage their inventory (`addItem()`, `updateItem()`); buyers can `listInventory()`, `addToCart()`, place an order and `makePayment()`; **orders are validated against inventory** (stock). The code must use classes, inheritance, polymorphism and encapsulation. A later round gives a new paper that **adds features to the same code**, so the design must be easy to extend.",
+ "lookingFor": [
+  "Using inheritance and polymorphism where it fits (User -> Buyer/Seller) without over-engineering.",
+  "Separation of concerns into profile, inventory, order and payment services.",
+  "Correct stock validation and consistent state after failed orders or payments.",
+  "Secure credential handling: validation rules and hashing rather than plain text.",
+  "Extensibility, since the next paper modifies the same code."
+ ],
+ "answer": "**Entities.**\n- `User` (abstract): id, name, passwordHash, salt. Subclasses `Buyer` (has a `Cart`) and `Seller` (owns inventory items).\n- `Product`/`Item`: id, name, price, quantity, sellerId.\n- `Cart` with `CartItem(productId, qty)`; `Order` with lines, total and status (CREATED, PAID, FAILED); `Payment`.\n\n**Services (one class each).**\n- `ProfileService`: `register`, `login`. Validate the password (length, upper, lower, digit, special character) and store a **salted hash** (e.g. SHA-256 with salt, or bcrypt where a library is allowed), never the plain password. Say honestly that reversible \"encryption\" is not the right tool for passwords; hashing is.\n- `InventoryService`: `addItem`, `updateItem`, `listInventory`, `reduceStock`.\n- `OrderService`: build an order from the cart, **check every line against stock** before accepting; if any line fails, reject the whole order and leave stock unchanged.\n- `PaymentService`: `makePayment(order, method)`; on success mark PAID and deduct stock; on failure restore state. Use a `PaymentMethod` interface (card, UPI, wallet) to show polymorphism.\n\n**Flow.** Register -> login -> seller adds items -> buyer lists inventory -> adds to cart -> places order (validate) -> pays -> stock reduced.\n\n**Why this layout.** Each requirement maps to a class, so a later paper (discounts, order history, returns, seller reports) adds a class or strategy rather than editing many files. Keep input handling in a thin console layer separate from the services.\n\n**Order of work under time pressure.** Get registration/login and inventory working first, then cart and order, then payment. Passing the first tasks is what lets you reach the next round, so finish end to end before polishing.\n\n**Pitfalls.** Storing plain passwords, deducting stock before payment succeeds, one giant `main`, and duplicating buyer/seller code instead of sharing the base class.",
+ "followUps": [
+  "How would you handle two buyers ordering the last unit at the same time?",
+  "What would you add for discounts or coupons without changing existing classes?",
+  "Why hash instead of encrypt passwords, and what is a salt for?",
+  "How would you persist this data between runs of the console app?"
+ ]
+}

@@ -1,0 +1,48 @@
+{
+ "pid": "de-shaw-sort-array-via-integer-substrings",
+ "title": "Sort Array via Integer Substrings",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an array `arr` of `n` non-negative integers. In one operation you choose an element that has **more than one digit** and replace it with any **substring** of itself: any contiguous run of its decimal digits, read as an integer. For example, `728`, `86`, `2` and `37` are substrings of `372862`, but `322` and `7862` are not. A substring that starts with zeros is read as the integer it spells, so the substring `05` of `105` becomes `5`, and `00` becomes `0`.\n\nYou may perform the operation any number of times, on any elements (including none). Make the array **sorted in non-decreasing order** and, among all ways to do so, produce the **lexicographically smallest** array (compare the arrays element by element as integers; the first position where they differ decides).\n\nPrint that array. If the array cannot be sorted using these operations, print `-1`.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` integers: the elements of `arr`.",
+ "output_format": "Print the resulting array as `n` space-separated integers, or a single integer `-1` if it is impossible.",
+ "constraints": [
+  "1 ≤ n ≤ 2 · 10^4",
+  "0 ≤ arr[i] ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "3\n9 112 425",
+   "output": "9 11 25",
+   "explanation": "9 has a single digit and stays. 112 can become 11 by deleting its last digit (the smallest value it can take that is at least 9). 425 can become 25 by deleting the 4. The array [9, 11, 25] is sorted and no smaller sorted array exists."
+  },
+  {
+   "input": "2\n9 8",
+   "output": "-1",
+   "explanation": "Both elements have a single digit, so neither can change, and 9 > 8: the array cannot be sorted."
+  },
+  {
+   "input": "3\n31 2 400",
+   "output": "1 2 4",
+   "explanation": "31 can become 1, the smallest value it can reach. 2 is a single digit and stays. 400 can reach 4, 0 (from either 0 digit or the substring 00), 40 and 400; the smallest of these that is at least 2 is 4. The result [1, 2, 4] is sorted."
+  }
+ ],
+ "complexity": {
+  "time": "O(n · d² · log d) where d ≤ 10 is the number of digits",
+  "space": "O(d²)"
+ },
+ "hints": [
+  "Whatever operations you apply, each element ends up as some substring of its original digits (or itself). So every element has a fixed small set of reachable values.",
+  "Scan left to right and decide each element in turn: a smaller value at an earlier position is both lexicographically better and leaves the most room for the elements after it.",
+  "For each element pick the smallest reachable value that is at least the previous chosen value. If none exists, the answer is -1."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    prev = -1\n    out = []\n    for t in data[1:1 + n]:\n        L = len(t)\n        if L == 1:\n            cands = {int(t)}\n        else:\n            cands = {int(t[i:j]) for i in range(L) for j in range(i + 1, L + 1)}\n        best = -1\n        for v in cands:\n            if v >= prev and (best < 0 or v < best):\n                best = v\n        if best < 0:\n            print(-1)\n            return\n        out.append(best)\n        prev = best\n    print(' '.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import product\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nopts = []\nfor t in data[1:1 + n]:\n    s = {int(t)}\n    if len(t) > 1:\n        for i in range(len(t)):\n            for j in range(i + 1, len(t) + 1):\n                s.add(int(t[i:j]))\n    opts.append(sorted(s))\nbest = None\nfor combo in product(*opts):\n    if all(combo[i] <= combo[i + 1] for i in range(n - 1)):\n        if best is None or combo < best:\n            best = combo\nprint(' '.join(map(str, best)) if best else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(a):\n        return f\"{len(a)}\\n\" + ' '.join(map(str, a))\n    tests = [fmt([9, 112, 425]), fmt([5]), fmt([100]), fmt([9, 8]), fmt([50, 3]), fmt([7, 7, 7]), fmt([10, 10]),\n             fmt([1000000000, 1000000000, 999999999]), fmt([372862, 5, 1]), fmt([9, 90, 405, 6])]\n    for _ in range(60):\n        n = rng.randint(1, 4)\n        k = rng.choice([1, 2, 3, 4])\n        a = [rng.randint(0, 10**k - 1) for _ in range(n)]\n        tests.append(fmt(a))\n    n = 20000\n    def wrap(b):\n        pre = ''\n        if rng.random() < 0.7:\n            pre = rng.choice('123456789') + ''.join(rng.choice('0123456789') for _ in range(rng.randint(0, 1)))\n        suf = ''.join(rng.choice('0123456789') for _ in range(rng.randint(0, 3)))\n        s = pre + str(b) + suf\n        return int(s[:10]) if len(s) > 10 and False else int(s)\n    for lo, hi in ((1, 10**4), (10**3, 10**5), (1, 10**6)):\n        bs = sorted(rng.randint(lo, hi) for _ in range(n))\n        a = [wrap(b) for b in bs]\n        tests.append(fmt(a))\n    bs = sorted(rng.randint(1, 10**5) for _ in range(n))\n    a = [wrap(b) for b in bs]\n    a[-1] = 1\n    tests.append(fmt(a))\n    # random large arrays that turn out impossible\n    a = [rng.randint(10**8, 10**9 - 1) for _ in range(n)]\n    tests.append(fmt(a))\n    # already sorted large array\n    a = sorted(rng.randint(1, 10**9) for _ in range(n))\n    tests.append(fmt(a))\n    # small increasing repdigits\n    a = [int(str(i * 9 // n + 1) * rng.randint(2, 9)) for i in range(n)]\n    tests.append(fmt(a))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef smallest_sorted(arr: List[int]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    arr = [int(x) for x in data[1:1 + n]]\n    print(' '.join(map(str, smallest_sorted(arr))))\n\n\nmain()\n",
+  "javascript": "function smallestSorted(arr) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconsole.log(smallestSorted(t.slice(1, 1 + n)).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> smallestSorted(vector<long long>& arr) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> arr(n);\n    for (auto& x : arr) cin >> x;\n    vector<long long> res = smallestSorted(arr);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] smallestSorted(long[] arr) {\n        // Write your solution here\n        return new long[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] arr = new long[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); arr[i] = (long) in.nval; }\n        long[] res = smallestSorted(arr);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

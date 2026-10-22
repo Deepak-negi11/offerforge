@@ -1,0 +1,18 @@
+{
+ "qid": "512954b9bd",
+ "question": "Flipkart SDE-2, machine-coding round: build a **distributed task scheduler with dynamic load management**. In the evaluation round the interviewer pointed out missing validations, suggested using a **priority queue instead of sorting** (and asked its time complexity), and asked a **concurrency question: what if two tasks arrive at the same time?** The round valued correct, running code that handled all test cases, including bonus ones.",
+ "lookingFor": [
+  "Choosing a heap instead of repeated sorting.",
+  "Load-balancing policy across workers or nodes.",
+  "Deterministic tie-breaking for equal priority or arrival time.",
+  "Thread safety and atomic scheduling decisions.",
+  "Input validation and edge cases."
+ ],
+ "answer": "The full statement was not reported, so confirm: what defines priority (explicit priority, deadline, arrival time), how workers report load, and what happens on failure. The core design below fits most variants.\n\n**Entities.** `Task(id, priority, createdAt, durationOrCost, status)`; `Worker/Node(id, capacity, currentLoad, status)`; `Scheduler`; a `LoadBalancingStrategy` interface.\n\n**Pending queue.** Store tasks in a **priority queue (binary heap)** keyed by `(priority, createdAt, sequence)`. Insert is O(log n) and extract-min O(log n); sorting the whole list on every arrival costs O(n log n) each time, so the heap is much better when tasks keep arriving. Peek is O(1).\n\n**Assignment.** When a task is dequeued, pick a worker by strategy: least loaded (a min-heap keyed by load, O(log w)), round robin, or capacity-aware; skip workers that are full or down. After assigning, update the worker's load; on completion, decrement it and trigger scheduling of waiting tasks. Dynamic load management means this selection uses live load, not a fixed assignment.\n\n**Two tasks arriving at the same time.**\n\n- *Ordering:* break ties with a monotonically increasing sequence number from an `AtomicLong`, so equal priority and equal timestamp still have a deterministic first-come order.\n- *Concurrency:* use a `PriorityBlockingQueue` or guard the queue with a lock, and make \"choose worker, update load\" one atomic step (a lock per scheduler, or compare-and-set on the worker load) so two threads cannot overbook a worker.\n- Make `submit(task)` idempotent by task id to guard against duplicates.\n\n**Validation.** Reject null or duplicate ids, negative priority or duration, and unknown workers; return clear errors.\n\n**Distributed aspects** (to mention): a shared queue (Kafka or Redis) or a leader scheduler, heartbeats for worker liveness, retries with backoff for failed tasks, and at-least-once execution with idempotent tasks. Add tests for ties, a full cluster and worker failure.",
+ "followUps": [
+  "What is the time complexity of the heap approach compared with sorting on each insert?",
+  "How would you handle a worker that dies while running a task?",
+  "How do you avoid starvation of low-priority tasks?",
+  "How would you scale the scheduler itself across multiple nodes?"
+ ]
+}

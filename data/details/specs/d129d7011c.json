@@ -1,0 +1,18 @@
+{
+ "qid": "d129d7011c",
+ "question": "Meesho SDE-1 (Backend), low-level design / machine coding round. The task, as reported: **design a shop manager application with coupon handling**: add products to inventory, create and manage carts, add items to a cart, support two coupon types (flat and percentage), apply a coupon to compute the final cart price, and reduce stock on checkout. A similar round in another loop asked for a shopping cart with `add()`, `remove()`, `update()`, `total()` and `discountedTotal()`, with a discussion of LLD concepts before coding.",
+ "lookingFor": [
+  "A clean separation of Product, Cart, Coupon and the services around them.",
+  "Polymorphism for coupon types (Strategy) instead of if/else chains.",
+  "Correct money and stock handling, including validation at checkout.",
+  "Edge-case thinking: insufficient stock, invalid coupon, discount larger than the total.",
+  "Testable code and a clear demo."
+ ],
+ "answer": "**Clarify and assume.** Is one coupon per cart enough? Are there minimum order values or max-discount caps? Is stock checked at add-to-cart or only at checkout? Is it single-threaded? State the answers; start with one coupon per cart and checkout-time stock validation.\n\n**Entities**\n- `Product(id, name, price, stock)`.\n- `CartItem(productId, quantity)`.\n- `Cart(id, items)` with `add`, `remove`, `update`, `subtotal`.\n- `Coupon` interface: `double discount(double subtotal)`, plus `isApplicable(cart)`.\n  - `FlatCoupon(amount)`: `min(amount, subtotal)`.\n  - `PercentageCoupon(percent, maxCap)`: `min(subtotal * percent / 100, maxCap)`.\n- New coupon kinds are new classes; nothing else changes.\n\n**Services**\n- `InventoryService`: `addProduct`, `getStock`, `reserve/deduct`.\n- `CartService`: create cart, add/remove/update items.\n- `CheckoutService.checkout(cartId, couponCode)`: validate every item has enough stock; compute subtotal; apply the coupon; compute the final price (never below zero); deduct stock; clear or close the cart.\n\n**Key rules**\n- Prices and discount math: use `BigDecimal` (or integer paise) rather than `double` for money in production code; mention it even if you use `double` for speed in the interview.\n- Validate stock for all items before deducting any, so a failed checkout leaves inventory unchanged (all-or-nothing).\n- If two carts compete for the last unit, make deduct atomic: check and reduce under one lock per product, or a synchronized method.\n- Discount cannot exceed the subtotal.\n\n**Edge cases.** Product not found, quantity zero or negative, removing an item not in the cart, expired or unknown coupon, empty cart, coupon not meeting a minimum order value.\n\n**Plan.** Define models, then the coupon strategies and a quick test for them, then services, then a `main` demo: add products, build a cart, apply each coupon type, check out, print remaining stock, and show a failing case. Mention extensions: coupon stacking, per-user limits, expiry dates, and persistence.",
+ "followUps": [
+  "How would you support multiple coupons on one cart, and in what order are they applied?",
+  "How would you prevent overselling when two users check out the last item at the same time?",
+  "Which design pattern fits the coupon types, and why?",
+  "How would you extend this to a REST API with a database?"
+ ]
+}

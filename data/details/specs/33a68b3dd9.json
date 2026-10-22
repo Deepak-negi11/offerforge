@@ -1,0 +1,18 @@
+{
+ "qid": "33a68b3dd9",
+ "question": "Design a service that ingests logs from **any other service** (system design round, Senior Software Engineer, Myntra). The stated problem was roughly: create a service that helps feed the logs of any service, with **log levels** and a **unique id** for each log.\n\nThe discussion covered the **database** to use, **replication** techniques, **scaling out** the system, and the **APIs** needed, including the **filters** exposed with good REST API practice.",
+ "lookingFor": [
+  "Can you derive requirements and a data model from a short problem statement?",
+  "Do you choose storage based on the write-heavy, append-only, time-ordered access pattern?",
+  "Do you understand replication, partitioning and their consistency trade-offs?",
+  "Can you design clean REST APIs with filtering and pagination?",
+  "Do you consider ingestion bursts, retention and cost?"
+ ],
+ "answer": "**Requirements.** Any service can push logs with `serviceName`, `level` (DEBUG to ERROR), `message`, `timestamp`, optional metadata, and a unique `logId`. Users query by service, level, time range and text. Assume very high write volume, far fewer reads, and retention of days to weeks. Losing a few debug logs is acceptable, losing errors is not.\n\n**Ingestion API.** `POST /v1/logs` (single or batch). The `logId` can be a client-supplied UUID or a server-generated time-ordered id (ULID or Snowflake style) so retries can be deduplicated. Return `202 Accepted` quickly.\n\n**Pipeline.** Producers -> ingestion API (stateless, behind a load balancer) -> message queue (for example Kafka, partitioned by service or logId) -> consumers that write to storage. The queue absorbs bursts and decouples producers from the database.\n\n**Database choice.** The workload is append-heavy, time-series-like, with range queries. A wide-column or log-oriented store (Cassandra-style, or Elasticsearch/OpenSearch when full-text search matters) fits better than a single relational DB. Partition by `(service, time bucket)` so a time-range query touches few partitions and old buckets can be dropped cheaply (TTL). A relational DB is fine for a small scale and simpler to run, but it becomes a write bottleneck.\n\n**Replication.** Replication factor 3 with leader-based or quorum writes. Choose availability over strict consistency for logs: eventually consistent reads are acceptable. Cross-zone replicas for durability.\n\n**Scaling out.** Add ingestion nodes (stateless), add queue partitions and consumers, shard storage by service and time. Move older data to cheaper object storage.\n\n**Read API.** `GET /v1/logs?service=cart&level=ERROR&from=...&to=...&q=timeout&limit=100&cursor=...` with cursor pagination (not offset), sensible defaults, a maximum time window, and consistent filter names. `GET /v1/logs/{logId}` for one entry.\n\n**Bottlenecks.** Hot services (one service producing most logs) cause hot partitions; use a composite key or sampling for DEBUG. Add rate limiting per producer.",
+ "followUps": [
+  "How would you guarantee that ERROR logs are not lost while DEBUG logs may be sampled?",
+  "How would you support full-text search over messages efficiently?",
+  "Why cursor pagination instead of offset for this API?",
+  "How do you handle a producer that suddenly sends 100x its normal volume?"
+ ]
+}

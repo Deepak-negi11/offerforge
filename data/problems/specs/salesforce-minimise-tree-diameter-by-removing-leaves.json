@@ -1,0 +1,49 @@
+{
+ "pid": "salesforce-minimise-tree-diameter-by-removing-leaves",
+ "title": "Minimise Tree Diameter by Removing Leaves",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given an undirected tree with `n` nodes numbered `0` to `n - 1`, and an integer `k`.\n\nIn one operation you may remove a **leaf**: a node that currently has exactly one neighbour in the tree. Removing a node also removes its single edge. You may perform **at most `k` operations**, choosing the leaves in any order; after each removal the tree is the remaining connected tree. A tree with a single node has no neighbours, so that last node is never a leaf and cannot be removed.\n\nThe **diameter** of a tree is the number of edges on the longest path between any two of its nodes (a single node has diameter `0`).\n\nReturn the **smallest diameter** you can obtain after performing at most `k` leaf removals.",
+ "input_format": "The first line contains two integers `n` and `k`.\nEach of the next `n - 1` lines contains two integers `u` and `v`, describing an edge between nodes `u` and `v` (0-indexed).",
+ "output_format": "Print a single integer: the minimum possible diameter (number of edges).",
+ "constraints": [
+  "1 ≤ n ≤ 1000",
+  "0 ≤ k ≤ n",
+  "The edges form a valid tree"
+ ],
+ "examples": [
+  {
+   "input": "6 2\n0 1\n1 2\n2 3\n3 4\n4 5",
+   "output": "3",
+   "explanation": "The tree is a path of 6 nodes with diameter 5. Removing leaf 0 and then leaf 5 leaves the path 1-2-3-4 with diameter 3."
+  },
+  {
+   "input": "7 3\n0 1\n0 2\n1 3\n1 4\n2 5\n2 6",
+   "output": "2",
+   "explanation": "This is a complete binary tree of 7 nodes (diameter 4). Remove leaves 3 and 4; node 1 then becomes a leaf, so remove it too. What remains is node 2 joined to nodes 0, 5 and 6, a star with diameter 2. One fewer operation would leave a diameter of at least 3."
+  },
+  {
+   "input": "5 10\n0 1\n0 2\n0 3\n0 4",
+   "output": "0",
+   "explanation": "With enough operations you can remove leaves 1, 2, 3 and 4 one by one, leaving only node 0, whose diameter is 0. The last node can never be removed, so extra operations are unused."
+  }
+ ],
+ "complexity": {
+  "time": "O(n^2)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Removing leaves one at a time always leaves a connected piece of the tree, and every connected piece of size at least n - k can be reached this way. So you are looking for the connected sub-tree with at least n - k nodes that has the smallest diameter.",
+  "A sub-tree with diameter D fits inside a ball around its centre: a vertex and radius D/2 when D is even, or an edge and radius (D-1)/2 when D is odd. Counting the nodes in such a ball tells you how large a sub-tree of that diameter can be.",
+  "For every vertex and every edge as a centre, run a BFS (a multi-source BFS from both ends for an edge) and find the smallest radius whose ball contains at least n - k nodes. The best centre gives the answer; an O(n^2) total is fine."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    adj = [[] for _ in range(n)]\n    edges = []\n    for i in range(n - 1):\n        u, v = int(data[2 + 2 * i]), int(data[3 + 2 * i])\n        adj[u].append(v)\n        adj[v].append(u)\n        edges.append((u, v))\n    need = max(1, n - k)\n    if need == 1:\n        print(0)\n        return\n\n    def radius(sources):\n        seen = [False] * n\n        for s in sources:\n            seen[s] = True\n        level = list(sources)\n        count = len(level)\n        r = 0\n        while count < need:\n            nxt = []\n            for x in level:\n                for y in adj[x]:\n                    if not seen[y]:\n                        seen[y] = True\n                        nxt.append(y)\n            count += len(nxt)\n            level = nxt\n            r += 1\n        return r\n\n    best = 10 ** 9\n    for c in range(n):\n        best = min(best, 2 * radius([c]))\n    for u, v in edges:\n        best = min(best, 2 * radius([u, v]) + 1)\n    print(best)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, k = int(data[0]), int(data[1])\nadj = [set() for _ in range(n)]\nfor i in range(n - 1):\n    u, v = int(data[2 + 2 * i]), int(data[3 + 2 * i])\n    adj[u].add(v)\n    adj[v].add(u)\n\ndef diameter(mask):\n    nodes = [i for i in range(n) if mask >> i & 1]\n    best = 0\n    for s in nodes:\n        dist = {s: 0}\n        stack = [s]\n        while stack:\n            x = stack.pop()\n            for y in adj[x]:\n                if mask >> y & 1 and y not in dist:\n                    dist[y] = dist[x] + 1\n                    stack.append(y)\n        best = max(best, max(dist.values()))\n    return best\n\nfull = (1 << n) - 1\nseen = {full: 0}\nfrontier = [full]\nans = diameter(full)\nfor step in range(k):\n    nxt = []\n    for mask in frontier:\n        for x in range(n):\n            if mask >> x & 1:\n                deg = sum(1 for y in adj[x] if mask >> y & 1)\n                if deg == 1:\n                    m2 = mask ^ (1 << x)\n                    if m2 not in seen:\n                        seen[m2] = step + 1\n                        nxt.append(m2)\n                        ans = min(ans, diameter(m2))\n    frontier = nxt\nprint(ans)\n",
+ "generator": "def gen(rng):\n    def fmt(n, k, edges):\n        return f\"{n} {k}\\n\" + '\\n'.join(f\"{u} {v}\" for u, v in edges)\n    def relabel(n, edges):\n        p = list(range(n))\n        rng.shuffle(p)\n        return [(p[u], p[v]) for u, v in edges]\n    def rand_tree(n):\n        return [(rng.randrange(i), i) for i in range(1, n)]\n    def path(n):\n        return [(i, i + 1) for i in range(n - 1)]\n    def star(n):\n        return [(0, i) for i in range(1, n)]\n    tests = [fmt(1, 0, []), fmt(1, 5, []), fmt(2, 0, [(0, 1)]), fmt(2, 1, [(0, 1)]), fmt(2, 2, [(0, 1)]),\n             fmt(3, 1, [(0, 1), (1, 2)]), fmt(6, 2, path(6)), fmt(5, 10, star(5)), fmt(7, 1, [(0, 1), (0, 2), (1, 3), (1, 4), (2, 5), (2, 6)])]\n    for n in (3, 4, 5, 6, 7, 8, 9, 10, 11, 12):\n        for _ in range(3):\n            e = relabel(n, rand_tree(n))\n            tests.append(fmt(n, rng.randint(0, n), e))\n    for n in (8, 11):\n        tests.append(fmt(n, rng.randint(1, n - 2), relabel(n, path(n))))\n        tests.append(fmt(n, rng.randint(1, n - 2), relabel(n, star(n))))\n    n = 1000\n    tests.append(fmt(n, 100, relabel(n, path(n))))\n    tests.append(fmt(n, 300, relabel(n, rand_tree(n))))\n    tests.append(fmt(n, 0, relabel(n, rand_tree(n))))\n    cat = [(i, i + 1) for i in range(499)] + [(i, 500 + i) for i in range(500)]\n    tests.append(fmt(n, 250, relabel(n, cat)))\n    tests.append(fmt(n, 400, relabel(n, [((i - 1) // 2, i) for i in range(1, n)])))\n    tests.append(fmt(n, 999, relabel(n, rand_tree(n))))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef min_diameter(n: int, k: int, edges: List[Tuple[int, int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    edges = [(int(data[2 + 2 * i]), int(data[3 + 2 * i])) for i in range(n - 1)]\n    print(min_diameter(n, k, edges))\n\n\nmain()\n",
+  "javascript": "function minDiameter(n, k, edges) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst edges = []\nfor (let i = 0; i < n - 1; i++) edges.push([t[2 + 2 * i], t[3 + 2 * i]])\nconsole.log(minDiameter(n, k, edges))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint minDiameter(int n, int k, vector<pair<int, int>>& edges) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<pair<int, int>> edges(n - 1);\n    for (auto& e : edges) cin >> e.first >> e.second;\n    cout << minDiameter(n, k, edges) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int minDiameter(int n, int k, int[][] edges) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder sb0 = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) sb0.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(sb0.toString());\n        int n = Integer.parseInt(st.nextToken());\n        int k = Integer.parseInt(st.nextToken());\n        int[][] edges = new int[Math.max(n - 1, 0)][2];\n        for (int i = 0; i < n - 1; i++) {\n            edges[i][0] = Integer.parseInt(st.nextToken());\n            edges[i][1] = Integer.parseInt(st.nextToken());\n        }\n        System.out.println(minDiameter(n, k, edges));\n    }\n}\n"
+ }
+}

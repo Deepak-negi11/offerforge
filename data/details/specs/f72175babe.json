@@ -1,0 +1,18 @@
+{
+ "qid": "f72175babe",
+ "question": "MakeMyTrip SSE Frontend, machine coding round. Implement a minimal **file explorer UI in React** where users create folders and files in a nested structure.\n\nInitially the page shows a single button, **Create src**; clicking it creates a root folder named `src`. Folders are collapsible/expandable, show their name and have a **+ Add** button. Clicking + Add opens a small dialog or menu asking for the **type** (file or folder, radio buttons or dropdown) and a **name** (input with a sensible default such as `NewFile.txt` or `NewFolder`). On confirm, a folder type adds an empty subfolder and a file type adds a file node inside that folder. New folders get their own + Add button, so nesting can be arbitrarily deep (like `src/components/widgets/...`). Clicking a file highlights it (visual feedback only).",
+ "lookingFor": [
+  "Choosing a recursive tree data structure and a recursive component.",
+  "Immutable updates to deeply nested state.",
+  "Separating UI state (expanded, selected, dialog) from the tree data.",
+  "Handling input validation and edge cases like empty or duplicate names.",
+  "Readable, extensible component design."
+ ],
+ "answer": "**Data model.** A tree of nodes: `{ id, name, type: 'file' | 'folder', children?: Node[] }`. State starts as `null` (only the Create src button shows); clicking it sets the root to `{ id, name: 'src', type: 'folder', children: [] }`.\n\n**Components.** A recursive `TreeNode`:\n- Folder: renders a toggle (chevron), the name, a + Add button, and, if expanded, maps `children` to more `TreeNode`s with indentation.\n- File: renders the name; clicking sets `selectedId`, and the selected one gets a highlight class.\n\nKeep UI state separate from data: `selectedId` at the top, `expanded` as a `Set` of ids (or local `useState` per folder), and `dialog: { parentId } | null`.\n\n**Adding a node.** The dialog collects type and name (default depends on type; trim; reject empty names and duplicates inside the same folder). On confirm call `addNode(parentId, newNode)`. Update immutably with a recursive helper that returns a new tree:\n\n```\nconst add = (node, parentId, child) =>\n  node.id === parentId\n    ? { ...node, children: [...node.children, child] }\n    : node.type === 'folder'\n      ? { ...node, children: node.children.map(c => add(c, parentId, child)) }\n      : node;\n```\n\nUsing ids rather than array paths keeps this stable if sorting or deletion is added later. Auto-expand the parent after adding so the new item is visible.\n\n**Complexity.** Each add is O(n) in the tree size, which is fine; if the tree got big, normalise into a map of `id -> node` with `childIds`, giving O(1) updates and fewer re-renders (pair with `React.memo`).\n\n**Extras if time allows:** rename and delete, sorting folders first, keyboard navigation, and persisting to `localStorage`.\n\n**Mistakes to avoid:** mutating state in place, using the name as a key (duplicates collide), and showing + Add on files.",
+ "followUps": [
+  "How would you add delete and rename while keeping updates immutable?",
+  "How would you avoid re-rendering the whole tree on every change?",
+  "How would you make the explorer keyboard accessible?",
+  "How would you load children lazily from an API?"
+ ]
+}

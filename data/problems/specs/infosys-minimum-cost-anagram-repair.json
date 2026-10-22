@@ -1,0 +1,48 @@
+{
+ "pid": "infosys-minimum-cost-anagram-repair",
+ "title": "Minimum Cost Anagram Repair",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given two lowercase strings `s` and `t` of the **same length**. You want to turn `s` into an anagram of `t`, that is, a string with exactly the same count of every letter as `t` (the order of the letters does not matter).\n\nIn one operation you pick a position of `s` and replace its character with a different lowercase letter. The cost of replacing a letter `x` with a letter `y` is:\n\n- `1` if one of them is a vowel and the other is a consonant,\n- `2` if both are vowels or both are consonants.\n\nThe vowels are `a`, `e`, `i`, `o`, `u`; every other lowercase letter is a consonant. Each position may be changed more than once, but you only pay for the operations you perform.\n\nPrint the minimum total cost to make the letter counts of `s` match those of `t`. If `s` is already an anagram of `t`, the answer is `0`.",
+ "input_format": "The first line contains the string `s`.\nThe second line contains the string `t`.",
+ "output_format": "Print a single integer: the minimum total cost.",
+ "constraints": [
+  "1 ≤ |s| = |t| ≤ 2·10^5",
+  "s and t consist of lowercase English letters"
+ ],
+ "examples": [
+  {
+   "input": "bcd\nbca",
+   "output": "1",
+   "explanation": "`s` has one extra `d` and `t` needs an extra `a`. Changing `d` to `a` swaps a consonant for a vowel, which costs 1."
+  },
+  {
+   "input": "abc\nabd",
+   "output": "2",
+   "explanation": "`s` has one extra `c` and needs a `d`. Both are consonants, so the change costs 2."
+  },
+  {
+   "input": "aabc\nbcde",
+   "output": "3",
+   "explanation": "`s` has two extra `a`'s and needs a `d` and an `e`. Changing one `a` to `d` costs 1 (vowel to consonant). Changing the other `a` to `e` costs 2 (vowel to vowel). Total 3."
+  }
+ ],
+ "complexity": {
+  "time": "O(|s| + 26)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Compare the letter counts of s and t. Only the letters where s has too many need to change, and they must turn into letters where s has too few.",
+  "Each surplus letter is changed exactly once, to a letter in deficit, so you pay at least 1 per surplus letter. A change costs 2 instead of 1 only when it keeps the type (vowel or consonant) the same.",
+  "Count surplus and deficit letters separately for vowels and consonants. The number of cost-1 changes is limited by how many surplus vowels can go to consonant deficits plus how many surplus consonants can go to vowel deficits."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    s, t = data[0], data[1]\n    V = set('aeiou')\n    d = [0] * 26\n    for ch in s:\n        d[ord(ch) - 97] += 1\n    for ch in t:\n        d[ord(ch) - 97] -= 1\n    sv = sc = dv = dc = 0\n    for i in range(26):\n        v = chr(97 + i) in V\n        if d[i] > 0:\n            if v: sv += d[i]\n            else: sc += d[i]\n        elif d[i] < 0:\n            if v: dv -= d[i]\n            else: dc -= d[i]\n    m = sv + sc\n    cross = min(sv, dc) + min(sc, dv)\n    print(2 * m - cross)\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import permutations\n\ndata = sys.stdin.read().split()\ns, t = data[0], data[1]\nV = set('aeiou')\ncs = {}\nfor ch in s:\n    cs[ch] = cs.get(ch, 0) + 1\nct = {}\nfor ch in t:\n    ct[ch] = ct.get(ch, 0) + 1\nsurplus, deficit = [], []\nfor ch in set(cs) | set(ct):\n    diff = cs.get(ch, 0) - ct.get(ch, 0)\n    if diff > 0:\n        surplus += [ch] * diff\n    elif diff < 0:\n        deficit += [ch] * (-diff)\n\ndef cost(x, y):\n    return 1 if (x in V) != (y in V) else 2\n\nbest = 0 if not surplus else min(sum(cost(x, y) for x, y in zip(surplus, p)) for p in permutations(deficit))\nprint(best)\n",
+ "generator": "def gen(rng):\n    letters = 'abcdefghijklmnopqrstuvwxyz'\n    vowels = 'aeiou'\n    cons = ''.join(c for c in letters if c not in vowels)\n    def fmt(s, t):\n        return s + \"\\n\" + t\n    tests = [\n        fmt('a', 'a'), fmt('a', 'b'), fmt('b', 'c'), fmt('ab', 'ba'), fmt('aaa', 'bbb'), fmt('bbb', 'aaa'),\n        fmt('abc', 'abd'), fmt('aeiou', 'bcdfg'), fmt('zzzz', 'aaaa'),\n    ]\n    for L in (2, 3, 4, 5, 6, 7, 8):\n        for _ in range(4):\n            alpha = rng.choice([letters[:6], 'aebcd', 'abio', letters])\n            s = [rng.choice(alpha) for _ in range(L)]\n            t = s[:]\n            rng.shuffle(t)\n            for _ in range(rng.randint(0, L)):\n                t[rng.randrange(L)] = rng.choice(alpha)\n            tests.append(fmt(''.join(s), ''.join(t)))\n    N = 200000\n    # large cases (longer than 400 characters so the brute force is not used)\n    s = [rng.choice(letters) for _ in range(N)]\n    t = [rng.choice(letters) for _ in range(N)]\n    tests.append(fmt(''.join(s), ''.join(t)))\n    s = [rng.choice(vowels) for _ in range(N)]\n    t = [rng.choice(cons) for _ in range(N)]\n    tests.append(fmt(''.join(s), ''.join(t)))\n    s = [rng.choice(vowels + cons) for _ in range(N)]\n    t = s[:]\n    rng.shuffle(t)\n    tests.append(fmt(''.join(s), ''.join(t)))\n    s = [rng.choice('aeioubcd') for _ in range(N)]\n    t = [rng.choice('aeioufgh') for _ in range(N)]\n    tests.append(fmt(''.join(s), ''.join(t)))\n    s = ['z'] * N\n    t = ['a'] * (N // 2) + ['b'] * (N - N // 2)\n    tests.append(fmt(''.join(s), ''.join(t)))\n    for L in (300, 1000):\n        s = [rng.choice(letters) for _ in range(L)]\n        t = [rng.choice(letters) for _ in range(L)]\n        tests.append(fmt(''.join(s), ''.join(t)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef min_cost(s: str, t: str) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    print(min_cost(data[0], data[1]))\n\n\nmain()\n",
+  "javascript": "function minCost(s, t) {\n  // Write your solution here\n  return 0\n}\n\nconst parts = input.split(/\\s+/).filter(Boolean)\nconsole.log(String(minCost(parts[0], parts[1])))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minCost(const string& s, const string& t) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s, t;\n    cin >> s >> t;\n    cout << minCost(s, t) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minCost(String s, String t) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String s = br.readLine().trim();\n        String t = br.readLine().trim();\n        System.out.println(minCost(s, t));\n    }\n}\n"
+ }
+}

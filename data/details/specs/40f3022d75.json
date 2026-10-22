@@ -1,0 +1,18 @@
+{
+ "qid": "40f3022d75",
+ "question": "Zomato / Blinkit (Eternal) SDE-1 system design round (the interviewer was short on time and did not expect a full design): **design a ticket booking system like BookMyShow.** The probes were: how would you improve the **UX for ticket booking for a high-traffic popular event**, and **if two customers select the same seat at the same time, how does the system handle it**, leading to a discussion of **pessimistic and optimistic locking and Redis.** (A Blinkit SDE-2 candidate was given the LLD version of a movie-ticketing system.)",
+ "lookingFor": [
+  "Identifying seat inventory as the contended resource and protecting it correctly.",
+  "Knowing pessimistic versus optimistic locking and when each is appropriate.",
+  "Using Redis (or similar) sensibly for holds, expiry and fast reads.",
+  "Handling traffic spikes with queues, rate limiting and good UX.",
+  "Consistency, payment failure and idempotency considerations."
+ ],
+ "answer": "**Core problem.** Seat state is a contended resource. Many users read the seat map, few book; for a popular show, many try for the same seats at once. The requirement is that a seat is never sold twice.\n\n**Two-step booking with a hold.** Selecting a seat creates a temporary **hold** (for example 5 minutes), shown to others as unavailable. Payment confirms it; expiry releases it. This gives good UX because a user is not told \"sold out\" after paying.\n\n**Handling simultaneous selection.**\n- **Pessimistic locking:** `SELECT ... FOR UPDATE` on the seat rows inside a transaction, so the second request waits. Correct and simple, but holds locks and can reduce throughput or deadlock when seats are locked in different orders (lock in sorted order).\n- **Optimistic locking:** a version column or conditional update, `UPDATE show_seat SET status='HELD', held_by=? WHERE id=? AND status='AVAILABLE'`; if 0 rows are affected, someone else won, so return a conflict. No long locks, and it scales better when conflicts are uncommon, but it needs retry/error handling.\n- **Redis:** use an atomic `SET key value NX EX 300` per show-seat to take the hold quickly, with a TTL to auto-release. Keep the database as the final source of truth for the confirmed booking, because Redis can lose data; confirm with a conditional write in the database.\n\n**High-traffic UX.** Serve the seat map from cache and refresh it frequently or by push (WebSocket/SSE); use a **virtual waiting room** that admits users gradually; rate limit bots; show clear countdown and \"seat just taken\" messages; make payment idempotent.\n\n**Failure cases.** Payment succeeds after the hold expired: either extend the hold at payment start or refund; use an idempotency key so retries do not double book.\n\n**Scale.** Partition by show or theatre, since seat state is naturally per-show.",
+ "followUps": [
+  "What are the downsides of using Redis locks for seat holds?",
+  "How do you handle the payment taking longer than the hold TTL?",
+  "How would you avoid deadlocks when users select multiple seats?",
+  "How would you protect the system from bots buying all tickets?"
+ ]
+}

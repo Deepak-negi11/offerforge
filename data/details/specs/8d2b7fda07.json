@@ -1,0 +1,19 @@
+{
+ "qid": "8d2b7fda07",
+ "question": "Intel AI Software Solutions Engineer (experienced), advanced C++ round of about 45 minutes. Reported topics: **smart pointers**, **friend classes**, **designing a Singleton class**, and, in a later round, **templated functions and classes** and again Singleton design. The candidate reported making errors writing the Singleton in the first attempt. The task is to explain these features and write a correct Singleton.",
+ "lookingFor": [
+  "Modern C++ ownership model (RAII, unique_ptr, shared_ptr, weak_ptr).",
+  "Correct, thread-safe Singleton with attention to copy, move and destruction.",
+  "Understanding of friend and templates and their trade-offs.",
+  "Awareness of design drawbacks of singletons (global state, testing).",
+  "Precision: small syntax or lifetime mistakes are what interviewers look for."
+ ],
+ "answer": "**Smart pointers (RAII for ownership).**\n- `std::unique_ptr<T>`: sole owner, move-only, zero overhead; the default choice. Created with `std::make_unique`.\n- `std::shared_ptr<T>`: shared ownership via an atomic reference count; the object is destroyed when the last owner goes. Use `make_shared`. Beware of cycles.\n- `std::weak_ptr<T>`: non-owning observer of a shared_ptr; breaks cycles and is checked with `lock()`.\n\n**Friend.** `friend class B;` lets B access A's private members. It breaks encapsulation selectively, so use it for tightly coupled helpers (factories, test fixtures, operators). Friendship is not inherited and not mutual.\n\n**Templates.** A function or class template is instantiated at compile time per type, giving type-safe generic code with no runtime cost. Know specialization, that definitions normally live in headers, and that errors appear at instantiation.\n\n**Correct Singleton (Meyers singleton).**\n\n```cpp\nclass Logger {\npublic:\n    static Logger& instance() {\n        static Logger inst;          // initialised once, thread-safe since C++11\n        return inst;\n    }\n    Logger(const Logger&) = delete;\n    Logger& operator=(const Logger&) = delete;\n    Logger(Logger&&) = delete;\n    Logger& operator=(Logger&&) = delete;\n    void log(const std::string& m);\nprivate:\n    Logger() = default;\n    ~Logger() = default;\n};\n```\n\nWhy it is correct: the constructor is private; copy and move are deleted so no second instance can be made; returning a reference prevents accidental `delete`; C++11 guarantees that initialisation of a function-local static happens exactly once even with concurrent callers. Common mistakes: returning a raw pointer from `new` that never gets freed, a hand-written double-checked lock without atomics (a data race), and forgetting to delete copying.\n\n**Trade-offs.** Singletons are global state: they hide dependencies, make unit testing hard, and static destruction order can bite if other statics use it at exit. Prefer dependency injection unless a single instance is a real requirement.",
+ "followUps": [
+  "How would you make a Singleton that can be mocked in tests?",
+  "What happens if two shared_ptrs point to each other?",
+  "Why is std::make_shared preferred over shared_ptr<T>(new T)?",
+  "Explain template specialization with an example.",
+  "What is the difference between unique_ptr and auto_ptr?"
+ ]
+}

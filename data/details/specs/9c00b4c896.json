@@ -1,0 +1,17 @@
+{
+ "qid": "9c00b4c896",
+ "question": "In the second technical round for a Visa **new-grad Software Engineer** role the candidate was asked: **How would you troubleshoot a non-responsive server?**, **how do you ensure data integrity in a file-system design?**, and **what are the steps when a client sends data to a server?**",
+ "lookingFor": [
+  "Do you have a systematic, layered troubleshooting method rather than random guesses?",
+  "Do you know the tools and signals at each layer (network, process, CPU, memory, disk, logs)?",
+  "Do you understand integrity mechanisms: journaling, checksums, atomic writes, backups?",
+  "Can you narrate the end-to-end network path of a request?"
+ ],
+ "answer": "**Troubleshooting an unresponsive server.** Work from the outside in and narrow down.\n1. **Define the problem:** down for everyone or some users? Since when? Recent deploys or changes? Check monitoring and alerts.\n2. **Network:** can you `ping` it, does DNS resolve, is the port open (`telnet`/`nc`), is a firewall or security group blocking, is the load balancer health check failing?\n3. **Access:** can you SSH in? If not, use the console. A very slow shell often means resource exhaustion.\n4. **Resources:** CPU and load (`top`), memory and swap (`free`; the OOM killer may have terminated processes), disk space and inodes (`df -h`, `df -i`), I/O wait (`iostat`), open file descriptors.\n5. **Application:** is the process running, what do the logs say (`journalctl`, app logs), thread dumps for deadlocks, connection-pool or database exhaustion.\n6. **Dependencies:** database, cache, downstream APIs.\n7. **Fix and restore:** restart or fail over, roll back the last change, scale out; then find the root cause and write a post-mortem.\n\n**Data integrity in a file system.**\n- **Journaling** (write-ahead log) so metadata updates are atomic after a crash (ext4, NTFS).\n- **Copy-on-write** designs (ZFS, Btrfs) never overwrite live data.\n- **Checksums** on blocks to detect corruption, with redundancy (RAID, replication) to repair it.\n- Atomic writes (write to a temporary file, `fsync`, then rename), file locking for concurrent writers, permissions, regular backups and snapshots, and `fsck` for recovery.\n\n**When a client sends data to a server.**\n1. App creates the request; DNS resolves the hostname to an IP.\n2. TCP three-way handshake (SYN, SYN-ACK, ACK); TLS handshake for HTTPS.\n3. Data is split into segments and packets, routed across the network, and ordered and acknowledged by TCP.\n4. The server's OS delivers it to the listening process on the port; the application processes it and may query a database.\n5. The response travels back along the same path; the connection is kept alive or closed.",
+ "followUps": [
+  "What if the server responds to ping but not to HTTP requests?",
+  "What is the difference between journaling and copy-on-write?",
+  "How would you detect and prevent the problem before users notice?",
+  "What happens at the TCP level if a packet is lost?"
+ ]
+}

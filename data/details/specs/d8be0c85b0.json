@@ -1,0 +1,18 @@
+{
+ "qid": "d8be0c85b0",
+ "question": "Bloomberg Software Engineer (new grad), system design round with an engineer of over a decade's tenure: **a client enters a stock and a threshold they want to receive alerts on. Design a system that notifies the client when the threshold is met.**",
+ "lookingFor": [
+  "Clarifying requirements: alert types, latency, delivery channels, scale.",
+  "Efficient matching of a stream of prices against many stored thresholds.",
+  "Use of message queues and decoupling of ingestion, evaluation and notification.",
+  "Reliability: no lost alerts, no duplicates, handling of retries.",
+  "Scaling reasoning and trade-offs."
+ ],
+ "answer": "**1. Requirements.** Functional: create, update and delete an alert (symbol, condition such as above or below price, threshold); get notified when it triggers (push, email, SMS); alerts may be one-shot or repeating. Non-functional: low delay between price crossing and notification (seconds), no missed alerts, at-most-once or effectively-once delivery per trigger. Assumptions: 10,000 symbols, 10 million alerts, price ticks up to thousands per second in total.\n\n**2. API and data.** `POST /alerts {symbol, op, threshold, channel}`, `DELETE /alerts/{id}`. Table `alerts(id, user_id, symbol, op, threshold, status, last_triggered_at)` indexed by symbol.\n\n**3. Core idea: index alerts by symbol and threshold.** For each symbol keep two ordered structures: \"above\" alerts sorted by threshold ascending and \"below\" alerts sorted descending (a sorted set or a tree). When a tick arrives with price P, every \"above\" alert with threshold <= P and every \"below\" alert with threshold >= P fires. Scan only the range that triggered, in O(log n + k), instead of checking all alerts on every tick.\n\n**4. Components.**\n- **Price feed ingestion** publishes ticks to a queue (for example Kafka) partitioned by symbol.\n- **Alert evaluators**, one consumer per partition, hold the in-memory index for their symbols (rebuilt from the database on start) and detect crossings.\n- **Triggered-alert queue** receives events; marks the alert as triggered in the database (idempotent update with a condition on status) to avoid duplicates.\n- **Notification service** with workers per channel, retries with backoff, and a dead-letter queue.\n\n**5. Trade-offs.**\n- In-memory index gives speed; the database stays the source of truth, with changes streamed to evaluators.\n- Evaluating on every tick versus throttling for volatile symbols: usually evaluate on every tick but coalesce notifications.\n- Repeating alerts need hysteresis or a cooldown to avoid spam.\n\n**6. Scaling and failure.** Shard by symbol; replicate evaluators with a standby; replay from the queue on failure using offsets; track delivery status and monitor end-to-end latency.",
+ "followUps": [
+  "How do you avoid sending the same alert twice after a restart?",
+  "How would you handle a hot symbol receiving most ticks?",
+  "How do users edit an alert while it is being evaluated?",
+  "What would you change for repeating alerts like 'every time it crosses 100'?"
+ ]
+}

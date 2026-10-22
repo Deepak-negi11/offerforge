@@ -1,0 +1,18 @@
+{
+ "qid": "b9c46bf162",
+ "question": "Atlassian SDE-2 (P40) design/code round. Design an **aggregation layer over company data** that serves **average** and **maximum** metrics, and code a working solution. A **follow-up with a wider scope** was then asked and handled with small changes. The report does not specify the data, so clarify what a record looks like (for example employees or teams with a company, department and numeric attribute) and which groupings and updates are needed.",
+ "lookingFor": [
+  "Clarifying vague requirements into concrete API and data shapes.",
+  "Incremental aggregates (sum, count, max) instead of recomputing.",
+  "Extensible design that absorbs a follow-up with minimal change.",
+  "Handling updates and deletes, which make max harder than average.",
+  "Working, tested code."
+ ],
+ "answer": "**Clarify.**\n- Records: for example `(company, department, employeeId, value)`. What is 'value' (salary, rating, usage)?\n- Queries: average and max per company? per department? overall? Do records get added, updated and removed, or is the data static and read-heavy?\n- Scale and consistency: in memory, single process, concurrency?\n\n**API.** `add(record)`, `update(record)`, `remove(id)`, `average(key)`, `max(key)` where `key` is a grouping (company, or company plus department).\n\n**Core idea.** Maintain aggregates incrementally per group instead of scanning all records on each query.\n- **Average:** store `sum` and `count` per group; `average = sum / count`, updated in O(1) on add, update (adjust by the difference) and remove.\n- **Max:** easy for add-only data (`max = max(max, v)`). With removals or updates, a single stored max is not enough when the max itself is removed. Options: a **max-heap with lazy deletion**, a **sorted multiset/tree map** of values to counts (O(log n) updates, O(1) or O(log n) max), or recomputation on demand with caching if removals are rare.\n\n**Structure.** A `Metric` interface (`add(v)`, `remove(v)`, `value()`) with `AverageMetric` and `MaxMetric` implementations, and an `AggregationLayer` mapping `groupKey -> list of Metric`. New metrics (min, sum, median) become new classes without changing the layer, an application of the open/closed principle (strategy pattern).\n\n**Wider scope follow-ups.** For example a hierarchy (company -> department -> team): store aggregates at each level and propagate updates up the chain, or compute parent aggregates by combining children. Average combines through `sum` and `count`, not by averaging averages; max combines by taking the max of children. More dimensions mean a composite key or a map of maps. If data no longer fits in memory, push aggregation to a database or stream processor with pre-aggregated tables.\n\n**Concurrency.** Guard each group with a lock or use atomic updates; reads can use a snapshot.\n\n**Tests.** Empty group, single record, removing the current max, updating a value, multiple groups.",
+ "followUps": [
+  "Why can't you average the per-department averages to get the company average?",
+  "How do you keep max correct when the max record is deleted?",
+  "How would you change the design if data arrives as a stream?",
+  "How would you cache or precompute for read-heavy workloads?"
+ ]
+}

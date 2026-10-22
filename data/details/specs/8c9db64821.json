@@ -1,0 +1,18 @@
+{
+ "qid": "8c9db64821",
+ "question": "Apple Software Engineer (ICT4, Backend), Technical Interview 2. **Implement scoring for a bowling game**, handling strikes, spares and open frames (misses), and make it pass a large set of test cases. The sources give no further detail, so clarify the rules and input format with the interviewer before coding.",
+ "lookingFor": [
+  "Translating a rules-heavy spec into clean code and clarifying ambiguity first.",
+  "Correct handling of strike and spare bonuses and the tenth frame.",
+  "Class and method design with separation of concerns.",
+  "Test-driven thinking and edge cases.",
+  "Readable code that survives follow-up rule changes."
+ ],
+ "answer": "**Clarify first.** Standard ten-pin rules: 10 frames; each frame has up to two rolls. A strike (10 on the first roll) scores 10 plus the next two rolls. A spare (10 across two rolls) scores 10 plus the next one roll. An open frame scores the pins knocked down. The tenth frame gives one extra roll after a spare and two extra after a strike. Ask: is input a list of rolls or per-frame pairs? Do we score a finished game only, or a partial game? Should invalid input throw?\n\n**Design.** Represent a game as a flat list of rolls; this makes bonuses easy because \"the next two rolls\" are just the next list elements. Methods: `roll(pins)` validates and records; `score()` walks frames.\n\n```java\nint score() {\n  int total = 0, i = 0;\n  for (int frame = 0; frame < 10; frame++) {\n    if (rolls[i] == 10) {                 // strike\n      total += 10 + rolls[i+1] + rolls[i+2]; i += 1;\n    } else if (rolls[i] + rolls[i+1] == 10) { // spare\n      total += 10 + rolls[i+2]; i += 2;\n    } else {\n      total += rolls[i] + rolls[i+1]; i += 2;\n    }\n  }\n  return total;\n}\n```\nBecause the walk stops after ten frames, the extra tenth-frame rolls are only ever used as bonuses and are never double counted.\n\n**Edge cases to test:** all gutter balls (0), all open frames, all spares with a final 5 (150), a perfect game of twelve strikes (300), a strike or spare in the tenth frame, and a game with alternating strikes and spares. Validation: a roll above 10, two rolls in a frame summing above 10, too few or too many rolls, negative values.\n\n**Complexity:** O(rolls), which is at most 21.\n\n**Structure for extension:** keep `Frame` as a small class if the interviewer wants per-frame scores or live partial scoring, and keep validation separate from scoring. Write the tests as you go; the interviewer said many test cases had to pass, so name them after the rule they check.",
+ "followUps": [
+  "How would you compute a running score for a game still in progress?",
+  "How would you validate input so that an illegal sequence is rejected?",
+  "How would the design change to support multiple players?",
+  "How would you handle a variant rule set, such as five-pin bowling?"
+ ]
+}

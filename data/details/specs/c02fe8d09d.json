@@ -1,0 +1,17 @@
+{
+ "qid": "c02fe8d09d",
+ "question": "In a Goldman Sachs Superday (software engineering practices round) for a Compliance Analyst role with about 2 years of experience, the candidate was given a problem about finding shortest paths between exchanges where some costs can be negative. They were asked to discuss why Dijkstra's algorithm has limitations here and to explain Bellman-Ford and Floyd-Warshall.",
+ "lookingFor": [
+  "Knowing why Dijkstra requires non-negative weights",
+  "Explaining Bellman-Ford, its complexity and negative-cycle detection",
+  "Explaining Floyd-Warshall for all-pairs shortest paths",
+  "Choosing the right algorithm for the constraints"
+ ],
+ "answer": "**Why Dijkstra fails with negative edges.** Dijkstra is greedy: when it pops the vertex with the smallest tentative distance, it declares that distance final, assuming any other route can only be longer because edges add non-negative cost. A negative edge breaks this: a later, longer-looking path can become cheaper. Example: A->B cost 2, A->C cost 5, C->B cost -4. Dijkstra finalises B = 2 first, but the true shortest A->B is 5 - 4 = 1. Adding a constant to all edges does not fix it, because paths with more edges are penalised unequally. If a **negative cycle** is reachable, shortest paths are not defined at all (you can loop forever to reduce the cost).\n\n**Bellman-Ford (single source).** Relax every edge V-1 times: `if dist[u] + w < dist[v]: dist[v] = dist[u] + w`. A shortest path has at most V-1 edges, so V-1 rounds suffice. Run one more round: if any distance still improves, a **negative cycle** is reachable. Time **O(VE)**, space O(V). Stop early if a round changes nothing. It also works naturally on edge lists and in distributed settings (distance-vector routing).\n\n**Floyd-Warshall (all pairs).** DP over intermediate vertices: for each k, for each pair (i, j): `d[i][j] = min(d[i][j], d[i][k] + d[k][j])`. Time **O(V^3)**, space O(V^2). Handles negative edges; a negative cycle shows up as `d[i][i] < 0`. Good for small dense graphs.\n\n**Choosing**\n- Non-negative weights, one source: Dijkstra, O((V+E) log V) with a binary heap.\n- Negative edges, one source: Bellman-Ford. (A DAG can be done in O(V+E) with topological order.)\n- All pairs, small V: Floyd-Warshall. All pairs on a sparse graph with negative edges: Johnson's algorithm (reweight with Bellman-Ford, then run Dijkstra from each node).\n\n**Negative cycle meaning:** in a currency/exchange network, taking -log of rates turns a profitable cycle into a negative cycle, so Bellman-Ford detects arbitrage. If the exchange costs in the interview were fees with rebates, say so as an example only.",
+ "followUps": [
+  "Why can't you fix Dijkstra by adding a constant to all edge weights?",
+  "How do you detect and report a negative cycle, and the vertices on it?",
+  "What is Johnson's algorithm?",
+  "Why does Bellman-Ford need exactly V-1 iterations?"
+ ]
+}

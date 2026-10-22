@@ -1,0 +1,51 @@
+{
+ "pid": "minimum-time-for-k-connected-components",
+ "title": "Minimum Time for K Connected Components",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given an undirected graph with `n` nodes labeled `0` to `n - 1` and `m` edges. Edge `i` connects nodes `u` and `v` and carries a **removal time** `t`: the edge disappears at time `t`.\n\nFor a non-negative integer time `T`, the graph at time `T` is what remains after **every edge whose removal time is at most `T` has been deleted**. Time `0` is the original graph, because every removal time is at least `1`.\n\nGiven an integer `k`, find the **smallest** integer `T ≥ 0` such that the graph at time `T` has **at least `k` connected components**. An isolated node is a component of its own.\n\nIt is always possible: once `T` is at least the largest removal time, no edges remain and there are `n ≥ k` components. If the original graph already has at least `k` components, the answer is `0`. Parallel edges are allowed.",
+ "input_format": "The first line contains `n`, `m` and `k`.\nEach of the next `m` lines contains `u v t`: an edge between `u` and `v` that is removed at time `t`.",
+ "output_format": "Print a single integer: the minimum time `T`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "0 ≤ m ≤ 10^5",
+  "1 ≤ k ≤ n",
+  "0 ≤ u, v < n, u ≠ v",
+  "1 ≤ t ≤ 10^9"
+ ],
+ "examples": [
+  {
+   "input": "5 4 3\n0 1 4\n1 2 7\n2 3 2\n3 4 9",
+   "output": "4",
+   "explanation": "The graph is a path 0-1-2-3-4. At time 0 it is one component. At time 2 the edge 2-3 is gone: two components. At time 4 the edge 0-1 is gone too: {0}, {1,2}, {3,4}, which is three components. No smaller time gives three."
+  },
+  {
+   "input": "4 2 2\n0 1 5\n2 3 5",
+   "output": "0",
+   "explanation": "The original graph already has two components, {0,1} and {2,3}, so time 0 works."
+  },
+  {
+   "input": "3 3 2\n0 1 2\n0 2 6\n1 2 3",
+   "output": "3",
+   "explanation": "Removing edge 0-1 at time 2 still leaves 1-2 and 0-2, so the graph stays connected. At time 3 edge 1-2 is also gone, and node 1 is isolated: two components."
+  }
+ ],
+ "complexity": {
+  "time": "O(m log m + m α(n))",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "Deleting edges makes the number of components go up, never down. So the property \"at least k components at time T\" is monotone in T.",
+  "The answer is 0 or one of the removal times. Walking T downwards turns deletion into insertion: sort edges by time, largest first, and add them to a union-find.",
+  "Edges with time greater than T are exactly the edges present at time T. Add edges group by group (equal times together) and keep track of the component count; the answer is the smallest time whose group is added while the count is still at least `k`. Alternatively binary search on T and recount with a union-find each time."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m, k = int(data[0]), int(data[1]), int(data[2])\n    edges = [(int(data[3 + 3 * i + 2]), int(data[3 + 3 * i]), int(data[3 + 3 * i + 1])) for i in range(m)]\n    edges.sort(reverse=True)\n    parent = list(range(n))\n\n    def find(x):\n        while parent[x] != x:\n            parent[x] = parent[parent[x]]\n            x = parent[x]\n        return x\n\n    comps = n\n    best = 0\n    i = 0\n    broke = False\n    while i < m:\n        t = edges[i][0]\n        if comps >= k:\n            best = t\n        else:\n            broke = True\n            break\n        while i < m and edges[i][0] == t:\n            a, b = find(edges[i][1]), find(edges[i][2])\n            if a != b:\n                parent[a] = b\n                comps -= 1\n            i += 1\n    if not broke and comps >= k:\n        best = 0\n    print(best)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m, k = int(data[0]), int(data[1]), int(data[2])\nedges = [(int(data[3 + 3 * i]), int(data[4 + 3 * i]), int(data[5 + 3 * i])) for i in range(m)]\ncands = sorted(set([0] + [e[2] for e in edges]))\nfor t in cands:\n    adj = [[] for _ in range(n)]\n    for u, v, w in edges:\n        if w > t:\n            adj[u].append(v)\n            adj[v].append(u)\n    seen = [False] * n\n    comps = 0\n    for s in range(n):\n        if not seen[s]:\n            comps += 1\n            seen[s] = True\n            stack = [s]\n            while stack:\n                x = stack.pop()\n                for y in adj[x]:\n                    if not seen[y]:\n                        seen[y] = True\n                        stack.append(y)\n    if comps >= k:\n        print(t)\n        break\n",
+ "generator": "def gen(rng):\n    def fmt(n, k, ed):\n        return f'{n} {len(ed)} {k}' + ''.join(f'\\n{u} {v} {t}' for u, v, t in ed)\n\n    def rnd_edges(n, m, tmax):\n        ed = []\n        for _ in range(m):\n            u = rng.randrange(n)\n            v = rng.randrange(n - 1)\n            if v >= u:\n                v += 1\n            ed.append((u, v, rng.randint(1, tmax)))\n        return ed\n\n    tests = [\n        fmt(1, 1, []),\n        fmt(2, 2, [(0, 1, 5)]),\n        fmt(2, 1, [(0, 1, 5)]),\n        fmt(3, 3, [(0, 1, 4), (1, 2, 4)]),\n        fmt(4, 2, [(0, 1, 5), (2, 3, 5)]),\n        fmt(3, 2, [(0, 1, 2), (0, 2, 6), (1, 2, 3)]),\n    ]\n    for _ in range(30):\n        n = rng.randint(1, 8)\n        m = rng.randint(0, 12) if n > 1 else 0\n        ed = rnd_edges(n, m, rng.choice([3, 10, 10**9]))\n        tests.append(fmt(n, rng.randint(1, n), ed))\n    # path with distinct times\n    n = 60\n    ts = list(range(1, n))\n    rng.shuffle(ts)\n    tests.append(fmt(n, 30, [(i, i + 1, ts[i]) for i in range(n - 1)]))\n    # mid-size\n    tests.append(fmt(2000, 700, rnd_edges(2000, 2500, 10**9)))\n    tests.append(fmt(3000, 3000, rnd_edges(3000, 3000, 50)))\n    # max-size\n    N = 10**5\n    tests.append(fmt(N, N // 3, rnd_edges(N, N, 10**9)))\n    ts = [rng.randint(1, 10**9) for _ in range(N - 1)]\n    tests.append(fmt(N, 50000, [(i, i + 1, ts[i]) for i in range(N - 1)]))\n    tests.append(fmt(N, 1000, rnd_edges(N, N, 100)))\n    tests.append(fmt(N, N, rnd_edges(N, N, 10**9)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_time(n: int, edges: List[List[int]], k: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m, k = int(data[0]), int(data[1]), int(data[2])\n    edges = [[int(data[3 + 3 * i]), int(data[4 + 3 * i]), int(data[5 + 3 * i])] for i in range(m)]\n    print(min_time(n, edges, k))\n\n\nmain()\n",
+  "javascript": "function minTime(n, edges, k) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1], k = t[2]\nconst edges = []\nfor (let i = 0; i < m; i++) {\n  edges.push([t[3 + 3 * i], t[4 + 3 * i], t[5 + 3 * i]])\n}\nconsole.log(String(minTime(n, edges, k)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long minTime(int n, vector<array<long long, 3>>& edges, int k) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m, k;\n    cin >> n >> m >> k;\n    vector<array<long long, 3>> edges(m);\n    for (int i = 0; i < m; i++) cin >> edges[i][0] >> edges[i][1] >> edges[i][2];\n    cout << minTime(n, edges, k) << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long minTime(int n, long[][] edges, int k) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        long[][] edges = new long[m][3];\n        for (int i = 0; i < m; i++) {\n            for (int j = 0; j < 3; j++) {\n                in.nextToken();\n                edges[i][j] = (long) in.nval;\n            }\n        }\n        System.out.println(minTime(n, edges, k));\n    }\n}\n"
+ }
+}

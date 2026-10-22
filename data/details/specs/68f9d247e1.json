@@ -1,0 +1,18 @@
+{
+ "qid": "68f9d247e1",
+ "question": "Atlassian Karat round (backend engineer). **Your service depends on a third-party API (for example a sports-stats provider). The API has become unreliable and is hurting the user experience. What approaches would you take to limit the impact and improve reliability?**\n\nA closely related scenario from the same style of round: the company receives data from **multiple sources** and computes statistics over them, and **one source starts returning bad data**. How do you handle it? The candidate reported asking which statistic is computed (an average is sensitive to bad values, a median much less so) and the discussion moved to not hammering the broken source and to voting out the bad data.",
+ "lookingFor": [
+  "Asks clarifying questions: how critical the data is, how fresh it must be, failure modes.",
+  "Resilience patterns: timeouts, retries with backoff and jitter, circuit breaker, bulkhead.",
+  "Caching and graceful degradation so the user still gets a useful answer.",
+  "Data-quality thinking: validation, outlier detection, quorum or voting across sources.",
+  "Observability, alerting and an operational story (SLOs, contract with the vendor)."
+ ],
+ "answer": "**Clarify first:** how fresh must the data be (live scores vs daily stats), what happens to the user if it is missing, what is the failure mode (slow, errors, or wrong data), and is there a second provider.\n\n**Limit the blast radius.**\n- **Timeouts** on every call, set from the dependency's real latency, so slow responses do not tie up threads.\n- **Retries** only for idempotent calls, with exponential backoff and jitter and a retry budget, otherwise you amplify an outage.\n- **Circuit breaker:** after N failures stop calling for a cool-down, then probe with a few requests (half-open). This protects both you and the struggling provider.\n- **Bulkheads:** a separate thread or connection pool for this dependency so it cannot starve the rest of the service.\n- **Cache** responses (TTL; serve stale on error, or stale-while-revalidate). **Pre-fetch or replicate** data in the background into your own store, so user requests read local data and never wait on the vendor.\n- **Graceful degradation:** show last known data with an \"updated 5 min ago\" label, hide the widget, or use a default.\n- **Redundancy:** a second provider with failover, if the cost is justified.\n- Make calls **asynchronous** where possible (queue plus worker) so the UI does not block.\n\n**Operate it.** Track success rate, p95/p99 latency, breaker state and cache hit ratio; alert on SLO burn; log vendor request ids; agree an SLA or escalation path with the vendor.\n\n**Bad data from one of several sources.**\n- Validate schema, ranges and freshness on ingestion; reject or quarantine invalid records.\n- Detect anomalies by comparing each source with the others and with its own history.\n- Use robust aggregates (median, trimmed mean) and a quorum or majority vote across sources.\n- Mark the source unhealthy: stop or reduce requests to it (breaker), alert, and let it recover. If the statistic is redundant, drop it or flag it as degraded rather than showing wrong numbers.\n- Keep raw data so you can recompute after the source is fixed.",
+ "followUps": [
+  "How do you choose timeout and retry values, and what is a retry storm?",
+  "Explain the circuit breaker states and how you would test them.",
+  "Cache TTL versus staleness: how do you decide what to serve when the API is down?",
+  "How would you detect, automatically, that a source is returning bad data?"
+ ]
+}

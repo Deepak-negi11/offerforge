@@ -1,0 +1,50 @@
+{
+ "pid": "maximize-sum-of-weights-after-edge-removals",
+ "title": "Max Edge Weight with Degree Limit",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given an undirected weighted tree with `n` nodes numbered `0` to `n - 1` and an integer `k`. Each of the `n - 1` edges is described by its two endpoints and a positive weight.\n\nYou may delete any number of edges (possibly none or all of them). After the deletions, **every node must be incident to at most `k` of the remaining edges**.\n\nReturn the maximum possible sum of the weights of the remaining edges.",
+ "input_format": "The first line contains two integers `n` and `k`.\nEach of the next `n - 1` lines contains three integers `u`, `v` and `w`: an edge between nodes `u` and `v` with weight `w`.",
+ "output_format": "Print a single integer: the maximum total weight of the remaining edges.",
+ "constraints": [
+  "2 ≤ n ≤ 10^5",
+  "1 ≤ k ≤ n - 1",
+  "1 ≤ w ≤ 10^6",
+  "The edges form a tree. When it is rooted at node 0, its depth is at most 5000."
+ ],
+ "examples": [
+  {
+   "input": "5 2\n2 4 15\n2 3 30\n2 0 5\n0 1 10",
+   "output": "55",
+   "explanation": "Node 2 has three edges (weights 15, 30 and 5) but may keep only two, so the cheapest one, 2-0 with weight 5, is removed. Node 0 then has a single edge left. The kept edges sum to 15 + 30 + 10 = 55."
+  },
+  {
+   "input": "4 2\n0 1 1\n1 2 1\n2 3 1",
+   "output": "3",
+   "explanation": "Every node already has at most 2 edges, so nothing needs to be removed."
+  },
+  {
+   "input": "5 1\n0 1 4\n0 2 9\n0 3 3\n3 4 8",
+   "output": "17",
+   "explanation": "With k = 1 no two kept edges may share a node. Keeping 0-2 (9) and 3-4 (8) gives 17, which beats any other choice."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Root the tree. For each node, think about two states: the edge to its parent is kept, or it is not.",
+  "If the parent edge is kept, the node may keep at most `k - 1` child edges; otherwise at most `k`.",
+  "For each child you either cut its edge (child scores `dp0`) or keep it (`w + dp1`). Start from everyone cut, compute the gain of keeping each child, and take the best positive gains that fit."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    adj = [[] for _ in range(n)]\n    p = 2\n    for _ in range(n - 1):\n        u, v, w = int(data[p]), int(data[p + 1]), int(data[p + 2])\n        p += 3\n        adj[u].append((v, w))\n        adj[v].append((u, w))\n    parent = [-1] * n\n    seen = [False] * n\n    seen[0] = True\n    order = []\n    stack = [0]\n    while stack:\n        u = stack.pop()\n        order.append(u)\n        for v, w in adj[u]:\n            if not seen[v]:\n                seen[v] = True\n                parent[v] = u\n                stack.append(v)\n    d0 = [0] * n\n    d1 = [0] * n\n    for u in reversed(order):\n        base = 0\n        gains = []\n        for v, w in adj[u]:\n            if v == parent[u]:\n                continue\n            base += d0[v]\n            g = w + d1[v] - d0[v]\n            if g > 0:\n                gains.append(g)\n        gains.sort(reverse=True)\n        d0[u] = base + sum(gains[:k])\n        d1[u] = base + sum(gains[:k - 1])\n    print(d0[0])\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, k = int(data[0]), int(data[1])\nedges = []\nfor i in range(n - 1):\n    edges.append((int(data[2 + 3 * i]), int(data[3 + 3 * i]), int(data[4 + 3 * i])))\nbest = 0\nfor mask in range(1 << (n - 1)):\n    deg = [0] * n\n    tot = 0\n    for i in range(n - 1):\n        if mask >> i & 1:\n            u, v, w = edges[i]\n            deg[u] += 1\n            deg[v] += 1\n            tot += w\n    if max(deg) <= k and tot > best:\n        best = tot\nprint(best)\n",
+ "generator": "def gen(rng):\n    def build(n, parents, k, wmax, relabel=True):\n        perm = list(range(1, n))\n        if relabel:\n            rng.shuffle(perm)\n        perm = [0] + perm\n        edges = []\n        for i in range(1, n):\n            a, b = perm[i], perm[parents[i]]\n            if rng.random() < 0.5:\n                a, b = b, a\n            edges.append((a, b, rng.randint(1, wmax)))\n        rng.shuffle(edges)\n        return f\"{n} {k}\\n\" + \"\\n\".join(f\"{a} {b} {w}\" for a, b, w in edges)\n\n    def rand_par(n):\n        return [0] + [rng.randrange(i) for i in range(1, n)]\n\n    def path_par(n):\n        return [0] + [i - 1 for i in range(1, n)]\n\n    def star_par(n):\n        return [0] * n\n\n    def cater_par(n, L):\n        return [0] + [i - 1 if i < L else rng.randrange(L) for i in range(1, n)]\n\n    def broom_par(n, L):\n        return [0] + [i - 1 if i < L else L - 1 for i in range(1, n)]\n\n    tests = [\n        \"2 1\\n0 1 7\",\n        \"5 2\\n2 4 15\\n2 3 30\\n2 0 5\\n0 1 10\",\n        \"4 2\\n0 1 1\\n1 2 1\\n2 3 1\",\n        \"5 1\\n0 1 4\\n0 2 9\\n0 3 3\\n3 4 8\",\n        build(6, star_par(6), 3, 20),\n        build(6, star_par(6), 5, 20),\n        build(7, path_par(7), 1, 9),\n    ]\n    for n in (3, 4, 5, 6, 7, 8, 9, 10, 11, 12):\n        for _ in range(2):\n            kind = rng.randrange(4)\n            par = [rand_par, path_par, star_par, lambda m: [0] + [max(0, i - rng.randint(1, 3)) for i in range(1, m)]][kind](n)\n            k = rng.randint(1, max(1, n - 1))\n            tests.append(build(n, par, k, rng.choice([5, 100, 10**6])))\n    tests.append(build(3000, rand_par(3000), 2, 10**6))\n    tests.append(build(3000, cater_par(3000, 300), 3, 10**6))\n    tests.append(build(100000, rand_par(100000), 2, 10**6))\n    tests.append(build(100000, cater_par(100000, 4000), 5, 10**6))\n    tests.append(build(60000, star_par(60000), 30000, 10**6))\n    tests.append(build(60000, broom_par(60000, 4500), 1, 10**6))\n    tests.append(build(50000, path_par(5000) + [0] * 0 + [rng.randrange(5000) for _ in range(45000)], 1000, 10**6))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef max_weight(n: int, k: int, edges: List[List[int]]) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    edges = []\n    for i in range(n - 1):\n        edges.append([int(data[2 + 3 * i]), int(data[3 + 3 * i]), int(data[4 + 3 * i])])\n    print(max_weight(n, k, edges))\n\n\nmain()\n",
+  "javascript": "function maxWeight(n, k, edges) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], k = t[1]\nconst edges = []\nfor (let i = 0; i < n - 1; i++) {\n  edges.push([t[2 + 3 * i], t[3 + 3 * i], t[4 + 3 * i]])\n}\nconsole.log(String(maxWeight(n, k, edges)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long maxWeight(int n, int k, vector<array<long long, 3>>& edges) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<array<long long, 3>> edges(n - 1);\n    for (int i = 0; i < n - 1; i++) cin >> edges[i][0] >> edges[i][1] >> edges[i][2];\n    cout << maxWeight(n, k, edges) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long maxWeight(int n, int k, long[][] edges) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int k = (int) in.nval;\n        long[][] edges = new long[n - 1][3];\n        for (int i = 0; i < n - 1; i++) {\n            for (int j = 0; j < 3; j++) {\n                in.nextToken();\n                edges[i][j] = (long) in.nval;\n            }\n        }\n        System.out.println(maxWeight(n, k, edges));\n    }\n}\n"
+ }
+}

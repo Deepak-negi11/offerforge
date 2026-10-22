@@ -1,0 +1,48 @@
+{
+ "pid": "nvidia-count-substring-rotations-in-a-string",
+ "title": "Count Substring Rotations in a String",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given two strings `m` and `n` made of lowercase letters.\n\nA **rotation** of `n` is obtained by moving the first `r` characters of `n` to its end, for some `0 ≤ r < |n|`. For `n = \"aab\"` the rotations are `aab`, `aba` and `baa`. Different values of `r` can produce the same string (for `n = \"abab\"` there are only two different rotations), so collect the **distinct** rotation strings of `n`. Every one of them has the same length as `n`.\n\nCount the total number of occurrences in `m` of all these distinct rotations. Equivalently, count the starting positions `i` (0-indexed) for which the substring of `m` of length `|n|` beginning at `i` equals one of the distinct rotations. Occurrences may overlap. If `|n| > |m|`, the answer is `0`.",
+ "input_format": "The first line contains the string `m`.\nThe second line contains the string `n`.",
+ "output_format": "Print a single integer: the number of occurrences in `m` of the distinct rotations of `n`.",
+ "constraints": [
+  "1 ≤ |m|, |n| ≤ 2 · 10^5",
+  "`m` and `n` consist of lowercase English letters"
+ ],
+ "examples": [
+  {
+   "input": "aabababbaababab\naab",
+   "output": "7",
+   "explanation": "The distinct rotations of `aab` are `aab`, `aba` and `baa`. The windows of length 3 in `m` are aab, aba, bab, aba, bab, abb, bba, baa, aab, aba, bab, aba, bab. Seven of them (aab, aba, aba, baa, aab, aba, aba) are rotations."
+  },
+  {
+   "input": "ababab\nabab",
+   "output": "3",
+   "explanation": "Rotations of `abab` are abab, baba, abab, baba, so the distinct ones are `abab` and `baba`. The windows abab, baba, abab all match."
+  },
+  {
+   "input": "cabbca\nabc",
+   "output": "2",
+   "explanation": "Distinct rotations: abc, bca, cab. Windows: cab (match), abb, bbc, bca (match)."
+  }
+ ],
+ "complexity": {
+  "time": "O(|m| + |n|)",
+  "space": "O(|n|)"
+ },
+ "hints": [
+  "A window of length |n| is a rotation of `n` exactly when it appears as a substring of `n + n`. How many different windows of length |n| does `n + n` contain?",
+  "Do not store all rotations as strings (that is O(|n|^2) memory). Store a fingerprint of each distinct rotation instead, for example a polynomial rolling hash.",
+  "Slide the same rolling hash over `m` and count the windows whose fingerprint is in the set. Both passes are linear."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    data = sys.stdin.read().split()\n    m, n = data[0], data[1]\n    L, M = len(n), len(m)\n    if L > M:\n        print(0)\n        return\n    MOD = (1 << 61) - 1\n    B = 1000003117\n    top = pow(B, L, MOD)\n\n    def window_hashes(s, count):\n        h = 0\n        for i in range(L):\n            h = (h * B + ord(s[i])) % MOD\n        out = [h]\n        for i in range(1, count):\n            h = (h * B + ord(s[i + L - 1]) - ord(s[i - 1]) * top) % MOD\n            out.append(h)\n        return out\n\n    rot = set(window_hashes(n + n, L))\n    print(sum(1 for h in window_hashes(m, M - L + 1) if h in rot))\n\n\nmain()\n",
+ "brute": "import sys\n\nm, n = sys.stdin.read().split()\nL = len(n)\nrots = {n[i:] + n[:i] for i in range(L)}\nprint(sum(1 for i in range(len(m) - L + 1) if m[i:i + L] in rots))\n",
+ "generator": "def gen(rng):\n    def fmt(m, n):\n        return m + '\\n' + n\n    tests = [fmt('aabababbaababab', 'aab'), fmt('a', 'a'), fmt('ab', 'abc'), fmt('aaaaa', 'aaa'),\n             fmt('ababab', 'abab'), fmt('abc', 'abc'), fmt('cabbca', 'abc'), fmt('b', 'a'), fmt('abababab', 'ba')]\n    for _ in range(45):\n        alpha = rng.choice(['ab', 'abc', 'a', 'abcd', 'ab'])\n        n = ''.join(rng.choice(alpha) for _ in range(rng.randint(1, 6)))\n        if rng.random() < 0.5:\n            m = ''.join(rng.choice(alpha) for _ in range(rng.randint(1, 40)))\n        else:\n            parts = []\n            while sum(len(p) for p in parts) < 40:\n                r = rng.randint(0, len(n) - 1)\n                parts.append(n[r:] + n[:r] if rng.random() < 0.8 else rng.choice(alpha))\n            m = ''.join(parts)[:rng.randint(1, 40)]\n        tests.append(fmt(m, n))\n    n = ''.join(rng.choice('ab') for _ in range(50000))\n    tests.append(fmt(n * 4, n))\n    tests.append(fmt('ab' * 100000, 'ab' * 25000))\n    n2 = ''.join(rng.choice('ab') for _ in range(100000))\n    tests.append(fmt(''.join(rng.choice('ab') for _ in range(200000)), n2))\n    n3 = ''.join(rng.choice('abc') for _ in range(1000))\n    parts = []\n    for _ in range(200):\n        r = rng.randint(0, 999)\n        parts.append(n3[r:] + n3[:r])\n    tests.append(fmt(''.join(parts), n3))\n    tests.append(fmt('a' * 200000, 'a' * 100000))\n    n4 = ''.join(rng.choice('abc') for _ in range(200000))\n    tests.append(fmt(n4[77:] + n4[:77], n4))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef count_rotation_occurrences(m: str, n: str) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    print(count_rotation_occurrences(data[0], data[1]))\n\n\nmain()\n",
+  "javascript": "function countRotationOccurrences(m, n) {\n  // Write your solution here\n  return 0\n}\n\nconst tokens = input.split(/\\s+/).filter(Boolean)\nconsole.log(countRotationOccurrences(tokens[0], tokens[1]))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countRotationOccurrences(const string& m, const string& n) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string m, n;\n    cin >> m >> n;\n    cout << countRotationOccurrences(m, n) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countRotationOccurrences(String m, String n) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder sb = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) sb.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(sb.toString());\n        String m = st.nextToken();\n        String n = st.nextToken();\n        System.out.println(countRotationOccurrences(m, n));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "7b638597cb",
+ "question": "In the system design round of a PayPal interview for a Full-Stack Software Engineer (entry/mid, San Jose) role, the candidate was asked to **design an airplane booking system like Expedia**. The recruiter had said this would be a low-level design round, but a **high-level system design** was asked in the interview.",
+ "lookingFor": [
+  "Do you clarify scope (search, booking, payment, changes) and scale?",
+  "Can you separate the read-heavy search path from the correctness-critical booking path?",
+  "Do you handle inventory held by external airlines and changing prices?",
+  "Can you design the booking workflow with holds, payment and failure handling?",
+  "Do you cover data model, caching and consistency trade-offs?"
+ ],
+ "answer": "**Requirements.** Search flights (origin, destination, dates, passengers), view fares, select, book, pay, receive a ticket, view or cancel bookings. Non-functional: search is fast and available, booking is correct (no double charge, no lost reservation), integration with many airline systems.\n\n**Scale assumption.** Searches outnumber bookings by a large factor (for example 1000 to 1), so design the two paths separately.\n\n**Components.**\n- **Search service:** queries flight schedules and fares from airline and aggregator integrations (and a local cache), and ranks results. Index schedules in a search or cache layer keyed by origin, destination and date; cache results with a **short TTL** because prices change; pre-compute popular routes.\n- **Inventory/fare integration layer** (adapters for each supplier) with timeouts, circuit breakers and retries.\n- **Booking service**, **payment service**, **ticketing/notification service**, **user and booking history service**.\n- API gateway, cache, message queue, relational database.\n\n**Booking flow (a saga).**\n1. Re-validate price and availability with the supplier (\"price check\").\n2. Create a booking in `PENDING` and place a **temporary hold** (seat or fare lock with expiry) if the supplier supports it.\n3. Charge payment (idempotency key).\n4. On success, confirm and issue the ticket (`CONFIRMED`) and notify; on failure, release the hold and refund or void.\nHandle timeouts by reconciling with the supplier's booking reference, and make every step idempotent.\n\n**Data model.** `flights`, `schedules`, `fares`, `bookings(id, user_id, status, total, currency)`, `passengers`, `tickets`, `payments`. Booking data uses a relational database with transactions, sharded by user or booking id as it grows.\n\n**Trade-offs.** Search can be eventually consistent and cached, so a user may see a fare that is gone, which the price check catches. Booking prefers consistency. Mention overbooking policies, currency and time zones, and multi-city trips as extensions.",
+ "followUps": [
+  "How do you handle a price that changes between search and booking?",
+  "What if payment succeeds but the airline confirmation fails?",
+  "How would you cache search results without showing stale or wrong prices?",
+  "How would you support multi-leg itineraries?"
+ ]
+}

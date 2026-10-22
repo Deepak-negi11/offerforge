@@ -1,0 +1,19 @@
+{
+ "qid": "5376d756ff",
+ "question": "In a third technical round at Oracle (Server Technology), two C output questions were asked:\n\n1. **What is the output of this code?**\n```\nmain() {\n    printf(\"hello\\n\");\n    main();\n}\n```\n2. **How many times is the message printed** in a program that starts with `fork();` and then has `if (fork() || fork()) { printf(\"heyy\\n\"); ... }`? The report is cut off after the `printf`, so the code that follows inside the `if` (a `for` loop is visible) is unknown. The standard analysis counts the processes reaching the `printf`.",
+ "lookingFor": [
+  "Do you understand the call stack and what happens when recursion has no base case?",
+  "Do you know fork() return values in parent and child processes?",
+  "Can you apply short-circuit evaluation to a condition containing fork()?",
+  "Can you count processes systematically with a tree rather than by guessing?",
+  "Do you know about output buffering and compiler optimisations that affect observed output?"
+ ],
+ "answer": "**1. Infinite recursion in `main()`**\n\nThe program prints `hello` repeatedly. Every call to `main()` allocates a new stack frame (return address, saved registers) and there is no base case, so the stack grows until it is exhausted and the program crashes with a **stack overflow**, typically a segmentation fault on Linux. So the output is `hello` printed thousands of times (the exact count depends on the stack size, commonly 8 MB) followed by a crash.\n\nCaveats worth mentioning:\n- If stdout is **not a terminal** (redirected to a file or pipe) it is fully buffered, so buffered text may be lost when the crash happens.\n- With optimisation (for example GCC `-O2`), the recursive call is the last statement and may be turned into a jump (tail-call optimisation), producing an **endless loop without a crash**.\n- Calling `main` recursively is allowed in C but not in C++, and `main()` without a return type is an old style that modern compilers warn about.\n\n**2. fork() || fork()**\n\n`fork()` returns the child's PID (non-zero) in the parent and 0 in the child. `||` is short-circuiting: the second operand is evaluated only if the first is 0.\n\nCount for one process reaching `if (fork() || fork())`:\n- Original P: the first `fork()` creates child A. In P it returns non-zero, so the condition is **true** immediately and P prints. The second fork is not evaluated by P.\n- Child A: its first `fork()` result is 0, so it evaluates the second `fork()`, creating B. In A the result is non-zero, so the condition is true and A **prints**. In B the result is 0, so the condition is false and B **does not print**.\n\nSo each process entering the `if` yields 3 processes and 2 prints. Because of the earlier standalone `fork();`, **two** processes enter the `if`, giving **6 processes** and **4 prints** of \"heyy\" (more prints if the body after the `printf` contains further forks or output). Draw the process tree to confirm.",
+ "followUps": [
+  "How many processes in total are created by n consecutive fork() calls?",
+  "What would change if the condition were fork() && fork()?",
+  "How does buffering change the number of printed lines when printf has no newline before fork()?",
+  "What does a zombie process mean, and how is it avoided?",
+  "Why does recursion with no base case crash, and what is tail-call optimisation?"
+ ]
+}

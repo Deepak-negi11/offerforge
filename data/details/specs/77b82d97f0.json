@@ -1,0 +1,19 @@
+{
+ "qid": "77b82d97f0",
+ "question": "Groww SDE-3 high-level design round (reported in two separate experiences). Design a system that **counts API hits per customer per API** for **weekly or monthly billing**, **enforces usage limits per subscription tier** (for example a premium plan allows more calls than a basic plan, and limits apply per API per time period), and **notifies users as they approach their limits**. Described in one report as monetising an API-based service such as a maps API with subscription plans.",
+ "lookingFor": [
+  "Separating the hot path (limit check) from the accurate-billing path.",
+  "Choosing counters, windows and storage that match accuracy and latency needs.",
+  "Distributed systems thinking: consistency, failures, idempotency.",
+  "Capacity estimation and sensible scale-out.",
+  "Trade-offs: approximate versus exact counting, real-time versus eventual."
+ ],
+ "answer": "**Requirements and scale.** Functional: meter every API call by (customer, API); aggregate for billing by week and month; enforce per-tier limits per API per window; send alerts at thresholds (for example 80% and 100%). Non-functional: very low added latency on each call, no lost billing data, tolerates node failure. Assume 100K requests per second at peak and millions of customers.\n\n**Two paths.**\n1. **Enforcement (hot path).** At the API gateway, authenticate with the API key, load the customer's plan (cached), then check and increment a counter in a fast store such as Redis: key `usage:{customer}:{api}:{window}` with an atomic `INCR` and TTL. Fixed window is simplest; sliding-window counter or token bucket gives smoother limits. Run the check and increment as one atomic script. If the store is down, decide fail-open or fail-closed per plan (billing safety versus availability).\n2. **Metering (billing path).** The gateway emits a usage event (customer, API, timestamp, request id) to a durable log such as Kafka. Stream consumers aggregate into per-hour or per-day counters and write to a database. Billing jobs sum these for the week or month. The request id lets consumers **deduplicate**, so retries do not double-bill. The counters in Redis are for limits; the event log is the source of truth for money.\n\n**Data model.** `usage_hourly(customer_id, api_id, hour, count)` with a primary key on those three fields, `plans(tier, api_id, limit, window)`, `subscriptions(customer_id, tier)`.\n\n**Notifications.** A consumer compares running totals to the plan limit and publishes a threshold event once per threshold per window (store a \"notified\" flag), delivering by email or webhook through a notification service.\n\n**Scaling and bottlenecks.** Shard Redis by customer, batch and locally buffer increments to cut round trips (accepting small over-limit error), partition Kafka by customer id, and keep late-arriving events in mind for billing cut-offs. Reconcile Redis counts against the log periodically.",
+ "followUps": [
+  "Fixed window versus sliding window versus token bucket: which would you choose?",
+  "How do you avoid double-counting when requests are retried?",
+  "What happens to rate limiting if the Redis cluster goes down?",
+  "How would you handle hot customers that send most of the traffic?",
+  "How would you reconcile the counters with billing data?"
+ ]
+}

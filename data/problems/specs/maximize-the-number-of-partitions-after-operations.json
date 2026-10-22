@@ -1,0 +1,49 @@
+{
+ "pid": "maximize-the-number-of-partitions-after-operations",
+ "title": "Max Partitions After One Change",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given a string `S` of lowercase English letters and an integer `K`.\n\nAn **operation** removes the **longest prefix** of the current string that contains **at most `K` distinct characters**. The remaining characters (possibly none) form the string for the next operation. You repeat operations until the string is empty. Since `K ≥ 1`, every operation removes at least one character.\n\nBefore performing any operation you may change **at most one** character of `S` to any lowercase English letter (or leave `S` as it is).\n\nReturn the **maximum number of operations** that can be performed.",
+ "input_format": "The first line contains the string `S`.\nThe second line contains the integer `K`.",
+ "output_format": "Print a single integer: the maximum possible number of operations.",
+ "constraints": [
+  "1 ≤ |S| ≤ 5000",
+  "1 ≤ K ≤ 26",
+  "`S` consists of lowercase English letters"
+ ],
+ "examples": [
+  {
+   "input": "abcccba\n3",
+   "output": "3",
+   "explanation": "Without a change the whole string has only 3 distinct letters, so a single operation removes everything. Changing `S[3]` to `z` gives `abczcba`: the first operation removes `abc` (adding `z` would make 4 distinct letters), the second removes `zcb`, the third removes `a`. That is 3 operations."
+  },
+  {
+   "input": "aabaab\n3",
+   "output": "1",
+   "explanation": "The string has only 2 distinct letters. Even after changing one character it has at most 3, so the first operation always removes the whole string."
+  },
+  {
+   "input": "aab\n1",
+   "output": "3",
+   "explanation": "With `K = 1` every operation removes a run of equal letters. Without a change: `aa`, then `b`, that is 2 operations. Changing `S[1]` to `c` gives `acb`, which splits into `a`, `c`, `b`: 3 operations. A string of length 3 cannot give more."
+  }
+ ],
+ "complexity": {
+  "time": "O(n · 26)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Greedy partitioning of a fixed string is easy to simulate in O(n). The difficulty is the single change: trying every position and every letter is too slow.",
+  "Fix the position `i` you change. The prefix before `i` and the suffix after `i` can each be summarised by (completed operations, set of letters in the unfinished piece). Precompute these for every `i`, using bitmasks for the letter sets.",
+  "Look at how the changed character interacts with the two unfinished pieces: it can be merged with both into one operation, make a new operation by itself (needs a letter not in either piece, both pieces already at `K` letters), or be absorbed on one side. Take the best over all positions."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    s, k = data[0], int(data[1])\n    n = len(s)\n    bits = [1 << (ord(ch) - 97) for ch in s]\n    pc = lambda m: bin(m).count('1')\n\n    # left[i]: state after greedily processing s[:i] -> (completed, mask, size)\n    left = [(0, 0, 0)] * (n + 1)\n    cnt, mask, size = 0, 0, 0\n    for i in range(n):\n        b = bits[i]\n        if not mask & b:\n            if size + 1 <= k:\n                mask |= b\n                size += 1\n            else:\n                cnt += 1\n                mask = b\n                size = 1\n        left[i + 1] = (cnt, mask, size)\n\n    # right[i]: state after greedily processing s[i:] from the right end\n    right = [(0, 0, 0)] * (n + 2)\n    cnt, mask, size = 0, 0, 0\n    for i in range(n - 1, -1, -1):\n        b = bits[i]\n        if not mask & b:\n            if size + 1 <= k:\n                mask |= b\n                size += 1\n            else:\n                cnt += 1\n                mask = b\n                size = 1\n        right[i] = (cnt, mask, size)\n\n    best = left[n][0] + 1\n    for i in range(n):\n        lc, lm, ls = left[i]\n        rc, rm, rs = right[i + 1]\n        seg = lc + rc + 2\n        union = pc(lm | rm)\n        if ls == k and rs == k and union < 26:\n            seg += 1\n        elif min(union + 1, 26) <= k:\n            seg -= 1\n        if seg > best:\n            best = seg\n    print(best)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\ns, k = data[0], int(data[1])\n\ndef ops(t):\n    cnt = 0\n    i = 0\n    while i < len(t):\n        seen = set()\n        while i < len(t) and (t[i] in seen or len(seen) < k):\n            seen.add(t[i])\n            i += 1\n        cnt += 1\n    return cnt\n\nbest = ops(s)\nfor i in range(len(s)):\n    for c in 'abcdefghijklmnopqrstuvwxyz':\n        best = max(best, ops(s[:i] + c + s[i + 1:]))\nprint(best)\n",
+ "generator": "def gen(rng):\n    L = 'abcdefghijklmnopqrstuvwxyz'\n    def fmt(s, k):\n        return f'{s}\\n{k}'\n    tests = [fmt('abcccba', 3), fmt('aabaab', 3), fmt('aab', 1), fmt('a', 1), fmt('a', 26),\n             fmt('ab', 1), fmt('abcdefghijklmnopqrstuvwxyz', 26), fmt('abcdefghijklmnopqrstuvwxyz', 25),\n             fmt('aaaa', 1), fmt('abab', 2), fmt('abcabcabc', 2)]\n    for _ in range(40):\n        n = rng.randint(2, 18)\n        alpha = rng.choice([2, 3, 4, 6, 10, 26])\n        k = rng.randint(1, min(alpha, 6))\n        tests.append(fmt(''.join(rng.choice(L[:alpha]) for _ in range(n)), k))\n    for _ in range(6):\n        n = rng.randint(40, 120)\n        k = rng.randint(1, 26)\n        tests.append(fmt(''.join(rng.choice(L) for _ in range(n)), k))\n    n = 5000\n    tests.append(fmt(''.join(rng.choice(L) for _ in range(n)), 13))\n    tests.append(fmt(''.join(rng.choice(L[:3]) for _ in range(n)), 2))\n    tests.append(fmt(''.join(rng.choice(L[:5]) for _ in range(n)), 3))\n    tests.append(fmt(''.join(rng.choice(L[:26]) for _ in range(n)), 1))\n    tests.append(fmt(''.join(rng.choice(L) for _ in range(n)), 26))\n    tests.append(fmt((L * 200)[:n], 26))\n    tests.append(fmt(('abc' * 2000)[:n], 3))\n    tests.append(fmt(('a' * 50 + 'b' * 50 + 'c' * 50) * 33 + 'a' * 50, 2))\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef max_operations(s: str, k: int) -> int:\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    s, k = data[0], int(data[1])\n    print(max_operations(s, k))\n\n\nmain()\n",
+  "javascript": "function maxOperations(s, k) {\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconsole.log(maxOperations(t[0], Number(t[1])))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint maxOperations(string& s, int k) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s;\n    int k;\n    cin >> s >> k;\n    cout << maxOperations(s, k) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int maxOperations(String s, int k) {\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String s = br.readLine().trim();\n        int k = Integer.parseInt(br.readLine().trim());\n        System.out.println(maxOperations(s, k));\n    }\n}\n"
+ }
+}

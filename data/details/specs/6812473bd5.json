@@ -1,0 +1,19 @@
+{
+ "qid": "6812473bd5",
+ "question": "Razorpay Lead Software Engineer, two-hour machine coding round: build a REST application that works as an HTTP load balancer.\n\n- A few endpoints manage the configuration: add and remove backend servers, update timeouts, and update health-check endpoints.\n- Every other route must be load-balanced and forwarded to real backend servers (mocked online).\n- Expectation: fully working code that is extensible for dynamic config changes and for different balancing algorithms.\n- You may refer to online resources, but you must not generate code or copy-paste it directly.",
+ "lookingFor": [
+  "A clean separation of control plane (config APIs) and data plane (proxying)",
+  "Pluggable algorithms through a strategy interface",
+  "Health checks and failure handling that keep traffic off bad backends",
+  "Thread-safe, dynamic reconfiguration without restarts",
+  "Pragmatism: a working end-to-end flow first, extras later"
+ ],
+ "answer": "**Routing the two kinds of traffic.** Reserve a prefix such as `/admin/*` (or a separate port) for config APIs; everything else is proxied. Config endpoints: `POST /admin/servers {url}`, `DELETE /admin/servers/{id}`, `PUT /admin/config {connectTimeout, readTimeout}`, `PUT /admin/healthcheck {path, interval}`, `GET /admin/servers` for state.\n\n**Core components.**\n- `Backend{id, url, healthy, activeConnections, weight}`.\n- `BackendPool`: holds the list; adds and removes under a lock or as a copy-on-write list, so request threads read a stable snapshot.\n- `interface BalancingStrategy { Backend pick(List<Backend> healthy, Request r); }` with `RoundRobin` (atomic counter modulo size), `LeastConnections`, `WeightedRoundRobin`, and `IPHash` or consistent hashing for sticky routing. A factory selects it by config name.\n- `HealthChecker`: a scheduled executor that calls each backend's health path every interval, marks it unhealthy after N failures and healthy after M successes (avoids flapping).\n- `ProxyHandler`: picks a backend, forwards the method, path, headers and body using an HTTP client with the configured timeouts, streams the response back, and on a connection error or timeout retries another backend (only for idempotent requests) or returns 502/504. Track `activeConnections` with increment and decrement in a `finally`.\n- `ConfigStore`: current settings in an immutable object swapped atomically (an `AtomicReference`), so updates apply without restart.\n\n**Request flow.** Receive request, snapshot healthy backends, if none return 503, pick via the strategy, forward, return response, update stats.\n\n**Details worth mentioning.** Add `X-Forwarded-For` and strip hop-by-hop headers; drain a removed backend gracefully (stop new requests, let in-flight finish); circuit-breaker or passive health checks from observed failures; avoid redirect loops if the balancer is called by the backend.\n\n**Testing and demo.** Spin up two or three mock backends (local ports or a public mock service); show requests alternating under round robin; kill one backend and show traffic moving; change the algorithm via config and show the effect.\n\n**Time plan.** 20 minutes design, 60 minutes proxy plus round robin plus add/remove APIs, 25 minutes health checks and a second algorithm, the rest tests.",
+ "followUps": [
+  "How would you make the balancer itself highly available?",
+  "Compare round robin, least connections and consistent hashing; when is each right?",
+  "How do you handle slow backends versus dead backends?",
+  "How would you do TLS termination, connection pooling and keep-alive to backends?",
+  "How would you support sticky sessions?"
+ ]
+}

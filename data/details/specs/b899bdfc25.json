@@ -1,0 +1,18 @@
+{
+ "qid": "b899bdfc25",
+ "question": "In Cognizant GenC interviews, candidates were asked **what garbage collection is** (in the Java context) and, in one report, **how it can be requested**. It appeared with questions on OOP features, array vs linked list, and project deep dives.",
+ "lookingFor": [
+  "Knowing what is automatic memory management and what is reclaimed.",
+  "Understanding reachability, heap generations and GC algorithms at a high level.",
+  "Knowing System.gc() is only a hint.",
+  "Awareness of memory leaks despite GC."
+ ],
+ "answer": "**Garbage collection (GC)** is the JVM's automatic reclaiming of heap memory used by objects that are **no longer reachable**. Programmers do not free memory manually, which avoids dangling pointers and many leaks.\n\n**Reachability:** an object is garbage when no chain of references leads to it from **GC roots** (local variables on thread stacks, static fields, active threads, JNI references). Merely setting a reference to `null` or leaving scope can make an object eligible.\n\n**How it works (typical):**\n1. **Mark:** trace from roots, marking reachable objects.\n2. **Sweep/compact:** reclaim unmarked space, optionally compacting survivors.\n3. **Generational heap:** most objects die young. New objects go to the **young generation** (Eden plus survivor spaces) and are collected by frequent, cheap **minor GCs**; long-lived objects are promoted to the **old generation**, collected by rarer **major/full GCs**.\n\nCommon collectors: Serial, Parallel, G1 (default in recent Java), ZGC and Shenandoah (low pause). Stop-the-world pauses are the main cost.\n\n**Requesting GC:**\n```java\nSystem.gc();            // or Runtime.getRuntime().gc();\n```\nThis is only a **suggestion**: the JVM may ignore it (and `-XX:+DisableExplicitGC` can turn it off). Calling it in production code is discouraged because it can trigger an expensive full collection.\n\n**`finalize()`** was once a pre-collection hook but is deprecated; use try-with-resources or `Cleaner`.\n\n**Leaks still happen** when objects stay reachable by mistake: static collections that only grow, unclosed listeners, caches without eviction, `ThreadLocal`s in thread pools. Tools: heap dump with VisualVM, JFR, Eclipse MAT, and `-Xlog:gc` for GC logs.\n\nReference types (`WeakReference`, `SoftReference`) let caches cooperate with GC.",
+ "followUps": [
+  "Can you force garbage collection in Java? What does System.gc() guarantee?",
+  "What are the young and old generations, and why have them?",
+  "What is a memory leak in Java if GC exists?",
+  "What is the difference between strong, soft and weak references?",
+  "Which GC does your JVM use by default and how would you tune pauses?"
+ ]
+}

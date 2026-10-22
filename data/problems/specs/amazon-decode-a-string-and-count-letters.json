@@ -1,0 +1,49 @@
+{
+ "pid": "amazon-decode-a-string-and-count-letters",
+ "title": "Decode a String and Count Letters",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A string of lowercase letters is encoded with the following scheme:\n\n- The letters `a` to `i` are written as the digits `1` to `9`.\n- The letters `j` to `z` are written as `10#` to `26#` (`j` is `10#`, `k` is `11#`, ..., `z` is `26#`).\n- If a letter occurs `k` times in a row (`k ≥ 2`), its code is followed by `(k)`, where `k` is written in decimal. The letter then counts as `k` occurrences, not as one.\n\nFor example, `1226#24#(2)` decodes to `abzxx`: `1` is `a`, `2` is `b`, `26#` is `z`, and `24#(2)` is `x` repeated twice.\n\nGiven a valid encoded string, compute how many times each of the 26 letters occurs in the decoded string. Do not build the decoded string explicitly; counts can be large.",
+ "input_format": "A single line containing the encoded string `s`. It contains only digits, `#`, `(` and `)` and is guaranteed to be valid.",
+ "output_format": "Print 26 space-separated integers: the number of occurrences of `a`, `b`, ..., `z` in the decoded string.",
+ "constraints": [
+  "1 ≤ |s| ≤ 10^5",
+  "2 ≤ k ≤ 10^4 in every repeat count `(k)`",
+  "The string is a valid encoding as described above"
+ ],
+ "examples": [
+  {
+   "input": "1226#24#(2)",
+   "output": "1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 1",
+   "explanation": "The decoded string is `abzxx`: `a` once, `b` once, `x` twice and `z` once. The 24th letter `x` is at position 23 (0-based) and `z` at position 25."
+  },
+  {
+   "input": "9(4)10#",
+   "output": "0 0 0 0 0 0 0 0 4 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0",
+   "explanation": "`9(4)` is `i` repeated four times and `10#` is a single `j`."
+  },
+  {
+   "input": "110#(3)1",
+   "output": "2 0 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0",
+   "explanation": "The string splits as `1`, `10#(3)`, `1`: `a`, then `j` three times, then `a`. Note that the digits `110#` must be read as `1` followed by `10#`."
+  }
+ ],
+ "complexity": {
+  "time": "O(|s|)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "A `#` always appears exactly two characters after the start of a two-digit code, so look at `s[i + 2]` to decide how many characters to consume.",
+  "After reading a letter code, check whether the next character is `(`. If so, parse the number up to `)` and add that many occurrences instead of one.",
+  "Keep an array of 26 counters and update it as you scan; you never need the decoded string."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    s = sys.stdin.read().strip()\n    n = len(s)\n    cnt = [0] * 26\n    i = 0\n    while i < n:\n        if i + 2 < n and s[i + 2] == '#':\n            idx = int(s[i:i + 2]) - 1\n            i += 3\n        else:\n            idx = int(s[i]) - 1\n            i += 1\n        times = 1\n        if i < n and s[i] == '(':\n            j = s.index(')', i)\n            times = int(s[i + 1:j])\n            i = j + 1\n        cnt[idx] += times\n    print(' '.join(map(str, cnt)))\n\n\nmain()\n",
+ "brute": "import sys\nimport re\n\ns = sys.stdin.read().strip()\ncnt = [0] * 26\nfor code, k in re.findall(r'(\\d\\d#|\\d)(?:\\((\\d+)\\))?', s):\n    if code.endswith('#'):\n        idx = int(code[:-1]) - 1\n    else:\n        idx = int(code) - 1\n    cnt[idx] += int(k) if k else 1\nprint(' '.join(map(str, cnt)))\n",
+ "generator": "def gen(rng):\n    def enc(idx):\n        return str(idx + 1) if idx < 9 else str(idx + 1) + '#'\n\n    def build(limit, p_count, kmax, lo=0, hi=25):\n        parts = []\n        total = 0\n        while True:\n            c = enc(rng.randint(lo, hi))\n            if rng.random() < p_count:\n                c += '(%d)' % rng.randint(2, kmax)\n            if total + len(c) > limit:\n                break\n            parts.append(c)\n            total += len(c)\n        return ''.join(parts) or '1'\n\n    tests = ['1', '9', '10#', '26#(2)', '1226#24#(2)', '9(4)10#', '110#(3)1', '1(2)1(2)1(2)', '26#(10000)', '10#10#10#', '19#20#21#']\n    for limit in (6, 10, 14, 20, 30, 45, 60, 90):\n        for _ in range(2):\n            tests.append(build(limit, 0.3, 12))\n    tests.append(build(60, 0.5, 5, 0, 8))\n    tests.append(build(60, 0.5, 5, 9, 25))\n    tests.append(build(100000, 0.0, 12))\n    tests.append(build(100000, 1.0, 10000))\n    tests.append(build(100000, 0.5, 10000))\n    tests.append('26#(10000)' * 10000)\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_letters(s: str) -> List[int]:\n    # Write your solution here\n    return [0] * 26\n\n\ndef main():\n    s = sys.stdin.read().strip()\n    print(' '.join(map(str, count_letters(s))))\n\n\nmain()\n",
+  "javascript": "function countLetters(s) {\n  // Write your solution here\n  return new Array(26).fill(0)\n}\n\nconsole.log(countLetters(input.trim()).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> countLetters(const string& s) {\n    // Write your solution here\n    return vector<long long>(26, 0);\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s;\n    cin >> s;\n    vector<long long> res = countLetters(s);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] countLetters(String s) {\n        // Write your solution here\n        return new long[26];\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String s = br.readLine().trim();\n        long[] res = countLetters(s);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

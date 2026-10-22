@@ -1,0 +1,50 @@
+{
+ "pid": "goldman-sachs-print-triplets-with-a-given-sum",
+ "title": "Print Triplets With a Given Sum",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given an array of `n` integers (it may contain duplicates) and a target value `target`. Find **all distinct triplets of values** `(x, y, z)` such that `x ≤ y ≤ z`, `x + y + z = target`, and the three values can be taken from three different positions of the array.\n\nRules:\n\n- Two triplets are the same if they have the same values, regardless of which positions they came from. Report each distinct triplet once.\n- A value may be used in a triplet as many times as it occurs in the array. For example, `(2, 2, 3)` needs two 2s in the array, while `(2, 2, 2)` needs three.\n- Print the number of triplets first, then each triplet on its own line as three space-separated numbers in non-decreasing order. List the triplets in ascending lexicographic order (compare the first values, then the second, then the third).\n\nIf no triplet exists, print only `0`.",
+ "input_format": "The first line contains `n` and `target`.\nThe second line contains `n` integers, the array elements.",
+ "output_format": "The first line contains `k`, the number of distinct triplets. Each of the next `k` lines contains one triplet `x y z` with `x ≤ y ≤ z`, in ascending lexicographic order.",
+ "constraints": [
+  "1 ≤ n ≤ 1000",
+  "-10^6 ≤ arr[i] ≤ 10^6",
+  "-3 · 10^6 ≤ target ≤ 3 · 10^6",
+  "The number of distinct triplets in the answer is at most 10^5"
+ ],
+ "examples": [
+  {
+   "input": "6 9\n3 1 5 4 2 6",
+   "output": "3\n1 2 6\n1 3 5\n2 3 4",
+   "explanation": "The triplets of values that add up to 9 are (1, 2, 6), (1, 3, 5) and (2, 3, 4). They are printed in ascending lexicographic order."
+  },
+  {
+   "input": "7 0\n-1 0 1 2 -1 -4 1",
+   "output": "2\n-1 -1 2\n-1 0 1",
+   "explanation": "The array has two -1s, so (-1, -1, 2) is allowed. The triplet (-1, 0, 1) can be formed from several pairs of positions (either -1, either 1) but is printed only once."
+  },
+  {
+   "input": "4 6\n2 2 2 3",
+   "output": "1\n2 2 2",
+   "explanation": "The array has three 2s, so (2, 2, 2) is valid. The other choices (2, 2, 3) sum to 7."
+  }
+ ],
+ "complexity": {
+  "time": "O(n^2)",
+  "space": "O(1) extra (besides sorting and the output)"
+ },
+ "hints": [
+  "Sort the array. Then fix the smallest element of the triplet and look for two other elements to its right that add up to the remainder.",
+  "For a fixed first element, use two pointers (one at each end of the remaining range): if the pair sum is too small move the left pointer right, if it is too large move the right pointer left.",
+  "To report each value triplet once, skip repeated values for the first element and, after recording a match, skip repeated values for both pointers."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, target = int(data[0]), int(data[1])\n    a = sorted(int(x) for x in data[2:2 + n])\n    res = []\n    for i in range(n - 2):\n        if i and a[i] == a[i - 1]:\n            continue\n        need = target - a[i]\n        l, r = i + 1, n - 1\n        while l < r:\n            s = a[l] + a[r]\n            if s < need:\n                l += 1\n            elif s > need:\n                r -= 1\n            else:\n                res.append((a[i], a[l], a[r]))\n                lv, rv = a[l], a[r]\n                while l < r and a[l] == lv:\n                    l += 1\n                while l < r and a[r] == rv:\n                    r -= 1\n    out = [str(len(res))]\n    for t in res:\n        out.append('%d %d %d' % t)\n    print('\\n'.join(out))\n\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, target = int(data[0]), int(data[1])\na = [int(x) for x in data[2:2 + n]]\nfound = set()\nfor i in range(n):\n    for j in range(i + 1, n):\n        for k in range(j + 1, n):\n            if a[i] + a[j] + a[k] == target:\n                found.add(tuple(sorted((a[i], a[j], a[k]))))\nres = sorted(found)\nprint(len(res))\nfor t in res:\n    print(*t)\n",
+ "generator": "def gen(rng):\n    def f(a, target):\n        return '%d %d\\n%s' % (len(a), target, ' '.join(map(str, a)))\n\n    def count(a, target):\n        a = sorted(a)\n        n = len(a)\n        c = 0\n        for i in range(n - 2):\n            if i and a[i] == a[i - 1]:\n                continue\n            need = target - a[i]\n            l, r = i + 1, n - 1\n            while l < r:\n                s = a[l] + a[r]\n                if s < need:\n                    l += 1\n                elif s > need:\n                    r -= 1\n                else:\n                    c += 1\n                    lv, rv = a[l], a[r]\n                    while l < r and a[l] == lv:\n                        l += 1\n                    while l < r and a[r] == rv:\n                        r -= 1\n        return c\n\n    tests = [f([5], 5), f([1, 2], 3), f([1, 2, 3], 6), f([1, 2, 3], 7), f([0, 0, 0, 0], 0), f([2, 2, 2, 3], 6),\n             f([3, 1, 5, 4, 2, 6], 9), f([-1, 0, 1, 2, -1, -4, 1], 0), f([10 ** 6, 10 ** 6, 10 ** 6], 3 * 10 ** 6),\n             f([-10 ** 6, -10 ** 6, -10 ** 6, 5], -3 * 10 ** 6)]\n    for _ in range(70):\n        n = rng.randint(1, 9)\n        v = rng.choice([3, 5, 10])\n        a = [rng.randint(-v, v) for _ in range(n)]\n        tests.append(f(a, rng.randint(-v, v) if rng.random() < 0.5 else rng.randint(-2 * v, 2 * v)))\n    n = 1000\n    a = [rng.randint(-10 ** 6, 10 ** 6) for _ in range(n)]\n    i, j, k = rng.sample(range(n), 3)\n    tests.append(f(a, a[i] + a[j] + a[k]))\n    a = list(range(-500, 500))\n    rng.shuffle(a)\n    for tg in (1500, 1200, 900, 600, 300, 0):\n        if count(a, tg) <= 10 ** 5:\n            tests.append(f(a, tg))\n            break\n    a = [rng.randint(-30, 30) for _ in range(n)]\n    tests.append(f(a, 0))\n    tests.append(f([0] * n, 0))\n    a = [rng.randint(-1000, 1000) for _ in range(n)]\n    for tg in (0, 500, 1500, 2500):\n        if count(a, tg) <= 10 ** 5:\n            tests.append(f(a, tg))\n            break\n    a = [rng.randint(-10 ** 6, 10 ** 6) for _ in range(n // 2)] + [rng.randint(-10 ** 6, 10 ** 6) // 1000 * 1000 for _ in range(n // 2)]\n    rng.shuffle(a)\n    tests.append(f(a, 0))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef find_triplets(arr: List[int], target: int) -> List[List[int]]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, target = int(data[0]), int(data[1])\n    arr = [int(x) for x in data[2:2 + n]]\n    res = find_triplets(arr, target)\n    out = [str(len(res))]\n    for t in res:\n        out.append(' '.join(map(str, t)))\n    print('\\n'.join(out))\n\n\nmain()\n",
+  "javascript": "function findTriplets(arr, target) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], target = t[1]\nconst arr = t.slice(2, 2 + n)\nconst res = findTriplets(arr, target)\nconst out = [String(res.length)]\nfor (const tr of res) out.push(tr.join(' '))\nconsole.log(out.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<array<long long, 3>> findTriplets(vector<long long>& arr, long long target) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    long long target;\n    cin >> n >> target;\n    vector<long long> arr(n);\n    for (int i = 0; i < n; i++) cin >> arr[i];\n    auto res = findTriplets(arr, target);\n    cout << res.size() << \"\\n\";\n    for (auto& t : res) cout << t[0] << \" \" << t[1] << \" \" << t[2] << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<long[]> findTriplets(long[] arr, long target) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        long target = (long) in.nval;\n        long[] arr = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            arr[i] = (long) in.nval;\n        }\n        List<long[]> res = findTriplets(arr, target);\n        StringBuilder sb = new StringBuilder();\n        sb.append(res.size()).append(\"\\n\");\n        for (long[] t : res) sb.append(t[0]).append(\" \").append(t[1]).append(\" \").append(t[2]).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "49199b584c",
+ "question": "In the system design round for a Software Engineer III role at Walmart, the question was to **design a rate limiter at both the HLD and LLD level**, including **implementing the classes**. The candidate reported being unable to implement the LLD portion and being rejected.\n\nBe prepared to explain the architecture (where the limiter runs, how state is shared, which algorithm is used) and also write working code for the algorithm behind a clean interface.",
+ "lookingFor": [
+  "Do you know the main algorithms (token bucket, leaky bucket, fixed/sliding window) and their trade-offs?",
+  "Can you write correct, thread-safe code for at least one algorithm?",
+  "Can you design a distributed limiter with a shared store and handle races?",
+  "Do you consider placement, keys, configuration, failure modes and response behaviour?",
+  "Do you keep the code extensible through interfaces?"
+ ],
+ "answer": "**Requirements.** Limit requests per client (user, API key or IP) per time window. Low added latency, accurate enough, works across many servers, returns HTTP 429 with `Retry-After`. Different rules per endpoint or tier.\n\n**HLD.** Place the limiter at the API gateway or as middleware. Keep counters in a shared fast store such as Redis, keyed by `clientId:rule`. Use an **atomic** operation (a Lua script or `INCR` with expiry) so concurrent servers do not race. Rules come from a config service and are cached locally. On store failure, choose fail-open (availability) or fail-closed (protection) per use case. Add headers for remaining quota and monitor throttled counts.\n\n**Algorithms.**\n- **Fixed window**: count per window; simple, but allows a double burst at window boundaries.\n- **Sliding window log**: timestamps per client; exact, but memory-heavy.\n- **Sliding window counter**: weighted blend of two windows; cheap and close enough.\n- **Token bucket**: tokens refill at a fixed rate up to a capacity; allows controlled bursts; the usual default.\n- **Leaky bucket**: constant output rate; smooths traffic.\n\n**LLD (token bucket).**\n```java\ninterface RateLimiter { boolean allow(String key); }\n\nclass TokenBucketLimiter implements RateLimiter {\n  private final long capacity; private final double refillPerSec;\n  private final ConcurrentHashMap<String, Bucket> buckets = new ConcurrentHashMap<>();\n  public boolean allow(String key) {\n    Bucket b = buckets.computeIfAbsent(key, k -> new Bucket(capacity));\n    synchronized (b) {\n      long now = System.nanoTime();\n      b.tokens = Math.min(capacity, b.tokens + (now - b.last) / 1e9 * refillPerSec);\n      b.last = now;\n      if (b.tokens >= 1) { b.tokens -= 1; return true; }\n      return false;\n    }\n  }\n}\n```\nLock per bucket keeps contention low. `RateLimiterFactory` returns the algorithm from config (Strategy), and a `RuleProvider` maps key to limits. Add eviction of idle buckets to bound memory.\n\n**Scaling.** Shard Redis by key; local approximate counters synced periodically cut Redis calls at the cost of accuracy.",
+ "followUps": [
+  "Why is token bucket usually preferred over fixed window?",
+  "How do you avoid race conditions when many servers update one counter?",
+  "How would you rate limit globally across data centres?",
+  "What would you return to the client and how should clients react?"
+ ]
+}

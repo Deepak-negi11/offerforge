@@ -1,0 +1,17 @@
+{
+ "qid": "2c6d373034",
+ "question": "In round 3 (technical) of an NVIDIA off-campus process for a **System Software Engineer** role, the candidate was asked to **write a C program for 32-bit multiplication on a microprocessor whose ALU supports only 16-bit multiplication**. The candidate could not answer and was rejected, so the key is knowing the decomposition.",
+ "lookingFor": [
+  "Can you break a wide operation into narrower hardware operations?",
+  "Do you handle carries, overflow and unsigned arithmetic correctly?",
+  "Do you know the schoolbook multiplication idea in base 2^16?",
+  "Can you clarify the requirement (32-bit result or full 64-bit product)?"
+ ],
+ "answer": "**Idea.** Treat each 32-bit number as two 16-bit digits in base `2^16`. For `a = ah*2^16 + al` and `b = bh*2^16 + bl`:\n\n`a*b = ah*bh*2^32 + (ah*bl + al*bh)*2^16 + al*bl`\n\nEach partial product is a 16x16 multiply whose result fits in 32 bits, which is exactly what a 16-bit multiplier provides (it produces a 32-bit result).\n\n**Clarify first.** If the answer must be a 32-bit result (wrap-around, like `uint32_t * uint32_t`), the `ah*bh*2^32` term vanishes modulo `2^32` and only the low 16 bits of the middle term matter. If the full 64-bit product is required, keep all terms and propagate carries.\n\n**32-bit result:**\n```c\n#include <stdint.h>\n\n/* models the ALU: 16x16 -> 32 */\nstatic uint32_t mul16(uint16_t x, uint16_t y) { return (uint32_t)x * y; }\n\nuint32_t mul32(uint32_t a, uint32_t b) {\n    uint16_t al = a & 0xFFFF, ah = a >> 16;\n    uint16_t bl = b & 0xFFFF, bh = b >> 16;\n    uint32_t low  = mul16(al, bl);\n    uint32_t mid  = mul16(ah, bl) + mul16(al, bh);   /* only low 16 bits matter */\n    return low + (mid << 16);                        /* wraps modulo 2^32 */\n}\n```\n\n**Full 64-bit product:**\n```c\nuint64_t mul32x32(uint32_t a, uint32_t b) {\n    uint16_t al = a, ah = a >> 16, bl = b, bh = b >> 16;\n    uint64_t p0 = mul16(al, bl);\n    uint64_t p1 = mul16(ah, bl);\n    uint64_t p2 = mul16(al, bh);\n    uint64_t p3 = mul16(ah, bh);\n    return p0 + ((p1 + p2) << 16) + (p3 << 32);      /* 64-bit adds keep carries */\n}\n```\nOn a real 16-bit machine, the 64-bit adds would be done with add-with-carry on 16-bit words.\n\n**Complexity and alternatives.** Four 16x16 multiplies. Karatsuba can reduce this to three multiplies at the cost of extra additions, not worth it at this size. A shift-and-add loop (32 iterations) works with no multiplier at all. Signed numbers: multiply the absolute values and fix the sign (or use sign-aware arithmetic) to avoid signed-overflow undefined behaviour.",
+ "followUps": [
+  "How would you extend this to 64-bit multiplication using 32-bit multiplies?",
+  "How do you detect overflow of a 32-bit multiplication?",
+  "How would you handle signed operands?",
+  "What is Karatsuba multiplication and when does it pay off?"
+ ]
+}

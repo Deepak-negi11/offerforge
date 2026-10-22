@@ -1,0 +1,18 @@
+{
+ "qid": "46a94cf396",
+ "question": "In a TCS Digital interview with a three-person panel, after being asked about Python and SQL fluency, the candidate was asked: **what are SQL window functions, and what is their syntax?** Primary and foreign keys were asked in the same round.",
+ "lookingFor": [
+  "Do you understand how window functions differ from GROUP BY?",
+  "Can you write the OVER (PARTITION BY ... ORDER BY ...) syntax correctly?",
+  "Do you know the main categories: ranking, aggregate and value functions?",
+  "Can you give a practical example, such as top N per group or running totals?",
+  "Do you know the frame clause and logical order of execution?"
+ ],
+ "answer": "**Definition.** A window function performs a calculation across a set of rows related to the current row (the *window*) **without collapsing them into one row**. `GROUP BY` returns one row per group; a window function keeps every row and adds a computed column.\n\n**Syntax:**\n\n```\nfunction_name(expression) OVER (\n  [PARTITION BY column1, column2]\n  [ORDER BY column3 [ASC|DESC]]\n  [frame_clause]\n)\n```\n\n- `PARTITION BY` splits rows into groups (like GROUP BY, but rows are not merged). Omit it and the whole result is one window.\n- `ORDER BY` orders rows inside each partition; it is required for ranking functions.\n- The **frame clause** such as `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW` limits which rows are in the calculation.\n\n**Categories:**\n\n1. **Ranking:** `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()`, `NTILE(n)`.\n2. **Aggregate as window:** `SUM() OVER`, `AVG() OVER`, `COUNT() OVER`, `MIN`, `MAX`.\n3. **Value/offset:** `LAG()`, `LEAD()`, `FIRST_VALUE()`, `LAST_VALUE()`.\n\n**Examples** on `employee(name, dept, salary)`:\n\n```\n-- rank employees by salary inside each department\nSELECT name, dept, salary,\n       DENSE_RANK() OVER (PARTITION BY dept ORDER BY salary DESC) AS rnk\nFROM employee;\n\n-- running total\nSELECT order_date, amount,\n       SUM(amount) OVER (ORDER BY order_date) AS running_total\nFROM orders;\n```\n\n**Top N per group:** wrap the first query in a subquery or CTE and filter `rnk <= 3`. You cannot filter on a window function directly in `WHERE`, because window functions are evaluated after `WHERE`, `GROUP BY` and `HAVING`.\n\n**Difference between ranking functions:** with salaries 100, 100, 90, `ROW_NUMBER` gives 1, 2, 3; `RANK` gives 1, 1, 3; `DENSE_RANK` gives 1, 1, 2.",
+ "followUps": [
+  "What is the difference between RANK, DENSE_RANK and ROW_NUMBER?",
+  "How would you use LAG to find the day-over-day change in sales?",
+  "Why can you not use a window function in the WHERE clause?",
+  "How would you get the top 3 earners in every department?"
+ ]
+}

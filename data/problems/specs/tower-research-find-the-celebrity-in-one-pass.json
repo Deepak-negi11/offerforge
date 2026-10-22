@@ -1,0 +1,49 @@
+{
+ "pid": "tower-research-find-the-celebrity-in-one-pass",
+ "title": "Find the Celebrity in One Pass",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "In a group of `n` people labelled `0` to `n - 1`, a **celebrity** is a person who knows nobody else in the group, while every other person in the group knows them.\n\nYou are given an `n × n` matrix `knows`, where `knows[i][j] = 1` means person `i` knows person `j` and `0` means they do not. Knowing is not necessarily symmetric, and `knows[i][i] = 0` for every `i`.\n\nPrint the label of the celebrity, or `-1` if the group has no celebrity. A group can have at most one celebrity.\n\n**Follow-up:** in a real system the matrix is too large to scan, so find the answer by looking at only `O(n)` entries of it (a single pass to narrow down to one candidate, then a verification pass) instead of examining all `n²` entries.",
+ "input_format": "The first line contains an integer `n`.\nEach of the next `n` lines contains `n` integers (`0` or `1`): row `i` of the matrix `knows`.",
+ "output_format": "Print a single integer: the label of the celebrity, or `-1` if there is none.",
+ "constraints": [
+  "1 ≤ n ≤ 700",
+  "knows[i][j] ∈ {0, 1}",
+  "knows[i][i] = 0"
+ ],
+ "examples": [
+  {
+   "input": "3\n0 1 1\n0 0 0\n0 1 0",
+   "output": "1",
+   "explanation": "Person 1 knows nobody (row 1 is all zeros), and persons 0 and 2 both know person 1 (column 1 holds a 1 in rows 0 and 2). So person 1 is the celebrity."
+  },
+  {
+   "input": "3\n0 1 0\n0 0 1\n1 0 0",
+   "output": "-1",
+   "explanation": "Everybody knows exactly one other person, so nobody satisfies 'knows nobody'. There is no celebrity."
+  },
+  {
+   "input": "4\n0 0 0 0\n1 0 1 0\n1 0 0 0\n1 0 1 0",
+   "output": "0",
+   "explanation": "Person 0 knows nobody, and persons 1, 2 and 3 all know person 0. The other rows contain 1s, so none of them can be the celebrity."
+  }
+ ],
+ "complexity": {
+  "time": "O(n) matrix lookups (plus O(n²) just to read the input)",
+  "space": "O(1) extra"
+ },
+ "hints": [
+  "If person a knows person b, then a cannot be the celebrity. If a does not know b, then b cannot be the celebrity. So one lookup always eliminates one of the two people.",
+  "Keep a running candidate and compare it against each next person; after one pass only a single candidate survives.",
+  "The survivor is only a candidate: verify that its row has no 1s (outside itself) and that its column has 1s everywhere else."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    M = [data[1 + i * n:1 + (i + 1) * n] for i in range(n)]\n    c = 0\n    for i in range(1, n):\n        if M[c][i] == '1':\n            c = i\n    for i in range(n):\n        if i != c and (M[c][i] == '1' or M[i][c] == '0'):\n            print(-1)\n            return\n    print(c)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nM = [[int(data[1 + i * n + j]) for j in range(n)] for i in range(n)]\nans = -1\nfor c in range(n):\n    ok = True\n    for i in range(n):\n        if i == c:\n            continue\n        if M[c][i] == 1 or M[i][c] == 0:\n            ok = False\n    if ok:\n        ans = c\nprint(ans)\n",
+ "generator": "def gen(rng):\n    def fmt(M):\n        return str(len(M)) + '\\n' + '\\n'.join(' '.join(map(str, r)) for r in M)\n\n    def rand(n, p):\n        return [[0 if i == j else int(rng.random() < p) for j in range(n)] for i in range(n)]\n\n    def planted(n, p, flaw=0, c=None):\n        M = rand(n, p)\n        if c is None:\n            c = rng.randrange(n)\n        for j in range(n):\n            M[c][j] = 0\n        for i in range(n):\n            if i != c:\n                M[i][c] = 1\n        others = [k for k in range(n) if k != c]\n        if flaw == 1 and others:\n            M[rng.choice(others)][c] = 0\n        elif flaw == 2 and others:\n            M[c][rng.choice(others)] = 1\n        return M\n\n    tests = [fmt([[0]]), fmt([[0, 1], [0, 0]]), fmt([[0, 0], [1, 0]]), fmt([[0, 1], [1, 0]]), fmt([[0, 0], [0, 0]])]\n    for n in (3, 4, 5, 6, 8):\n        for flaw in (0, 0, 1, 2):\n            tests.append(fmt(planted(n, rng.choice([0.2, 0.5, 0.8]), flaw)))\n        tests.append(fmt(planted(n, 0.5, 0, 0)))\n        tests.append(fmt(planted(n, 0.5, 0, n - 1)))\n        tests.append(fmt(rand(n, 0.5)))\n        tests.append(fmt(rand(n, 0.9)))\n    N = 700\n    tests.append(fmt(planted(N, 0.5, 0)))\n    tests.append(fmt(planted(N, 0.5, 1)))\n    tests.append(fmt(planted(N, 0.5, 2)))\n    tests.append(fmt(planted(N, 0.5, 0, N - 1)))\n    tests.append(fmt(rand(N, 0.9)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef find_celebrity(knows: List[List[int]]) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    knows = [[int(data[1 + i * n + j]) for j in range(n)] for i in range(n)]\n    print(find_celebrity(knows))\n\n\nmain()\n",
+  "javascript": "function findCelebrity(knows) {\n  // Write your solution here\n  return -1\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst knows = []\nfor (let i = 0; i < n; i++) knows.push(t.slice(1 + i * n, 1 + (i + 1) * n))\nconsole.log(findCelebrity(knows))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nint findCelebrity(vector<vector<int>>& knows) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<vector<int>> knows(n, vector<int>(n));\n    for (int i = 0; i < n; i++)\n        for (int j = 0; j < n; j++) cin >> knows[i][j];\n    cout << findCelebrity(knows) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int findCelebrity(int[][] knows) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        int[][] knows = new int[n][n];\n        for (int i = 0; i < n; i++)\n            for (int j = 0; j < n; j++) {\n                in.nextToken();\n                knows[i][j] = (int) in.nval;\n            }\n        System.out.println(findCelebrity(knows));\n    }\n}\n"
+ }
+}

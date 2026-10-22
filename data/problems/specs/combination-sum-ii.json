@@ -1,0 +1,44 @@
+{
+ "pid": "combination-sum-ii",
+ "title": "Combination Sum II (Use Each Once)",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given a list of `n` positive integers `candidates` (it may contain repeated values) and a positive integer `target`.\n\nFind every **distinct** combination of the candidates whose values add up to `target`. Each element of the list can be used **at most once** in a combination, but if the list contains a value several times, a combination may use it as many times as it appears. Two combinations are the same if they contain the same values with the same multiplicities, regardless of which positions the values came from; report each such combination only once.\n\nWrite every combination in non-decreasing order and list the combinations in lexicographic order (compare the first values, then the second, and so on; a shorter combination that is a prefix of a longer one comes first). If no combination exists, the answer is just `0`.",
+ "input_format": "The first line contains two integers `n` and `target`.\nThe second line contains `n` integers, the candidates.",
+ "output_format": "Print the number `k` of distinct combinations on the first line. Then print `k` lines, each containing one combination as space-separated integers in non-decreasing order, with the lines in lexicographic order.",
+ "constraints": [
+  "1 ≤ n ≤ 100",
+  "1 ≤ candidates[i] ≤ 50",
+  "1 ≤ target ≤ 30"
+ ],
+ "examples": [
+  {
+   "input": "6 7\n1 1 2 2 3 4",
+   "output": "4\n1 1 2 3\n1 2 4\n2 2 3\n3 4",
+   "explanation": "The four distinct combinations that sum to 7 are [1,1,2,3], [1,2,4], [2,2,3] and [3,4]. Although [1,2,4] can be built with either of the two 2s, it is reported only once."
+  },
+  {
+   "input": "4 9\n5 5 4 4",
+   "output": "1\n4 5",
+   "explanation": "The only way to reach 9 is 4 + 5. It can be formed in four ways by picking different copies, but it is a single distinct combination."
+  }
+ ],
+ "complexity": {
+  "time": "O(2^n) in the worst case, pruned by the sorted order and target",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Sort the candidates first. Equal values become neighbours, and you can stop exploring a branch as soon as a candidate exceeds the remaining target.",
+  "Use backtracking where the next choice must come from a later index than the last one (each element is used at most once).",
+  "To avoid duplicate combinations, at a given recursion level skip a candidate that equals the previous candidate tried at that same level."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n, target = int(data[0]), int(data[1])\n    c = sorted(int(v) for v in data[2:2 + n])\n    res = []\n    cur = []\n\n    def go(start, rem):\n        if rem == 0:\n            res.append(' '.join(map(str, cur)))\n            return\n        for i in range(start, n):\n            if c[i] > rem:\n                break\n            if i > start and c[i] == c[i - 1]:\n                continue\n            cur.append(c[i])\n            go(i + 1, rem - c[i])\n            cur.pop()\n\n    go(0, target)\n    print(len(res))\n    for line in res:\n        print(line)\n\nmain()\n",
+ "brute": "import sys\nfrom collections import Counter\n\ndata = sys.stdin.read().split()\nn, target = int(data[0]), int(data[1])\ncnt = sorted(Counter(int(v) for v in data[2:2 + n]).items())\nres = []\n\ndef go(i, rem, chosen):\n    if rem == 0:\n        res.append(tuple(chosen))\n        return\n    if i == len(cnt):\n        return\n    v, m = cnt[i]\n    for k in range(0, m + 1):\n        if k * v > rem:\n            break\n        go(i + 1, rem - k * v, chosen + [v] * k)\n\ngo(0, target, [])\nres.sort()\nprint(len(res))\nfor t in res:\n    print(' '.join(map(str, t)))\n",
+ "generator": "def gen(rng):\n    def fmt(c, t):\n        return f'{len(c)} {t}\\n' + ' '.join(map(str, c))\n    tests = [\n        fmt([5], 5),\n        fmt([5], 6),\n        fmt([1, 1], 2),\n        fmt([1, 1, 1], 2),\n        fmt([2, 2, 2, 2], 4),\n        fmt([30], 30),\n        fmt([50, 49, 31], 30),\n        fmt([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 15),\n        fmt([5, 5, 4, 4], 9),\n    ]\n    for n in (3, 5, 7, 9, 11, 12):\n        for hi in (4, 10):\n            c = [rng.randint(1, hi) for _ in range(n)]\n            tests.append(fmt(c, rng.randint(1, min(30, sum(c)))))\n    for _ in range(4):\n        c = [rng.randint(1, 50) for _ in range(12)]\n        tests.append(fmt(c, rng.randint(10, 30)))\n    tests.append(fmt([1] * 100, 30))\n    tests.append(fmt([1] * 60 + [2] * 40, 30))\n    tests.append(fmt([rng.randint(1, 8) for _ in range(100)], 30))\n    tests.append(fmt([rng.randint(1, 12) for _ in range(100)], 30))\n    tests.append(fmt([rng.randint(1, 50) for _ in range(100)], 30))\n    tests.append(fmt([1] * 12 + [2] * 12 + [3] * 12 + [4] * 12 + [5] * 12 + [6] * 12 + [7] * 12 + [8] * 12, 30))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef combination_sum2(candidates: List[int], target: int) -> List[List[int]]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, target = int(data[0]), int(data[1])\n    candidates = [int(v) for v in data[2:2 + n]]\n    res = combination_sum2(candidates, target)\n    res = sorted(sorted(r) for r in res)\n    print(len(res))\n    for r in res:\n        print(' '.join(map(str, r)))\n\n\nmain()\n",
+  "javascript": "function combinationSum2(candidates, target) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], target = t[1]\nconst candidates = t.slice(2, 2 + n)\nconst res = combinationSum2(candidates, target).map(r => r.slice().sort((a, b) => a - b))\nres.sort((a, b) => {\n  for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) return a[i] - b[i]\n  return a.length - b.length\n})\nconst lines = [String(res.length)]\nfor (const r of res) lines.push(r.join(' '))\nconsole.log(lines.join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<vector<int>> combinationSum2(vector<int>& candidates, int target) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, target;\n    cin >> n >> target;\n    vector<int> candidates(n);\n    for (int i = 0; i < n; i++) cin >> candidates[i];\n    vector<vector<int>> res = combinationSum2(candidates, target);\n    for (auto& r : res) sort(r.begin(), r.end());\n    sort(res.begin(), res.end());\n    cout << res.size() << \"\\n\";\n    for (auto& r : res) {\n        for (size_t i = 0; i < r.size(); i++) cout << r[i] << (i + 1 < r.size() ? ' ' : '\\n');\n    }\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static List<List<Integer>> combinationSum2(int[] candidates, int target) {\n        // Write your solution here\n        return new ArrayList<>();\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int target = (int) in.nval;\n        int[] candidates = new int[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken(); candidates[i] = (int) in.nval;\n        }\n        List<List<Integer>> res = combinationSum2(candidates, target);\n        for (List<Integer> r : res) Collections.sort(r);\n        res.sort((a, b) -> {\n            for (int i = 0; i < Math.min(a.size(), b.size()); i++) {\n                if (!a.get(i).equals(b.get(i))) return Integer.compare(a.get(i), b.get(i));\n            }\n            return Integer.compare(a.size(), b.size());\n        });\n        StringBuilder sb = new StringBuilder();\n        sb.append(res.size()).append(\"\\n\");\n        for (List<Integer> r : res) {\n            for (int i = 0; i < r.size(); i++) sb.append(r.get(i)).append(i + 1 < r.size() ? \" \" : \"\\n\");\n        }\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

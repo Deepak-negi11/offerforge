@@ -1,0 +1,45 @@
+{
+ "pid": "walmart-global-tech-rate-limit-refunds-per-merchant",
+ "title": "Rate-Limit Refunds per Merchant",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "To prevent abuse of a refund service, you must implement an in-memory rate limiter for individual merchants. A merchant may initiate at most `K` refunds within any rolling 5-minute window.\n\nImplement `allowRefund(merchantId, timestamp)`, which returns `true` if the refund is allowed and `false` if the merchant has already used up its limit in the last 5 minutes.\n\nTimestamps are in seconds, so the window is 300 seconds. A request at time `t` is **allowed** if the merchant has fewer than `K` previously **allowed** refunds with timestamp strictly greater than `t - 300` (that is, in the interval `(t - 300, t]`). An allowed refund is recorded; a rejected request is **not** recorded and does not count against the merchant. Merchants are independent of each other.\n\nYou are given the requests in the order they arrive, with non-decreasing timestamps. Print the answer to each request.\n\n**Follow-up:** the interviewer asked to explain the data structures used and why they are efficient (a hash map from merchant to a queue of recent allowed timestamps).",
+ "input_format": "The first line contains two integers `n` and `K`.\nEach of the next `n` lines contains a merchant id `merchantId` and an integer `timestamp`.",
+ "output_format": "Print `n` lines, one per request: `true` if the refund is allowed, otherwise `false`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ K ≤ n",
+  "`merchantId` is a non-empty string of at most 10 lowercase letters and digits",
+  "0 ≤ timestamp ≤ 10^9, and timestamps are non-decreasing in input order"
+ ],
+ "examples": [
+  {
+   "input": "6 2\nm1 0\nm1 100\nm1 200\nm2 250\nm1 300\nm1 301",
+   "output": "true\ntrue\nfalse\ntrue\ntrue\nfalse",
+   "explanation": "With K = 2: m1 at 0 and 100 are allowed. At 200 the window (-100, 200] already holds two allowed refunds, so it is rejected (and not recorded). m2 has its own history, so 250 is allowed. At 300 the window is (0, 300]: the refund at time 0 has expired, only the one at 100 remains, so it is allowed. At 301 the window (1, 301] holds the refunds at 100 and 300, so it is rejected."
+  },
+  {
+   "input": "4 1\na 10\na 309\na 310\na 400",
+   "output": "true\nfalse\ntrue\nfalse",
+   "explanation": "K = 1. The refund at 10 is allowed. At 309 the window is (9, 309], which still contains time 10, so it is rejected. At 310 the window is (10, 310], so time 10 has just expired and the request is allowed. At 400 the refund at 310 is still inside (100, 400]."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Each merchant needs its own history, so start with a hash map keyed by merchant id.",
+  "For one merchant you only care about the allowed refunds from the last 300 seconds, and they arrive in time order. A queue fits.",
+  "Before deciding, pop timestamps from the front of the queue while they are not greater than t - 300. Then the queue size is exactly the number of refunds in the window. Only push when you allow the request."
+ ],
+ "reference": "import sys\nfrom collections import deque\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    k = int(data[1])\n    hist = {}\n    out = []\n    for i in range(n):\n        m = data[2 + 2 * i]\n        t = int(data[3 + 2 * i])\n        q = hist.get(m)\n        if q is None:\n            q = hist[m] = deque()\n        while q and q[0] <= t - 300:\n            q.popleft()\n        if len(q) < k:\n            q.append(t)\n            out.append('true')\n        else:\n            out.append('false')\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nk = int(data[1])\nallowed = {}\nout = []\nfor i in range(n):\n    m = data[2 + 2 * i]\n    t = int(data[3 + 2 * i])\n    lst = allowed.setdefault(m, [])\n    cnt = sum(1 for x in lst if t - 300 < x <= t)\n    if cnt < k:\n        lst.append(t)\n        out.append('true')\n    else:\n        out.append('false')\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    def fmt(k, reqs):\n        return f\"{len(reqs)} {k}\\n\" + '\\n'.join(f\"{m} {t}\" for m, t in reqs)\n\n    tests = [\n        fmt(1, [('a', 0)]),\n        fmt(1, [('a', 0), ('a', 0), ('a', 0)]),\n        fmt(1, [('a', 10), ('a', 309), ('a', 310)]),\n        fmt(2, [('a', 0), ('a', 299), ('a', 299), ('a', 300), ('a', 300), ('a', 599)]),\n        fmt(3, [('a', 5), ('b', 5), ('c', 5), ('a', 5), ('a', 5), ('a', 5), ('b', 6)]),\n        fmt(2, [('x', 1000000000), ('x', 1000000000), ('x', 1000000000)]),\n        fmt(2, [('a', 0), ('a', 1)]),\n    ]\n    for _ in range(60):\n        k = rng.randint(1, 4)\n        pool = ['a', 'b', 'c', 'd'][:rng.randint(1, 4)]\n        t = rng.randint(0, 50)\n        reqs = []\n        for _ in range(rng.randint(1, 25)):\n            t += rng.choice([0, 0, 1, 50, 100, 299, 300, 301])\n            reqs.append((rng.choice(pool), t))\n        tests.append(fmt(k, reqs))\n\n    n = 100000\n    # one hot merchant, huge K, everything inside one window\n    tests.append(fmt(50000, [('m1', 10**9)] * n))\n    # one merchant, large K, gradual increments\n    t = 0\n    reqs = []\n    for _ in range(n):\n        t += rng.randint(0, 5)\n        reqs.append(('m1', t))\n    tests.append(fmt(30000, reqs))\n    # many merchants, small K, mixed gaps\n    t = rng.randint(0, 1000)\n    reqs = []\n    for _ in range(n):\n        t += rng.randint(0, 20)\n        reqs.append((f\"m{rng.randrange(1000)}\", t))\n    tests.append(fmt(5, reqs))\n    # K = 1, requests exactly 300 apart\n    tests.append(fmt(1, [('s', 300 * i) for i in range(n)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef allow_refunds(k: int, requests: List[Tuple[str, int]]) -> List[bool]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, k = int(data[0]), int(data[1])\n    requests = [(data[2 + 2 * i], int(data[3 + 2 * i])) for i in range(n)]\n    res = allow_refunds(k, requests)\n    print('\\n'.join('true' if x else 'false' for x in res))\n\n\nmain()\n",
+  "javascript": "function allowRefunds(k, requests) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = Number(t[0])\nconst k = Number(t[1])\nconst requests = []\nfor (let i = 0; i < n; i++) requests.push([t[2 + 2 * i], Number(t[3 + 2 * i])])\nconsole.log(allowRefunds(k, requests).map(x => (x ? 'true' : 'false')).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<bool> allowRefunds(int k, vector<pair<string, long long>>& requests) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, k;\n    cin >> n >> k;\n    vector<pair<string, long long>> requests(n);\n    for (int i = 0; i < n; i++) cin >> requests[i].first >> requests[i].second;\n    vector<bool> res = allowRefunds(k, requests);\n    for (size_t i = 0; i < res.size(); i++) cout << (res[i] ? \"true\" : \"false\") << '\\n';\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean[] allowRefunds(int k, String[] merchants, long[] timestamps) {\n        // Write your solution here\n        return new boolean[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int n = Integer.parseInt(st.nextToken());\n        int k = Integer.parseInt(st.nextToken());\n        String[] merchants = new String[n];\n        long[] timestamps = new long[n];\n        for (int i = 0; i < n; i++) {\n            st = new StringTokenizer(br.readLine());\n            merchants[i] = st.nextToken();\n            timestamps[i] = Long.parseLong(st.nextToken());\n        }\n        boolean[] res = allowRefunds(k, merchants, timestamps);\n        StringBuilder sb = new StringBuilder();\n        for (boolean b : res) sb.append(b ? \"true\" : \"false\").append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

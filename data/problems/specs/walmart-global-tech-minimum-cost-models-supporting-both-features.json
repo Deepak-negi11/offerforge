@@ -1,0 +1,44 @@
+{
+ "pid": "walmart-global-tech-minimum-cost-models-supporting-both-features",
+ "title": "Minimum Cost Models Supporting Both Features",
+ "difficulty": "Hard",
+ "source_note": "reconstructed",
+ "statement": "You are given `n` machine learning models. Model `i` has a cost `cost[i]` and a two-character binary string `featureAvailability[i]` describing which features it supports:\n\n- `\"00\"`: supports neither Feature A nor Feature B\n- `\"01\"`: supports only Feature B\n- `\"10\"`: supports only Feature A\n- `\"11\"`: supports both Feature A and Feature B\n\nA set of selected models is **k-capable** if at least `k` of the selected models support Feature A **and** at least `k` of the selected models support Feature B. A model with availability `\"11\"` counts towards both totals.\n\nFor every integer `k` from `1` to `n`, find the minimum total cost of a k-capable set of models. If no k-capable set exists, the answer for that `k` is `-1`.",
+ "input_format": "The first line contains `n`.\nThe second line contains `n` integers `cost[0..n-1]`.\nThe third line contains `n` strings `featureAvailability[0..n-1]`, each of length 2, separated by spaces.",
+ "output_format": "Print `n` space-separated integers: the answers for `k = 1, 2, ..., n`.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ cost[i] ≤ 10^9",
+  "featureAvailability[i] is one of \"00\", \"01\", \"10\", \"11\""
+ ],
+ "examples": [
+  {
+   "input": "4\n10 1 1 10\n11 10 01 11",
+   "output": "2 12 22 -1",
+   "explanation": "k = 1: models 1 (A only, cost 1) and 2 (B only, cost 1) together give one of each feature for 2, cheaper than model 0 alone (10). k = 2: take model 0 (supports both, 10) plus models 1 and 2 (1 each), giving two A and two B for 12. k = 3: three A-supporters (0, 1, 3) and three B-supporters (0, 2, 3) need all four models, 22. k = 4: only three models support A, so -1."
+  },
+  {
+   "input": "5\n4 6 3 9 2\n10 11 01 00 10",
+   "output": "5 11 -1 -1 -1",
+   "explanation": "Only model 2 supports B without A, and model 1 supports both, so at most two models support B. k = 1: models 4 (A, cost 2) and 2 (B, cost 3) cost 5, cheaper than model 1 alone (6). k = 2: model 1 (both) plus models 4 and 2 gives two A and two B for 6 + 2 + 3 = 11. For k >= 3 there are not enough models supporting B."
+  }
+ ],
+ "complexity": {
+  "time": "O(n log n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Models with \"00\" never help. Split the useful models into three sorted lists: both features, only A, only B.",
+  "For a fixed k, if you take t models from the \"11\" list (the cheapest t), you still need k - t cheapest models from each of the A-only and B-only lists.",
+  "The total cost as a function of t is convex (a sum of prefix sums of sorted lists), so for each k you can binary search the best t instead of trying all of them."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    cost = data[1:1 + n]\n    feat = data[1 + n:1 + 2 * n]\n    both, A, B = [], [], []\n    for c, f in zip(cost, feat):\n        c = int(c)\n        if f == '11':\n            both.append(c)\n        elif f == '10':\n            A.append(c)\n        elif f == '01':\n            B.append(c)\n    both.sort(); A.sort(); B.sort()\n    nb = len(both)\n    m = min(len(A), len(B))\n    pb = [0]\n    for x in both:\n        pb.append(pb[-1] + x)\n    q = [0]\n    for i in range(m):\n        q.append(q[-1] + A[i] + B[i])\n    pair = [A[i] + B[i] for i in range(m)]\n    out = []\n    for k in range(1, n + 1):\n        lo = max(0, k - m)\n        hi = min(k, nb)\n        if lo > hi:\n            out.append(-1)\n            continue\n        l, r = lo, hi\n        while l < r:\n            mid = (l + r) >> 1\n            if both[mid] >= pair[k - mid - 1]:\n                r = mid\n            else:\n                l = mid + 1\n        out.append(pb[l] + q[k - l])\n    print(' '.join(map(str, out)))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn = int(data[0])\ncost = [int(x) for x in data[1:1 + n]]\nfeat = data[1 + n:1 + 2 * n]\nINF = float('inf')\nbest = [INF] * (n + 1)\nfor mask in range(1 << n):\n    a = b = tot = 0\n    for i in range(n):\n        if mask >> i & 1:\n            tot += cost[i]\n            if feat[i][0] == '1':\n                a += 1\n            if feat[i][1] == '1':\n                b += 1\n    c = min(a, b)\n    for k in range(1, c + 1):\n        if tot < best[k]:\n            best[k] = tot\nprint(' '.join(str(best[k]) if best[k] != INF else '-1' for k in range(1, n + 1)))\n",
+ "generator": "def gen(rng):\n    def fmt(cs, fs):\n        return str(len(cs)) + '\\n' + ' '.join(map(str, cs)) + '\\n' + ' '.join(fs)\n    F = ['00', '01', '10', '11']\n    tests = [fmt([5], ['11']), fmt([5], ['00']), fmt([3], ['10']), fmt([4, 2], ['10', '01']),\n             fmt([7, 7, 7], ['11', '11', '11']), fmt([1, 2, 3, 4], ['00', '00', '00', '00']),\n             fmt([10, 1, 1, 10], ['11', '10', '01', '11'])]\n    for n in (2, 3, 4, 5, 6, 8, 10, 12):\n        for _ in range(3):\n            w = [rng.randint(1, 5) for _ in range(4)]\n            fs = rng.choices(F, weights=w, k=n)\n            cs = [rng.randint(1, 20) for _ in range(n)]\n            tests.append(fmt(cs, fs))\n    for n in (30, 40):\n        fs = rng.choices(F, k=n)\n        cs = [rng.randint(1, 100) for _ in range(n)]\n        tests.append(fmt(cs, fs))\n    n = 100000\n    tests.append(fmt([rng.randint(1, 10**9) for _ in range(n)], rng.choices(F, k=n)))\n    tests.append(fmt([rng.randint(1, 10**9) for _ in range(n)], rng.choices(F, weights=[1, 3, 3, 1], k=n)))\n    tests.append(fmt([rng.randint(1, 10**9) for _ in range(n)], rng.choices(F, weights=[0, 1, 1, 8], k=n)))\n    tests.append(fmt([rng.randint(1, 10**9) for _ in range(n)], ['10'] * (n // 2) + ['01'] * (n - n // 2)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef min_costs(cost: List[int], features: List[str]) -> List[int]:\n    # Write your solution here\n    return []\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    cost = [int(x) for x in data[1:1 + n]]\n    features = data[1 + n:1 + 2 * n]\n    print(' '.join(map(str, min_costs(cost, features))))\n\n\nmain()\n",
+  "javascript": "function minCosts(cost, features) {\n  // Write your solution here\n  return []\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = parseInt(t[0])\nconst cost = [], features = []\nfor (let i = 0; i < n; i++) cost.push(Number(t[1 + i]))\nfor (let i = 0; i < n; i++) features.push(t[1 + n + i])\nconsole.log(minCosts(cost, features).join(' '))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<long long> minCosts(vector<long long>& cost, vector<string>& features) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> cost(n);\n    vector<string> features(n);\n    for (int i = 0; i < n; i++) cin >> cost[i];\n    for (int i = 0; i < n; i++) cin >> features[i];\n    vector<long long> res = minCosts(cost, features);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << (i + 1 < res.size() ? ' ' : '\\n');\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long[] minCosts(long[] cost, String[] features) {\n        // Write your solution here\n        return new long[0];\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StreamTokenizer in = new StreamTokenizer(br);\n        in.resetSyntax();\n        in.wordChars(33, 255);\n        in.whitespaceChars(0, 32);\n        in.nextToken();\n        int n = Integer.parseInt(in.sval);\n        long[] cost = new long[n];\n        String[] features = new String[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); cost[i] = Long.parseLong(in.sval); }\n        for (int i = 0; i < n; i++) { in.nextToken(); features[i] = in.sval; }\n        long[] res = minCosts(cost, features);\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < res.length; i++) sb.append(res[i]).append(i + 1 < res.length ? \" \" : \"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

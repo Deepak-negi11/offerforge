@@ -1,0 +1,18 @@
+{
+ "qid": "88ad7babd2",
+ "question": "Flipkart UI Engineer (Frontend), PSDS round. Reported problem: you are given an **array of async tasks (functions returning Promises)**. Execute them with a **concurrency limit**: at most `limit` run at the same time; when one finishes, start the next immediately; and **return results in the same order as the input**. The candidate could explain the approach but not finish the implementation.",
+ "lookingFor": [
+  "Solid understanding of Promises, async/await and the event loop.",
+  "Recognising the worker-pool pattern rather than batching.",
+  "Preserving result order with out-of-order completion.",
+  "Error handling and edge cases (limit larger than tasks, empty array).",
+  "Writing clean code under interview time pressure."
+ ],
+ "answer": "**Idea.** Do not run tasks in fixed batches (a batch waits for its slowest task). Start `limit` workers; each worker repeatedly takes the next unstarted task index until none are left. Write each result into `results[index]`, so output order matches input even though completion order differs.\n\n```javascript\nasync function runWithConcurrencyLimit(tasks, limit) {\n  const results = new Array(tasks.length);\n  let next = 0;\n\n  async function worker() {\n    while (true) {\n      const i = next++;           // safe: JS is single-threaded between awaits\n      if (i >= tasks.length) return;\n      results[i] = await tasks[i]();\n    }\n  }\n\n  const n = Math.min(limit, tasks.length);\n  await Promise.all(Array.from({ length: n }, worker));\n  return results;\n}\n```\n\n**Why it works.** `next++` runs synchronously, so two workers never claim the same index. Each worker awaits one task at a time, so at most `limit` tasks are in flight, and as soon as one finishes its worker starts another. `Promise.all` waits for all workers, and `results` is filled by index.\n\n**Edge cases and decisions.**\n\n- Tasks must be *functions* that start work when called; an array of already-created promises is already running and cannot be limited.\n- Empty array returns `[]`; `limit` of 0 or less should be rejected, and `limit` larger than the task count is clamped.\n- Error policy: as written, the first rejection makes `Promise.all` reject (other workers keep running). For \"settle all\", wrap in try/catch and store `{status, value|reason}`, like `Promise.allSettled`.\n- Optional extras: retry with backoff, cancellation with `AbortController`, and a progress callback.\n\nComplexity: O(n) task dispatches, O(n) space for results. The same pattern is used for rate-limited API calls and parallel uploads.",
+ "followUps": [
+  "Why is processing the array in fixed chunks of size `limit` worse?",
+  "How would you change the code to collect errors instead of failing fast?",
+  "How would you add per-task timeouts or cancellation?",
+  "How would you implement this as a reusable queue class where tasks can be added dynamically?"
+ ]
+}

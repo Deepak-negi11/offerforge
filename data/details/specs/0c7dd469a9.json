@@ -1,0 +1,18 @@
+{
+ "qid": "0c7dd469a9",
+ "question": "In the high level design round for a Software Engineer II (SDE-2) role at Walmart, the question was to **design an e-commerce application similar to Amazon**.\n\nThe candidate approached it by breaking the system into core components. The report does not list specific scale numbers or sub-requirements, so confirm scope with the interviewer: catalog and search, cart, checkout and payment, orders, inventory and delivery tracking.",
+ "lookingFor": [
+  "Can you clarify scope and estimate scale before designing?",
+  "Do you decompose the system into sensible services with clear data ownership?",
+  "Do you handle the hard parts: inventory consistency, checkout and payment reliability?",
+  "Can you choose storage and caching per access pattern?",
+  "Do you discuss bottlenecks, failures and how to scale?"
+ ],
+ "answer": "**Requirements.** Functional: browse and search products, product page, cart, checkout with payment, order tracking, reviews. Non-functional: high availability for browsing, strong consistency for inventory and payments, low latency search, scalability for sales spikes. Assume 50M users, 5M daily active users, 1M orders per day (about 12 orders per second on average, 10 to 50 times at peak).\n\n**Services.**\n- **Catalog service**: product data in a document or relational store, heavy caching and a CDN for images.\n- **Search service**: Elasticsearch or similar fed from the catalog by events; supports filters and ranking.\n- **Cart service**: key-value store (Redis or DynamoDB) keyed by user id; tolerates loss better than orders.\n- **Inventory service**: stock per product and warehouse. Reserve stock at checkout with an atomic conditional update to avoid overselling; release the reservation if payment fails or times out.\n- **Order service**: owns order state machine (CREATED, PAID, SHIPPED, DELIVERED, CANCELLED) in a relational database.\n- **Payment service**: wraps payment gateways, idempotency keys, webhook handling.\n- **Notification, shipping and recommendation services**, fed by events.\n\n**Flow.** Checkout creates an order, reserves inventory, requests payment, then confirms. Multi-service consistency is handled with a **saga** and events through a message bus (Kafka), plus the outbox pattern to publish reliably. Each step has a compensating action.\n\n**Data and scale.** Shard orders by user id; replicate reads; cache hot products and pages; asynchronous indexing for search; separate read and write paths for the catalog (CQRS-style). Use an API gateway for routing, auth and rate limiting.\n\n**Bottlenecks and trade-offs.** Hot products during sales (queue or rate limit requests, pre-warm caches); eventual consistency in search versus strong consistency in inventory; fail gracefully if recommendations are down.",
+ "followUps": [
+  "How do you prevent overselling the last item in stock?",
+  "How would you design the search and keep it in sync with the catalog?",
+  "What happens if payment succeeds but the order service crashes?",
+  "How would you prepare for a flash sale?"
+ ]
+}

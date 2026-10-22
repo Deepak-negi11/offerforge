@@ -1,0 +1,50 @@
+{
+ "pid": "cred-longest-same-parity-path-in-a-tree-marathon",
+ "title": "Longest Same-Parity Path in a Tree (Marathon)",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "A country has `n` cities, numbered `1` to `n`, connected by `n - 1` bidirectional roads so that every city can be reached from every other city (the road network is a tree). City `i` has an integer score `A[i]`.\n\nTwo marathons are to be organised. A marathon route is a simple path in the tree (a sequence of distinct cities where consecutive cities are joined by a road; a single city is a valid path). The first marathon may only pass through cities whose score is **even**. The second marathon may only pass through cities whose score is **odd**.\n\nFor each marathon, find the maximum number of cities its route can contain. If no city has the required parity, the answer for that marathon is `0`.\n\nPrint the answer for the even marathon first, then the answer for the odd marathon.",
+ "input_format": "The first line contains an integer `n`.\nThe second line contains `n` integers `A[1], ..., A[n]`.\nEach of the next `n - 1` lines contains two integers `u` and `v` (1-indexed): a road between cities `u` and `v`.",
+ "output_format": "Print two space-separated integers: the maximum number of cities on an all-even path, then the maximum number of cities on an all-odd path.",
+ "constraints": [
+  "1 ≤ n ≤ 10^5",
+  "1 ≤ A[i] ≤ 10^9",
+  "1 ≤ u, v ≤ n",
+  "The roads form a tree"
+ ],
+ "examples": [
+  {
+   "input": "5\n4 3 2 3 5\n1 2\n1 3\n2 4\n2 5",
+   "output": "2 3",
+   "explanation": "Cities 1 and 3 have even scores (4 and 2) and are joined by a road, so the best even path has 2 cities. Cities 2, 4 and 5 have odd scores; the path 4 - 2 - 5 uses only odd cities and has 3 cities."
+  },
+  {
+   "input": "4\n2 4 6 8\n1 2\n2 3\n3 4",
+   "output": "4 0",
+   "explanation": "Every city is even and the tree is a single chain, so the even path covers all 4 cities. There is no odd city, so the odd answer is 0."
+  },
+  {
+   "input": "6\n1 2 3 4 5 6\n1 2\n2 3\n3 4\n4 5\n5 6",
+   "output": "1 1",
+   "explanation": "Scores alternate in parity along the chain, so no two adjacent cities share a parity. Both marathons can only use a single city."
+  }
+ ],
+ "complexity": {
+  "time": "O(n)",
+  "space": "O(n)"
+ },
+ "hints": [
+  "Treat the even cities and the odd cities separately: deleting every road that joins cities of different parity splits the tree into several smaller trees, and you want the longest path (in cities) inside any of them.",
+  "A longest path in a tree can be found with one rooted DP: for each node, keep the length of the longest downward path that stays on cities of its own parity.",
+  "At each node, combine its two best same-parity child chains plus the node itself to get the best path that bends at this node. Process nodes in reverse BFS order to avoid recursion on deep trees."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    a = [int(x) & 1 for x in data[1:1 + n]]\n    adj = [[] for _ in range(n)]\n    pos = 1 + n\n    for _ in range(n - 1):\n        u = int(data[pos]) - 1\n        v = int(data[pos + 1]) - 1\n        pos += 2\n        adj[u].append(v)\n        adj[v].append(u)\n    parent = [-1] * n\n    seen = [False] * n\n    seen[0] = True\n    order = [0]\n    for v in order:\n        for w in adj[v]:\n            if not seen[w]:\n                seen[w] = True\n                parent[w] = v\n                order.append(w)\n    top1 = [0] * n\n    top2 = [0] * n\n    best = [0, 0]\n    for v in reversed(order):\n        p = a[v]\n        cand = 1 + top1[v] + top2[v]\n        if cand > best[p]:\n            best[p] = cand\n        par = parent[v]\n        if par >= 0 and a[par] == p:\n            d = 1 + top1[v]\n            if d > top1[par]:\n                top2[par] = top1[par]\n                top1[par] = d\n            elif d > top2[par]:\n                top2[par] = d\n    print(best[0], best[1])\n\nmain()\n",
+ "brute": "import sys\nfrom collections import deque\n\ndata = sys.stdin.read().split()\nn = int(data[0])\na = [int(x) & 1 for x in data[1:1 + n]]\nadj = [[] for _ in range(n)]\npos = 1 + n\nfor _ in range(n - 1):\n    u = int(data[pos]) - 1\n    v = int(data[pos + 1]) - 1\n    pos += 2\n    adj[u].append(v)\n    adj[v].append(u)\nbest = [0, 0]\nfor s in range(n):\n    dist = {s: 1}\n    q = deque([s])\n    while q:\n        v = q.popleft()\n        for w in adj[v]:\n            if a[w] == a[s] and w not in dist:\n                dist[w] = dist[v] + 1\n                q.append(w)\n    best[a[s]] = max(best[a[s]], max(dist.values()))\nprint(best[0], best[1])\n",
+ "generator": "def gen(rng):\n    def val(bit, hi):\n        k = rng.randint(1, hi)\n        return 2 * k if bit == 0 else 2 * k - 1\n\n    def tree(n, window):\n        return [(rng.randint(max(0, i - window), i - 1), i) for i in range(1, n)]\n\n    def out(bits, edges, hi=10):\n        n = len(bits)\n        perm = list(range(n))\n        rng.shuffle(perm)\n        sc = [0] * n\n        for i in range(n):\n            sc[perm[i]] = val(bits[i], hi)\n        es = []\n        for u, v in edges:\n            a, b = perm[u] + 1, perm[v] + 1\n            if rng.random() < 0.5:\n                a, b = b, a\n            es.append((a, b))\n        rng.shuffle(es)\n        lines = [str(n), ' '.join(map(str, sc))]\n        lines += [f'{a} {b}' for a, b in es]\n        return '\\n'.join(lines)\n\n    def bits(n, p):\n        return [0 if rng.random() < p else 1 for _ in range(n)]\n\n    tests = []\n    tests.append(out([0], []))\n    tests.append(out([1], []))\n    tests.append(out([0, 0], [(0, 1)]))\n    tests.append(out([0, 1], [(0, 1)]))\n    tests.append('5\\n4 3 2 3 5\\n1 2\\n1 3\\n2 4\\n2 5')\n    for n in range(2, 13):\n        for _ in range(2):\n            p = rng.choice([0.3, 0.5, 0.8])\n            w = rng.choice([1, 2, 3, n])\n            tests.append(out(bits(n, p), tree(n, w), hi=20))\n    for n in (30, 60):\n        tests.append(out(bits(n, 0.85), tree(n, 2), hi=50))\n    N = 100000\n    tests.append(out([0] * N, tree(N, 1), hi=50))\n    tests.append(out(bits(N, 0.97), tree(N, 1), hi=50))\n    tests.append(out(bits(N, 0.5), tree(N, N), hi=500))\n    tests.append(out(bits(N, 0.9), tree(N, 3), hi=50 * 10 ** 6))\n    tests.append(out(bits(N, 0.5), [(0, i) for i in range(1, N)], hi=50))\n    tests.append(out(bits(N, 0.8), [((i - 1) // 2, i) for i in range(1, N)], hi=50))\n    tests.append(out([i % 2 for i in range(N)], tree(N, 1), hi=50))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List, Tuple\n\n\ndef longest_paths(n: int, scores: List[int], edges: List[Tuple[int, int]]) -> Tuple[int, int]:\n    # Write your solution here\n    return (0, 0)\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    scores = [int(x) for x in data[1:1 + n]]\n    edges = []\n    pos = 1 + n\n    for _ in range(n - 1):\n        edges.append((int(data[pos]), int(data[pos + 1])))\n        pos += 2\n    even, odd = longest_paths(n, scores, edges)\n    print(even, odd)\n\n\nmain()\n",
+  "javascript": "function longestPaths(n, scores, edges) {\n  // Write your solution here\n  return [0, 0]\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0]\nconst scores = t.slice(1, 1 + n)\nconst edges = []\nlet pos = 1 + n\nfor (let i = 0; i < n - 1; i++) {\n  edges.push([t[pos], t[pos + 1]])\n  pos += 2\n}\nconst res = longestPaths(n, scores, edges)\nconsole.log(res[0] + ' ' + res[1])\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\npair<int, int> longestPaths(int n, vector<long long>& scores, vector<pair<int, int>>& edges) {\n    // Write your solution here\n    return {0, 0};\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> scores(n);\n    for (int i = 0; i < n; i++) cin >> scores[i];\n    vector<pair<int, int>> edges(max(0, n - 1));\n    for (int i = 0; i < n - 1; i++) cin >> edges[i].first >> edges[i].second;\n    pair<int, int> res = longestPaths(n, scores, edges);\n    cout << res.first << \" \" << res.second << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static int[] longestPaths(int n, long[] scores, int[][] edges) {\n        // Write your solution here\n        return new int[]{0, 0};\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] scores = new long[n];\n        for (int i = 0; i < n; i++) {\n            in.nextToken();\n            scores[i] = (long) in.nval;\n        }\n        int[][] edges = new int[Math.max(0, n - 1)][2];\n        for (int i = 0; i < n - 1; i++) {\n            in.nextToken();\n            edges[i][0] = (int) in.nval;\n            in.nextToken();\n            edges[i][1] = (int) in.nval;\n        }\n        int[] res = longestPaths(n, scores, edges);\n        System.out.println(res[0] + \" \" + res[1]);\n    }\n}\n"
+ }
+}

@@ -1,0 +1,49 @@
+{
+ "pid": "simplify-path",
+ "title": "Simplify Path",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given an **absolute** Unix-style file path that starts with `/`. Convert it to its simplified canonical form.\n\nSplit the path into segments separated by `/`. A segment is a maximal run of characters that are not `/`. Then apply these rules:\n\n- An empty segment (from repeated slashes such as `//`) and a segment equal to `.` are ignored. A `.` means the current directory.\n- A segment equal to `..` moves up one directory. If you are already at the root `/`, it has no effect.\n- Any other segment is a directory or file name and is kept. This includes names made of dots such as `...`, `.a` or `a..`; only the exact segments `.` and `..` are special.\n\nThe canonical path starts with a single `/`, separates directories with exactly one `/`, and does **not** end with `/` (except when the path is just the root `/`).",
+ "input_format": "A single line containing the path. It contains no spaces.",
+ "output_format": "Print the simplified canonical path.",
+ "constraints": [
+  "1 ≤ length of the path ≤ 10^5",
+  "The path consists of English letters, digits, `.`, `_` and `/`",
+  "The path starts with `/`"
+ ],
+ "examples": [
+  {
+   "input": "/home//user/./docs/../photos/",
+   "output": "/home/user/photos",
+   "explanation": "The double slash and `.` are ignored, `docs/..` cancels out, and the trailing slash is dropped."
+  },
+  {
+   "input": "/../../a/b/../../..",
+   "output": "/",
+   "explanation": "The first two `..` stay at the root. Then a and b are entered and three `..` leave them, the last one staying at the root."
+  },
+  {
+   "input": "/x/.../y/.hidden/",
+   "output": "/x/.../y/.hidden",
+   "explanation": "`...` and `.hidden` are ordinary names, not special segments, so they are kept."
+  }
+ ],
+ "complexity": {
+  "time": "O(L)",
+  "space": "O(L)"
+ },
+ "hints": [
+  "Split the path on `/` and process the segments from left to right.",
+  "Keep a stack of directory names: push normal names, pop for `..` (when the stack is not empty), and skip empty segments and `.`.",
+  "Join the stack with `/` and put a `/` in front. An empty stack must produce `/`."
+ ],
+ "reference": "import sys\n\ndef main():\n    path = sys.stdin.read().split()[0]\n    stack = []\n    for seg in path.split('/'):\n        if seg == '' or seg == '.':\n            continue\n        if seg == '..':\n            if stack:\n                stack.pop()\n        else:\n            stack.append(seg)\n    print('/' + '/'.join(stack))\n\nmain()\n",
+ "brute": "import sys\n\npath = sys.stdin.read().split()[0]\ndirs = []\nname = ''\nfor ch in path + '/':\n    if ch != '/':\n        name += ch\n        continue\n    if name == '..':\n        if dirs:\n            dirs.pop()\n    elif name != '' and name != '.':\n        dirs.append(name)\n    name = ''\nres = ''\nfor d in dirs:\n    res += '/' + d\nprint(res if res else '/')\n",
+ "generator": "def gen(rng):\n    names = ['a', 'b', 'home', 'usr', 'x1', '_t', '...', '.hid', 'a.b', '..a', 'z9']\n    def rnd(segs, p_up, p_dot, p_empty):\n        out = ['']\n        for _ in range(segs):\n            r = rng.random()\n            if r < p_up:\n                out.append('..')\n            elif r < p_up + p_dot:\n                out.append('.')\n            elif r < p_up + p_dot + p_empty:\n                out.append('')\n            else:\n                out.append(rng.choice(names))\n        if rng.random() < 0.4:\n            out.append('')\n        s = '/'.join(out)\n        if not s.startswith('/'):\n            s = '/' + s\n        return s\n    tests = [\n        '/home//user/./docs/../photos/', '/../../a/b/../../..', '/x/.../y/.hidden/', '/', '//', '/.', '/..', '/...',\n        '/a/', '/a/./b/../../c/', '/a//b////c/d//././/..', '/../', '/..hidden', '/a/b/c/../../../..', '/./././.', '/.a/..b/c.',\n    ]\n    for segs in (2, 3, 4, 6, 8, 12, 20, 30):\n        for _ in range(3):\n            tests.append(rnd(segs, 0.3, 0.15, 0.1))\n        tests.append(rnd(segs, 0.6, 0.1, 0.05))\n        tests.append(rnd(segs, 0.05, 0.05, 0.02))\n    # max-size tests\n    k = 16000\n    tests.append('/' + '/'.join(['ab'] * k) + '/' + '/'.join(['..'] * (k - 5)) + '/')\n    tests.append('/' + '/'.join(['..', '.'] * 19000))\n    parts = ['']\n    while sum(len(p) + 1 for p in parts) < 99900:\n        r = rng.random()\n        parts.append('..' if r < 0.35 else '.' if r < 0.45 else '' if r < 0.55 else ''.join(rng.choice('abc.') for _ in range(rng.randint(1, 6))))\n    s = '/'.join(parts)\n    tests.append(s[:100000] if s.startswith('/') else '/' + s[:99999])\n    tests.append('/' + '/'.join(['.' * 3] * 24000))\n    for t in tests:\n        assert 1 <= len(t) <= 100000 and t[0] == '/'\n    return tests\n",
+ "starters": {
+  "python": "import sys\n\n\ndef simplify_path(path: str) -> str:\n    # Write your solution here\n    return \"/\"\n\n\ndef main():\n    path = sys.stdin.read().split()[0]\n    print(simplify_path(path))\n\n\nmain()\n",
+  "javascript": "function simplifyPath(path) {\n  // Write your solution here\n  return '/'\n}\n\nconst path = input.trim()\nconsole.log(simplifyPath(path))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring simplifyPath(const string& path) {\n    // Write your solution here\n    return \"/\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string path;\n    cin >> path;\n    cout << simplifyPath(path) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String simplifyPath(String path) {\n        // Write your solution here\n        return \"/\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        String path = br.readLine().trim();\n        System.out.println(simplifyPath(path));\n    }\n}\n"
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "d7a6effacb",
+ "question": "Meesho Technical Interview 2 (SDE-1, on-campus). After a project discussion and some SQL, the interviewer asked operating-systems questions: what is the difference between a semaphore and a mutex, what is the paging technique, what is the difference between virtual and physical memory, and to explain threading using Java code. Other (lateral SDE-1) loops also asked about semaphores, mutexes and synchronization.",
+ "lookingFor": [
+  "Clear definitions of OS primitives with correct distinctions (ownership vs signalling).",
+  "Understanding of memory management beyond buzzwords.",
+  "Ability to connect theory to code (Java threads, `synchronized`, `Semaphore`).",
+  "Awareness of race conditions, deadlock and visibility problems."
+ ],
+ "answer": "**Semaphore vs mutex.**\n- A *mutex* is a lock for mutual exclusion. Only one thread holds it, and the thread that locked it must be the one to unlock it (ownership).\n- A *semaphore* is a counter with atomic `wait/acquire` (decrement, block at 0) and `signal/release` (increment). A counting semaphore with N permits lets up to N threads in (e.g. a pool of N connections). A binary semaphore looks like a mutex but has no ownership, so any thread may release it, which makes it suitable for signalling between threads (producer/consumer).\n- Use a mutex to protect a critical section; use a semaphore to limit concurrency or to signal events.\n\n**Paging.** Physical memory is split into fixed-size *frames* and a process's logical address space into same-size *pages*. A per-process *page table* maps page number to frame number; the address is split as page number plus offset. Paging removes external fragmentation (only internal fragmentation in the last page) and lets pages of a process sit non-contiguously. A TLB caches recent translations to avoid a page-table lookup on every access.\n\n**Virtual vs physical memory.** Physical memory is the actual RAM. Virtual memory is the abstraction in which each process sees its own large, contiguous address space. The OS and MMU translate virtual addresses to physical ones, and pages not currently needed live on disk (swap). Touching a page that is not resident raises a *page fault*; the OS loads it, possibly evicting another page (LRU-like replacement). Benefits: isolation between processes, programs larger than RAM, and sharing of code pages. Cost: page faults, and thrashing when the working set exceeds RAM.\n\n**Threading in Java.**\n```java\nclass Counter {\n    private int c = 0;\n    synchronized void inc() { c++; }   // mutex on 'this'\n}\nSemaphore sem = new Semaphore(3);       // at most 3 threads inside\nRunnable r = () -> { try { sem.acquire(); /* work */ } catch (InterruptedException e) {} finally { sem.release(); } };\nnew Thread(r).start();\n```\nWithout `synchronized`, `c++` is a read-modify-write and can lose updates (race condition). Mention `volatile` for visibility, and avoiding deadlock via consistent lock ordering.",
+ "followUps": [
+  "Can a semaphore be used to implement a mutex, and what is the catch?",
+  "What is a page fault and how is it handled step by step?",
+  "What is thrashing and how do you detect it?",
+  "What conditions are needed for deadlock, and how do you prevent it?",
+  "How does `synchronized` differ from `ReentrantLock`?"
+ ]
+}

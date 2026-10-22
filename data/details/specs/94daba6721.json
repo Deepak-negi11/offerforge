@@ -1,0 +1,18 @@
+{
+ "qid": "94daba6721",
+ "question": "A **taxi company has bought vehicle insurance policies in bulk** for its whole fleet. Design, end to end, a platform that lets the organisation **register** on it and **sends notifications once the registration succeeds**.\n\nThe candidate reported designing the whole system end to end; the follow-up discussion was relatively light.",
+ "lookingFor": [
+  "Gathering requirements for a bulk (B2B) onboarding flow",
+  "Clean API and data model for organisations, policies and vehicles",
+  "Handling bulk uploads and validation asynchronously",
+  "Reliable event-driven notification after registration",
+  "Security and compliance awareness for insurance data"
+ ],
+ "answer": "**Requirements.** Functional: an organisation registers (company details, contact, tax/licence documents), links its bulk policy, uploads or lists fleet vehicles (registration numbers), and receives a confirmation notification when registration succeeds. Non-functional: reliable, auditable, secure handling of KYC and insurance data, and support for fleets of thousands of vehicles. Clarify who verifies the organisation (automated or manual) and which channels notify (email, SMS, in-app).\n\n**API sketch.**\n- `POST /organisations` creates a registration in `PENDING`.\n- `POST /organisations/{id}/documents` uploads KYC files.\n- `POST /organisations/{id}/vehicles:bulk` accepts a CSV or JSON list and returns a job id.\n- `GET /jobs/{id}` reports progress.\n- `GET /organisations/{id}` shows the status.\n\n**Components.**\n- Registration service with a state machine: `PENDING` to `VERIFYING` to `ACTIVE` or `REJECTED`.\n- Verification step: validate the policy number with the insurer's system, check documents, and validate vehicles.\n- Bulk processing: store the upload in object storage, then workers validate rows in parallel and write results with per-row errors, so one bad row does not fail the batch.\n- Event bus: when status becomes `ACTIVE`, publish `OrganisationRegistered`.\n- Notification service: consumes the event, renders a template and sends email/SMS, with retries and a dead-letter queue.\n\n**Data model.** `organisation`, `policy`, `vehicle` (policy_id, registration_no, unique per policy), `document`, `registration_event` for audit.\n\n**Key points.** Make the registration endpoint idempotent with a client-supplied key so retries do not create duplicates. Use the transactional outbox pattern so the status change and the event are committed together; otherwise a crash could update the database but never notify. Encrypt personal and document data, enforce role-based access, and keep an audit trail.\n\n**Scale.** The load is modest per tenant but bursty on bulk uploads, so the queue and worker pool absorb spikes.",
+ "followUps": [
+  "How do you guarantee the notification is sent exactly once, or at least not lost?",
+  "How would you handle a fleet upload with 10,000 vehicles where 50 rows are invalid?",
+  "How would you design the status model if verification is manual?",
+  "What data would you encrypt and how would you control access?"
+ ]
+}

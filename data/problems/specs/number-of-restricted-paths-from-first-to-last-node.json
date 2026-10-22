@@ -1,0 +1,51 @@
+{
+ "pid": "number-of-restricted-paths-from-first-to-last-node",
+ "title": "Number of Restricted Paths",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "You are given a connected, undirected, weighted graph with `n` nodes labelled `1` to `n` and `m` edges. Edge `i` joins nodes `u` and `v` with positive weight `w`. There is at most one edge between any pair of nodes and no self-loops.\n\nLet `dist(x)` be the length of the shortest path from node `x` to node `n` (so `dist(n) = 0`).\n\nA **restricted path** from node `1` to node `n` is a sequence of nodes `z0, z1, ..., zk` with `z0 = 1` and `zk = n`, where every consecutive pair `zi, zi+1` is joined by an edge and the distances strictly decrease: `dist(zi) > dist(zi+1)`.\n\nCount the restricted paths from `1` to `n`. Since the count can be huge, print it modulo `10^9 + 7`.",
+ "input_format": "The first line contains `n` and `m`. Each of the next `m` lines contains three integers `u v w`, describing an edge.",
+ "output_format": "Print a single integer: the number of restricted paths from node 1 to node n, modulo 10^9 + 7.",
+ "constraints": [
+  "2 ≤ n ≤ 2 * 10^4",
+  "n - 1 ≤ m ≤ min(4 * 10^4, n(n - 1) / 2)",
+  "1 ≤ u, v ≤ n, u ≠ v, and every pair of nodes has at most one edge",
+  "1 ≤ w ≤ 10^5",
+  "The graph is connected"
+ ],
+ "examples": [
+  {
+   "input": "4 5\n1 2 1\n1 3 2\n2 4 3\n3 4 1\n2 3 1",
+   "output": "3",
+   "explanation": "The distances to node 4 are dist(4)=0, dist(3)=1, dist(2)=2, dist(1)=3. The restricted paths are 1-2-4, 1-2-3-4 and 1-3-4."
+  },
+  {
+   "input": "4 5\n1 2 1\n1 3 1\n2 4 1\n3 4 1\n2 3 1",
+   "output": "2",
+   "explanation": "Here dist(2) = dist(3) = 1 and dist(1) = 2. The edge between 2 and 3 cannot be used because the distance does not strictly decrease, so only 1-2-4 and 1-3-4 count."
+  },
+  {
+   "input": "2 1\n1 2 5",
+   "output": "1",
+   "explanation": "There is exactly one path, 1-2, and dist(1) = 5 > dist(2) = 0."
+  }
+ ],
+ "complexity": {
+  "time": "O((n + m) log n)",
+  "space": "O(n + m)"
+ },
+ "hints": [
+  "First compute `dist(x)` for every node with a single shortest-path run. From which node should it start?",
+  "Along a restricted path the distance strictly decreases, so no node repeats and the allowed moves form a directed acyclic graph (edge u -> v only if dist(v) < dist(u)).",
+  "Let `ways[x]` be the number of restricted paths from `x` to `n`. Process nodes in increasing order of `dist` so that every smaller-distance neighbour is already final, and sum their `ways`."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    adj = [[] for _ in range(n + 1)]\n    pos = 2\n    for _ in range(m):\n        u, v, w = int(data[pos]), int(data[pos + 1]), int(data[pos + 2])\n        pos += 3\n        adj[u].append((v, w))\n        adj[v].append((u, w))\n    INF = float('inf')\n    dist = [INF] * (n + 1)\n    dist[n] = 0\n    pq = [(0, n)]\n    while pq:\n        d, u = heapq.heappop(pq)\n        if d > dist[u]:\n            continue\n        for v, w in adj[u]:\n            nd = d + w\n            if nd < dist[v]:\n                dist[v] = nd\n                heapq.heappush(pq, (nd, v))\n    MOD = 10**9 + 7\n    order = sorted(range(1, n + 1), key=lambda x: dist[x])\n    dp = [0] * (n + 1)\n    dp[n] = 1\n    for u in order:\n        if u == n:\n            continue\n        s = 0\n        du = dist[u]\n        for v, w in adj[u]:\n            if dist[v] < du:\n                s += dp[v]\n        dp[u] = s % MOD\n    print(dp[1] % MOD)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\nn, m = int(data[0]), int(data[1])\nadj = [[] for _ in range(n + 1)]\nE = []\nfor i in range(m):\n    u, v, w = int(data[2 + 3 * i]), int(data[3 + 3 * i]), int(data[4 + 3 * i])\n    adj[u].append(v)\n    adj[v].append(u)\n    E.append((u, v, w))\nINF = float('inf')\ndist = [INF] * (n + 1)\ndist[n] = 0\nfor _ in range(n):\n    for u, v, w in E:\n        if dist[u] + w < dist[v]:\n            dist[v] = dist[u] + w\n        if dist[v] + w < dist[u]:\n            dist[u] = dist[v] + w\n\ndef count(u):\n    if u == n:\n        return 1\n    return sum(count(v) for v in adj[u] if dist[v] < dist[u])\n\nprint(count(1) % (10**9 + 7))\n",
+ "generator": "def gen(rng):\n    def fmt(n, edges):\n        return f'{n} {len(edges)}\\n' + '\\n'.join(f'{u} {v} {w}' for u, v, w in edges)\n\n    def connected(n, m, maxw):\n        perm = list(range(1, n + 1))\n        rng.shuffle(perm)\n        es, seen = [], set()\n        for v in range(2, n + 1):\n            u = rng.randint(1, v - 1)\n            a, b = perm[u - 1], perm[v - 1]\n            seen.add((min(a, b), max(a, b)))\n            es.append((a, b, rng.randint(1, maxw)))\n        while len(es) < m:\n            u, v = rng.randint(1, n), rng.randint(1, n)\n            if u == v:\n                continue\n            key = (min(u, v), max(u, v))\n            if key in seen:\n                continue\n            seen.add(key)\n            es.append((u, v, rng.randint(1, maxw)))\n        rng.shuffle(es)\n        return es\n\n    tests = [\n        fmt(2, [(1, 2, 5)]),\n        fmt(2, [(2, 1, 1)]),\n        fmt(4, [(1, 2, 1), (1, 3, 2), (2, 4, 3), (3, 4, 1), (2, 3, 1)]),\n        fmt(4, [(1, 2, 1), (1, 3, 1), (2, 4, 1), (3, 4, 1), (2, 3, 1)]),\n        fmt(5, [(1, 2, 2), (2, 3, 2), (3, 4, 2), (4, 5, 2)]),\n    ]\n    for n in range(2, 9):\n        for _ in range(4):\n            mx = n * (n - 1) // 2\n            m = rng.randint(n - 1, mx)\n            tests.append(fmt(n, connected(n, m, rng.choice([1, 2, 5, 100]))))\n    tests.append(fmt(300, connected(300, 40000, 3)))\n    tests.append(fmt(20000, connected(20000, 40000, 10**5)))\n    tests.append(fmt(20000, connected(20000, 40000, 2)))\n    r, c = 100, 200\n    es = []\n    for i in range(r):\n        for j in range(c):\n            u = i * c + j + 1\n            if j + 1 < c:\n                es.append((u, u + 1, rng.randint(1, 3)))\n            if i + 1 < r:\n                es.append((u, u + c, rng.randint(1, 3)))\n    tests.append(fmt(r * c, es))\n    tests.append(fmt(20000, [(i, i + 1, rng.randint(1, 10**5)) for i in range(1, 20000)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef count_restricted_paths(n: int, edges: List[List[int]]) -> int:\n    # edges[i] = [u, v, w]; return the answer modulo 10^9 + 7.\n    # Write your solution here\n    return 0\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n, m = int(data[0]), int(data[1])\n    edges = []\n    for i in range(m):\n        edges.append([int(data[2 + 3 * i]), int(data[3 + 3 * i]), int(data[4 + 3 * i])])\n    print(count_restricted_paths(n, edges))\n\n\nmain()\n",
+  "javascript": "function countRestrictedPaths(n, edges) {\n  // edges[i] = [u, v, w]; return the answer modulo 10^9 + 7.\n  // Write your solution here\n  return 0\n}\n\nconst t = input.split(/\\s+/).filter(Boolean).map(Number)\nconst n = t[0], m = t[1]\nconst edges = []\nfor (let i = 0; i < m; i++) edges.push([t[2 + 3 * i], t[3 + 3 * i], t[4 + 3 * i]])\nconsole.log(String(countRestrictedPaths(n, edges)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long countRestrictedPaths(int n, vector<array<int, 3>>& edges) {\n    // edges[i] = {u, v, w}; return the answer modulo 10^9 + 7.\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n, m;\n    cin >> n >> m;\n    vector<array<int, 3>> edges(m);\n    for (int i = 0; i < m; i++) cin >> edges[i][0] >> edges[i][1] >> edges[i][2];\n    cout << countRestrictedPaths(n, edges) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long countRestrictedPaths(int n, int[][] edges) {\n        // edges[i] = {u, v, w}; return the answer modulo 10^9 + 7.\n        // Write your solution here\n        return 0;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        in.nextToken();\n        int m = (int) in.nval;\n        int[][] edges = new int[m][3];\n        for (int i = 0; i < m; i++) {\n            for (int k = 0; k < 3; k++) {\n                in.nextToken();\n                edges[i][k] = (int) in.nval;\n            }\n        }\n        System.out.println(countRestrictedPaths(n, edges));\n    }\n}\n"
+ }
+}

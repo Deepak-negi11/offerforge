@@ -1,0 +1,17 @@
+{
+ "qid": "4e03b3ed36",
+ "question": "D. E. Shaw SDE intern, technical round. After Java constructor questions, the candidate was asked about **implementing a generic array**, and about the **fundamental differences between Java and C++** (generics versus templates, constructors).",
+ "lookingFor": [
+  "Understanding type erasure versus template instantiation.",
+  "Knowing why generic arrays are awkward in Java and the standard workarounds.",
+  "Broader awareness of language differences: memory model, constructors, inheritance.",
+  "Ability to explain trade-offs, not just list differences."
+ ],
+ "answer": "**Generic array in C++.** Templates make it direct: the compiler generates code for each type.\n```cpp\ntemplate <typename T>\nclass MyArray {\n  T* data; size_t n;\npublic:\n  explicit MyArray(size_t n) : data(new T[n]()), n(n) {}\n  ~MyArray() { delete[] data; }\n  T& operator[](size_t i) { return data[i]; }\n};\n```\n(In practice use `std::vector<T>`; add copy/move operations or delete them, following the rule of five.)\n\n**Generic array in Java.** `new T[n]` is **illegal**, because generics use **type erasure**: `T` does not exist at runtime, and arrays must know their element type. Workarounds:\n```java\nclass MyArray<T> {\n  private final T[] data;\n  @SuppressWarnings(\"unchecked\")\n  MyArray(int n) { data = (T[]) new Object[n]; }        // unchecked cast\n  MyArray(Class<T> type, int n) {                       // type-safe\n    data = (T[]) java.lang.reflect.Array.newInstance(type, n);\n  }\n}\n```\nOr simply use `ArrayList<T>`. Arrays are covariant and reified while generics are invariant and erased, so mixing them is unsafe.\n\n**Generics versus templates**\n- Java: one compiled class shared by all types; checks happen at compile time, erased at runtime; type arguments must be reference types (no `List<int>`, use `Integer`); bounded types via `extends`.\n- C++: a separate instantiation per type at compile time; works with primitives; can specialise; supports non-type parameters and compile-time computation; error messages are harder, and code size can grow.\n\n**Constructors**\n- Java: a default constructor is provided if you declare none; constructor chaining with `this(...)` and `super(...)`; no destructors (the garbage collector reclaims memory); no copy constructor by default.\n- C++: has copy and move constructors, initialiser lists and destructors (RAII); you manage object lifetime; constructors cannot be virtual.\n\n**Other differences**\n- Memory: garbage collection versus manual or RAII management; Java has no raw pointers.\n- Compilation: bytecode on a JVM versus native code.\n- Inheritance: Java has single class inheritance plus interfaces; C++ has multiple inheritance; Java methods are virtual by default, C++ ones only when marked `virtual`.",
+ "followUps": [
+  "Why can't you create an array of a generic type in Java?",
+  "What is type erasure and what limitations does it cause?",
+  "What are template specialisation and SFINAE?",
+  "What is the rule of three/five in C++?"
+ ]
+}

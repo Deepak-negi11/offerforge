@@ -1,0 +1,18 @@
+{
+ "qid": "99948f9d14",
+ "question": "In a Samsung SRI-B intern technical round, after discussing the candidate's resume, backend internship and a live-hosted project, the interviewer asked about **how sessions and cookies work in a browser**. The interview then moved on to DSA questions on sorting, XOR tricks, binary search and heaps.",
+ "lookingFor": [
+  "Do you understand that HTTP is stateless and how sessions add state on top?",
+  "Can you explain the cookie mechanism: Set-Cookie header, Cookie header, attributes?",
+  "Can you compare sessions with cookies, tokens and web storage, including security?",
+  "Do you know common attacks such as XSS, CSRF and session fixation, and mitigations?"
+ ],
+ "answer": "**The problem.** HTTP is stateless: each request is independent, so the server does not remember who you are. Cookies and sessions add state.\n\n**Cookies.** A cookie is a small piece of data (name, value, attributes) that the server asks the browser to store, using the `Set-Cookie` response header. The browser then sends it back in the `Cookie` header on matching requests. Important attributes:\n\n- `Expires` / `Max-Age`: persistent versus session cookie (deleted when the browser closes).\n- `Domain` and `Path`: which requests include the cookie.\n- `Secure`: sent over HTTPS only. `HttpOnly`: not readable by JavaScript (limits theft through XSS).\n- `SameSite` (`Lax`, `Strict`, `None`): limits cross-site sending, which helps against CSRF.\n\nCookies are stored on the client, are limited to about 4 KB, and are sent with every request, so they should not hold sensitive data.\n\n**Sessions.** A session keeps the user's state **on the server**. Flow:\n\n1. The user logs in successfully.\n2. The server creates a session record (user id, role, expiry) in memory, a database or a cache such as Redis, under a long random **session id**.\n3. The server sends the session id in a cookie (`Set-Cookie: sid=...; HttpOnly; Secure`).\n4. On each request the browser sends the cookie, the server looks up the session id and knows the user.\n5. On logout or expiry the server deletes the record.\n\nSo the **cookie is the transport and the session is the server-side storage**; the cookie only holds an identifier.\n\n**Comparison.** Session data is hidden from the client and easy to revoke, but the server must store it, and with multiple servers you need a shared store or sticky routing. Storing data directly in a cookie (or a signed token such as a JWT) needs no server storage but is harder to revoke and must be signed, and never contain secrets. Web storage (`localStorage`, `sessionStorage`) is not sent automatically and is readable by JavaScript, so it is exposed to XSS.\n\n**Security points:** generate unpredictable ids, regenerate the id after login (prevents session fixation), set an expiry and idle timeout, use HTTPS, and add CSRF protection.",
+ "followUps": [
+  "What is the difference between a session cookie and a persistent cookie?",
+  "What does the SameSite attribute do, and what is CSRF?",
+  "How do you scale sessions across several servers?",
+  "Why can't JavaScript read an HttpOnly cookie, and what attack does this reduce?",
+  "How are JWT tokens different from server-side sessions?"
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "qid": "696337791b",
+ "question": "Apple, Software Engineer (Java, Spring Boot, microservices), virtual round 1 (DSA plus backend fundamentals). The coding task was a stack-based balanced-parentheses check. The backend questions were: **Kafka basics and internals, for example what a consumer can and cannot do; SQL joins and which are more efficient in which scenarios; and the internal structure of systems like Redis.**",
+ "lookingFor": [
+  "Correct mental model of Kafka: partitions, offsets, consumer groups.",
+  "Understanding of join algorithms, not only join syntax.",
+  "Knowing why Redis is fast and how its data structures work.",
+  "Ability to state limits and trade-offs, not only features."
+ ],
+ "answer": "**Kafka consumer: can and cannot.**\n- Can: subscribe to topics, poll records, commit offsets (auto or manual), rewind or seek to an offset or timestamp to replay, belong to a consumer group for load sharing, and process at-least-once (exactly-once with transactions and idempotent processing).\n- Cannot: delete or modify messages (the log is append-only and retention removes data), read a partition in parallel with another consumer of the *same* group (each partition goes to one consumer per group, so useful consumers are at most the partition count), rely on ordering across partitions (order is guaranteed only within a partition), or get messages the broker already deleted by retention.\n\n**Joins and efficiency.** `INNER`, `LEFT`, `RIGHT`, `FULL`, `CROSS` define the result; the engine picks an algorithm:\n- **Nested loop:** best when one side is small or the inner side has an index on the join key.\n- **Hash join:** build a hash table on the smaller input; best for large unsorted equi-joins.\n- **Merge join:** best when both inputs are already sorted (index order) or must be sorted anyway.\nEfficiency depends on indexes, table sizes, selectivity, and filtering early; check with `EXPLAIN`. Non-equi joins cannot use hash joins. Joining on non-indexed or function-wrapped columns hurts.\n\n**Redis internals.**\n- In-memory key-value store; commands run on a **single-threaded event loop** using I/O multiplexing (newer versions can use extra threads for network I/O), which avoids locking.\n- Keys live in a hash table that rehashes incrementally.\n- Values use specialised encodings: simple dynamic strings, compact listpacks for small hashes/lists/sets, linked lists of packed nodes (quicklist), integer sets, and **skip list plus hash table for sorted sets**.\n- Persistence: RDB snapshots and the append-only file (AOF). Replication and Cluster (16384 hash slots) provide availability and sharding.\n- Expiry uses lazy deletion plus periodic active sampling; memory limits apply eviction policies.",
+ "followUps": [
+  "What happens when the number of consumers exceeds the number of partitions?",
+  "How does Kafka achieve high throughput?",
+  "Why is Redis single-threaded yet fast?",
+  "When would you pick a merge join over a hash join?",
+  "How do you check balanced parentheses and what is its complexity?"
+ ]
+}

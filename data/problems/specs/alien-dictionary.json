@@ -1,0 +1,50 @@
+{
+ "pid": "alien-dictionary",
+ "title": "Alien Dictionary",
+ "difficulty": "Hard",
+ "source_note": "standard",
+ "statement": "A new language uses the lowercase English letters, but in an **unknown alphabetical order**. You are given a list of `n` words from its dictionary. The list is **sorted lexicographically according to the rules of this language**: words are compared letter by letter using the unknown alphabet, and when one word is a proper prefix of another, the shorter word comes first.\n\nUsing only this list, determine the order of the letters. The alphabet to report contains exactly the distinct letters that appear in the words.\n\n- If no ordering of those letters can make the list sorted, print `-1`. This happens when the constraints contradict each other (a cycle, such as `a` before `b` and also `b` before `a`), or when a longer word appears **before** a word that is its proper prefix (for example `abc` before `ab`).\n- Equal adjacent words are allowed and give no information.\n- Several orders may be consistent with the list, because some pairs of letters are never compared. Print the one that is **smallest in ordinary lexicographic order** when the order is read as a string of letters.\n\nFor example, if the only thing known is that `b` comes before `a` and the word set also contains `c`, the valid alphabets are `bac`, `bca` and `cba`, and the answer is `bac`.\n\n**Follow-up:** explain the failure conditions your solution detects, and what changes in the algorithm if any valid order (rather than the smallest) is acceptable.",
+ "input_format": "The first line contains an integer `n`.\nThe next `n` lines each contain one word, in the given order.",
+ "output_format": "Print the alphabet as a string of letters, or `-1` if the list is inconsistent.",
+ "constraints": [
+  "1 ≤ n ≤ 10^4",
+  "1 ≤ length of each word ≤ 100",
+  "The total length of all words is at most 2 * 10^5",
+  "Words consist of lowercase English letters"
+ ],
+ "examples": [
+  {
+   "input": "4\ncab\ncad\nabd\nbd",
+   "output": "cabd",
+   "explanation": "Comparing neighbours: `cab`/`cad` first differ at `b` vs `d`, so `b` < `d`; `cad`/`abd` give `c` < `a`; `abd`/`bd` give `a` < `b`. Together `c` < `a` < `b` < `d`, so the alphabet is `cabd`."
+  },
+  {
+   "input": "2\nabc\nab",
+   "output": "-1",
+   "explanation": "`ab` is a proper prefix of `abc`, so `ab` must come first, but it comes second. No order can fix this, so the answer is -1."
+  },
+  {
+   "input": "3\ndc\nde\nbd",
+   "output": "cdbe",
+   "explanation": "`dc`/`de` give `c` < `e`, and `de`/`bd` give `d` < `b`. Nothing relates the two pairs. The smallest valid string takes the alphabetically smallest letter that is free at each step: `c`, then `d` (since `e` and `d` are free and `d` is smaller), then `b`, then `e`, giving `cdbe`."
+  }
+ ],
+ "complexity": {
+  "time": "O(L + 26 log 26)",
+  "space": "O(1)"
+ },
+ "hints": [
+  "Only adjacent words matter. For each adjacent pair, find the first position where they differ: that gives one rule 'letter x comes before letter y'.",
+  "If no position differs and the first word is longer than the second, the list is impossible. Otherwise build a directed graph of the rules and topologically sort it.",
+  "To get the lexicographically smallest valid order, run Kahn's algorithm with a min-heap of letters that currently have no unmet rule. If the sort does not place every letter, there is a cycle: print -1."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    words = data[1:1 + n]\n    letters = set()\n    for w in words:\n        letters.update(w)\n    adj = {ch: set() for ch in letters}\n    indeg = {ch: 0 for ch in letters}\n    for a, b in zip(words, words[1:]):\n        k = 0\n        m = min(len(a), len(b))\n        while k < m and a[k] == b[k]:\n            k += 1\n        if k == m:\n            if len(a) > len(b):\n                print(-1)\n                return\n            continue\n        if b[k] not in adj[a[k]]:\n            adj[a[k]].add(b[k])\n            indeg[b[k]] += 1\n    heap = [ch for ch in letters if indeg[ch] == 0]\n    heapq.heapify(heap)\n    out = []\n    while heap:\n        ch = heapq.heappop(heap)\n        out.append(ch)\n        for nx in adj[ch]:\n            indeg[nx] -= 1\n            if indeg[nx] == 0:\n                heapq.heappush(heap, nx)\n    print(''.join(out) if len(out) == len(letters) else -1)\n\nmain()\n",
+ "brute": "import sys\nfrom itertools import permutations\n\ndata = sys.stdin.read().split()\nn = int(data[0])\nwords = data[1:1 + n]\nletters = sorted(set(''.join(words)))\nans = '-1'\nfor perm in permutations(letters):\n    rank = {ch: i for i, ch in enumerate(perm)}\n    keys = [[rank[ch] for ch in w] for w in words]\n    if all(keys[i] <= keys[i + 1] for i in range(n - 1)):\n        ans = ''.join(perm)\n        break\nprint(ans)\n",
+ "generator": "def gen(rng):\n    import string\n    def fmt(ws):\n        return str(len(ws)) + '\\n' + '\\n'.join(ws)\n    def sort_under(ws, perm):\n        rank = {ch: i for i, ch in enumerate(perm)}\n        return sorted(ws, key=lambda w: [rank[ch] for ch in w])\n    tests = [fmt(['a']), fmt(['zebra']), fmt(['ab', 'ab']), fmt(['abc', 'ab']), fmt(['ab', 'abc']),\n             fmt(['a', 'b', 'a']), fmt(['a', 'b', 'c', 'a']), fmt(['ba', 'bc', 'ac', 'ab']),\n             fmt(['cab', 'cad', 'abd', 'bd']), fmt(['dc', 'de', 'bd']), fmt(['x', 'y', 'z']), fmt(['z', 'y', 'x']),\n             fmt(['ab', 'ba']), fmt(['abc', 'abd', 'ab'])]\n    for _ in range(40):\n        k = rng.randint(1, 6)\n        letters = rng.sample(string.ascii_lowercase, k)\n        perm = letters[:]\n        rng.shuffle(perm)\n        cnt = rng.randint(1, 8)\n        ws = [''.join(rng.choice(letters) for _ in range(rng.randint(1, 4))) for _ in range(cnt)]\n        mode = rng.random()\n        if mode < 0.55:\n            ws = sort_under(ws, perm)\n        elif mode < 0.8:\n            ws = sort_under(ws, perm)\n            if len(ws) > 1:\n                i, j = rng.sample(range(len(ws)), 2)\n                ws[i], ws[j] = ws[j], ws[i]\n        tests.append(fmt(ws))\n    def big(n, maxlen, k, skew, minlen=1):\n        letters = list(string.ascii_lowercase[:k])\n        perm = letters[:]\n        rng.shuffle(perm)\n        ws = []\n        for _ in range(n):\n            L = rng.randint(minlen, maxlen)\n            pool = letters[:rng.randint(2, k)] if skew else letters\n            ws.append(''.join(rng.choice(pool) for _ in range(L)))\n        return sort_under(ws, perm)\n    a = big(10000, 15, 26, True)\n    tests.append(fmt(a))\n    b = big(10000, 15, 26, False)\n    tests.append(fmt(b))\n    c = big(2000, 100, 26, True, 100)\n    tests.append(fmt(c))\n    d = big(10000, 15, 26, True)\n    d.append(d[-1][:-1] if len(d[-1]) > 1 else d[-1] + 'a')\n    d.append('ab')\n    tests.append(fmt(d))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef alien_order(words: List[str]) -> str:\n    # Write your solution here\n    return \"\"\n\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    words = data[1:1 + n]\n    print(alien_order(words))\n\n\nmain()\n",
+  "javascript": "function alienOrder(words) {\n  // Write your solution here\n  return \"\"\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst n = Number(t[0])\nconst words = t.slice(1, 1 + n)\nconsole.log(alienOrder(words))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nstring alienOrder(vector<string>& words) {\n    // Write your solution here\n    return \"\";\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<string> words(n);\n    for (int i = 0; i < n; i++) cin >> words[i];\n    cout << alienOrder(words) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String alienOrder(String[] words) {\n        // Write your solution here\n        return \"\";\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int n = Integer.parseInt(st.nextToken());\n        String[] words = new String[n];\n        int idx = 0;\n        while (idx < n) {\n            String line = br.readLine();\n            if (line == null) break;\n            st = new StringTokenizer(line);\n            while (st.hasMoreTokens() && idx < n) words[idx++] = st.nextToken();\n        }\n        System.out.println(alienOrder(words));\n    }\n}\n"
+ }
+}

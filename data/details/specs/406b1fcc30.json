@@ -1,0 +1,18 @@
+{
+ "qid": "406b1fcc30",
+ "question": "Atlassian Karat screen (system design scenario). You are building a clone of Google Docs. Multiple users may edit one document at the same time, and a document must be handled by a single server no matter how many users are on it. There is a fixed number of servers, sufficient for the expected load. The load balancer uses **round-robin** to permanently assign documents to servers so that each server gets an equal **number** of documents. Do you have any concerns about this load-balancing approach, and if so how would you fix the scalability issue?",
+ "lookingFor": [
+  "Spotting that equal document count does not mean equal load.",
+  "Understanding sticky/affinity routing versus stateless balancing.",
+  "Knowledge of consistent hashing, rebalancing and migration.",
+  "Thinking about failure of a server that owns documents.",
+  "Metrics-driven load balancing and hot document handling."
+ ],
+ "answer": "**Concerns with permanent round-robin assignment.**\n1. **Load is not proportional to document count.** One document may have 500 live editors while another has none. Servers with a few hot documents become overloaded while others idle. Load depends on active editors, edit rate and document size.\n2. **No rebalancing.** Assignment is permanent, so a server that gets unlucky stays unlucky, and a document that becomes hot cannot move.\n3. **Fixed fleet.** Adding servers does not help existing documents, and removing one needs a manual remap. Round-robin gives no stable mapping from document to server, so you need a lookup table for routing.\n4. **Single point of failure per document.** If the owning server dies, its documents are unavailable until reassigned.\n5. **Hard cap per document.** A single server bounds how many users one document can serve.\n\n**Fixes.**\n- **Route by document id, not by arrival order:** consistent hashing over the server set (with virtual nodes) gives a deterministic owner and moves only a small fraction of documents when servers are added or removed. A routing layer or a directory service (document id to server) with a cache handles lookups.\n- **Balance on actual load:** track per-server metrics (active connections, ops per second, CPU, memory) and have a coordinator migrate hot documents to underused servers. Migration means: pause or buffer edits, flush state to durable storage, reassign ownership, reconnect clients.\n- **Assign by load at creation or on open:** when a document is opened, pick the least loaded server (power of two choices works well) and release ownership when it goes idle, so assignment is per-session rather than permanent.\n- **Durability and failover:** persist operations to a log/store (for example a replicated log) so another server can take over a document after a crash, with leases or a coordination service (ZooKeeper/etcd style) to avoid two owners at once.\n- **Hot documents:** if a single document exceeds a server, split read-only viewers from editors (fan out updates via a pub/sub layer) while keeping a single writer for ordering.",
+ "followUps": [
+  "How do you avoid two servers both thinking they own a document during failover?",
+  "How would you migrate a live document without losing edits?",
+  "Why might consistent hashing alone still produce hot spots?",
+  "What would you monitor to decide that a server is overloaded?"
+ ]
+}

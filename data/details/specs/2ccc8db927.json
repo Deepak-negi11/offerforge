@@ -1,0 +1,17 @@
+{
+ "qid": "2ccc8db927",
+ "question": "Apple, Software Engineer, IS&T Backend (Java, Spring Boot, microservices), second elimination round, a 20-minute Java/Spring theory segment after a BookMyShow system design. Reported questions: **Spring Cache related questions, BeanFactory versus ApplicationContext, concurrent collections (the candidate explained ConcurrentHashMap), and what is a Future.**",
+ "lookingFor": [
+  "Understanding Spring's caching abstraction and its pitfalls.",
+  "Knowing Spring container fundamentals.",
+  "Accurate explanation of how ConcurrentHashMap achieves thread safety.",
+  "Grasp of asynchronous results with Future and CompletableFuture."
+ ],
+ "answer": "**Spring Cache.** A caching abstraction applied through annotations, enabled with `@EnableCaching`. `@Cacheable` returns a cached value or runs the method and stores the result, `@CachePut` always runs and updates the cache, and `@CacheEvict` removes entries. Keys default to the method arguments (customise with SpEL). A `CacheManager` picks the provider: the default is a simple in-memory `ConcurrentMap`; production setups use Caffeine (local) or Redis (shared), where TTL and size are provider settings. Pitfalls: it works through proxies, so calling a cached method from within the same class (self-invocation) bypasses the cache; cached objects must be serialisable for remote caches; and stale data requires an eviction strategy.\n\n**BeanFactory vs ApplicationContext.** `BeanFactory` is the basic IoC container: creates and wires beans, lazy by default. `ApplicationContext` extends it and adds eager singleton initialisation, event publishing, internationalisation (messages), resource loading, environment and profiles, and automatic registration of post-processors, including AOP and annotation support. Applications almost always use `ApplicationContext`.\n\n**ConcurrentHashMap.** A thread-safe hash map without a single global lock. In Java 8+ reads are mostly lock-free; writes use compare-and-swap for empty buckets and lock only the head node of a bucket otherwise (older versions used segment locks). It does not allow null keys or values, provides atomic operations such as `putIfAbsent`, `computeIfAbsent` and `merge`, and its iterators are weakly consistent: they never throw `ConcurrentModificationException` but may not reflect concurrent updates. Compare with `Collections.synchronizedMap`, which locks the entire map, and note that compound check-then-act steps still need the atomic methods.\n\n**Future.** A handle to the result of an asynchronous computation, returned by `ExecutorService.submit`. Methods: `get()` (blocks until done, optionally with timeout), `isDone()`, `cancel()`. Limitations: blocking `get`, no callbacks or chaining. `CompletableFuture` adds `thenApply`, `thenCompose`, `thenCombine`, `exceptionally` and non-blocking composition.",
+ "followUps": [
+  "Why does a @Cacheable method called from the same class not get cached?",
+  "What is the difference between `computeIfAbsent` and a manual get-then-put?",
+  "What does `Future.get()` do if the task threw an exception?",
+  "How would you set a TTL for Spring Cache entries?"
+ ]
+}

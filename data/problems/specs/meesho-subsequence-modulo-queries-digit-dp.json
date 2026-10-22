@@ -1,0 +1,45 @@
+{
+ "pid": "meesho-subsequence-modulo-queries-digit-dp",
+ "title": "Subsequence Modulo Queries (Digit DP)",
+ "difficulty": "Medium",
+ "source_note": "reconstructed",
+ "statement": "You are given a string `s` made of decimal digits (it can be very long, so treat it as a string, not a number) and an integer `X`. You are also given `Q` queries, each containing an integer `K`.\n\nFor each query, decide whether **some non-empty subsequence** of `s` forms a number whose value is congruent to `K` modulo `X`.\n\n- A subsequence keeps the original order of the chosen digits; the chosen positions need not be adjacent.\n- The digits of the subsequence are concatenated and read as an ordinary decimal number. Leading zeros are allowed and do not change the value, so the subsequence `\"007\"` has value `7` and the subsequence `\"0\"` has value `0`.\n- Different choices of positions may give the same number; you only need to know whether at least one choice works.\n\nFor each query print `YES` if such a subsequence exists, otherwise `NO`.",
+ "input_format": "The first line contains the digit string `s`.\nThe second line contains `X` and `Q`.\nThe third line contains `Q` integers: the values `K` of the queries.",
+ "output_format": "Print `Q` lines, one per query in order: `YES` or `NO`.",
+ "constraints": [
+  "1 ≤ |s| ≤ 10^4, s consists of the digits 0 to 9",
+  "1 ≤ X ≤ 100",
+  "1 ≤ Q ≤ 2 · 10^5",
+  "0 ≤ K < X"
+ ],
+ "examples": [
+  {
+   "input": "2305\n7 4\n1 6 0 3",
+   "output": "NO\nYES\nYES\nYES",
+   "explanation": "The subsequence \"20\" has value 20, and 20 mod 7 = 6, so K = 6 is YES. The subsequence \"0\" has value 0, so K = 0 is YES, and \"3\" gives K = 3. No subsequence of 2305 has a value with remainder 1 modulo 7, so K = 1 is NO."
+  },
+  {
+   "input": "90\n4 4\n0 1 2 3",
+   "output": "YES\nYES\nYES\nNO",
+   "explanation": "The non-empty subsequences are \"9\", \"0\" and \"90\", with values 9, 0 and 90. Modulo 4 these are 1, 0 and 2. So K = 0, 1, 2 are YES and K = 3 is NO."
+  }
+ ],
+ "complexity": {
+  "time": "O(|s| · X + Q)",
+  "space": "O(X)"
+ },
+ "hints": [
+  "Do not enumerate subsequences. Only the remainder of the number built so far matters, and there are at most `X` different remainders.",
+  "Keep a set `R` of remainders that some subsequence of the processed prefix can produce. When you read digit `d`, you can start a new number with `d`, or append `d` to any earlier subsequence: remainder `r` becomes `(r * 10 + d) mod X`.",
+  "Update the set from the old version of `R` (appending uses only subsequences that end before this position). After the whole string, every query is a lookup in `R`."
+ ],
+ "reference": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    s = data[0]\n    x = int(data[1])\n    q = int(data[2])\n    reach = [False] * x\n    cur = []\n    for ch in s:\n        d = int(ch)\n        add = [(r * 10 + d) % x for r in cur]\n        add.append(d % x)\n        changed = False\n        for v in add:\n            if not reach[v]:\n                reach[v] = True\n                changed = True\n        if changed:\n            cur = [r for r in range(x) if reach[r]]\n    out = []\n    for i in range(q):\n        out.append('YES' if reach[int(data[3 + i])] else 'NO')\n    print('\\n'.join(out))\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\ns = data[0]\nx = int(data[1])\nq = int(data[2])\nL = len(s)\nvals = set()\nfor mask in range(1, 1 << L):\n    num = 0\n    for i in range(L):\n        if mask >> i & 1:\n            num = num * 10 + int(s[i])\n    vals.add(num % x)\nprint('\\n'.join('YES' if int(data[3 + i]) in vals else 'NO' for i in range(q)))\n",
+ "generator": "def gen(rng):\n    def fmt(s, x, qs):\n        return s + '\\n' + f'{x} {len(qs)}\\n' + ' '.join(map(str, qs))\n\n    tests = [\n        fmt('7', 1, [0]),\n        fmt('0', 5, [0, 1, 2, 3, 4]),\n        fmt('000', 7, [0, 1, 6]),\n        fmt('99999999', 100, [0, 9, 99, 98, 90]),\n        fmt('90', 4, [0, 1, 2, 3]),\n        fmt('1234567890', 97, list(range(97))),\n        fmt('10', 100, [0, 1, 10, 11]),\n    ]\n    alphabets = ['0123456789', '05', '37', '1', '019', '25', '0123456789']\n    for _ in range(40):\n        L = rng.randint(1, 12)\n        digs = rng.choice(alphabets)\n        s = ''.join(rng.choice(digs) for _ in range(L))\n        x = rng.choice([rng.randint(1, 100), rng.randint(1, 12), 100, 99])\n        qs = [rng.randrange(x) for _ in range(rng.randint(1, 15))]\n        tests.append(fmt(s, x, qs))\n    for L, x, digs in ((500, 61, '0123456789'), (1500, 7, '0123456789'), (2000, 100, '05'), (3000, 96, '24680')):\n        s = ''.join(rng.choice(digs) for _ in range(L))\n        tests.append(fmt(s, x, [rng.randrange(x) for _ in range(2000)]))\n    Q = 2 * 10**5\n    L = 10**4\n    for x, digs in ((100, '0123456789'), (97, '05'), (99, '37'), (100, '0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001')):\n        s = ''.join(rng.choice(digs) for _ in range(L))\n        tests.append(fmt(s, x, [rng.randrange(x) for _ in range(Q)]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef answer_queries(s: str, x: int, queries: List[int]) -> List[bool]:\n    # Write your solution here\n    return [False] * len(queries)\n\n\ndef main():\n    data = sys.stdin.read().split()\n    s = data[0]\n    x = int(data[1])\n    q = int(data[2])\n    queries = [int(v) for v in data[3:3 + q]]\n    res = answer_queries(s, x, queries)\n    print('\\n'.join('YES' if r else 'NO' for r in res))\n\n\nmain()\n",
+  "javascript": "function answerQueries(s, x, queries) {\n  // Write your solution here\n  return queries.map(() => false)\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst s = t[0]\nconst x = Number(t[1])\nconst q = Number(t[2])\nconst queries = []\nfor (let i = 0; i < q; i++) queries.push(Number(t[3 + i]))\nconsole.log(answerQueries(s, x, queries).map(r => (r ? 'YES' : 'NO')).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<bool> answerQueries(const string& s, int x, vector<int>& queries) {\n    // Write your solution here\n    return vector<bool>(queries.size(), false);\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    string s;\n    int x, q;\n    cin >> s >> x >> q;\n    vector<int> queries(q);\n    for (int i = 0; i < q; i++) cin >> queries[i];\n    vector<bool> res = answerQueries(s, x, queries);\n    string out;\n    for (size_t i = 0; i < res.size(); i++) out += res[i] ? \"YES\\n\" : \"NO\\n\";\n    cout << out;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static boolean[] answerQueries(String s, int x, int[] queries) {\n        // Write your solution here\n        return new boolean[queries.length];\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringBuilder all = new StringBuilder();\n        String line;\n        while ((line = br.readLine()) != null) all.append(line).append(' ');\n        StringTokenizer st = new StringTokenizer(all.toString());\n        String s = st.nextToken();\n        int x = Integer.parseInt(st.nextToken());\n        int q = Integer.parseInt(st.nextToken());\n        int[] queries = new int[q];\n        for (int i = 0; i < q; i++) queries[i] = Integer.parseInt(st.nextToken());\n        boolean[] res = answerQueries(s, x, queries);\n        StringBuilder sb = new StringBuilder();\n        for (boolean r : res) sb.append(r ? \"YES\" : \"NO\").append('\\n');\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

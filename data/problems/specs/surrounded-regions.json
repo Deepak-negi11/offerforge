@@ -1,0 +1,48 @@
+{
+ "pid": "surrounded-regions",
+ "title": "Surrounded Regions",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "You are given a board with `r` rows and `c` columns. Every cell holds either `X` or `O`.\n\nTwo `O` cells belong to the same **region** if you can walk from one to the other moving up, down, left or right through `O` cells only (diagonal moves do not count).\n\nA region is **surrounded** if none of its cells lies on the border of the board (the first or last row, or the first or last column). Capture every surrounded region by changing all of its `O` cells to `X`. Regions that touch the border stay untouched, and `X` cells never change.\n\nPrint the board after all captures.",
+ "input_format": "The first line contains two integers `r` and `c`.\nEach of the next `r` lines contains a string of exactly `c` characters, each `X` or `O`.",
+ "output_format": "Print `r` lines of `c` characters: the board after capturing.",
+ "constraints": [
+  "1 ≤ r, c ≤ 60",
+  "Every character of the board is `X` or `O`"
+ ],
+ "examples": [
+  {
+   "input": "4 4\nXXXX\nXOOX\nXXOX\nXOXX",
+   "output": "XXXX\nXXXX\nXXXX\nXOXX",
+   "explanation": "The three `O` cells at (1,1), (1,2) and (2,2) are connected and none is on the border, so they become `X`. The `O` at (3,1) is in the last row, so it stays."
+  },
+  {
+   "input": "3 4\nOXXO\nXOOX\nXXXO",
+   "output": "OXXO\nXXXX\nXXXO",
+   "explanation": "The pair of `O` cells in the middle row is enclosed by `X` cells on every side and touches no border, so it is captured. The three `O` cells on the border columns are untouched."
+  },
+  {
+   "input": "3 3\nXOX\nOXO\nXOX",
+   "output": "XOX\nOXO\nXOX",
+   "explanation": "Every `O` is on the border, so nothing is captured. The only interior cell is an `X`."
+  }
+ ],
+ "complexity": {
+  "time": "O(r · c)",
+  "space": "O(r · c)"
+ },
+ "hints": [
+  "Deciding for each `O` whether it is surrounded by exploring from it is too slow when done for every cell. Reverse the question: which `O` cells are definitely safe?",
+  "Any `O` on the border is safe, and so is every `O` connected to it. Start a flood fill (DFS or BFS) from each border `O`.",
+  "Mark the safe cells during the fill. Afterwards every unmarked `O` becomes `X` and the marked ones stay `O`."
+ ],
+ "reference": "import sys\n\n\ndef main():\n    t = sys.stdin.read().split()\n    r, c = int(t[0]), int(t[1])\n    g = [list(t[2 + i]) for i in range(r)]\n    stack = []\n    for i in range(r):\n        for j in range(c):\n            if (i == 0 or j == 0 or i == r - 1 or j == c - 1) and g[i][j] == 'O':\n                g[i][j] = 'S'\n                stack.append((i, j))\n    while stack:\n        i, j = stack.pop()\n        for a, b in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)):\n            if 0 <= a < r and 0 <= b < c and g[a][b] == 'O':\n                g[a][b] = 'S'\n                stack.append((a, b))\n    out = []\n    for i in range(r):\n        out.append(''.join('O' if ch == 'S' else 'X' for ch in g[i]))\n    print('\\n'.join(out))\n\n\nmain()\n",
+ "brute": "import sys\n\nt = sys.stdin.read().split()\nr, c = int(t[0]), int(t[1])\ng = [t[2 + i] for i in range(r)]\n\n\ndef reaches_border(si, sj):\n    seen = {(si, sj)}\n    todo = [(si, sj)]\n    while todo:\n        i, j = todo.pop()\n        if i == 0 or j == 0 or i == r - 1 or j == c - 1:\n            return True\n        for a, b in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)):\n            if g[a][b] == 'O' and (a, b) not in seen:\n                seen.add((a, b))\n                todo.append((a, b))\n    return False\n\n\nout = []\nfor i in range(r):\n    row = ''\n    for j in range(c):\n        if g[i][j] == 'O' and reaches_border(i, j):\n            row += 'O'\n        else:\n            row += 'X'\n    out.append(row)\nprint('\\n'.join(out))\n",
+ "generator": "def gen(rng):\n    def fmt(g):\n        return str(len(g)) + ' ' + str(len(g[0])) + '\\n' + '\\n'.join(''.join(row) for row in g)\n\n    def rnd(r, c, p):\n        return [['O' if rng.random() < p else 'X' for _ in range(c)] for _ in range(r)]\n\n    tests = [fmt([['O']]), fmt([['X']]), fmt([['O', 'O', 'O']]), fmt([['O'], ['X'], ['O']]),\n             fmt([list('OO'), list('OO')]), fmt([list('XXX'), list('XOX'), list('XXX')]),\n             fmt([list('OOO'), list('OXO'), list('OOO')]), fmt([list('XXXX'), list('XOOX'), list('XXXX')]),\n             fmt([list('XOX'), list('OXO'), list('XOX')])]\n    for r, c in ((2, 5), (3, 3), (3, 4), (4, 4), (4, 6), (5, 5), (6, 6), (7, 5), (8, 8), (5, 9), (9, 5)):\n        for p in (0.4, 0.6, 0.8):\n            tests.append(fmt(rnd(r, c, p)))\n    # enclosed blob in the middle\n    tests.append(fmt([['O' if 0 < i < 6 and 0 < j < 7 else 'X' for j in range(8)] for i in range(7)]))\n\n    # big cases\n    R = C = 60\n    tests.append(fmt([['O'] * C for _ in range(R)]))\n    # X frame with an O interior: nothing touches the border, everything is captured\n    tests.append(fmt([['O' if 0 < i < R - 1 and 0 < j < C - 1 else 'X' for j in range(C)] for i in range(R)]))\n    # enclosed snake of O cells\n    snake = [['X'] * C for _ in range(R)]\n    for i in range(1, R - 1, 2):\n        for j in range(1, C - 1):\n            snake[i][j] = 'O'\n        if i + 2 < R - 1:\n            snake[i + 1][C - 2 if (i // 2) % 2 == 0 else 1] = 'O'\n    tests.append(fmt(snake))\n    # the same snake, but connected to the border at its tail\n    snake2 = [row[:] for row in snake]\n    snake2[1][0] = 'O'\n    tests.append(fmt(snake2))\n    tests.append(fmt(rnd(R, C, 0.6)))\n    tests.append(fmt(rnd(R, C, 0.55)))\n    # nested frames\n    nest = [['X'] * C for _ in range(R)]\n    for k in range(0, 28, 2):\n        for i in range(k, R - k):\n            for j in range(k, C - k):\n                if i in (k, R - 1 - k) or j in (k, C - 1 - k):\n                    nest[i][j] = 'O'\n    tests.append(fmt(nest))\n    tests.append(fmt(rnd(1, 60, 0.5)))\n    tests.append(fmt(rnd(60, 1, 0.5)))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef capture(board: List[str]) -> List[str]:\n    # Write your solution here\n    return board\n\n\ndef main():\n    data = sys.stdin.read().split()\n    r, c = int(data[0]), int(data[1])\n    board = data[2:2 + r]\n    print('\\n'.join(capture(board)))\n\n\nmain()\n",
+  "javascript": "function capture(board) {\n  // Write your solution here\n  return board\n}\n\nconst t = input.split(/\\s+/).filter(Boolean)\nconst r = Number(t[0])\nconst board = t.slice(2, 2 + r)\nconsole.log(capture(board).join('\\n'))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nvector<string> capture(vector<string>& board) {\n    // Write your solution here\n    return board;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int r, c;\n    cin >> r >> c;\n    vector<string> board(r);\n    for (int i = 0; i < r; i++) cin >> board[i];\n    vector<string> res = capture(board);\n    for (size_t i = 0; i < res.size(); i++) cout << res[i] << \"\\n\";\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static String[] capture(String[] board) {\n        // Write your solution here\n        return board;\n    }\n\n    public static void main(String[] args) throws IOException {\n        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n        StringTokenizer st = new StringTokenizer(br.readLine());\n        int r = Integer.parseInt(st.nextToken());\n        int c = Integer.parseInt(st.nextToken());\n        String[] board = new String[r];\n        for (int i = 0; i < r; i++) board[i] = br.readLine().trim();\n        String[] res = capture(board);\n        StringBuilder sb = new StringBuilder();\n        for (String row : res) sb.append(row).append(\"\\n\");\n        System.out.print(sb);\n    }\n}\n"
+ }
+}

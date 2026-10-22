@@ -1,0 +1,19 @@
+{
+ "qid": "66ea0dcc82",
+ "question": "MakeMyTrip SSE-1 backend problem-solving round. You are given a dataset, like a spreadsheet, of travel options between cities covering **flights, buses and trains**, each with source, destination, price and travel time. Given a source and destination, return the **top 5 options by minimum price**, using **minimum travel time to break ties**. Routes may be **direct or have up to 2 intermediate stops**, so you must consider combinations of legs. Then do the same for the **fastest** top 5 by time.\n\nThe discussion covered approaches, how to structure the data, and how to fetch top results efficiently without exploring unnecessary paths. A 2022 SDE-2 round asked a similar connecting-flights search (A to B, A to C to B, or A to C to D to B) with a minimum layover time between flights and flight availability on a given day.",
+ "lookingFor": [
+  "Modelling the problem as a bounded graph search.",
+  "Efficient top-k selection with a heap and a clear ordering.",
+  "Clean data structures: adjacency lists indexed by source.",
+  "Asking about constraints (layover, dates, cycles).",
+  "Complexity analysis and pruning."
+ ],
+ "answer": "**Clarify first.** Do options have departure and arrival times (so layover validity and total elapsed time can be computed), or only a duration? Can the same city repeat? Is the price of a journey the sum of legs? Assume total price is the sum, total time is the sum of leg durations (plus layover waits if timestamps exist), and a journey may not revisit a city.\n\n**Model.** Build an adjacency map `source -> list of legs` (leg: destination, mode, price, time). Each leg is an edge in a directed multigraph. Journeys are paths with at most **3 legs** (0, 1 or 2 intermediate stops).\n\n**Algorithm (bounded DFS).**\n1. Start at the source with an empty path, a visited set, and running price and time.\n2. For each outgoing leg to an unvisited city, extend the path. If the destination is reached, record the journey `(price, time)`.\n3. Stop extending when legs used equals 3.\n4. Keep a **max-heap of size 5** keyed by `(price, time)`; push each complete journey and pop the worst when size exceeds 5. Return the heap sorted ascending.\nRun again with the key `(time, price)` for fastest, or maintain two heaps in the same traversal.\n\n**Complexity.** With average out-degree `d`, DFS visits about `d + d^2 + d^3` paths, so `O(d^3 log 5)`, effectively `O(d^3)`. Since the depth is capped, no Dijkstra is needed; the constraint on stops makes plain search correct.\n\n**Pruning and optimisation.**\n- If the heap already holds 5 journeys, drop any partial path whose running price already exceeds the worst price in the heap (valid because prices are non-negative).\n- Precompute a reverse index `destination -> sources` and run a **meet in the middle**: for 2 stops, join first-leg and last-leg sets through intermediate cities instead of searching blindly.\n- Pre-sort each adjacency list by price to prune early.\n- For repeated queries, cache results by `(source, destination)`.\n\n**Edge cases:** ties, no route, source equals destination, duplicate legs, and if timestamps exist, valid connections need arrival plus minimum layover to be at or before the next departure and flights available on that day.",
+ "followUps": [
+  "How does the solution change if the stop limit is 5 or unbounded?",
+  "How would you add a minimum layover time and date availability?",
+  "How would you serve this at scale with millions of routes?",
+  "Why is a heap better than sorting all journeys?",
+  "Could you use Dijkstra for the cheapest single route, and when would it fail with a stop limit?"
+ ]
+}

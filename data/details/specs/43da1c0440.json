@@ -1,0 +1,19 @@
+{
+ "question": "AMD Senior Software System Designer (about 5 years of experience), round 2 (in person, about 1.5 hours, covering OS, concurrency and coding): the candidate was asked to **implement an LRU cache**, with follow-up questions asked while coding. The same round covered mutex vs semaphore, CPU caches, and sorting an array of 0s and 1s.",
+ "lookingFor": [
+  "Choosing data structures that give O(1) get and put.",
+  "Clean implementation of a hash map plus doubly linked list.",
+  "Handling edge cases and invariants.",
+  "Thread-safety and scaling follow-ups.",
+  "Link to CPU caches and eviction policies."
+ ],
+ "answer": "**Requirements.** A fixed-capacity cache with `get(key)` and `put(key, value)`, both O(1). When capacity is exceeded, evict the **least recently used** entry. A `get` or `put` marks the key most recently used.\n\n**Data structures.** A **hash map** from key to node (O(1) lookup) plus a **doubly linked list** ordered by recency (head = most recent, tail = least recent). The list allows O(1) removal and insertion once you hold the node, which a singly linked list or array cannot do. Use sentinel head and tail nodes to avoid null checks.\n\n**Operations.**\n- `get(k)`: if not in the map, return -1. Otherwise move the node to the head and return its value.\n- `put(k, v)`: if the key exists, update the value and move to head. Otherwise create a node, add to the head and the map; if size exceeds capacity, remove the tail's previous node from the list *and* the map.\n\n```cpp\nclass LRUCache {\n  struct Node { int k, v; Node *prev, *next; };\n  unordered_map<int, Node*> mp; Node *head, *tail; int cap;\n  void unlink(Node* n){ n->prev->next=n->next; n->next->prev=n->prev; }\n  void pushFront(Node* n){ n->next=head->next; n->prev=head;\n                           head->next->prev=n; head->next=n; }\n public:\n  int get(int k){ if(!mp.count(k)) return -1;\n    Node* n=mp[k]; unlink(n); pushFront(n); return n->v; }\n  // put: update-or-insert, then evict tail->prev if mp.size() > cap\n};\n```\n(Alternatively, `std::list` plus `unordered_map<int, list::iterator>`, using `splice` to move a node.)\n\n**Edge cases:** capacity 0 or 1, updating an existing key, deleting the evicted key from the map, freeing memory (no leaks in C++).\n\n**Concurrency.** Even `get` mutates the list, so a plain read-write lock is not enough. Use a single mutex (simple), lock striping across shards (hash the key to N independent caches), or approximate recency (Clock/sampled LRU) to reduce contention.\n\n**Complexity.** O(1) time per operation, O(capacity) space.",
+ "followUps": [
+  "How would you make the cache thread-safe and reduce lock contention?",
+  "How would you add a TTL to entries?",
+  "What other eviction policies exist (LFU, FIFO, Clock) and when would you use them?",
+  "How is this related to CPU caches and their replacement policies?",
+  "How would you implement it using only the C++ standard library containers?"
+ ],
+ "qid": "43da1c0440"
+}

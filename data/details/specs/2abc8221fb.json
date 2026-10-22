@@ -1,0 +1,18 @@
+{
+ "qid": "2abc8221fb",
+ "question": "The first-round technical phone screen (with the hiring manager) for a **Deep Learning Software Engineer (Inference)** role at NVIDIA began with a **deep dive into your CUDA work**: specific kernels, optimisations and challenges. It continued with follow-ups on **model serving** and inference engines like **vLLM**, questions on **your exact contributions**, and a DSA problem (serialize and deserialize a binary tree).\n\nThis write-up covers the technical content: what a strong answer sounds like when discussing CUDA kernel optimisation and LLM serving.",
+ "lookingFor": [
+  "Do you understand GPU execution and memory hierarchy well enough to reason about performance?",
+  "Can you explain why an optimisation helps and how you measured it?",
+  "Do you understand what makes LLM inference slow and what serving engines do about it?",
+  "Can you separate your contribution from existing libraries and frameworks?"
+ ],
+ "answer": "**CUDA kernel discussion: concepts to be ready with.**\n- *Execution model:* grid, blocks, warps of 32 threads, SMs. Warp divergence wastes lanes; occupancy depends on registers and shared memory per block.\n- *Memory hierarchy:* global memory (high latency), L2, shared memory (fast, per block), registers. **Coalesced** global accesses (adjacent threads read adjacent addresses) matter most; avoid shared-memory bank conflicts.\n- *Typical optimisations:* tiling with shared memory (matrix multiply), kernel fusion to avoid round trips to global memory, vectorised loads, using Tensor Cores via mixed precision (FP16/BF16/FP8/INT8), overlapping copies and compute with streams, avoiding atomics.\n- *Method:* establish a baseline, decide if the kernel is **compute-bound or memory-bound** (roofline thinking), profile with Nsight Systems/Nsight Compute, change one thing, verify correctness against a reference, and report numbers.\n\n**LLM serving, the main ideas.**\n- Generation has two phases: *prefill* (process the whole prompt in parallel, compute-bound) and *decode* (one token at a time, usually memory-bandwidth-bound since weights and the KV cache are read each step).\n- The **KV cache** grows with batch size and sequence length and dominates memory. vLLM's *PagedAttention* stores it in fixed-size blocks, reducing fragmentation and allowing sharing across requests.\n- **Continuous (in-flight) batching** adds and removes requests every step instead of waiting for a whole batch, raising throughput.\n- Other techniques: quantisation (weights/KV cache), speculative decoding, tensor parallelism across GPUs, prefix caching, chunked prefill.\n- Metrics: time to first token, inter-token latency, throughput (tokens/s), GPU memory utilisation; the trade-off is latency versus throughput as batch size grows.\n\n**Contributions.** For each item you mention, say exactly what you wrote or changed versus what you used. If you only used vLLM, describe what you configured and measured; if you modified it, explain what and why. Claiming more than you can explain is the fastest way to lose credibility.",
+ "followUps": [
+  "Why is decode memory-bound and how does batching help?",
+  "How would you optimise a softmax or layer-norm kernel?",
+  "What does PagedAttention solve compared to contiguous KV allocation?",
+  "How would you serve a model too large for one GPU?",
+  "How do you choose between latency-optimised and throughput-optimised serving?"
+ ]
+}

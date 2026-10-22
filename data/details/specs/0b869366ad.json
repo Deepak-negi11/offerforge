@@ -1,0 +1,17 @@
+{
+ "qid": "0b869366ad",
+ "question": "In the technical round of a TCS Prime interview (NQT 2025), the interviewer gave two C++ snippets and asked the candidate to **predict the output**. The candidate reported that one snippet was about a **lambda function capturing by reference versus by value**, and the other was about a **static variable**. The exact code was not reported, so the representative versions below show the idea the interviewer was testing.",
+ "lookingFor": [
+  "Do you know capture semantics: when a value capture is copied versus when a reference sees later changes?",
+  "Do you understand static storage duration and one-time initialisation inside a function?",
+  "Can you trace code carefully and state the output with reasons?",
+  "Do you know about `mutable` lambdas and dangling references?"
+ ],
+ "answer": "These are representative snippets (the original code was not reported).\n\n**Snippet 1: lambda capture**\n\n    int x = 10;\n    auto byRef = [&x]() { return x; };\n    auto byVal = [x]()  { return x; };\n    x = 20;\n    cout << byRef() << \" \" << byVal();\n\n**Output: `20 10`.** The by-value lambda copied `x` at the moment the lambda was created (10). The by-reference lambda sees the variable itself, so it returns the updated value (20).\n\nRelated points:\n- A by-value capture is `const` inside the lambda unless the lambda is marked `mutable`; with `mutable`, changes affect only the lambda's own copy, not the original.\n- `[=]` captures everything used by value, `[&]` by reference.\n- A lambda that captures a local by reference and outlives that variable (for example returned from a function) has a **dangling reference** and causes undefined behaviour.\n\n**Snippet 2: static variable**\n\n    void counter() {\n        static int c = 0;\n        c++;\n        cout << c << \" \";\n    }\n    int main() { counter(); counter(); counter(); }\n\n**Output: `1 2 3`.** A `static` local is initialised **once**, the first time control passes through its declaration, and keeps its value for the whole program run. Without `static`, `c` would be recreated as 0 on each call and the output would be `1 1 1`.\n\n**Method for any \"predict the output\" question:**\n1. Mark when each variable is created, copied or modified.\n2. Note storage duration (automatic, static) and capture mode.\n3. Trace line by line and say the result aloud with the reason.",
+ "followUps": [
+  "What changes if the by-value lambda is declared `mutable` and called twice?",
+  "What is the lifetime of a function-level static variable, and is its initialisation thread-safe in C++11?",
+  "Difference between a static member variable and a static local variable?",
+  "What is a dangling reference in a lambda capture?"
+ ]
+}

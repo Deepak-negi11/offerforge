@@ -1,0 +1,50 @@
+{
+ "pid": "network-delay-time",
+ "title": "Fastest Introduction Path in a Network",
+ "difficulty": "Medium",
+ "source_note": "standard",
+ "statement": "A social network has `n` members, each with a distinct integer member id. There are `e` directed follow links. The link `p q t` means member `p` follows member `q`, and a message can be passed from `p` to `q` in exactly `t` units of time. A message only travels along a link in this direction (from the follower to the member being followed), and a member can forward a message at the very moment it arrives.\n\nA JavaScript newbie `A` wants to learn React from the expert `B` and wants to know how fast somebody in the network can introduce him. Find the minimum total time needed for a message sent by `A` to reach `B` by passing along links.\n\n- If `A` and `B` are the same member, the answer is `0`.\n- If `B` cannot be reached from `A`, print `-1`.\n- Several links may connect the same pair of members, and a link may even connect a member to itself.\n\nEvery id appearing in the links, and both `A` and `B`, is one of the `n` member ids.",
+ "input_format": "The first line contains `n`. The second line contains the `n` distinct member ids. The next line contains `e`, followed by `e` lines, each with three integers `p q t`. The last two lines contain `A` and `B`.",
+ "output_format": "Print one integer: the minimum time for a message to travel from `A` to `B`, or `-1` if it is impossible.",
+ "constraints": [
+  "1 ≤ n ≤ 5·10^4",
+  "0 ≤ e ≤ 10^5",
+  "1 ≤ member id ≤ 10^5, all ids distinct",
+  "1 ≤ t ≤ 1000"
+ ],
+ "examples": [
+  {
+   "input": "5\n10 20 30 40 50\n6\n10 20 4\n10 30 1\n30 20 2\n20 40 5\n30 40 9\n40 10 1\n10\n40",
+   "output": "8",
+   "explanation": "The best route is 10 -> 30 -> 20 -> 40 with times 1 + 2 + 5 = 8. The direct hop 30 -> 40 would give 1 + 9 = 10, and going through 20 straight from 10 costs 4 + 5 = 9."
+  },
+  {
+   "input": "3\n7 8 9\n2\n7 8 3\n9 8 1\n7\n9",
+   "output": "-1",
+   "explanation": "Member 9 only has a link going out to 8, and nothing leads to 9, so a message from 7 can never reach 9."
+  },
+  {
+   "input": "2\n5 6\n1\n6 5 2\n5\n5",
+   "output": "0",
+   "explanation": "A and B are the same member, so no time is needed."
+  }
+ ],
+ "complexity": {
+  "time": "O((n + e) log n)",
+  "space": "O(n + e)"
+ },
+ "hints": [
+  "Think of members as nodes and links as weighted directed edges. The question asks for the shortest weighted path from `A` to `B`.",
+  "All times are positive, so Dijkstra's algorithm with a min-heap applies. Map the arbitrary member ids to indices `0..n-1` first.",
+  "You can stop as soon as `B` is popped from the heap. If the heap empties without reaching `B`, the answer is `-1`."
+ ],
+ "reference": "import sys, heapq\n\ndef main():\n    data = sys.stdin.read().split()\n    pos = 0\n    n = int(data[pos]); pos += 1\n    ids = [int(x) for x in data[pos:pos + n]]; pos += n\n    idx = {v: i for i, v in enumerate(ids)}\n    e = int(data[pos]); pos += 1\n    adj = [[] for _ in range(n)]\n    for _ in range(e):\n        p, q, t = int(data[pos]), int(data[pos + 1]), int(data[pos + 2])\n        pos += 3\n        adj[idx[p]].append((idx[q], t))\n    a = idx[int(data[pos])]\n    b = idx[int(data[pos + 1])]\n    INF = float('inf')\n    dist = [INF] * n\n    dist[a] = 0\n    heap = [(0, a)]\n    while heap:\n        d, u = heapq.heappop(heap)\n        if d > dist[u]:\n            continue\n        if u == b:\n            break\n        for v, w in adj[u]:\n            nd = d + w\n            if nd < dist[v]:\n                dist[v] = nd\n                heapq.heappush(heap, (nd, v))\n    print(dist[b] if dist[b] != INF else -1)\n\nmain()\n",
+ "brute": "import sys\n\ndata = sys.stdin.read().split()\npos = 0\nn = int(data[pos]); pos += 1\nids = [int(x) for x in data[pos:pos + n]]; pos += n\ne = int(data[pos]); pos += 1\nedges = []\nfor _ in range(e):\n    edges.append((int(data[pos]), int(data[pos + 1]), int(data[pos + 2])))\n    pos += 3\na = int(data[pos]); b = int(data[pos + 1])\nINF = float('inf')\ndist = {v: INF for v in ids}\ndist[a] = 0\nchanged = True\nwhile changed:\n    changed = False\n    for p, q, t in edges:\n        if dist[p] + t < dist[q]:\n            dist[q] = dist[p] + t\n            changed = True\nprint(dist[b] if dist[b] != INF else -1)\n",
+ "generator": "def gen(rng):\n    def fmt(ids, edges, a, b):\n        lines = [str(len(ids)), ' '.join(map(str, ids)), str(len(edges))]\n        lines += [f'{p} {q} {t}' for p, q, t in edges]\n        lines += [str(a), str(b)]\n        return '\\n'.join(lines)\n\n    tests = [\n        fmt([5], [], 5, 5),\n        fmt([1, 2], [], 1, 2),\n        fmt([1, 2], [(1, 2, 3), (1, 2, 1), (2, 2, 5)], 1, 2),\n        fmt([4, 9], [(9, 4, 2)], 4, 9),\n        fmt([4, 9], [(9, 4, 2)], 9, 4),\n        fmt([3, 8, 20], [(3, 8, 1), (8, 20, 1), (3, 20, 5)], 3, 20),\n        fmt([3, 8, 20], [(3, 8, 1000), (8, 20, 1000), (3, 20, 5)], 3, 20),\n    ]\n    for n in (2, 3, 4, 6, 8, 10, 12):\n        for _ in range(3):\n            ids = rng.sample(range(1, 60), n)\n            e = rng.randint(0, 2 * n)\n            edges = [(rng.choice(ids), rng.choice(ids), rng.randint(1, 20)) for _ in range(e)]\n            tests.append(fmt(ids, edges, rng.choice(ids), rng.choice(ids)))\n\n    LIM = 10 ** 5\n    # large random graph\n    n = 50000\n    ids = rng.sample(range(1, LIM + 1), n)\n    edges = [(rng.choice(ids), rng.choice(ids), rng.randint(1, 1000)) for _ in range(100000)]\n    tests.append(fmt(ids, edges, ids[0], ids[1]))\n    # long chain listed backwards, plus shortcuts that are slightly worse\n    ids = rng.sample(range(1, LIM + 1), n)\n    order = ids[:]\n    rng.shuffle(order)\n    edges = [(order[i], order[i + 1], rng.randint(1, 1000)) for i in range(n - 1)]\n    rng.shuffle(edges)\n    tests.append(fmt(ids, edges, order[0], order[-1]))\n    # large graph with local structure and some back edges\n    ids = rng.sample(range(1, LIM + 1), n)\n    edges = []\n    for i in range(n):\n        for _ in range(2):\n            j = min(n - 1, max(0, i + rng.randint(-50, 50)))\n            edges.append((ids[i], ids[j], rng.randint(1, 1000)))\n    rng.shuffle(edges)\n    tests.append(fmt(ids, edges, ids[0], ids[-1]))\n    return tests\n",
+ "starters": {
+  "python": "import sys\nfrom typing import List\n\n\ndef fastest_path(ids: List[int], p: List[int], q: List[int], t: List[int], a: int, b: int) -> int:\n    # Write your solution here\n    return -1\n\n\ndef main():\n    data = sys.stdin.read().split()\n    pos = 0\n    n = int(data[pos]); pos += 1\n    ids = [int(x) for x in data[pos:pos + n]]; pos += n\n    e = int(data[pos]); pos += 1\n    p, q, t = [], [], []\n    for _ in range(e):\n        p.append(int(data[pos])); q.append(int(data[pos + 1])); t.append(int(data[pos + 2]))\n        pos += 3\n    a = int(data[pos]); b = int(data[pos + 1])\n    print(fastest_path(ids, p, q, t, a, b))\n\n\nmain()\n",
+  "javascript": "function fastestPath(ids, p, q, t, a, b) {\n  // Write your solution here\n  return -1\n}\n\nconst tok = input.split(/\\s+/).filter(Boolean).map(Number)\nlet pos = 0\nconst n = tok[pos++]\nconst ids = []\nfor (let i = 0; i < n; i++) ids.push(tok[pos++])\nconst e = tok[pos++]\nconst p = [], q = [], t = []\nfor (let i = 0; i < e; i++) {\n  p.push(tok[pos++]); q.push(tok[pos++]); t.push(tok[pos++])\n}\nconst a = tok[pos++], b = tok[pos++]\nconsole.log(String(fastestPath(ids, p, q, t, a, b)))\n",
+  "cpp": "#include <bits/stdc++.h>\nusing namespace std;\n\nlong long fastestPath(vector<long long>& ids, vector<long long>& p, vector<long long>& q, vector<long long>& t, long long a, long long b) {\n    // Write your solution here\n    return -1;\n}\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    int n;\n    cin >> n;\n    vector<long long> ids(n);\n    for (int i = 0; i < n; i++) cin >> ids[i];\n    int e;\n    cin >> e;\n    vector<long long> p(e), q(e), t(e);\n    for (int i = 0; i < e; i++) cin >> p[i] >> q[i] >> t[i];\n    long long a, b;\n    cin >> a >> b;\n    cout << fastestPath(ids, p, q, t, a, b) << endl;\n    return 0;\n}\n",
+  "java": "import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    static long fastestPath(long[] ids, long[] p, long[] q, long[] t, long a, long b) {\n        // Write your solution here\n        return -1;\n    }\n\n    public static void main(String[] args) throws IOException {\n        StreamTokenizer in = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));\n        in.nextToken();\n        int n = (int) in.nval;\n        long[] ids = new long[n];\n        for (int i = 0; i < n; i++) { in.nextToken(); ids[i] = (long) in.nval; }\n        in.nextToken();\n        int e = (int) in.nval;\n        long[] p = new long[e], q = new long[e], t = new long[e];\n        for (int i = 0; i < e; i++) {\n            in.nextToken(); p[i] = (long) in.nval;\n            in.nextToken(); q[i] = (long) in.nval;\n            in.nextToken(); t[i] = (long) in.nval;\n        }\n        in.nextToken();\n        long a = (long) in.nval;\n        in.nextToken();\n        long b = (long) in.nval;\n        System.out.println(fastestPath(ids, p, q, t, a, b));\n    }\n}\n"
+ }
+}

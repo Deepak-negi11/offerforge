@@ -1,0 +1,17 @@
+{
+ "qid": "c862c96a94",
+ "question": "In the third technical round for an experienced developer role at SAP Labs, after a project recap, the candidate was asked to **implement an LFU (Least Frequently Used) cache of size k**. Other questions in the round were **what is a Trie** and **an API design question**.",
+ "lookingFor": [
+  "Can you design a data structure with O(1) get and put under eviction rules?",
+  "Do you handle ties (least recently used among equal frequency) correctly?",
+  "Can you combine hash maps and linked lists cleanly?",
+  "Do you know what a Trie is and where it is used?"
+ ],
+ "answer": "**LFU semantics.** `get(key)` returns the value or -1 and counts as a use; `put(key, value)` inserts or updates, evicting the least frequently used key when full. Among keys with the same frequency, evict the **least recently used** one.\n\n**O(1) design**\n- `keyToNode`: hash map from key to `(value, freq)`.\n- `freqToKeys`: hash map from a frequency to an insertion-ordered collection of keys with that frequency (a doubly linked list, or Java's `LinkedHashSet`).\n- `minFreq`: the smallest frequency currently present.\n\n**Operations**\n- *touch(key)*: remove the key from the list of its frequency `f`; if that list is now empty and `f == minFreq`, increment `minFreq`; add the key to the list for `f+1`.\n- *get*: if present, `touch` and return the value.\n- *put*: if present, update the value and `touch`. Else, if the cache is full, remove the oldest key from `freqToKeys[minFreq]` and from `keyToNode`; then insert the new key with frequency 1 and set `minFreq = 1`.\n\n    class LFUCache {\n        int cap, minFreq = 0;\n        Map<Integer, int[]> kv = new HashMap<>();                 // key -> {value, freq}\n        Map<Integer, LinkedHashSet<Integer>> byFreq = new HashMap<>();\n\n        int get(int k) {\n            if (!kv.containsKey(k)) return -1;\n            touch(k); return kv.get(k)[0];\n        }\n        void put(int k, int v) {\n            if (cap == 0) return;\n            if (kv.containsKey(k)) { kv.get(k)[0] = v; touch(k); return; }\n            if (kv.size() == cap) {\n                LinkedHashSet<Integer> s = byFreq.get(minFreq);\n                int old = s.iterator().next(); s.remove(old); kv.remove(old);\n            }\n            kv.put(k, new int[]{v, 1});\n            byFreq.computeIfAbsent(1, x -> new LinkedHashSet<>()).add(k);\n            minFreq = 1;\n        }\n        void touch(int k) {\n            int[] e = kv.get(k); int f = e[1]++;\n            byFreq.get(f).remove(k);\n            if (byFreq.get(f).isEmpty() && minFreq == f) minFreq++;\n            byFreq.computeIfAbsent(f + 1, x -> new LinkedHashSet<>()).add(k);\n        }\n    }\n\nEdge cases: capacity 0, updating an existing key must also count as a use, and a stale `minFreq` is the commonest bug.\n\n**Trie.** A tree where each edge is a character and a path from the root spells a prefix. Insert, search and prefix lookup cost O(length of word), independent of the number of words. Used for autocomplete, spell check and IP routing; the cost is memory.",
+ "followUps": [
+  "How does LFU differ from LRU, and when does LFU perform worse?",
+  "How would you make this cache thread-safe?",
+  "How would you handle the issue that old popular items never get evicted?",
+  "Design the API for a caching service built on this structure."
+ ]
+}

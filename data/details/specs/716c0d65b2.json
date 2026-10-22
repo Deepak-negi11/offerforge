@@ -1,0 +1,19 @@
+{
+ "qid": "716c0d65b2",
+ "question": "In a Paytm SDE-2 system design round (3 years of experience), the candidate was asked to **design a rate limiter**. The round then continued with a **deep dive into the projects on the candidate's resume**, and the candidate was rejected for not being thorough about their resume.\n\nState the question as: design a rate limiter that restricts how many requests a client can make to an API in a time window, and explain how it works across many servers.",
+ "lookingFor": [
+  "Can you scope the problem: whom to limit (user, IP, API key), where the limiter sits, and what to do on rejection?",
+  "Do you know the main algorithms and their trade-offs?",
+  "Can you make it work in a distributed setup with shared state and race-free updates?",
+  "Do you think about failure modes such as Redis down, clock skew and hot keys?",
+  "Can you connect the design to real behavior like HTTP 429 and `Retry-After` headers?"
+ ],
+ "answer": "**Requirements.** Limit each client (user ID, API key, or IP) to N requests per window, with low added latency (a few ms), high availability, and accurate-enough counts across many app servers. Rejected requests get HTTP **429 Too Many Requests** with `Retry-After` and rate-limit headers.\n\n**Where.** In an API gateway or middleware in front of services, so every service benefits. Rules (limit per endpoint, per tier) live in a config store and are cached locally.\n\n**Algorithms.**\n- **Fixed window counter:** a counter per key per window. Simple and cheap, but allows up to twice the limit around a window boundary.\n- **Sliding window log:** store timestamps, exact but memory-heavy.\n- **Sliding window counter:** weighted sum of the current and previous window counts, a good compromise.\n- **Token bucket:** a bucket refills at a fixed rate up to a capacity, and each request takes a token. Allows bursts and is memory-light (two values per key). Common default.\n- **Leaky bucket:** requests enter a queue that drains at a constant rate, which smooths traffic.\n\n**Distributed implementation.** Keep state in **Redis** keyed by client and rule. The check-and-update must be atomic: use a Lua script (or `INCR` with `EXPIRE`) so two servers cannot both read the same count. For token bucket, store `tokens` and `lastRefill` and compute the refill in the script.\n\n**Scaling.** Shard keys across a Redis cluster by client ID. To cut latency and load, a local in-memory counter can allow small bursts and sync to Redis periodically, trading accuracy for speed.\n\n**Failure choices.** If Redis is unreachable, either *fail open* (allow, protect availability) or *fail closed* (protect the backend), depending on the endpoint. Payments might fail closed, a read-only API fail open. Watch for clock differences (use Redis time), and hot keys.\n\n**Beyond the basics.** Different limits per plan, per-endpoint costs, allow-lists, and metrics on rejections so you can tune limits.\n\nResume tip from the report: be ready to explain every project line in depth, including decisions and your own contribution.",
+ "followUps": [
+  "Why can a fixed window counter allow double the limit, and how does a sliding window fix it?",
+  "How do you make the Redis check-and-increment atomic?",
+  "What should happen when the rate limiter service itself fails?",
+  "How do you rate limit by user across multiple data centers?",
+  "Walk me through the hardest technical problem in the project on your resume."
+ ]
+}
