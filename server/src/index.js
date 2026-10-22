@@ -260,7 +260,16 @@ if (existsSync(DIST)) {
     res.setHeader('Content-Security-Policy', csp)
     next()
   })
-  app.use(express.static(DIST, { index: false, maxAge: '1h' }))
+  // Vite's /assets files have content hashes in their names, so they can be cached forever. /data changes on every
+  // deploy without a name change, so browsers revalidate it each time (a cheap 304 when the ETag still matches).
+  app.use(express.static(DIST, {
+    index: false,
+    maxAge: '1h',
+    setHeaders(res, path) {
+      if (path.includes('/assets/')) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+      else if (path.includes('/data/')) res.setHeader('Cache-Control', 'no-cache')
+    },
+  }))
   app.get(/.*/, (_req, res) => res.sendFile(`${DIST}/index.html`))
 }
 

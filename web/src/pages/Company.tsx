@@ -54,11 +54,6 @@ function CompanyView({ company }: { company: Company }) {
   }, [allTrackQs])
   const levelOptions = track === 'fulltime' ? LEVELS.filter((l) => levelCounts.get(l.value || 'none')) : []
   const trackQs = useMemo(() => (exp === 'all' ? allTrackQs : allTrackQs.filter((q) => (q.level || 'none') === exp)), [allTrackQs, exp])
-  const notesByRound = useMemo(() => {
-    const m = new Map<string, Question[]>()
-    for (const q of trackAll) if (q.kind === 'format') m.set(q.round, [...(m.get(q.round) ?? []), q])
-    return m
-  }, [trackAll])
 
   const filtered = useMemo(
     () =>
@@ -307,23 +302,19 @@ function CompanyView({ company }: { company: Company }) {
           ) : view !== 'all' ? (
             <QuestionList questions={filtered} />
           ) : (
-            byRound.map(([round, qs]) => {
-              const notes = notesByRound.get(round) ?? []
-              return (
-                <section key={round} id={`round-${slugify(round)}`} aria-labelledby={`h-${slugify(round)}`} className="scroll-mt-24">
-                  <h2 id={`h-${slugify(round)}`} className="mb-3 flex items-baseline gap-2 text-lg font-semibold tracking-[-0.015em] text-fg">
-                    {round}
-                    <span className="tabular-nums text-sm font-normal text-subtle">{qs.length}</span>
-                  </h2>
-                  {notes.length > 0 && <RoundNotes notes={notes} />}
-                  <div className="rounded-xl border border-line bg-surface px-4 shadow-panel sm:px-5">
-                    {qs.map((q) => (
-                      <QuestionRow key={q.id} q={q} showRound={false} />
-                    ))}
-                  </div>
-                </section>
-              )
-            })
+            byRound.map(([round, qs]) => (
+              <section key={round} id={`round-${slugify(round)}`} aria-labelledby={`h-${slugify(round)}`} className="scroll-mt-24">
+                <h2 id={`h-${slugify(round)}`} className="mb-3 flex items-baseline gap-2 text-lg font-semibold tracking-[-0.015em] text-fg">
+                  {round}
+                  <span className="tabular-nums text-sm font-normal text-subtle">{qs.length}</span>
+                </h2>
+                <div className="rounded-xl border border-line bg-surface px-4 shadow-panel sm:px-5">
+                  {qs.map((q) => (
+                    <QuestionRow key={q.id} q={q} showRound={false} />
+                  ))}
+                </div>
+              </section>
+            ))
           )}
         </div>
 
@@ -365,31 +356,6 @@ function CompanyView({ company }: { company: Company }) {
           )}
         </aside>
       </div>
-    </div>
-  )
-}
-
-function RoundNotes({ notes }: { notes: Question[] }) {
-  const [open, setOpen] = useState(false)
-  const shown = open ? notes : notes.slice(0, 2)
-  return (
-    <div className="mb-3 rounded-xl border border-accent-line/60 bg-accent-soft/60 px-4 py-3">
-      <p className="text-xs font-semibold text-accent-ink">What candidates say about this round</p>
-      <ul className="mt-1.5 space-y-1">
-        {shown.map((n) => (
-          <li key={n.id} className="text-sm leading-relaxed text-fg/85">
-            {n.question}{' '}
-            <a href={n.sources[0].url} target="_blank" rel="noreferrer noopener" className="text-xs text-subtle underline-offset-2 hover:text-accent-ink hover:underline">
-              source
-            </a>
-          </li>
-        ))}
-      </ul>
-      {notes.length > 2 && (
-        <button onClick={() => setOpen((o) => !o)} className="mt-1.5 text-xs font-medium text-accent-ink hover:underline">
-          {open ? 'Show fewer' : `Show ${notes.length - 2} more`}
-        </button>
-      )}
     </div>
   )
 }
