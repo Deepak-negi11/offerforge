@@ -73,5 +73,23 @@ await client.executeMultiple(`
   );
 `)
 
+// Email verification and Google sign-in. Columns are added in place so existing databases keep their rows;
+// existing accounts start unverified and are asked for a code the next time they sign in.
+const userCols = new Set((await db.all('PRAGMA table_info(users)')).map((c) => c.name))
+if (!userCols.has('email_verified')) await db.run('ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0')
+if (!userCols.has('google_sub')) await db.run('ALTER TABLE users ADD COLUMN google_sub TEXT')
+await client.executeMultiple(`
+  CREATE UNIQUE INDEX IF NOT EXISTS users_google_sub ON users(google_sub) WHERE google_sub IS NOT NULL;
+
+  -- One pending code per user; only a hash of the 6-digit code is stored.
+  CREATE TABLE IF NOT EXISTS email_codes (
+    user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    code_hash  TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    attempts   INTEGER NOT NULL DEFAULT 0,
+    sent_at    TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`)
+
 // Drop expired sessions on boot so the table doesn't grow forever.
 await db.run(`DELETE FROM sessions WHERE expires_at < datetime('now')`)

@@ -8,6 +8,7 @@ import { AtlasProvider, useAtlasState } from './lib/data'
 import { CompanyPage } from './pages/Company'
 import { Home } from './pages/Home'
 import { LoadError, Skeleton } from './pages/Misc'
+import { PrivacyPage, TermsPage } from './pages/Legal'
 import { NotFound } from './pages/NotFound'
 import { QuestionsPage } from './pages/Questions'
 import { TopicPage, TopicsPage } from './pages/Topics'
@@ -32,6 +33,8 @@ const router = createBrowserRouter([
       { path: '/topics', element: gate(<TopicsPage />) },
       { path: '/topics/:topic', element: gate(<TopicPage />) },
       { path: '/q/:id', element: gate(<WorkspacePage />) },
+      { path: '/privacy', element: <PrivacyPage /> },
+      { path: '/terms', element: <TermsPage /> },
       { path: '/saved', element: <Navigate to="/" replace /> },
       { path: '*', element: <NotFound /> },
     ],

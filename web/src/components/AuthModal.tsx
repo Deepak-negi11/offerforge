@@ -3,14 +3,19 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAccount } from '../lib/account'
 import { ApiError } from '../lib/api'
+import { GoogleButton } from './GoogleButton'
 import { LogoMark } from './Logo'
 
-type Mode = 'signin' | 'signup'
+type Mode = 'signin' | 'signup' | 'verify'
 
 export function AuthModal({ reason, required, onClose }: { reason?: string; required?: boolean; onClose: () => void }) {
-  const { login, signup } = useAccount()
+  const { login, signup, verify, resendCode, googleSignIn } = useAccount()
   const nav = useNavigate()
   const [mode, setMode] = useState<Mode>('signin')
+  // Email waiting for its code, and whether it came from sign-up (for analytics).
+  const [pending, setPending] = useState<{ email: string; fromSignup: boolean } | null>(null)
+  const [notice, setNotice] = useState('')
+  const [cooldown, setCooldown] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [fields, setFields] = useState<Record<string, string>>({})
@@ -34,6 +39,45 @@ export function AuthModal({ reason, required, onClose }: { reason?: string; requ
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode])
 
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [cooldown])
+
+  const run = async (fn: () => Promise<void>) => {
+    setError('')
+    setNotice('')
+    setBusy(true)
+    try {
+      await fn()
+    } catch (err) {
+      const e2 = err as ApiError
+      setError(e2.message)
+      setFields(e2.fields ?? {})
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const submitCode = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const code = String(new FormData(e.currentTarget).get('code') ?? '').replace(/\D/g, '')
+    if (code.length !== 6) {
+      setFields({ code: 'Enter the 6-digit code from the email.' })
+      return
+    }
+    setFields({})
+    run(() => verify(pending!.email, code, pending!.fromSignup))
+  }
+
+  const resend = () =>
+    run(async () => {
+      await resendCode(pending!.email)
+      setNotice(`We sent a new code to ${pending!.email}.`)
+      setCooldown(60)
+    })
+
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const f = new FormData(e.currentTarget)
@@ -47,22 +91,20 @@ export function AuthModal({ reason, required, onClose }: { reason?: string; requ
     setFields(local)
     setError('')
     if (Object.keys(local).length) return
-    setBusy(true)
-    try {
-      if (mode === 'signin') await login(email, password)
-      else await signup(name, email, password)
-    } catch (err) {
-      const e2 = err as ApiError
-      setError(e2.message)
-      setFields(e2.fields ?? {})
-    } finally {
-      setBusy(false)
-    }
+    await run(async () => {
+      const step = mode === 'signin' ? await login(email, password) : await signup(name, email, password)
+      if (step.verify) {
+        setPending({ email: step.verify, fromSignup: mode === 'signup' })
+        setMode('verify')
+        setCooldown(60)
+      }
+    })
   }
 
   const switchMode = (m: Mode) => {
     setMode(m)
     setError('')
+    setNotice('')
     setFields({})
   }
 
@@ -79,15 +121,52 @@ export function AuthModal({ reason, required, onClose }: { reason?: string; requ
           <div>
             <LogoMark size={36} />
             <h2 id="auth-title" className="mt-4 text-xl font-semibold tracking-[-0.015em] text-fg">
-              {mode === 'signin' ? 'Sign in to continue' : 'Create your account'}
+              {mode === 'verify' ? 'Check your email' : mode === 'signin' ? 'Sign in to continue' : 'Create your account'}
             </h2>
-            <p className="mt-1 text-sm text-muted">{reason ?? 'Create a free OfferForge account to save bookmarks, track solved questions and keep your code.'}</p>
+            <p className="mt-1 text-sm text-muted">
+              {mode === 'verify' ? (
+                <>
+                  We sent a 6-digit code to <span className="font-medium text-fg">{pending?.email}</span>. Enter it to confirm the
+                  email is yours. Check your spam folder if you don't see it.
+                </>
+              ) : (
+                (reason ?? 'Create a free OfferForge account to save bookmarks, track solved questions and keep your code.')
+              )}
+            </p>
           </div>
           <button onClick={close} aria-label="Close" className="grid size-8 shrink-0 place-items-center rounded-lg text-subtle hover:bg-surface-2 hover:text-fg">
             <XIcon size={16} />
           </button>
         </div>
 
+        {mode === 'verify' ? (
+          <form onSubmit={submitCode} noValidate className="mt-5 grid gap-4">
+            <Field ref={firstRef} label="Verification code" name="code" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} error={fields.code} />
+            {notice && <p className="rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-muted">{notice}</p>}
+            {error && (
+              <p role="alert" className="rounded-lg border border-hard/30 bg-hard/10 px-3 py-2 text-sm text-hard">
+                {error}
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={busy}
+              className="flex h-10 items-center justify-center gap-2 rounded-lg bg-accent text-sm font-medium text-accent-fg transition-[background-color,transform] hover:bg-accent-hover active:scale-[0.98] disabled:opacity-70"
+            >
+              {busy && <CircleNotchIcon size={16} className="animate-spin" />}
+              Verify and continue
+            </button>
+            <div className="flex items-center justify-between text-sm">
+              <button type="button" onClick={() => switchMode(pending?.fromSignup ? 'signup' : 'signin')} className="text-muted hover:text-fg">
+                Use a different email
+              </button>
+              <button type="button" onClick={resend} disabled={busy || cooldown > 0} className="font-medium text-accent-ink hover:underline disabled:text-subtle disabled:no-underline">
+                {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <>
         <div role="tablist" aria-label="Account" className="mt-5 grid grid-cols-2 rounded-lg border border-line bg-surface-2 p-0.5">
           {(['signin', 'signup'] as const).map((m) => (
             <button
@@ -102,7 +181,10 @@ export function AuthModal({ reason, required, onClose }: { reason?: string; requ
           ))}
         </div>
 
-        <form onSubmit={submit} noValidate className="mt-5 grid gap-4">
+        <div className="mt-5">
+          <GoogleButton onCredential={(credential) => run(() => googleSignIn(credential))} />
+        </div>
+        <form onSubmit={submit} noValidate className="mt-4 grid gap-4">
           {mode === 'signup' && <Field ref={firstRef} label="Name" name="name" autoComplete="name" error={fields.name} />}
           <Field ref={mode === 'signin' ? firstRef : undefined} label="Email" name="email" type="email" autoComplete="email" error={fields.email} />
           <Field
@@ -133,6 +215,8 @@ export function AuthModal({ reason, required, onClose }: { reason?: string; requ
             {mode === 'signin' ? 'Create an account' : 'Sign in'}
           </button>
         </p>
+          </>
+        )}
       </div>
     </div>
   )
@@ -146,6 +230,8 @@ function Field({
   error,
   hint,
   ref,
+  inputMode,
+  maxLength,
 }: {
   label: string
   name: string
@@ -154,6 +240,8 @@ function Field({
   error?: string
   hint?: string
   ref?: React.Ref<HTMLInputElement>
+  inputMode?: 'numeric'
+  maxLength?: number
 }) {
   const id = `auth-${name}`
   return (
@@ -167,6 +255,8 @@ function Field({
         name={name}
         type={type}
         autoComplete={autoComplete}
+        inputMode={inputMode}
+        maxLength={maxLength}
         spellCheck={false}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? `${id}-err` : hint ? `${id}-hint` : undefined}

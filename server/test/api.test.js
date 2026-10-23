@@ -11,10 +11,14 @@ const [Q1, Q2] = IDS
 const BASE = `http://localhost:${PORT}`
 let proc
 let cookie = ''
+let log = ''
+/** The latest verification code the server "emailed" (in tests it prints codes instead of sending them). */
+const codeFor = (email) => [...log.matchAll(new RegExp(`\\[dev-mail\\] verification code for ${email.replace('.', '\\.')}: (\\d{6})`, 'g'))].at(-1)?.[1]
 
 before(async () => {
   const dir = mkdtempSync(join(tmpdir(), 'atlas-test-'))
   proc = spawn(process.execPath, ['src/index.js'], { env: { ...process.env, NODE_ENV: 'test', PORT: String(PORT), DB_PATH: join(dir, 'test.db') }, stdio: 'pipe' })
+  proc.stdout.on('data', (d) => (log += d))
   for (let i = 0; i < 50; i++) {
     try { if ((await fetch(`${BASE}/api/health`)).ok) return } catch {}
     await new Promise((r) => setTimeout(r, 100))
@@ -40,13 +44,44 @@ test('signup validates fields', async () => {
   assert.ok(r.body.fields.name && r.body.fields.email && r.body.fields.password)
 })
 
-test('signup, me, duplicate email', async () => {
-  const r = await call('POST', '/api/auth/signup', { name: 'Asha', email: 'Asha@Example.com', password: 'correct-horse' })
-  assert.equal(r.status, 201)
-  assert.equal(r.body.user.email, 'asha@example.com')
+test('disposable email domains are rejected', async () => {
+  const r = await call('POST', '/api/auth/signup', { name: 'Temp', email: 'x@mailinator.com', password: 'correct-horse' })
+  assert.equal(r.status, 400)
+  assert.match(r.body.fields.email, /Temporary/)
+})
+
+test('signup needs the emailed code; unverified sign-ups can be replaced; duplicate email', async () => {
+  const r = await call('POST', '/api/auth/signup', { name: 'Squatter', email: 'Asha@Example.com', password: 'squatter-pass' })
+  assert.equal(r.status, 202)
+  assert.deepEqual(r.body, { needsVerification: true, email: 'asha@example.com' })
+  assert.equal((await call('GET', '/api/auth/me')).body.user, null, 'no session before verification')
+  // The real owner signs up later: the unconfirmed account is taken over, and the squatter's code no longer works.
+  const squatterCode = codeFor('asha@example.com')
+  await new Promise((r) => setTimeout(r, 50))
+  assert.equal((await call('POST', '/api/auth/signup', { name: 'Asha', email: 'asha@example.com', password: 'correct-horse' })).status, 202)
+  const code = codeFor('asha@example.com')
+  assert.ok(squatterCode && code)
+  if (squatterCode !== code) assert.equal((await call('POST', '/api/auth/verify', { email: 'asha@example.com', code: squatterCode })).status, 400)
+  assert.equal((await call('POST', '/api/auth/verify', { email: 'asha@example.com', code: code === '000000' ? '000001' : '000000' })).status, 400)
+  const v = await call('POST', '/api/auth/verify', { email: 'asha@example.com', code })
+  assert.equal(v.status, 200)
+  assert.equal(v.body.user.email, 'asha@example.com')
   assert.equal((await call('GET', '/api/auth/me')).body.user.name, 'Asha')
+  assert.equal((await call('POST', '/api/auth/verify', { email: 'asha@example.com', code })).status, 400, 'codes are single-use')
   const dup = await call('POST', '/api/auth/signup', { name: 'A', email: 'asha@example.com', password: 'another-pass' })
   assert.equal(dup.status, 409)
+})
+
+test('login of an unverified account asks for a code instead of signing in', async () => {
+  const saved = cookie
+  cookie = ''
+  assert.equal((await call('POST', '/api/auth/signup', { name: 'Ravi', email: 'ravi@example.org', password: 'ravi-password' })).status, 202)
+  const r = await call('POST', '/api/auth/login', { email: 'ravi@example.org', password: 'ravi-password' })
+  assert.equal(r.status, 200)
+  assert.equal(r.body.needsVerification, true)
+  assert.equal(r.body.user, undefined)
+  assert.equal((await call('GET', '/api/auth/me')).body.user, null)
+  cookie = saved
 })
 
 test('bookmarks, solved and drafts round-trip', async () => {

@@ -9,12 +9,14 @@ import {
   dummyVerify,
   hashPassword,
   rateLimit,
+  destroyUserSessions,
   readCookie,
   sessionCookie,
   userForToken,
   verifyPassword,
 } from './auth.js'
 import { db } from './db.js'
+import { checkCode, emailProblem, GOOGLE_CLIENT_ID, issueCode, VERIFY_EMAIL, verifyGoogleToken } from './verify.js'
 
 const PORT = Number(process.env.PORT ?? 8787)
 const PISTON_URL = process.env.PISTON_URL?.replace(/\/$/, '') // e.g. http://localhost:2000
@@ -97,7 +99,7 @@ app.use('/api', (req, res, next) => {
 
 app.use('/api', async (req, _res, next) => {
   req.token = readCookie(req, COOKIE)
-  req.user = await userForToken(req.token)
+  req.user = await userForToken(req.token, { verifiedOnly: VERIFY_EMAIL })
   next()
 })
 
@@ -113,6 +115,24 @@ const LANGS = new Set(['javascript', 'python', 'cpp', 'java', 'notes'])
 app.get('/api/health', (_req, res) => res.json({ ok: true, runner: Boolean(PISTON_URL) }))
 
 // ---------- auth ----------
+// With email verification on, an email account can't get a session until its owner types the code we email.
+const ALREADY = { error: 'An account with this email already exists. Sign in instead.', fields: { email: 'Already registered.' } }
+
+async function startSession(req, res, user, status = 200, extra = {}) {
+  await destroySession(req.token) // don't leave the previous session behind on this browser
+  res.setHeader('Set-Cookie', sessionCookie(await createSession(user.id)))
+  res.status(status).json({ user: { id: user.id, email: user.email, name: user.name }, ...extra })
+}
+
+/** Sends a code unless one went out in the last minute; caps codes per email and per IP. */
+async function sendVerification(req, user) {
+  if (!rateLimit(`code-ip:${req.ip}`, 20, 60 * 60_000) || !rateLimit(`code:${user.email}`, 5, 60 * 60_000)) return 'limited'
+  const recent = await db.get(`SELECT 1 FROM email_codes WHERE user_id = ? AND sent_at > datetime('now', '-60 seconds') AND expires_at > datetime('now')`, user.id)
+  if (recent) return 'recent'
+  await issueCode(user.id, user.email)
+  return 'sent'
+}
+
 app.post('/api/auth/signup', async (req, res) => {
   if (!rateLimit(`signup:${req.ip}`, 10, 60 * 60_000)) return res.status(429).json({ error: 'Too many sign-up attempts. Try again in an hour.' })
   const name = String(req.body?.name ?? '').trim()
@@ -122,19 +142,39 @@ app.post('/api/auth/signup', async (req, res) => {
   if (!name || name.length > 60) errors.name = 'Enter your name (up to 60 characters).'
   if (!EMAIL.test(email) || email.length > 254) errors.email = 'Enter a valid email address.'
   if (password.length < 8 || password.length > 128) errors.password = 'Use 8 to 128 characters.'
+  if (!errors.email) {
+    const problem = await emailProblem(email)
+    if (problem) errors.email = problem
+  }
   if (Object.keys(errors).length) return res.status(400).json({ error: 'Check the highlighted fields.', fields: errors })
-  if (await db.get('SELECT 1 FROM users WHERE email = ?', email)) {
-    return res.status(409).json({ error: 'An account with this email already exists. Sign in instead.', fields: { email: 'Already registered.' } })
+
+  const existing = await db.get('SELECT id, email, name, email_verified FROM users WHERE email = ?', email)
+  if (existing && (existing.email_verified || !VERIFY_EMAIL)) return res.status(409).json(ALREADY)
+  const hash = await hashPassword(password)
+  let user
+  if (existing) {
+    // Nobody has proved they own this address yet, so a new sign-up replaces the unconfirmed one
+    // (otherwise anyone could squat an email they don't own).
+    await db.run('UPDATE users SET name = ?, password_hash = ? WHERE id = ?', name, hash, existing.id)
+    await destroyUserSessions(existing.id)
+    user = { id: existing.id, email, name }
+  } else {
+    try {
+      const { lastInsertRowid } = await db.run('INSERT INTO users (email, name, password_hash, email_verified) VALUES (?, ?, ?, ?)', email, name, hash, VERIFY_EMAIL ? 0 : 1)
+      user = { id: lastInsertRowid, email, name }
+    } catch (e) {
+      if (String(e.message).includes('UNIQUE')) return res.status(409).json(ALREADY)
+      throw e
+    }
   }
-  let lastInsertRowid
+  if (!VERIFY_EMAIL) return startSession(req, res, user, 201)
   try {
-    ;({ lastInsertRowid } = await db.run('INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)', email, name, await hashPassword(password)))
+    if ((await sendVerification(req, user)) === 'limited') return res.status(429).json({ error: 'Too many codes sent. Try again in an hour.' })
   } catch (e) {
-    if (String(e.message).includes('UNIQUE')) return res.status(409).json({ error: 'An account with this email already exists. Sign in instead.', fields: { email: 'Already registered.' } })
-    throw e
+    console.error(`verification email failed: ${e.message}`)
+    return res.status(502).json({ error: "We couldn't send the verification email. Try again in a minute." })
   }
-  res.setHeader('Set-Cookie', sessionCookie(await createSession(lastInsertRowid)))
-  res.status(201).json({ user: { id: lastInsertRowid, email, name } })
+  res.status(202).json({ needsVerification: true, email })
 })
 
 app.post('/api/auth/login', async (req, res) => {
@@ -145,12 +185,79 @@ app.post('/api/auth/login', async (req, res) => {
   if (!rateLimit(`login-ip:${req.ip}`, 30, 15 * 60_000) || !rateLimit(`login:${req.ip}:${email}`, 8, 15 * 60_000)) {
     return res.status(429).json({ error: 'Too many attempts. Wait 15 minutes and try again.' })
   }
-  const row = await db.get('SELECT id, email, name, password_hash FROM users WHERE email = ?', email)
+  const row = await db.get('SELECT id, email, name, password_hash, email_verified, google_sub FROM users WHERE email = ?', email)
   const ok = row ? await verifyPassword(password, row.password_hash) : (await dummyVerify(password), false)
-  if (!ok) return res.status(401).json({ error: 'Email or password is incorrect.' })
-  await destroySession(req.token) // don't leave the previous session behind on this browser
-  res.setHeader('Set-Cookie', sessionCookie(await createSession(row.id)))
-  res.json({ user: { id: row.id, email: row.email, name: row.name } })
+  if (!ok) {
+    if (row?.google_sub && !row.password_hash.startsWith('scrypt$')) return res.status(401).json({ error: 'This account uses Google. Use "Continue with Google".' })
+    return res.status(401).json({ error: 'Email or password is incorrect.' })
+  }
+  if (VERIFY_EMAIL && !row.email_verified) {
+    try {
+      if ((await sendVerification(req, row)) === 'limited') return res.status(429).json({ error: 'Too many codes sent. Try again in an hour.' })
+    } catch (e) {
+      console.error(`verification email failed: ${e.message}`)
+      return res.status(502).json({ error: "We couldn't send the verification email. Try again in a minute." })
+    }
+    return res.json({ needsVerification: true, email: row.email })
+  }
+  await startSession(req, res, row)
+})
+
+app.post('/api/auth/verify', async (req, res) => {
+  const email = String(req.body?.email ?? '').trim().toLowerCase()
+  const code = String(req.body?.code ?? '').replace(/\s/g, '')
+  if (!rateLimit(`verify-ip:${req.ip}`, 30, 15 * 60_000)) return res.status(429).json({ error: 'Too many attempts. Wait 15 minutes and try again.' })
+  const row = email.length <= 254 ? await db.get('SELECT id, email, name, email_verified FROM users WHERE email = ?', email) : null
+  if (!row) return res.status(400).json({ error: 'That code is wrong or has expired.' })
+  if (row.email_verified) return res.status(400).json({ error: 'This email is already verified. Sign in instead.' })
+  const result = await checkCode(row.id, code)
+  if (result === 'locked') return res.status(400).json({ error: 'Too many wrong codes. Send a new code.' })
+  if (result === 'expired') return res.status(400).json({ error: 'That code has expired. Send a new code.' })
+  if (result === 'wrong') return res.status(400).json({ error: 'That code is wrong. Check the email and try again.' })
+  await db.run('UPDATE users SET email_verified = 1 WHERE id = ?', row.id)
+  await startSession(req, res, row)
+})
+
+app.post('/api/auth/resend', async (req, res) => {
+  const email = String(req.body?.email ?? '').trim().toLowerCase()
+  const row = email.length <= 254 ? await db.get('SELECT id, email, email_verified FROM users WHERE email = ?', email) : null
+  if (!row || row.email_verified) return res.json({ ok: true }) // nothing to send; don't reveal more
+  try {
+    const r = await sendVerification(req, row)
+    if (r === 'limited') return res.status(429).json({ error: 'Too many codes sent. Try again in an hour.' })
+    if (r === 'recent') return res.status(429).json({ error: 'A code was sent less than a minute ago. Check your inbox and spam folder.' })
+  } catch (e) {
+    console.error(`verification email failed: ${e.message}`)
+    return res.status(502).json({ error: "We couldn't send the email. Try again in a minute." })
+  }
+  res.json({ ok: true })
+})
+
+app.post('/api/auth/google', async (req, res) => {
+  if (!GOOGLE_CLIENT_ID) return res.status(404).json({ error: 'Google sign-in is not set up.' })
+  if (!rateLimit(`google:${req.ip}`, 30, 15 * 60_000)) return res.status(429).json({ error: 'Too many attempts. Wait 15 minutes and try again.' })
+  let g
+  try {
+    g = await verifyGoogleToken(String(req.body?.credential ?? ''))
+  } catch {
+    return res.status(401).json({ error: 'Google sign-in failed. Try again.' })
+  }
+  let user = await db.get('SELECT id, email, name FROM users WHERE google_sub = ?', g.sub)
+  if (user) return startSession(req, res, user)
+  const byEmail = await db.get('SELECT id, email, name, email_verified FROM users WHERE email = ?', g.email)
+  if (byEmail) {
+    // Google has proved this person owns the address. If it was never verified, someone else may have chosen the
+    // password, so it stops working and old sessions end; a verified account keeps its password.
+    if (byEmail.email_verified) await db.run('UPDATE users SET google_sub = ? WHERE id = ?', g.sub, byEmail.id)
+    else {
+      await db.run(`UPDATE users SET google_sub = ?, email_verified = 1, password_hash = '!' WHERE id = ?`, g.sub, byEmail.id)
+      await destroyUserSessions(byEmail.id)
+    }
+    return startSession(req, res, byEmail)
+  }
+  const name = g.name || g.email.split('@')[0]
+  const { lastInsertRowid } = await db.run(`INSERT INTO users (email, name, password_hash, email_verified, google_sub) VALUES (?, ?, '!', 1, ?)`, g.email, name, g.sub)
+  await startSession(req, res, { id: lastInsertRowid, email: g.email, name }, 201, { created: true })
 })
 
 app.post('/api/auth/logout', async (req, res) => {
@@ -160,6 +267,7 @@ app.post('/api/auth/logout', async (req, res) => {
 })
 
 app.get('/api/auth/me', (req, res) => res.json({ user: req.user }))
+app.get('/api/auth/config', (_req, res) => res.json({ googleClientId: GOOGLE_CLIENT_ID || null, verifyEmail: VERIFY_EMAIL }))
 
 // ---------- progress ----------
 app.get('/api/progress', requireUser, async (req, res) => {
@@ -269,14 +377,16 @@ if (existsSync(DIST)) {
   const html = readFileSync(`${DIST}/index.html`, 'utf8')
   const inline = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => `'sha256-${createHash('sha256').update(m[1]).digest('base64')}'`)
   const CDN = 'https://cdn.jsdelivr.net'
+  const GSI = 'https://accounts.google.com/gsi/' // "Continue with Google" button (Google Identity Services)
   const csp = [
     "default-src 'self'",
-    `script-src 'self' ${inline.join(' ')} ${CDN} 'wasm-unsafe-eval' 'unsafe-eval'`,
+    `script-src 'self' ${inline.join(' ')} ${CDN} ${GSI}client 'wasm-unsafe-eval' 'unsafe-eval'`,
     "worker-src 'self' blob:",
-    `style-src 'self' 'unsafe-inline' ${CDN}`,
+    `style-src 'self' 'unsafe-inline' ${CDN} ${GSI}style`,
     `font-src 'self' data: ${CDN}`,
-    "img-src 'self' data: https://cdn.simpleicons.org",
-    `connect-src 'self' ${CDN} https://api.github.com`,
+    "img-src 'self' data: https://cdn.simpleicons.org https://*.googleusercontent.com",
+    `frame-src ${GSI}`,
+    `connect-src 'self' ${CDN} https://api.github.com ${GSI}`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

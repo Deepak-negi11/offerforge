@@ -49,13 +49,18 @@ export async function destroySession(token) {
   if (token) await db.run('DELETE FROM sessions WHERE token_hash = ?', sha256(token))
 }
 
-export async function userForToken(token) {
+/** The signed-in user for a session token. With `verifiedOnly`, sessions of unverified accounts don't count. */
+export async function userForToken(token, { verifiedOnly = false } = {}) {
   if (!token) return null
   return db.get(
     `SELECT u.id, u.email, u.name FROM sessions s JOIN users u ON u.id = s.user_id
-     WHERE s.token_hash = ? AND s.expires_at > datetime('now')`,
+     WHERE s.token_hash = ? AND s.expires_at > datetime('now') ${verifiedOnly ? 'AND u.email_verified = 1' : ''}`,
     sha256(token),
   )
+}
+
+export async function destroyUserSessions(userId) {
+  await db.run('DELETE FROM sessions WHERE user_id = ?', userId)
 }
 
 export function readCookie(req, name) {

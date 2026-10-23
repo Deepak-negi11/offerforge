@@ -223,6 +223,14 @@ function Footer() {
             Deepak
           </a>
         </p>
+        <nav aria-label="Legal" className="flex gap-4 text-xs text-subtle">
+          <Link to="/privacy" className="hover:text-fg">
+            Privacy
+          </Link>
+          <Link to="/terms" className="hover:text-fg">
+            Terms
+          </Link>
+        </nav>
       </div>
     </footer>
   )

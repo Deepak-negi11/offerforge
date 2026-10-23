@@ -10,6 +10,8 @@ export interface User {
 }
 
 type Status = 'loading' | 'anonymous' | 'signed-in'
+export type AuthStep = { verify?: string }
+type AuthReply = { user?: User; needsVerification?: boolean; email?: string; created?: boolean }
 type Kind = 'bookmarks' | 'solved'
 
 interface AccountCtx {
@@ -18,8 +20,12 @@ interface AccountCtx {
   bookmarks: Set<string>
   solved: Set<string>
   toggle: (kind: Kind, id: string) => void
-  login: (email: string, password: string) => Promise<void>
-  signup: (name: string, email: string, password: string) => Promise<void>
+  /** Resolve to `{ verify: email }` when the account must confirm its email with a code first. */
+  login: (email: string, password: string) => Promise<AuthStep>
+  signup: (name: string, email: string, password: string) => Promise<AuthStep>
+  verify: (email: string, code: string, isSignup: boolean) => Promise<void>
+  resendCode: (email: string) => Promise<void>
+  googleSignIn: (credential: string) => Promise<void>
   logout: () => Promise<void>
   /** Opens the sign-in dialog. `required` dialogs send the user home if dismissed. */
   requestAuth: (opts?: { reason?: string; required?: boolean }) => void
@@ -87,12 +93,30 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       solved,
       toggle,
       login: async (email, password) => {
-        await signIn((await api<{ user: User }>('/auth/login', { body: { email, password } })).user)
-        track('logged_in')
+        const r = await api<AuthReply>('/auth/login', { body: { email, password } })
+        if (r.needsVerification) return { verify: r.email }
+        await signIn(r.user!)
+        track('logged_in', { method: 'email' })
+        return {}
       },
       signup: async (name, email, password) => {
-        await signIn((await api<{ user: User }>('/auth/signup', { body: { name, email, password } })).user)
-        track('signed_up')
+        const r = await api<AuthReply>('/auth/signup', { body: { name, email, password } })
+        if (r.needsVerification) return { verify: r.email }
+        await signIn(r.user!)
+        track('signed_up', { method: 'email' })
+        return {}
+      },
+      verify: async (email, code, isSignup) => {
+        await signIn((await api<AuthReply>('/auth/verify', { body: { email, code } })).user!)
+        track(isSignup ? 'signed_up' : 'logged_in', { method: 'email' })
+      },
+      resendCode: async (email) => {
+        await api('/auth/resend', { body: { email } })
+      },
+      googleSignIn: async (credential) => {
+        const r = await api<AuthReply>('/auth/google', { body: { credential } })
+        await signIn(r.user!)
+        track(r.created ? 'signed_up' : 'logged_in', { method: 'google' })
       },
       logout: async () => {
         await api('/auth/logout', { body: {} }).catch(() => {})
