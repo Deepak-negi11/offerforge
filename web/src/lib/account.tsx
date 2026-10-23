@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { AuthModal } from '../components/AuthModal'
+import { identify, resetIdentity, track } from './analytics'
 import { api } from './api'
 
 export interface User {
@@ -41,6 +42,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     async (u: User) => {
+      identify(u.id)
       setUser(u)
       setStatus('signed-in')
       setModal(null)
@@ -84,10 +86,18 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       bookmarks,
       solved,
       toggle,
-      login: async (email, password) => signIn((await api<{ user: User }>('/auth/login', { body: { email, password } })).user),
-      signup: async (name, email, password) => signIn((await api<{ user: User }>('/auth/signup', { body: { name, email, password } })).user),
+      login: async (email, password) => {
+        await signIn((await api<{ user: User }>('/auth/login', { body: { email, password } })).user)
+        track('logged_in')
+      },
+      signup: async (name, email, password) => {
+        await signIn((await api<{ user: User }>('/auth/signup', { body: { name, email, password } })).user)
+        track('signed_up')
+      },
       logout: async () => {
         await api('/auth/logout', { body: {} }).catch(() => {})
+        track('logged_out')
+        resetIdentity()
         setUser(null)
         setStatus('anonymous')
         setBookmarks(new Set())

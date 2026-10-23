@@ -47,6 +47,32 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/api')) res.setHeader('Cache-Control', 'no-store')
   next()
 })
+// ---------- analytics proxy ----------
+// PostHog events are sent to /ingest on our own domain and forwarded here, so ad blockers (Brave blocks
+// *.posthog.com) don't drop them and the CSP stays 'self'. Mounted before express.json: bodies are passed through raw.
+const POSTHOG = process.env.POSTHOG_REGION === 'eu'
+  ? { api: 'https://eu.i.posthog.com', assets: 'https://eu-assets.i.posthog.com' }
+  : { api: 'https://us.i.posthog.com', assets: 'https://us-assets.i.posthog.com' }
+app.use('/ingest', express.raw({ type: () => true, limit: '2mb' }), async (req, res) => {
+  if (!rateLimit(`ingest:${req.ip}`, 600, 60_000)) return res.status(429).end()
+  const target = (req.path.startsWith('/static/') ? POSTHOG.assets : POSTHOG.api) + req.originalUrl.slice('/ingest'.length)
+  const headers = { 'user-agent': req.headers['user-agent'] ?? '', 'x-forwarded-for': req.ip ?? '' }
+  if (req.headers['content-type']) headers['content-type'] = req.headers['content-type']
+  try {
+    const r = await fetch(target, {
+      method: req.method,
+      headers,
+      body: req.method === 'GET' || req.method === 'HEAD' || !req.body?.length ? undefined : req.body,
+      signal: AbortSignal.timeout(10_000),
+    })
+    res.status(r.status)
+    for (const h of ['content-type', 'cache-control']) if (r.headers.get(h)) res.setHeader(h, r.headers.get(h))
+    res.send(Buffer.from(await r.arrayBuffer()))
+  } catch {
+    res.status(502).end()
+  }
+})
+
 app.use(express.json({ limit: '256kb' }))
 
 // CSRF: the session cookie is SameSite=Lax, and every state-changing request must be JSON
