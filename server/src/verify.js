@@ -3,7 +3,6 @@
 import { createHash, randomInt } from 'node:crypto'
 import { Resolver } from 'node:dns/promises'
 import { createRequire } from 'node:module'
-import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { db } from './db.js'
 
 const IS_PROD = process.env.NODE_ENV === 'production'
@@ -96,14 +95,21 @@ export async function emailProblem(email) {
 const NO_MAIL = "This email domain can't receive mail. Check for a typo."
 
 // ---------- Google ----------
-const GOOGLE_JWKS = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'))
-
-/** Verifies a Google ID token (the `credential` from Google Identity Services) and returns its identity. */
-export async function verifyGoogleToken(credential) {
-  const { payload } = await jwtVerify(credential, GOOGLE_JWKS, {
-    issuer: ['https://accounts.google.com', 'accounts.google.com'],
-    audience: GOOGLE_CLIENT_ID,
-  })
-  if (!payload.sub || !payload.email || payload.email_verified !== true) throw new Error('Google account email is not verified')
-  return { sub: String(payload.sub), email: String(payload.email).toLowerCase(), name: String(payload.name ?? payload.given_name ?? '').slice(0, 60) }
+/**
+ * Checks a Google OAuth access token from the sign-in popup and returns the account it belongs to. Google's tokeninfo
+ * must confirm the token was issued to OUR client id (so a token minted for another app can't be replayed here), and
+ * the userinfo endpoint supplies the verified email and name.
+ */
+export async function verifyGoogleAccessToken(accessToken) {
+  if (!/^[\w.\-~+/]{20,4096}={0,2}$/.test(accessToken)) throw new Error('malformed token')
+  const opts = { signal: AbortSignal.timeout(8000) }
+  const info = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(accessToken)}`, opts)
+  if (!info.ok) throw new Error('token rejected by Google')
+  const t = await info.json()
+  if (t.aud !== GOOGLE_CLIENT_ID && t.azp !== GOOGLE_CLIENT_ID) throw new Error('token was issued to another app')
+  const ui = await fetch('https://openidconnect.googleapis.com/v1/userinfo', { ...opts, headers: { Authorization: `Bearer ${accessToken}` } })
+  if (!ui.ok) throw new Error('userinfo failed')
+  const u = await ui.json()
+  if (!u.sub || u.sub !== t.sub || !u.email || u.email_verified !== true) throw new Error('Google account email is not verified')
+  return { sub: String(u.sub), email: String(u.email).toLowerCase(), name: String(u.name ?? u.given_name ?? '').slice(0, 60) }
 }

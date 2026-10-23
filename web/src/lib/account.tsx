@@ -25,7 +25,7 @@ interface AccountCtx {
   signup: (name: string, email: string, password: string) => Promise<AuthStep>
   verify: (email: string, code: string, isSignup: boolean) => Promise<void>
   resendCode: (email: string) => Promise<void>
-  googleSignIn: (credential: string) => Promise<void>
+  googleSignIn: (accessToken: string) => Promise<void>
   logout: () => Promise<void>
   /** Opens the sign-in dialog. `required` dialogs send the user home if dismissed. */
   requestAuth: (opts?: { reason?: string; required?: boolean }) => void
@@ -113,8 +113,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       resendCode: async (email) => {
         await api('/auth/resend', { body: { email } })
       },
-      googleSignIn: async (credential) => {
-        const r = await api<AuthReply>('/auth/google', { body: { credential } })
+      googleSignIn: async (accessToken) => {
+        const r = await api<AuthReply>('/auth/google', { body: { accessToken } })
         await signIn(r.user!)
         track(r.created ? 'signed_up' : 'logged_in', { method: 'google' })
       },

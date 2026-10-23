@@ -182,7 +182,7 @@ export function AuthModal({ reason, required, onClose }: { reason?: string; requ
         </div>
 
         <div className="mt-5">
-          <GoogleButton onCredential={(credential) => run(() => googleSignIn(credential))} />
+          <GoogleButton disabled={busy} onAccessToken={(token) => run(() => googleSignIn(token))} />
         </div>
         <form onSubmit={submit} noValidate className="mt-4 grid gap-4">
           {mode === 'signup' && <Field ref={firstRef} label="Name" name="name" autoComplete="name" error={fields.name} />}

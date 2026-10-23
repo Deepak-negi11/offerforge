@@ -16,7 +16,7 @@ import {
   verifyPassword,
 } from './auth.js'
 import { db } from './db.js'
-import { checkCode, emailProblem, GOOGLE_CLIENT_ID, issueCode, VERIFY_EMAIL, verifyGoogleToken } from './verify.js'
+import { checkCode, emailProblem, GOOGLE_CLIENT_ID, issueCode, VERIFY_EMAIL, verifyGoogleAccessToken } from './verify.js'
 
 const PORT = Number(process.env.PORT ?? 8787)
 const PISTON_URL = process.env.PISTON_URL?.replace(/\/$/, '') // e.g. http://localhost:2000
@@ -238,7 +238,7 @@ app.post('/api/auth/google', async (req, res) => {
   if (!rateLimit(`google:${req.ip}`, 30, 15 * 60_000)) return res.status(429).json({ error: 'Too many attempts. Wait 15 minutes and try again.' })
   let g
   try {
-    g = await verifyGoogleToken(String(req.body?.credential ?? ''))
+    g = await verifyGoogleAccessToken(String(req.body?.accessToken ?? ''))
   } catch {
     return res.status(401).json({ error: 'Google sign-in failed. Try again.' })
   }
